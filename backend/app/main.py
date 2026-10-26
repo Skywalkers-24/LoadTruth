@@ -40,14 +40,16 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # Interim SQLite: create tables from ORM metadata and seed the demo tenant.
     # Tests provide their own isolated DB via a dependency override, so they set
     # LOADTRUTH_SKIP_STARTUP_DB=1 to skip touching the on-disk file DB.
+    # Create tables (SQLite and local Docker Postgres) and seed the demo tenant.
+    # Tests provide their own isolated DB via a dependency override, so they set
+    # LOADTRUTH_SKIP_STARTUP_DB=1 to skip touching the real DB.
     if os.environ.get("LOADTRUTH_SKIP_STARTUP_DB") != "1":
         from app.db.engine import get_sessionmaker, init_db
         from app.tickets.seed import seed_demo
 
         await init_db()
-        if settings.is_sqlite:
-            async with get_sessionmaker()() as session:
-                await seed_demo(session)
+        async with get_sessionmaker()() as session:
+            await seed_demo(session)
     yield
     log.info("shutdown")
 

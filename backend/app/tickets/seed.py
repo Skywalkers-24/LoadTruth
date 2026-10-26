@@ -1,16 +1,21 @@
-"""Demo tenant seed — the §5b labeled scenarios, written into the database.
+"""Demo tenant seed — loaded from a single declarative `seed.json`.
 
-One tenant, one event, a certified-truck registry, and a spread of tickets that
-exercise every review-console state (clean confirmable, low-confidence review,
-anomaly flags, and the over-call that produces the money frame). Seeding is
-idempotent: it no-ops if the demo event already exists. Clearly-labeled sample
-data, not real haul records.
+One file (`backend/seed.json`) describes the whole demo: the tenant, the event
+and its rate table, the certified-truck registry, connected sources, and a
+spread of tickets (with anomalies) that exercise every surface — the dashboard
+money frame, every review-console state, and the reports breakdowns. Editing the
+data is a JSON change, not a code change.
+
+Seeding is idempotent: it no-ops if the demo event already exists. Clearly-
+labeled sample data, not real haul records.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from decimal import Decimal
+import json
+from functools import lru_cache
+from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -19,246 +24,126 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import models
 from app.tickets.domain import new_ticket
 from app.tickets.repository import set_seed_accuracy
-from app.tickets.schemas import DebrisClass, SourceKind, SourceStatus, TicketStatus
+from app.tickets.schemas import DebrisClass
 
-DEMO_TENANT_ID = UUID("11111111-1111-1111-1111-111111111111")
-DEMO_EVENT_ID = UUID("22222222-2222-2222-2222-222222222222")
-
-_RATE_TABLE = {
-    DebrisClass.VEGETATIVE.value: 8.0,
-    DebrisClass.CONSTRUCTION_DEMOLITION.value: 12.0,
-    DebrisClass.WHITE_GOODS.value: 20.0,
-    DebrisClass.HAZARDOUS.value: 45.0,
-    DebrisClass.OTHER.value: 6.0,
-}
-
-_TRUCKS = [
-    ("FL-DT-3391", "tandem", Decimal(20)),
-    ("FL-DT-1182", "tandem", Decimal(30)),
-    ("FL-DT-2204", "tandem", Decimal(25)),
-    ("FL-DT-4417", "walking-floor", Decimal(30)),
-    ("FL-DT-5590", "roll-off", Decimal(15)),
-]
+_SEED_PATH = Path(__file__).resolve().parents[2] / "seed.json"
 
 
-@dataclass(frozen=True, slots=True)
-class _TicketSpec:
-    debris_class: DebrisClass
-    cert: int
-    rate: int
-    est: int
-    mon: int | None
-    truck: str
-    frames: list[str]
-    status: TicketStatus
+@lru_cache
+def _seed_data() -> dict[str, Any]:
+    raw: dict[str, Any] = json.loads(_SEED_PATH.read_text(encoding="utf-8"))
+    return {k: v for k, v in raw.items() if not k.startswith("_")}
 
 
-_SPECS: list[_TicketSpec] = [
-    # 🚩 money frame: monitor over-called 80% vs LoadTruth 62% -> $43.20.
-    _TicketSpec(
-        DebrisClass.CONSTRUCTION_DEMOLITION,
-        20,
-        12,
-        62,
-        80,
-        "FL-DT-3391",
-        ["frame_0042.jpg", "frame_0051.jpg"],
-        TicketStatus.DRAFT,
-    ),
-    # ✅ clean full load, monitor agrees.
-    _TicketSpec(
-        DebrisClass.VEGETATIVE,
-        30,
-        8,
-        90,
-        90,
-        "FL-DT-1182",
-        ["frame_0110.jpg"],
-        TicketStatus.CONFIRMED,
-    ),
-    # ✅ clean partial load, monitor agrees.
-    _TicketSpec(
-        DebrisClass.VEGETATIVE,
-        25,
-        8,
-        40,
-        40,
-        "FL-DT-2204",
-        ["frame_0205.jpg"],
-        TicketStatus.CONFIRMED,
-    ),
-    # ⚠️ low-confidence placard, still a draft, no monitor call.
-    _TicketSpec(
-        DebrisClass.CONSTRUCTION_DEMOLITION,
-        18,
-        12,
-        55,
-        None,
-        "FL-DT-07??",
-        ["frame_0303.jpg"],
-        TicketStatus.DRAFT,
-    ),
-    # 🚩 hollow/fluffed load.
-    _TicketSpec(
-        DebrisClass.VEGETATIVE,
-        30,
-        8,
-        35,
-        75,
-        "FL-DT-4417",
-        ["frame_0410.jpg", "frame_0418.jpg"],
-        TicketStatus.DRAFT,
-    ),
-    # 🚩 white goods, capacity mismatch, monitor over-called.
-    _TicketSpec(
-        DebrisClass.WHITE_GOODS,
-        15,
-        20,
-        70,
-        100,
-        "FL-DT-5590",
-        ["frame_0512.jpg"],
-        TicketStatus.DRAFT,
-    ),
-]
+# Stable ids the frontend and tests reference directly (single seeded tenant).
+DEMO_TENANT_ID = UUID(str(_seed_data()["tenant_id"]))
+DEMO_EVENT_ID = UUID(str(_seed_data()["event"]["id"]))
 
 
-def _seed_tickets() -> list[models.Ticket]:
-    t, e = DEMO_TENANT_ID, DEMO_EVENT_ID
-    rows: list[models.Ticket] = []
-    for s in _SPECS:
+def _build_ticket_rows(
+    tenant_id: UUID, event_id: UUID
+) -> tuple[list[models.Ticket], list[models.Anomaly]]:
+    """Materialize ticket + anomaly ORM rows from the JSON ticket specs."""
+    tickets: list[models.Ticket] = []
+    anomalies: list[models.Anomaly] = []
+    for spec in _seed_data()["tickets"]:
         dom = new_ticket(
-            tenant_id=t,
-            event_id=e,
-            debris_class=s.debris_class,
-            certified_cubic_yards=s.cert,
-            rate_per_cy=s.rate,
-            est_fill_pct=s.est,
-            monitor_call_fill_pct=s.mon,
-            truck_id=s.truck,
-            evidence_frames=s.frames,
+            tenant_id=tenant_id,
+            event_id=event_id,
+            debris_class=DebrisClass(spec["debris_class"]),
+            certified_cubic_yards=spec["certified_cubic_yards"],
+            rate_per_cy=spec["rate_per_cy"],
+            est_fill_pct=spec["est_fill_pct"],
+            monitor_call_fill_pct=spec.get("monitor_fill_pct"),
+            truck_id=spec.get("truck_id"),
+            evidence_frames=list(spec.get("evidence_frames", [])),
         )
-        confirmed = dom.monitor_call_fill_pct if s.status is TicketStatus.CONFIRMED else None
-        rows.append(
-            models.Ticket(
-                id=dom.id,
-                tenant_id=t,
-                event_id=e,
-                truck_id=dom.truck_id,
-                certified_cubic_yards=dom.certified_cubic_yards,
-                debris_class=dom.debris_class.value,
-                rate_per_cy=dom.rate_per_cy,
-                est_fill_pct=dom.est_fill_pct,
-                est_cubic_yards=dom.est_cubic_yards,
-                est_dollar_value=dom.est_dollar_value,
-                monitor_call_fill_pct=dom.monitor_call_fill_pct,
-                monitor_cubic_yards=dom.monitor_cubic_yards,
-                monitor_dollar_value=dom.monitor_dollar_value,
-                delta_cubic_yards=dom.delta_cubic_yards,
-                delta_dollar_value=dom.delta_dollar_value,
-                status=s.status.value,
-                confirmed_fill_pct=confirmed,
-                evidence_frames=list(dom.evidence_frames),
+        status = spec.get("status", "draft")
+        confirmed = dom.monitor_call_fill_pct if status in ("confirmed", "overridden") else None
+        row = models.Ticket(
+            id=dom.id,
+            tenant_id=tenant_id,
+            event_id=event_id,
+            truck_id=dom.truck_id,
+            certified_cubic_yards=dom.certified_cubic_yards,
+            debris_class=dom.debris_class.value,
+            rate_per_cy=dom.rate_per_cy,
+            est_fill_pct=dom.est_fill_pct,
+            est_cubic_yards=dom.est_cubic_yards,
+            est_dollar_value=dom.est_dollar_value,
+            monitor_call_fill_pct=dom.monitor_call_fill_pct,
+            monitor_cubic_yards=dom.monitor_cubic_yards,
+            monitor_dollar_value=dom.monitor_dollar_value,
+            delta_cubic_yards=dom.delta_cubic_yards,
+            delta_dollar_value=dom.delta_dollar_value,
+            status=status,
+            confirmed_fill_pct=confirmed,
+            evidence_frames=list(dom.evidence_frames),
+        )
+        tickets.append(row)
+
+        flag = spec.get("anomaly")
+        if flag is not None:
+            anomalies.append(
+                models.Anomaly(
+                    tenant_id=tenant_id,
+                    ticket_id=row.id,
+                    type=flag["type"],
+                    severity=flag.get("severity", "info"),
+                    explanation=flag.get("explanation"),
+                    evidence_frame=row.evidence_frames[0] if row.evidence_frames else None,
+                )
             )
-        )
-    return rows
-
-
-def _seed_anomalies(tickets: list[models.Ticket]) -> list[models.Anomaly]:
-    """One illustrative flag each on the anomaly-bearing seed tickets."""
-    by_truck = {tk.truck_id: tk for tk in tickets}
-    specs = [
-        (
-            "FL-DT-3391",
-            "capacity_exceeded",
-            "high",
-            "Monitor call implies volume above certified capacity.",
-        ),
-        ("FL-DT-07??", "identity_unreadable", "warn", "Placard could not be read confidently."),
-        (
-            "FL-DT-4417",
-            "hollow_load",
-            "warn",
-            "High bed coverage with low credited fill — possible fluffed load.",
-        ),
-        (
-            "FL-DT-5590",
-            "capacity_exceeded",
-            "high",
-            "Measured load approaches/exceeds certified capacity.",
-        ),
-    ]
-    out: list[models.Anomaly] = []
-    for truck, kind, sev, text in specs:
-        tk = by_truck.get(truck)
-        if tk is None:
-            continue
-        out.append(
-            models.Anomaly(
-                tenant_id=DEMO_TENANT_ID,
-                ticket_id=tk.id,
-                type=kind,
-                severity=sev,
-                explanation=text,
-                evidence_frame=tk.evidence_frames[0] if tk.evidence_frames else None,
-            )
-        )
-    return out
-
-
-def _seed_sources() -> list[models.Source]:
-    """Two demo evidence sources: the live upload lane + an example RTSP feed."""
-    return [
-        models.Source(
-            tenant_id=DEMO_TENANT_ID,
-            event_id=DEMO_EVENT_ID,
-            kind=SourceKind.UPLOAD.value,
-            name="Monitor uploads",
-            config={},
-            status=SourceStatus.ACTIVE.value,
-        ),
-        models.Source(
-            tenant_id=DEMO_TENANT_ID,
-            event_id=DEMO_EVENT_ID,
-            kind=SourceKind.RTSP.value,
-            name="Gate camera (RTSP)",
-            config={"url": "rtsp://demo.local/gate-cam"},
-            status=SourceStatus.PAUSED.value,
-        ),
-    ]
+    return tickets, anomalies
 
 
 async def seed_demo(session: AsyncSession) -> None:
-    """Idempotently seed the demo tenant. Safe to call on every startup."""
+    """Idempotently seed the demo tenant from `seed.json`. Safe on every startup."""
+    data = _seed_data()
+    event_id = DEMO_EVENT_ID
+    tenant_id = DEMO_TENANT_ID
+
+    set_seed_accuracy(event_id, float(data.get("benchmark_accuracy_within_10pct", 0.0)))
+
     existing = (
-        await session.execute(select(models.Event).where(models.Event.id == DEMO_EVENT_ID))
+        await session.execute(select(models.Event).where(models.Event.id == event_id))
     ).scalar_one_or_none()
-    set_seed_accuracy(DEMO_EVENT_ID, 0.92)
     if existing is not None:
         return
 
+    ev = data["event"]
     session.add(
         models.Event(
-            id=DEMO_EVENT_ID,
-            tenant_id=DEMO_TENANT_ID,
-            name="Hurricane Season 2026 — Pinellas County",
-            location="Pinellas County, FL",
-            status="active",
-            rate_table=_RATE_TABLE,
+            id=event_id,
+            tenant_id=tenant_id,
+            name=ev["name"],
+            location=ev.get("location"),
+            status=ev.get("status", "active"),
+            rate_table=dict(ev.get("rate_table", {})),
         )
     )
-    for number, body, cap in _TRUCKS:
+    for t in data.get("trucks", []):
         session.add(
             models.Truck(
-                tenant_id=DEMO_TENANT_ID,
-                truck_number=number,
-                body_type=body,
-                certified_cubic_yards=cap,
+                tenant_id=tenant_id,
+                truck_number=t["truck_number"],
+                body_type=t.get("body_type"),
+                certified_cubic_yards=t["certified_cubic_yards"],
                 registry_source="seed",
             )
         )
-    session.add_all(_seed_sources())
-    tickets = _seed_tickets()
+    for s in data.get("sources", []):
+        session.add(
+            models.Source(
+                tenant_id=tenant_id,
+                event_id=event_id,
+                kind=s["kind"],
+                name=s["name"],
+                config=dict(s.get("config", {})),
+                status=s.get("status", "active"),
+            )
+        )
+    tickets, anomalies = _build_ticket_rows(tenant_id, event_id)
     session.add_all(tickets)
-    session.add_all(_seed_anomalies(tickets))
+    session.add_all(anomalies)
     await session.commit()
