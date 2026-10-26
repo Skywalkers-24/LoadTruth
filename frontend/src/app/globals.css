@@ -34,19 +34,24 @@
   color-scheme: dark;
 }
 
-/* Light theme */
+/* Light theme — warmer surfaces, stronger borders so cards read clearly */
 [data-theme="light"] {
-  --bg: #f6f7f9;
+  --bg: #eef1f5;
   --surface: #ffffff;
-  --surface-2: #eef1f5;
-  --border: #d9dee4;
+  --surface-2: #f4f6f9;
+  --border: #c9d1db;
   --text: #0d1117;
-  --muted: #5b6672;
+  --muted: #566070;
   --accent: #1f6feb;
-  --ok: #1a7f5a;
-  --warn: #b5771a;
-  --danger: #c93c3c;
+  --ok: #157a52;
+  --warn: #a96a12;
+  --danger: #c5362f;
   color-scheme: light;
+}
+
+/* Cards get a subtle shadow in light mode for depth (flat in dark). */
+[data-theme="light"] .lt-card-shadow {
+  box-shadow: 0 1px 2px rgba(13, 17, 23, 0.04), 0 2px 8px rgba(13, 17, 23, 0.06);
 }
 
 html,

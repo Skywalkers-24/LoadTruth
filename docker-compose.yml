@@ -44,7 +44,10 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        BACKEND_URL: http://backend:8000
     environment:
       BACKEND_URL: http://backend:8000
     ports:

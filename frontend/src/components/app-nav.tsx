@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { TenantSwitcher } from "@/components/tenant-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const LINKS = [
@@ -17,10 +18,14 @@ export function AppNav() {
   return (
     <nav className="sticky top-0 z-10 border-b border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg)_85%,transparent)] backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-        <Link href="/console" className="flex items-center gap-2">
-          <span className="size-2.5 rounded-sm bg-[var(--color-accent)]" aria-hidden />
-          <span className="text-sm font-semibold tracking-tight">LoadTruth</span>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/console" className="flex items-center gap-2">
+            <span className="size-2.5 rounded-sm bg-[var(--color-accent)]" aria-hidden />
+            <span className="text-sm font-semibold tracking-tight">LoadTruth</span>
+          </Link>
+          <span className="hidden h-5 w-px bg-[var(--color-border)] sm:block" aria-hidden />
+          <TenantSwitcher />
+        </div>
         <div className="flex items-center gap-1">
           {LINKS.map((l) => {
             const active = pathname === l.href;

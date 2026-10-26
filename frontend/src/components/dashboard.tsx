@@ -57,7 +57,7 @@ function Stat({
 }) {
   return (
     <div
-      className="rounded-xl border bg-[var(--color-surface)] p-4"
+      className="lt-card-shadow rounded-xl border bg-[var(--color-surface)] p-4"
       style={{
         borderColor:
           emphasize && accent

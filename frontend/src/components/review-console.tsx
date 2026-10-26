@@ -40,7 +40,7 @@ export function ReviewConsole({ ticket }: { ticket: Ticket }) {
         </dl>
       </section>
 
-      <aside className="flex flex-col gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+      <aside className="lt-card-shadow flex flex-col gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <div className="flex items-center justify-between">
           <StatusBadge status={ticket.status} />
           <AnomalyBadge count={ticket.anomaly_count} />
