@@ -1,0 +1,1 @@
+"""LoadTruth backend application package."""

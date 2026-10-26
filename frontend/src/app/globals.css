@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* LoadTruth operator-console theme: dark-first, evidence-forward.
+   See PLAN.md §9. Mobile-first; every surface works 360px -> wide desktop. */
+@theme {
+  --color-bg: #0a0b0d;
+  --color-surface: #14161a;
+  --color-border: #262a30;
+  --color-text: #e6e8eb;
+  --color-muted: #9aa3ad;
+  --color-accent: #4f8cff; /* "needs review" */
+  --color-ok: #35c28b;
+  --color-warn: #f2b24c; /* amber flag */
+  --color-danger: #ff5c5c; /* anomaly */
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
