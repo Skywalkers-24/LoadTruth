@@ -13,6 +13,7 @@ Legend: each item is one line — `YYYY-MM-DD · what · files · exit check`.
 - 2026-10-26 · Drafted full multi-tenant platform plan (tenancy, RBAC, admin, reports, analyst chat) · `PLAN.md` · plan reviewed
 - 2026-10-26 · Added agent operating protocol + living tracking docs + scripts scaffold · `.kiro/steering/agent-protocol.md`, `docs/`, `CHANGELOG.md`, `scripts/` · files present
 - 2026-10-26 · Scaffolded monorepo: `backend/` (FastAPI 0.141, Python 3.12, structlog, /health + tests) and `frontend/` (Next.js 16, Tailwind v4, TS strict, Supabase/TanStack deps, landing + HealthBadge + api client + tests) · `backend/`, `frontend/`, `infra/README.md`, `.env.example`, `scripts/setup.sh|dev.sh` · all gates pass: ruff + mypy --strict + pytest (2/2); eslint + tsc + vitest (3/3) + prettier + `next build`
+- 2026-10-26 · Added CI/CD (GitHub Actions: ci, codeql, deploy), Dockerfiles for both services + docker-compose, free-tier deployment+caching doc, architecture map, and protocol updates (local-offload, parallelism, mental-map). Made Python 3.12 the shell default via `~/.zshrc`. Initialized git, created private GitHub repo `loadtruth`, pushed. · `.github/`, `backend/Dockerfile`, `frontend/Dockerfile`, `docker-compose.yml`, `docs/DEPLOYMENT.md`, `docs/ARCHITECTURE_MAP.md`, `~/.zshrc` · repo pushed; CI runs on push
 
 ## In progress
 
