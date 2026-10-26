@@ -1,0 +1,146 @@
+# Meta Model API — model catalog & cost reference
+# Prices are USD per 1M tokens unless noted otherwise.
+# Source: pricing pasted from Meta Model API model specs (as of 2026-10-26).
+
+models:
+  muse-wonder:
+    name: Muse Wonder
+    type: chat
+    context: 1000000
+    modalities: [text, image]
+    description: >
+      Frontier coding, long-running agents, and advanced computer use.
+      Plans long tasks, delegates to sub-agents, recovers from errors.
+    pricing:
+      input: 4.00
+      cached_input: 0.20
+      output: 20.00
+      unit: per_1m_tokens
+
+  muse-wonder-full:
+    name: Muse Wonder Full
+    type: chat
+    context: 1000000
+    modalities: [text, image]
+    description: Most advanced model; Muse Code subscription only.
+    access: muse_code_subscription
+    pricing: null  # subscription-only, no per-token price published
+
+  muse-spark-open:
+    name: Muse Spark Open
+    type: chat
+    modalities: [text, image]
+    description: Most capable open-weight model; coding, multimodal, agentic.
+    access: [meta, hugging_face]
+    license: Muse Model License
+    pricing: null  # open weights / self-hosted
+
+  sam-3.1:
+    name: SAM 3.1
+    type: segmentation
+    modalities: [image, video]
+    description: Detect, segment, and track objects from a text prompt.
+    pricing:
+      image: 2.50      # per 1,000 images
+      video: 0.20      # per 1,000 frames
+      unit: per_1k
+
+  muse-spark-1.3:
+    name: Muse Spark 1.3
+    type: chat
+    context: 1000000
+    modalities: [text, image]
+    native_tool_calling: true
+    mcp_support: true
+    description: >
+      Long-horizon coding and multi-step agentic work. Improved tool,
+      browser, and computer use. Fewer tokens than 1.2.
+    pricing:
+      input: 1.25
+      cached_input: 0.15
+      output: 4.25
+      unit: per_1m_tokens
+
+  muse-spark-1.3-contributor:
+    name: Muse Spark 1.3 Contributor
+    type: chat
+    context: 1000000
+    modalities: [text, image]
+    description: >
+      Same model/capabilities as 1.3 at up to 95% less. Inputs/outputs
+      used to train Meta models. Token rate-limited. Select countries.
+    pricing:
+      input: 0.10
+      cached_input: 0.002
+      output: 0.20
+      unit: per_1m_tokens
+
+  muse-voice-transcribe:
+    name: Muse Voice Transcribe
+    type: audio
+    modalities: [audio]
+    description: Speech-to-text, speaker diarization, VAD.
+    pricing:
+      output: 0.18     # per hour of audio
+      unit: per_hour
+
+  muse-image-1.0:
+    name: Muse Image 1.0
+    type: image_generation
+    modalities: [text, image]
+    description: Agentic text-to-image / image-to-image / reference editing.
+    pricing:
+      output: 0.01     # per image
+      unit: per_image
+
+  muse-glimmer:
+    name: Muse Glimmer
+    type: chat
+    description: 30B open model for always-on local agents. Single GPU.
+    access: hugging_face
+    license: Apache-2.0
+    pricing: null  # open weights / self-hosted
+
+  muse-spark-1.2:
+    name: Muse Spark 1.2
+    type: chat
+    context: 1000000
+    modalities: [text, image]
+    description: Coding-optimized agentic model with 1M context.
+    pricing:
+      input: 1.25
+      cached_input: 0.15
+      output: 4.25
+      unit: per_1m_tokens
+
+  muse-spark-1.2-contributor:
+    name: Muse Spark 1.2 Contributor
+    type: chat
+    context: 1000000
+    modalities: [text, image]
+    description: Builder-priced 1.2; inputs/outputs used for training. Rate limited.
+    pricing:
+      input: 0.10
+      cached_input: 0.002
+      output: 0.20
+      unit: per_1m_tokens
+
+  muse-spark-1.1:
+    name: Muse Spark 1.1
+    type: chat
+    context: 1000000
+    modalities: [text, image, video, document]
+    description: Agentic workflows, coding, computer use, multimodal perception.
+    pricing:
+      input: 1.25
+      cached_input: 0.15
+      output: 4.25
+      unit: per_1m_tokens
+
+# --- Task routing hints ---------------------------------------------------
+# Cheapest multimodal (vision) chat model that is generally available and
+# supports image "count" grounding: muse-spark-1.3 (same price as 1.1/1.2,
+# but newest and fewest tokens). Use it for the umbrella-counting call.
+recommended:
+  vision_counting: muse-spark-1.3
+  cheapest_vision_chat: muse-spark-1.3-contributor  # if available in your region

@@ -24,6 +24,13 @@ export default function Home() {
         <h2 className="mb-3 text-sm font-medium text-[var(--color-muted)]">Backend status</h2>
         <HealthBadge />
       </section>
+
+      <a
+        href="/console"
+        className="inline-flex w-fit items-center gap-2 rounded-lg bg-[var(--color-accent)] px-5 py-2.5 text-sm font-medium text-black transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+      >
+        Open operator console →
+      </a>
     </main>
   );
 }

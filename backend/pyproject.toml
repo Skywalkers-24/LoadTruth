@@ -10,8 +10,10 @@ dependencies = [
     "pydantic-settings>=2.6",
     "sqlalchemy[asyncio]>=2.0.36",
     "asyncpg>=0.30",
+    "aiosqlite>=0.20",
     "alembic>=1.14",
     "openai>=1.54",
+    "pyjwt>=2.9",
     "redis>=5.2",
     "arq>=0.26",
     "httpx>=0.28",
@@ -20,6 +22,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Optional media decoding (Stage 1 frame sampling). PyAV wheels are not always
+# available on every platform, so the frames module feature-detects it and
+# degrades gracefully when it is absent — the code and tests run without it.
+media = [
+    "av>=12.0",
+]
 dev = [
     "ruff>=0.7",
     "mypy>=1.13",
@@ -60,6 +68,18 @@ strict = true
 plugins = ["pydantic.mypy"]
 warn_unused_ignores = true
 warn_redundant_casts = true
+
+# PyAV is an optional dependency (frames.py feature-detects it); it ships no type
+# stubs and isn't installed in the default/dev/CI env, so ignore its import here.
+[[tool.mypy.overrides]]
+module = ["av", "av.*"]
+ignore_missing_imports = true
+
+# PyAV is an optional, lazily-imported native dependency with no type stubs and
+# is not installed in the lint/type env; treat its import as untyped.
+[[tool.mypy.overrides]]
+module = ["av"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

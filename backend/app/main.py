@@ -6,12 +6,17 @@ delegated to the ARQ worker (see PLAN.md §4); routes stay fast and stream progr
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.auth_context import router as auth_context_router
+from app.api.ingest import router as ingest_router
+from app.api.reports import router as reports_router
+from app.api.tickets import router as tickets_router
 from app.config import get_settings
 from app.log import configure_logging, get_logger
 
@@ -26,9 +31,21 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         "startup",
         environment=settings.environment,
         model_api_configured=settings.model_api_configured,
+        database=("sqlite" if settings.is_sqlite else "postgres"),
     )
     if not settings.model_api_configured:
         log.warning("model_api_key_missing", hint="set MODEL_API_KEY in .env before pipeline runs")
+    # Interim SQLite: create tables from ORM metadata and seed the demo tenant.
+    # Tests provide their own isolated DB via a dependency override, so they set
+    # LOADTRUTH_SKIP_STARTUP_DB=1 to skip touching the on-disk file DB.
+    if os.environ.get("LOADTRUTH_SKIP_STARTUP_DB") != "1":
+        from app.db.engine import get_sessionmaker, init_db
+        from app.tickets.seed import seed_demo
+
+        await init_db()
+        if settings.is_sqlite:
+            async with get_sessionmaker()() as session:
+                await seed_demo(session)
     yield
     log.info("shutdown")
 
@@ -57,3 +74,9 @@ async def health() -> dict[str, object]:
         "environment": settings.environment,
         "model_api_configured": settings.model_api_configured,
     }
+
+
+app.include_router(auth_context_router)
+app.include_router(tickets_router)
+app.include_router(ingest_router)
+app.include_router(reports_router)
