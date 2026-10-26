@@ -2,7 +2,14 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, type TicketQuery, type TicketStatus } from "@/lib/api";
+import {
+  api,
+  type EventInput,
+  type SourceInput,
+  type TicketQuery,
+  type TicketStatus,
+  type TruckInput,
+} from "@/lib/api";
 
 export function useEvents() {
   return useQuery({ queryKey: ["events"], queryFn: () => api.listEvents() });
@@ -68,4 +75,61 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
     void qc.invalidateQueries({ queryKey: ["dashboard"] });
     void qc.invalidateQueries({ queryKey: ["reports-summary"] });
   };
+}
+
+// ── Admin: trucks ───────────────────────────────────────────────────────────
+export function useTrucks() {
+  return useQuery({ queryKey: ["trucks"], queryFn: () => api.listTrucks() });
+}
+
+export function useTruckMutations() {
+  const qc = useQueryClient();
+  const done = () => void qc.invalidateQueries({ queryKey: ["trucks"] });
+  const create = useMutation({ mutationFn: api.createTruck, onSuccess: done });
+  const update = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Partial<TruckInput> }) =>
+      api.updateTruck(id, body),
+    onSuccess: done,
+  });
+  const remove = useMutation({ mutationFn: (id: string) => api.deleteTruck(id), onSuccess: done });
+  return { create, update, remove };
+}
+
+// ── Admin: sources ──────────────────────────────────────────────────────────
+export function useSources(eventId: string | undefined) {
+  return useQuery({
+    queryKey: ["sources", eventId],
+    queryFn: () => api.listSources(eventId as string),
+    enabled: Boolean(eventId),
+  });
+}
+
+export function useSourceMutations(eventId: string | undefined) {
+  const qc = useQueryClient();
+  const done = () => void qc.invalidateQueries({ queryKey: ["sources", eventId] });
+  const create = useMutation({
+    mutationFn: (body: SourceInput) => api.createSource(eventId as string, body),
+    onSuccess: done,
+  });
+  const update = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Partial<SourceInput> }) =>
+      api.updateSource(id, body),
+    onSuccess: done,
+  });
+  const remove = useMutation({ mutationFn: (id: string) => api.deleteSource(id), onSuccess: done });
+  const test = useMutation({ mutationFn: (id: string) => api.testSource(id) });
+  return { create, update, remove, test };
+}
+
+// ── Admin: event rate table ─────────────────────────────────────────────────
+export function useUpdateEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Partial<EventInput> }) =>
+      api.updateEvent(id, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["events"] });
+      void qc.invalidateQueries({ queryKey: ["reports-summary"] });
+    },
+  });
 }

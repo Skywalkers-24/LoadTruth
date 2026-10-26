@@ -41,6 +41,27 @@ class TicketStatus(StrEnum):
     DISPUTED = "disputed"
 
 
+class SourceKind(StrEnum):
+    """How evidence reaches an event. ``upload`` is implemented; the rest are
+    config-validated connectors whose fetch path is not yet wired."""
+
+    UPLOAD = "upload"
+    RTSP = "rtsp"
+    HLS = "hls"
+    IP_CAMERA = "ip_camera"
+    CLOUD_BUCKET = "cloud_bucket"
+    WEBHOOK = "webhook"
+    MOBILE = "mobile"
+
+
+class SourceStatus(StrEnum):
+    """Operational state of a connected source."""
+
+    ACTIVE = "active"
+    PAUSED = "paused"
+    ERROR = "error"
+
+
 class ValuationOut(BaseModel):
     """The money frame (PLAN.md §7a): estimate, monitor call, and signed delta."""
 
@@ -115,6 +136,96 @@ class EventOut(BaseModel):
     status: str
     rate_table: dict[str, float] = Field(default_factory=dict)
     created_at: datetime
+
+
+class EventIn(BaseModel):
+    """Create or fully-specify a disaster event (admin screen)."""
+
+    name: str = Field(min_length=1, max_length=200)
+    location: str | None = Field(default=None, max_length=200)
+    status: str = Field(default="active")
+    rate_table: dict[str, float] = Field(default_factory=dict)
+
+
+class EventPatch(BaseModel):
+    """Partial update of an event; only supplied fields change."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    location: str | None = Field(default=None, max_length=200)
+    status: str | None = None
+    rate_table: dict[str, float] | None = None
+
+
+class TruckOut(BaseModel):
+    """A certified-truck registry entry as returned by the API."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    tenant_id: UUID
+    truck_number: str
+    body_type: str | None = None
+    certified_cubic_yards: Decimal
+    registry_source: str | None = None
+    created_at: datetime
+
+
+class TruckIn(BaseModel):
+    """Register a certified truck (truck_number unique per tenant)."""
+
+    truck_number: str = Field(min_length=1, max_length=64)
+    body_type: str | None = Field(default=None, max_length=64)
+    certified_cubic_yards: Decimal = Field(gt=0)
+    registry_source: str | None = Field(default=None, max_length=64)
+
+
+class TruckPatch(BaseModel):
+    """Partial update of a truck; only supplied fields change."""
+
+    truck_number: str | None = Field(default=None, min_length=1, max_length=64)
+    body_type: str | None = Field(default=None, max_length=64)
+    certified_cubic_yards: Decimal | None = Field(default=None, gt=0)
+    registry_source: str | None = Field(default=None, max_length=64)
+
+
+class SourceOut(BaseModel):
+    """A connected evidence source as returned by the API."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    tenant_id: UUID
+    event_id: UUID
+    kind: SourceKind
+    name: str
+    config: dict[str, object] = Field(default_factory=dict)
+    status: SourceStatus
+    created_at: datetime
+
+
+class SourceIn(BaseModel):
+    """Connect a new evidence source to an event."""
+
+    kind: SourceKind
+    name: str = Field(min_length=1, max_length=200)
+    config: dict[str, object] = Field(default_factory=dict)
+    status: SourceStatus = SourceStatus.ACTIVE
+
+
+class SourcePatch(BaseModel):
+    """Partial update of a source; only supplied fields change."""
+
+    kind: SourceKind | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    config: dict[str, object] | None = None
+    status: SourceStatus | None = None
+
+
+class SourceTestResult(BaseModel):
+    """Outcome of validating a source's config (no network I/O)."""
+
+    ok: bool
+    detail: str
 
 
 class PaginatedTickets(BaseModel):

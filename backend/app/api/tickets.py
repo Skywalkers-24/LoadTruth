@@ -14,11 +14,13 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.repo import ActiveTenant, Repository
-from app.tickets.repository import TicketNotFoundError
+from app.tickets.repository import EventNotFoundError, TicketNotFoundError
 from app.tickets.schemas import (
     DashboardOut,
     DebrisClass,
+    EventIn,
     EventOut,
+    EventPatch,
     MonitorCallIn,
     PaginatedTickets,
     ReportsSummary,
@@ -37,6 +39,39 @@ async def list_events(repo: Repository, tenant: ActiveTenant) -> list[EventOut]:
     """List disaster events in the active tenant."""
     events = await repo.list_events(tenant)
     return [event_to_out(e) for e in events]
+
+
+@router.post("/events", response_model=EventOut, status_code=status.HTTP_201_CREATED)
+async def create_event(repo: Repository, tenant: ActiveTenant, body: EventIn) -> EventOut:
+    """Create a disaster event in the active tenant (admin screen)."""
+    event = await repo.create_event(
+        tenant,
+        name=body.name,
+        location=body.location,
+        status=body.status,
+        rate_table=body.rate_table,
+    )
+    return event_to_out(event)
+
+
+@router.patch("/events/{event_id}", response_model=EventOut)
+async def update_event(
+    repo: Repository, tenant: ActiveTenant, event_id: UUID, body: EventPatch
+) -> EventOut:
+    """Update an event; only supplied fields change."""
+    try:
+        event = await repo.update_event(
+            tenant,
+            event_id,
+            name=body.name,
+            location=body.location,
+            status=body.status,
+            rate_table=body.rate_table,
+            fields_set=set(body.model_fields_set),
+        )
+    except EventNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "event not found") from exc
+    return event_to_out(event)
 
 
 @router.get("/tickets", response_model=PaginatedTickets)

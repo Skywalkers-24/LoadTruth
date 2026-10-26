@@ -45,4 +45,26 @@ describe("api client", () => {
     stubFetch({ detail: "nope" }, 404);
     await expect(api.getTicket("missing")).rejects.toThrow(/failed \(404\)/);
   });
+
+  it("creates a truck via POST with a JSON body", async () => {
+    const calls = stubFetch({ id: "tr1" }, 201);
+    await api.createTruck({ truck_number: "FL-1", certified_cubic_yards: "20" });
+    expect(calls[0]?.init?.method).toBe("POST");
+    expect(JSON.parse(String(calls[0]?.init?.body))).toMatchObject({ truck_number: "FL-1" });
+  });
+
+  it("handles a 204 DELETE with no body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 204 })),
+    );
+    await expect(api.deleteTruck("tr1")).resolves.toBeUndefined();
+  });
+
+  it("tests a source connection", async () => {
+    const calls = stubFetch({ ok: true, detail: "config valid" });
+    const r = await api.testSource("s1");
+    expect(calls[0]?.url).toContain("/sources/s1/test");
+    expect(r.ok).toBe(true);
+  });
 });

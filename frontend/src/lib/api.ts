@@ -90,6 +90,57 @@ export interface TicketQuery {
   offset?: number;
 }
 
+export interface Truck {
+  id: string;
+  tenant_id: string;
+  truck_number: string;
+  body_type: string | null;
+  certified_cubic_yards: string;
+  registry_source: string | null;
+  created_at: string;
+}
+
+export interface TruckInput {
+  truck_number: string;
+  body_type?: string | null;
+  certified_cubic_yards: string;
+  registry_source?: string | null;
+}
+
+export type SourceKind =
+  "upload" | "rtsp" | "hls" | "ip_camera" | "cloud_bucket" | "webhook" | "mobile";
+export type SourceStatus = "active" | "paused" | "error";
+
+export interface Source {
+  id: string;
+  tenant_id: string;
+  event_id: string;
+  kind: SourceKind;
+  name: string;
+  config: Record<string, unknown>;
+  status: SourceStatus;
+  created_at: string;
+}
+
+export interface SourceInput {
+  kind: SourceKind;
+  name: string;
+  config?: Record<string, unknown>;
+  status?: SourceStatus;
+}
+
+export interface SourceTestResult {
+  ok: boolean;
+  detail: string;
+}
+
+export interface EventInput {
+  name: string;
+  location?: string | null;
+  status?: string;
+  rate_table?: Record<string, number>;
+}
+
 export interface ReportsSummary {
   event_id: string;
   ticket_count: number;
@@ -123,6 +174,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     throw new ApiError(res.status, `request to ${path} failed (${res.status})`);
+  }
+  // 204 No Content (e.g. DELETE) has no body to parse.
+  if (res.status === 204 || res.headers.get("content-length") === "0") {
+    return undefined as T;
   }
   return (await res.json()) as T;
 }
@@ -181,6 +236,32 @@ export const api = {
   /** Absolute-via-rewrite URLs for the downloadable exports. */
   exportCsvUrl: (eventId: string) => `${baseUrl()}/events/${eventId}/export.csv`,
   auditPacketUrl: (eventId: string) => `${baseUrl()}/events/${eventId}/audit-packet.html`,
+
+  // Admin — events
+  createEvent: (body: EventInput) =>
+    request<EventSummary>("/events", { method: "POST", body: JSON.stringify(body) }),
+  updateEvent: (id: string, body: Partial<EventInput>) =>
+    request<EventSummary>(`/events/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+
+  // Admin — trucks
+  listTrucks: () => request<Truck[]>("/trucks"),
+  createTruck: (body: TruckInput) =>
+    request<Truck>("/trucks", { method: "POST", body: JSON.stringify(body) }),
+  updateTruck: (id: string, body: Partial<TruckInput>) =>
+    request<Truck>(`/trucks/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteTruck: (id: string) => request<void>(`/trucks/${id}`, { method: "DELETE" }),
+
+  // Admin — sources
+  listSources: (eventId: string) => request<Source[]>(`/events/${eventId}/sources`),
+  createSource: (eventId: string, body: SourceInput) =>
+    request<Source>(`/events/${eventId}/sources`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateSource: (id: string, body: Partial<SourceInput>) =>
+    request<Source>(`/sources/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteSource: (id: string) => request<void>(`/sources/${id}`, { method: "DELETE" }),
+  testSource: (id: string) => request<SourceTestResult>(`/sources/${id}/test`, { method: "POST" }),
 };
 
 export { ApiError };

@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const LINKS = [
   { href: "/console", label: "Console" },
   { href: "/reports", label: "Reports" },
+  { href: "/admin", label: "Admin" },
 ];
 
 /** Top navigation shared across app screens. Responsive + theme toggle. */

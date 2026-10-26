@@ -23,6 +23,22 @@ class TicketNotFoundError(Exception):
     """Raised when a ticket id is absent (or belongs to another tenant)."""
 
 
+class TruckNotFoundError(Exception):
+    """Raised when a truck id is absent (or belongs to another tenant)."""
+
+
+class DuplicateTruckError(Exception):
+    """Raised when a truck_number already exists for the tenant."""
+
+
+class EventNotFoundError(Exception):
+    """Raised when an event id is absent (or belongs to another tenant)."""
+
+
+class SourceNotFoundError(Exception):
+    """Raised when a source id is absent (or belongs to another tenant)."""
+
+
 class DashboardSummary:
     """Event-level roll-up for the dashboard (PLAN.md §3.4, §7a roll-up)."""
 
@@ -394,6 +410,233 @@ class SqlTicketRepository:
             pending_count=len(tickets) - reviewed,
             accuracy_within_10pct=_accuracy_for_event(event_id),
         )
+
+    # ── Truck registry CRUD (admin screen) ──────────────────────────────────
+    async def list_trucks(self, tenant_id: UUID) -> list[models.Truck]:
+        """All certified trucks for the tenant, ordered by number."""
+        rows = await self._s.execute(
+            select(models.Truck)
+            .where(models.Truck.tenant_id == tenant_id)
+            .order_by(models.Truck.truck_number)
+        )
+        return list(rows.scalars().all())
+
+    async def _truck_row(self, tenant_id: UUID, truck_id: UUID) -> models.Truck:
+        row = (
+            await self._s.execute(
+                select(models.Truck)
+                .where(models.Truck.tenant_id == tenant_id)
+                .where(models.Truck.id == truck_id)
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            raise TruckNotFoundError(str(truck_id))
+        return row
+
+    async def _truck_number_taken(
+        self, tenant_id: UUID, truck_number: str, *, exclude_id: UUID | None = None
+    ) -> bool:
+        stmt = (
+            select(models.Truck.id)
+            .where(models.Truck.tenant_id == tenant_id)
+            .where(models.Truck.truck_number == truck_number)
+        )
+        if exclude_id is not None:
+            stmt = stmt.where(models.Truck.id != exclude_id)
+        return (await self._s.execute(stmt)).first() is not None
+
+    async def create_truck(
+        self,
+        tenant_id: UUID,
+        *,
+        truck_number: str,
+        body_type: str | None,
+        certified_cubic_yards: Decimal,
+        registry_source: str | None,
+    ) -> models.Truck:
+        """Register a truck; raises ``DuplicateTruckError`` on a used number."""
+        if await self._truck_number_taken(tenant_id, truck_number):
+            raise DuplicateTruckError(truck_number)
+        row = models.Truck(
+            tenant_id=tenant_id,
+            truck_number=truck_number,
+            body_type=body_type,
+            certified_cubic_yards=certified_cubic_yards,
+            registry_source=registry_source,
+        )
+        self._s.add(row)
+        await self._s.flush()
+        return row
+
+    async def update_truck(
+        self,
+        tenant_id: UUID,
+        truck_id: UUID,
+        *,
+        truck_number: str | None = None,
+        body_type: str | None = None,
+        certified_cubic_yards: Decimal | None = None,
+        registry_source: str | None = None,
+        fields_set: set[str],
+    ) -> models.Truck:
+        """Patch a truck. ``fields_set`` names which fields the caller supplied
+        (so an explicit ``null`` clears a column but an omitted field doesn't)."""
+        row = await self._truck_row(tenant_id, truck_id)
+        if "truck_number" in fields_set and truck_number is not None:
+            if await self._truck_number_taken(tenant_id, truck_number, exclude_id=truck_id):
+                raise DuplicateTruckError(truck_number)
+            row.truck_number = truck_number
+        if "body_type" in fields_set:
+            row.body_type = body_type
+        if "certified_cubic_yards" in fields_set and certified_cubic_yards is not None:
+            row.certified_cubic_yards = certified_cubic_yards
+        if "registry_source" in fields_set:
+            row.registry_source = registry_source
+        await self._s.flush()
+        return row
+
+    async def delete_truck(self, tenant_id: UUID, truck_id: UUID) -> None:
+        """Remove a truck; raises ``TruckNotFoundError`` if absent."""
+        row = await self._truck_row(tenant_id, truck_id)
+        await self._s.delete(row)
+        await self._s.flush()
+
+    # ── Event management (admin screen) ──────────────────────────────────────
+    async def _event_row(self, tenant_id: UUID, event_id: UUID) -> models.Event:
+        row = (
+            await self._s.execute(
+                select(models.Event)
+                .where(models.Event.tenant_id == tenant_id)
+                .where(models.Event.id == event_id)
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            raise EventNotFoundError(str(event_id))
+        return row
+
+    async def create_event(
+        self,
+        tenant_id: UUID,
+        *,
+        name: str,
+        location: str | None,
+        status: str,
+        rate_table: dict[str, float],
+    ) -> Event:
+        """Create a disaster event for the tenant."""
+        row = models.Event(
+            tenant_id=tenant_id,
+            name=name,
+            location=location,
+            status=status,
+            rate_table=rate_table,
+        )
+        self._s.add(row)
+        await self._s.flush()
+        return _to_event(row)
+
+    async def update_event(
+        self,
+        tenant_id: UUID,
+        event_id: UUID,
+        *,
+        name: str | None = None,
+        location: str | None = None,
+        status: str | None = None,
+        rate_table: dict[str, float] | None = None,
+        fields_set: set[str],
+    ) -> Event:
+        """Patch an event; only fields named in ``fields_set`` change."""
+        row = await self._event_row(tenant_id, event_id)
+        if "name" in fields_set and name is not None:
+            row.name = name
+        if "location" in fields_set:
+            row.location = location
+        if "status" in fields_set and status is not None:
+            row.status = status
+        if "rate_table" in fields_set and rate_table is not None:
+            row.rate_table = rate_table
+        await self._s.flush()
+        return _to_event(row)
+
+    # ── Source connections (admin screen + multi-source ingest) ──────────────
+    async def list_sources(self, tenant_id: UUID, event_id: UUID) -> list[models.Source]:
+        """Connected sources for one event, oldest first (tenant-scoped)."""
+        rows = await self._s.execute(
+            select(models.Source)
+            .where(models.Source.tenant_id == tenant_id)
+            .where(models.Source.event_id == event_id)
+            .order_by(models.Source.created_at)
+        )
+        return list(rows.scalars().all())
+
+    async def source_row(self, tenant_id: UUID, source_id: UUID) -> models.Source:
+        """Fetch one source; raises ``SourceNotFoundError`` if absent."""
+        row = (
+            await self._s.execute(
+                select(models.Source)
+                .where(models.Source.tenant_id == tenant_id)
+                .where(models.Source.id == source_id)
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            raise SourceNotFoundError(str(source_id))
+        return row
+
+    async def create_source(
+        self,
+        tenant_id: UUID,
+        event_id: UUID,
+        *,
+        kind: str,
+        name: str,
+        config: dict[str, object],
+        status: str,
+    ) -> models.Source:
+        """Connect a source to an event. Raises ``EventNotFoundError`` if the
+        event is absent (or another tenant's)."""
+        await self._event_row(tenant_id, event_id)  # existence + tenant guard
+        row = models.Source(
+            tenant_id=tenant_id,
+            event_id=event_id,
+            kind=kind,
+            name=name,
+            config=config,
+            status=status,
+        )
+        self._s.add(row)
+        await self._s.flush()
+        return row
+
+    async def update_source(
+        self,
+        tenant_id: UUID,
+        source_id: UUID,
+        *,
+        kind: str | None = None,
+        name: str | None = None,
+        config: dict[str, object] | None = None,
+        status: str | None = None,
+        fields_set: set[str],
+    ) -> models.Source:
+        """Patch a source; only fields named in ``fields_set`` change."""
+        row = await self.source_row(tenant_id, source_id)
+        if "kind" in fields_set and kind is not None:
+            row.kind = kind
+        if "name" in fields_set and name is not None:
+            row.name = name
+        if "config" in fields_set and config is not None:
+            row.config = config
+        if "status" in fields_set and status is not None:
+            row.status = status
+        await self._s.flush()
+        return row
+
+    async def delete_source(self, tenant_id: UUID, source_id: UUID) -> None:
+        """Remove a source; raises ``SourceNotFoundError`` if absent."""
+        row = await self.source_row(tenant_id, source_id)
+        await self._s.delete(row)
+        await self._s.flush()
 
 
 # Benchmark accuracy isn't persisted yet (no benchmark run on SQLite). Surface the

@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import models
 from app.tickets.domain import new_ticket
 from app.tickets.repository import set_seed_accuracy
-from app.tickets.schemas import DebrisClass, TicketStatus
+from app.tickets.schemas import DebrisClass, SourceKind, SourceStatus, TicketStatus
 
 DEMO_TENANT_ID = UUID("11111111-1111-1111-1111-111111111111")
 DEMO_EVENT_ID = UUID("22222222-2222-2222-2222-222222222222")
@@ -206,6 +206,28 @@ def _seed_anomalies(tickets: list[models.Ticket]) -> list[models.Anomaly]:
     return out
 
 
+def _seed_sources() -> list[models.Source]:
+    """Two demo evidence sources: the live upload lane + an example RTSP feed."""
+    return [
+        models.Source(
+            tenant_id=DEMO_TENANT_ID,
+            event_id=DEMO_EVENT_ID,
+            kind=SourceKind.UPLOAD.value,
+            name="Monitor uploads",
+            config={},
+            status=SourceStatus.ACTIVE.value,
+        ),
+        models.Source(
+            tenant_id=DEMO_TENANT_ID,
+            event_id=DEMO_EVENT_ID,
+            kind=SourceKind.RTSP.value,
+            name="Gate camera (RTSP)",
+            config={"url": "rtsp://demo.local/gate-cam"},
+            status=SourceStatus.PAUSED.value,
+        ),
+    ]
+
+
 async def seed_demo(session: AsyncSession) -> None:
     """Idempotently seed the demo tenant. Safe to call on every startup."""
     existing = (
@@ -235,6 +257,7 @@ async def seed_demo(session: AsyncSession) -> None:
                 registry_source="seed",
             )
         )
+    session.add_all(_seed_sources())
     tickets = _seed_tickets()
     session.add_all(tickets)
     session.add_all(_seed_anomalies(tickets))

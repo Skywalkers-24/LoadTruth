@@ -36,6 +36,28 @@ class Event(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
     rate_table: Mapped[dict[str, float]] = mapped_column(JSON, nullable=False, default=dict)
 
 
+class Source(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
+    """A connected evidence source for an event (PLAN.md §3, §5b): not upload-only.
+
+    ``kind`` is stored as text validated by the ``SourceKind`` enum at the Python
+    layer (matching the SQL CHECK). ``config`` holds the per-kind connection
+    settings (e.g. an RTSP ``url``, a bucket + prefix) as portable JSON.
+    """
+
+    __tablename__ = "sources"
+
+    event_id: Mapped[uuid.UUID] = mapped_column(GUID(), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    config: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+
+    __table_args__ = (
+        Index("ix_sources_tenant", "tenant_id"),
+        Index("ix_sources_event", "event_id"),
+    )
+
+
 class Truck(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
     """Certified-truck registry entry (capacity lookup, Stage 4)."""
 
