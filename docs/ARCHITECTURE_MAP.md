@@ -38,11 +38,14 @@ loadtruth/
 | Ingest / export routes | `backend/app/api/ingest.py`, `backend/app/api/reports.py` | pipeline run; CSV + audit-packet HTML |
 | Report export logic | `backend/app/tickets/export.py` | CSV + printable FEMA/FROC audit packet |
 | Ticket money math (CY, $, delta) | `backend/app/tickets/money.py` | pure/deterministic (PLAN.md §7a); never the model; `Decimal`-exact |
-| Ticket API schemas / enums | `backend/app/tickets/schemas.py` | `TicketOut`/`ValuationOut`/`MonitorCallIn`/`EventOut`/`DashboardOut`/`PaginatedTickets`/`ReportsSummary`, `DebrisClass`/`TicketStatus`, serializers |
+| Ticket API schemas / enums | `backend/app/tickets/schemas.py` | `TicketOut`/`ValuationOut`/`MonitorCallIn`/`EventOut`/`EventIn`/`EventPatch`/`DashboardOut`/`PaginatedTickets`/`ReportsSummary`/`TruckOut`/`TruckIn`/`TruckPatch`/`SourceOut`/`SourceIn`/`SourcePatch`/`SourceTestResult`, `DebrisClass`/`TicketStatus`/`SourceKind`/`SourceStatus`, serializers |
 | Ticket/event domain records | `backend/app/tickets/domain.py` | `Event`/`Ticket` dataclasses; `apply_monitor_call` recomputes delta |
 | Ticket storage (repo) | `backend/app/tickets/repository.py` (protocol + `InMemoryRepository`) + provider in `backend/app/api/repo.py` | tenant-scoped; swap provider for Postgres later |
 | Demo seed data (§5b scenarios) | `backend/app/tickets/seed.py` | one tenant/event + labeled tickets; `DEMO_TENANT_ID`/`DEMO_EVENT_ID` |
-| Ticket/dashboard API routes | `backend/app/api/tickets.py` | events, tickets (paginated: `limit`/`offset` + `status`/`debris_class` filters → `PaginatedTickets`), monitor-call (delta), status, dashboard, reports summary (`/events/{id}/reports/summary` → `ReportsSummary`) |
+| Ticket/dashboard API routes | `backend/app/api/tickets.py` | events (incl. `POST /events` + `PATCH /events/{id}` admin), tickets (paginated: `limit`/`offset` + `status`/`debris_class` filters → `PaginatedTickets`), monitor-call (delta), status, dashboard, reports summary (`/events/{id}/reports/summary` → `ReportsSummary`) |
+| Truck-registry admin routes | `backend/app/api/trucks.py` | `GET/POST /trucks`, `PATCH/DELETE /trucks/{id}`; 409 on duplicate `truck_number`, 404 on missing; tenant-scoped |
+| Source-connection admin routes | `backend/app/api/sources.py` | `GET/POST /events/{id}/sources`, `PATCH/DELETE /sources/{id}`, `POST /sources/{id}/test` (config validation only, no network I/O) |
+| Source adapter (per-kind validate/fetch) | `backend/app/pipeline/sources.py` | `SourceAdapter` ABC + `get_adapter(kind)` factory; `upload` wired (reuses `ingest.py`), other kinds validate config + raise `SourceFetchNotImplementedError` on fetch |
 | RLS policy | `infra/rbac/30_loadtruth_policies.sql` (our tables) / `40_rbac_base_policies.sql` (rbac.* tables) + a test in `backend/tests/` | every tenant table needs one; use `rbac.is_member` / `rbac.has_permission` helpers |
 | Tenant/RBAC primitives (3rd-party) | `infra/rbac/00_install_rbac_vendored.sql` (verbatim, BSD-2) + `10_loadtruth_roles.sql` (our 5 roles) | never hand-edit the vendored file; regenerate + bump in CHANGELOG |
 | JWT verify / tenant-scoped DB session | `backend/app/db/tenant.py`, `backend/app/db/engine.py` | binds Supabase JWT → RLS per request |
