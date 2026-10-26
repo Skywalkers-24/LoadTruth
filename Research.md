@@ -214,3 +214,57 @@ The system must:
 Deliver a runnable MVP with a clean interface, realistic clearly-labelled sample data, tests for quantity calculation and record matching, and documented setup instructions.
 
 The product principle to preserve: LoadTruth should make each reported debris load easier to verify, explain, and audit. The AI produces evidence and flags inconsistencies; the responsible monitor or reviewer retains authority over the official record. This is a design aligned with the monitoring concepts in the cited guidance, not a claim that the software itself is FEMA-certified or guarantees reimbursement compliance.
+
+---
+
+# Why this matters: real-world case studies
+
+Debris monitoring is a multi-billion-dollar problem where the quantity written on a load ticket is the quantity the taxpayer pays for. The cases below — all from government reports, court records, and news coverage — show the scale of the money, the recurring failure mode (overstated truck loads and weak oversight), and why automated, evidence-backed verification like LoadTruth is valuable. Figures are paraphrased from the cited sources; see each link for the primary statement. *Content rephrased for compliance with licensing restrictions.*
+
+## The scale of the problem
+
+**1. The 2024 hurricane season — ~107 million cubic yards of debris.**
+After Hurricanes Helene and Milton, FEMA reported that more than 107 million cubic yards of debris were cleared across the Southeast, with billions obligated to speed removal. Every one of those cubic yards flows through a load-ticket count that someone has to verify. Source: [FEMA — Recovery Efforts One Year After Helene and Milton](https://www.fema.gov/blog/recovery-efforts-continue-one-year-after-hurricanes-helene-and-milton) and [FEMA — Recovery Continues After Historic 2024 Hurricane Season](https://www.fema.gov/press-release/20250926/recovery-continues-after-historic-2024-hurricane-season).
+
+**2. Florida's Helene/Milton debris reimbursement — ~$2 billion.**
+FEMA reported nearly $2.0 billion obligated to Florida communities to reimburse debris removal, infrastructure repair, and emergency work after the 2024 storms. Source: [FEMA — Florida Helene and Milton Recovery Fact Sheet 076](https://www.fema.gov/fact-sheet/florida-helene-and-milton-recovery-fact-sheet-076).
+
+**3. Hurricane Ian (2022) — millions of cubic yards, tens of millions per city.**
+Florida reported that more than four million cubic yards of upland debris and nearly 931,000 cubic yards of wet debris were removed statewide after Ian ([FL Governor's Office](https://www.flgov.com/eog/news/press/2023/florida-provides-updates-hurricane-ian-recovery-efforts-one-year-after-landfall)). FEMA approved $40.1 million for just two cities — including $33.9 million to North Port for roughly 89,316 cubic yards of vegetative debris. Source: [FEMA approves $40M for Ian debris removal (PDF)](https://www.fortmyersbeach.org/wp-content/uploads/2023/05/DR-4673-FL-NR096_FEMA-Approves-40-Million-for-Hurricane-Ian-Debris-Removal-in-Fort-Myers-Beach-North-Port.pdf).
+
+**4. Hurricane Sandy (2012) — 15+ million cubic yards; $25.5B recovery.**
+FEMA supported removal of more than 15 million cubic yards of debris after Sandy; the New York City area alone handled over two million cubic yards, and the Army Corps cleared 5.25 million cubic yards in New York — described as enough to fill the Empire State Building three times. Source: [FEMA Sandy One-Year Fact Sheet (PDF)](https://news.va.gov/wp-content/uploads/sites/3/2013/10/FEMA-Sandy-One-Year-Fact-Sheet.pdf), [NYC debris disposal release](https://a860-gpp.nyc.gov/downloads/6m311r35q?locale=en), and [US Army Corps — NY debris mission](https://www.nan.usace.army.mil/Media/News-Stories/Story-Article-View/Article/488040/recovery-field-office-completes-mammoth-new-york-debris-removal-mission/).
+
+## The cost of monitoring (why buyers already pay for this)
+
+**5. Miami-Dade — a single $190 million debris-monitoring contract.**
+Miami-Dade County recommended awarding a disaster debris removal *monitoring* services contract worth $190,070,000 for an initial five-year term (with a five-year renewal option). That is monitoring alone — not the removal itself — which shows how much governments already spend just to verify that loads are real and correctly counted. Source: [Miami-Dade County agenda item (PDF)](https://www.miamidade.gov/govaction/legistarfiles/Matters/Y2026/261096.pdf).
+
+**6. Dunedin, FL — ~$600K to monitor one season's cleanup.**
+One small city budgeted an estimated $604,615 for contracted debris-monitoring hours for a single hurricane season, against roughly $4+ million in collection costs. Even small jurisdictions carry real monitoring bills. Source: [City of Dunedin agenda cover (PDF)](https://d2kbkoa27fdvtw.cloudfront.net/dunedin/1d89f73d26bf5fa9422ada2d1efa65480.pdf) and [Dunedin — Hurricane Debris Collection Completed](https://www.dunedin.gov/News-articles/2024/Hurricane-Debris-Collection-Completed).
+
+## The failure mode LoadTruth targets: overstated loads and weak oversight
+
+**7. Hurricane Katrina — trucks logged at over 500% of capacity.**
+A DHS Inspector General audit of Kenner, Louisiana questioned $5.5 million in Katrina debris costs after finding trucks recorded as more than 95% full — and, per city documents, some loads measured at more than 500% of certified capacity. This is exactly the "estimated fullness" integrity gap LoadTruth is built to catch. Source: [NOLA.com — audit questions $5.5M in Kenner](https://www.nola.com/news/audit-questions-5-5-million-in-katrina-debris-removal-costs-paid-to-kenner-by-fema/article_0b34e794-cfc9-5d5e-95e3-141c0df20869.html) and [DHS OIG DD-09-04 (PDF)](https://www.oig.dhs.gov/sites/default/files/assets/GrantReports/OIG_DD-09-04_Jan09.pdf).
+
+**8. Katrina — fake load slips and bribes for tickets never dumped.**
+The Department of Justice prosecuted a conspiracy built on false debris-removal load slips totaling $716,677, and separately charged a subcontractor with bribing a monitor to create false load tickets for debris that was never actually dumped. Load tickets are the fraud surface; verifying them against evidence is the defense. Source: [DOJ — Katrina load-slip fraud sentencing (PDF)](https://www.justice.gov/criminal/disasters/pr/2007/may/05-18-07akitto-sent.pdf) and [DOJ/DoD — false load ticket bribery charge (PDF)](https://media.defense.gov/2005/Dec/06/2001711424/-1/-1/1/katrinafraudrelease5.pdf).
+
+**9. Katrina — a $63B operation flagged for double-billing and inflated loads.**
+A U.S. House committee report found contractors overbilled on the Katrina recovery: debris was mixed improperly to inflate prices, the same loads were billed twice, and mileage was overstated in more than half of the sampled trips to collect extra per-cubic-yard haul fees. A top prime, AshBritt, was paid about $23 per cubic yard while subcontractors down the chain were paid a fraction of that. Source: [CBS News — Report: Katrina Cleanup Too Expensive](https://www.cbsnews.com/news/report-katrina-cleanup-too-expensive/).
+
+**10. Hurricane Irma (2017) — ~$1.5B in debris costs with "little to no oversight."**
+A DHS OIG management alert warned that after Irma, officials provided little to no oversight of debris contractors, leaving the door open to fraud, with Florida/Georgia debris costs projected near $1.5 billion. The oversight report also noted that when haulers overstate loads or collect unauthorized debris, local governments end up requesting reimbursement for unreasonable or ineligible costs. Source: [DHS OIG-18-85 (PDF)](https://www.oig.dhs.gov/sites/default/files/assets/2018-10/OIG-18-85-Sep18.pdf), [Miami Herald coverage](https://www.miamiherald.com/news/local/community/florida-keys/article219425795.html), and [House Oversight release](https://oversightdemocrats.house.gov/news/press-releases/new-report-exposes-fema-s-inadequate-oversight-of-contractors-after-hurricane).
+
+**11. Detroit (2022) — falsified "dirt tickets" on demolition hauls.**
+Beyond hurricanes, a Detroit OIG investigation examined a complaint that a contractor supervisor directed staff to put addresses on load tickets that did not match where trucks actually went — the same ticket-integrity problem in a non-disaster context. Source: [Detroit OIG investigation memo (PDF)](https://detroitmi.gov/sites/detroitmi.localhost/files/2026-02/Memo_RTC%20Investigation_22-0018-INV_27Sept23_THG.pdf).
+
+## What the cases tell us (the pitch)
+
+- **The money is enormous and recurring.** A single season now produces ~107M cubic yards of debris and billions in reimbursement; even a single county's *monitoring* contract runs to $190M.
+- **The unit of fraud is the load ticket.** Every documented abuse — 500%-full trucks, double-billed loads, fake slips, mismatched addresses — comes down to a quantity or identity on a ticket that nobody could independently verify.
+- **Oversight is the known weak point.** Federal watchdogs repeatedly cite "little to no oversight" and warn that overstated loads turn into ineligible reimbursement requests.
+- **LoadTruth's angle:** attach independent video evidence to each ticket, estimate visible fullness, and flag identity/quantity/timeline conflicts for a human reviewer — turning the load ticket from an honor-system claim into an auditable, evidence-backed record.
+
+> Sourcing note: dollar figures and quantities above are paraphrased from government reports (FEMA, DHS OIG, GAO, DOJ), county/city records, and contemporaneous news coverage linked inline. They establish the problem's scale and the recurring overstated-load failure mode; they are not a claim that LoadTruth is FEMA-certified or that any named party's conduct is representative.
