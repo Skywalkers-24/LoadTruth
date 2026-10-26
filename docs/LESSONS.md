@@ -34,3 +34,11 @@ Entry format:
 
 - **Local `vitest run` != CI `vitest run --coverage`.** The `test` script uses `--coverage`, which requires `@vitest/coverage-v8`; it wasn't a devDependency, so local `vitest run` (no coverage, as I ran it) passed but CI failed with "MISSING DEPENDENCY @vitest/coverage-v8". Fix: add `@vitest/coverage-v8` to devDependencies. Rule: run the *exact* script CI runs (`npm run test`) locally before pushing, not a simpler variant.
 - **`secrets` context is invalid in step-level `if` conditions.** `deploy.yml` used `if: ${{ secrets.FLY_API_TOKEN != '' }}` on steps; GitHub rejects the `secrets` context there ("workflow file issue"), and the run failed instantly on push even though the trigger is `workflow_dispatch`. Fix: read the secret into an `env:` at job level and gate on `env`/a job output, or use `vars`. Rule: never reference `secrets.*` directly in an `if:` expression — assign to `env` first.
+
+### 2026-10-26 — Frontend Docker build: missing public/
+
+- **`COPY /app/public ./public` failed: "/app/public": not found.** The frontend Dockerfile copies Next's `public/` dir, but the scaffold never created one, so the Docker build (only exercised in CI, not locally — no Docker here) failed while backend+frontend lint/test/build jobs passed. Fix: add `frontend/public/.gitkeep`. Rule: when a Dockerfile `COPY`s a path, ensure that path exists in the repo; and remember Docker builds are only validated in CI on this machine (no local Docker) — read the CI docker job log, don't assume.
+
+### 2026-10-26 — CodeQL is not free on private repos
+
+- **CodeQL code scanning is free only on public repos.** On Free/Pro plans it fails for private repos (needs GitHub Advanced Security, paid). In our run the analysis completed but the SARIF upload step failed with a permission error. Fix: removed the CodeQL jobs; the Security workflow now runs only `gitleaks` (free on private). Local `scripts/eval.sh` covers the rest (bandit, pip-audit, npm audit). Rule: don't add CodeQL to a free private repo's CI — it will always fail at upload. Re-add only if the repo goes public or gets Advanced Security.

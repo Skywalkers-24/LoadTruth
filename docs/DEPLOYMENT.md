@@ -36,6 +36,9 @@ Caching is layered so the expensive thing — Meta Model API calls on video — 
 - Hot, small lookups (truck registry by number, rate tables) cached in-process with a TTL and backed by Upstash Redis so all backend instances share it.
 - Supabase signed Storage URLs cached until just before expiry to avoid re-signing per request.
 
+### Security scanning on a free private repo
+CodeQL code scanning is free only for **public** repos; on a free **private** repo it needs paid GitHub Advanced Security and fails at the upload step. So CI uses free equivalents: `gitleaks` (secret scan) in `.github/workflows/security.yml`, plus `bandit`, `pip-audit`, and `npm audit` in `scripts/eval.sh` and CI. Re-enable CodeQL only if the repo goes public or gets Advanced Security.
+
 ### 5. Build & dependency cache (free CI speed)
 - GitHub Actions caches pip + npm (`cache:` in `setup-python`/`setup-node`) and Docker layers via `type=gha`, so CI stays fast within free minutes.
 
