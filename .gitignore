@@ -1,0 +1,30 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Python
+**/.venv/
+**/__pycache__/
+*.py[cod]
+**/.mypy_cache/
+**/.ruff_cache/
+**/.pytest_cache/
+**/.coverage
+**/htmlcov/
+**/*.egg-info/
+
+# Node / Next
+**/node_modules/
+**/.next/
+**/out/
+**/coverage/
+*.tsbuildinfo
+**/next-env.d.ts
+
+# OS / editor
+.DS_Store
+
+# Logs / local artifacts
+responses.log
+*.local

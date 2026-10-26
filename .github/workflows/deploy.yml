@@ -1,0 +1,57 @@
+name: Deploy
+
+# Free-tier deploy. Manual dispatch only, so it never burns Actions minutes or
+# fails on missing secrets until we opt in. Target: Fly.io free allowance for the
+# backend + worker, Vercel free tier for the frontend, Supabase free tier for
+# DB/storage. See docs/DEPLOYMENT.md.
+#
+# NOTE: `secrets.*` cannot be referenced in step `if:` expressions, so we copy
+# the token into a job-level `env` and gate steps on that (see docs/LESSONS.md).
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "What to deploy"
+        type: choice
+        options: [backend, frontend, both]
+        default: both
+
+jobs:
+  deploy-backend:
+    if: ${{ inputs.target == 'backend' || inputs.target == 'both' }}
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Fly.io
+        if: ${{ env.FLY_API_TOKEN != '' }}
+        uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Fly deploy
+        if: ${{ env.FLY_API_TOKEN != '' }}
+        run: flyctl deploy --remote-only --config fly.backend.toml
+      - name: Skip notice
+        if: ${{ env.FLY_API_TOKEN == '' }}
+        run: echo "FLY_API_TOKEN not set — skipping backend deploy."
+
+  deploy-frontend:
+    if: ${{ inputs.target == 'frontend' || inputs.target == 'both' }}
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Vercel
+        if: ${{ env.VERCEL_TOKEN != '' }}
+        run: |
+          npm i -g vercel
+          vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+          vercel build --prod --token "$VERCEL_TOKEN"
+          vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
+      - name: Skip notice
+        if: ${{ env.VERCEL_TOKEN == '' }}
+        run: echo "VERCEL_TOKEN not set — skipping frontend deploy."

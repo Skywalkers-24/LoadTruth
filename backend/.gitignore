@@ -1,0 +1,17 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+# Interim local SQLite database (until Supabase Postgres is wired)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

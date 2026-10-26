@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* LoadTruth operator-console theme (PLAN.md §9).
+   Dark-first, evidence-forward, with a full light theme. Tokens are driven by
+   the `data-theme` attribute on <html> (set by ThemeProvider). Every surface
+   works 360px -> wide desktop. Colors meet WCAG AA contrast in both themes. */
+
+@theme {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+}
+
+/* Dark theme (default) */
+:root,
+[data-theme="dark"] {
+  --bg: #0a0b0d;
+  --surface: #14161a;
+  --surface-2: #1b1e24;
+  --border: #262a30;
+  --text: #e6e8eb;
+  --muted: #9aa3ad;
+  --accent: #4f8cff; /* "needs review" */
+  --ok: #35c28b;
+  --warn: #f2b24c;
+  --danger: #ff5c5c;
+  color-scheme: dark;
+}
+
+/* Light theme */
+[data-theme="light"] {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --border: #d9dee4;
+  --text: #0d1117;
+  --muted: #5b6672;
+  --accent: #1f6feb;
+  --ok: #1a7f5a;
+  --warn: #b5771a;
+  --danger: #c93c3c;
+  color-scheme: light;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Smooth theme transition without animating layout. */
+body {
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}

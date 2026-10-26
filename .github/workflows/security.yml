@@ -1,0 +1,27 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # weekly, Monday 06:00 UTC
+
+# NOTE: CodeQL's SARIF upload to Code Scanning requires GitHub Advanced Security,
+# which is NOT available on free private repos — it fails at the upload step even
+# though analysis runs. So on this (free, private) repo we rely on gitleaks here
+# plus the local security tools in scripts/eval.sh (bandit, pip-audit, npm audit).
+# Re-enable CodeQL by making the repo public or adding Advanced Security.
+
+jobs:
+  gitleaks:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

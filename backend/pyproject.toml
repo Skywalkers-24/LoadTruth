@@ -1,0 +1,91 @@
+[project]
+name = "loadtruth-backend"
+version = "0.1.0"
+description = "LoadTruth backend — video-to-ticket pipeline, multi-tenant API (FastAPI, Python 3.12)."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.141,<0.142",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+    "aiosqlite>=0.20",
+    "alembic>=1.14",
+    "openai>=1.54",
+    "pyjwt>=2.9",
+    "redis>=5.2",
+    "arq>=0.26",
+    "httpx>=0.28",
+    "python-multipart>=0.0.12",
+    "structlog>=24.4",
+]
+
+[project.optional-dependencies]
+# Optional media decoding (Stage 1 frame sampling). PyAV wheels are not always
+# available on every platform, so the frames module feature-detects it and
+# degrades gracefully when it is absent — the code and tests run without it.
+media = [
+    "av>=12.0",
+]
+dev = [
+    "ruff>=0.7",
+    "mypy>=1.13",
+    "bandit>=1.8",
+    "pip-audit>=2.7",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "radon>=6.0",
+    "xenon>=0.9",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "ASYNC", "S"]
+# S101 (assert) is allowed in tests via per-file-ignores below.
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+# PyAV is an optional dependency (frames.py feature-detects it); it ships no type
+# stubs and isn't installed in the default/dev/CI env, so ignore its import here.
+[[tool.mypy.overrides]]
+module = ["av", "av.*"]
+ignore_missing_imports = true
+
+# PyAV is an optional, lazily-imported native dependency with no type stubs and
+# is not installed in the lint/type env; treat its import as untyped.
+[[tool.mypy.overrides]]
+module = ["av"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true

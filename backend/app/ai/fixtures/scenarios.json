@@ -1,0 +1,65 @@
+{
+  "_comment": "Hand-written AI fixtures for the §5b labeled scenarios. Keyed by content_hash. Each entry is a normalized SAM track + Spark OCR/classify result. Byte-compatible with what the live clients return so MOCK_AI mode is indistinguishable. Recorded real responses are added by scripts/record-fixtures.sh and override these.",
+  "clean-full-cd": {
+    "label": "clean full C&D load",
+    "track": {
+      "frame_count": 60,
+      "objects": [
+        { "label": "dump truck", "sam_object_id": "obj-1", "mask_areas": [41000, 42000, 41800], "load_height_ratio": 0.0 },
+        { "label": "truck bed", "sam_object_id": "obj-2", "mask_areas": [26000, 26200, 26100], "load_height_ratio": 0.0 },
+        { "label": "debris pile", "sam_object_id": "obj-3", "mask_areas": [23800, 24000, 23900], "load_height_ratio": 0.9 },
+        { "label": "truck placard", "sam_object_id": "obj-4", "mask_areas": [320, 330, 325], "load_height_ratio": 0.0 }
+      ]
+    },
+    "ocr": { "truck_id": "FL-DT-3391", "confidence": 0.97, "frame_ref": "frame_0042.jpg" },
+    "classify": { "debris_class": "construction_demolition", "confidence": 0.94 }
+  },
+  "clean-partial-veg": {
+    "label": "clean partial vegetative load",
+    "track": {
+      "frame_count": 48,
+      "objects": [
+        { "label": "dump truck", "sam_object_id": "obj-1", "mask_areas": [40000], "load_height_ratio": 0.0 },
+        { "label": "truck bed", "sam_object_id": "obj-2", "mask_areas": [26000], "load_height_ratio": 0.0 },
+        { "label": "debris pile", "sam_object_id": "obj-3", "mask_areas": [10400], "load_height_ratio": 0.4 },
+        { "label": "truck placard", "sam_object_id": "obj-4", "mask_areas": [300], "load_height_ratio": 0.0 }
+      ]
+    },
+    "ocr": { "truck_id": "FL-DT-2204", "confidence": 0.95, "frame_ref": "frame_0205.jpg" },
+    "classify": { "debris_class": "vegetative", "confidence": 0.9 }
+  },
+  "low-confidence-placard": {
+    "label": "blurred/angled placard",
+    "track": {
+      "frame_count": 52,
+      "objects": [
+        { "label": "dump truck", "sam_object_id": "obj-1", "mask_areas": [39000], "load_height_ratio": 0.0 },
+        { "label": "truck bed", "sam_object_id": "obj-2", "mask_areas": [25000], "load_height_ratio": 0.0 },
+        { "label": "debris pile", "sam_object_id": "obj-3", "mask_areas": [14000], "load_height_ratio": 0.55 },
+        { "label": "truck placard", "sam_object_id": "obj-4", "mask_areas": [120], "load_height_ratio": 0.0 }
+      ]
+    },
+    "ocr": { "truck_id": null, "confidence": 0.31, "frame_ref": "frame_0303.jpg" },
+    "classify": { "debris_class": "construction_demolition", "confidence": 0.72 }
+  },
+  "hollow-load": {
+    "label": "hollow / fluffed vegetative load",
+    "track": {
+      "frame_count": 55,
+      "objects": [
+        { "label": "dump truck", "sam_object_id": "obj-1", "mask_areas": [40500], "load_height_ratio": 0.0 },
+        { "label": "truck bed", "sam_object_id": "obj-2", "mask_areas": [26000], "load_height_ratio": 0.0 },
+        { "label": "debris pile", "sam_object_id": "obj-3", "mask_areas": [23000], "load_height_ratio": 0.3 },
+        { "label": "truck placard", "sam_object_id": "obj-4", "mask_areas": [310], "load_height_ratio": 0.0 }
+      ]
+    },
+    "ocr": { "truck_id": "FL-DT-4417", "confidence": 0.93, "frame_ref": "frame_0410.jpg" },
+    "classify": { "debris_class": "vegetative", "confidence": 0.88 }
+  },
+  "no-truck": {
+    "label": "empty street footage, no truck",
+    "track": { "frame_count": 30, "objects": [] },
+    "ocr": { "truck_id": null, "confidence": 0.0, "frame_ref": null },
+    "classify": { "debris_class": "other", "confidence": 0.0 }
+  }
+}
