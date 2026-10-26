@@ -1,57 +1,121 @@
 @import "tailwindcss";
 
-/* LoadTruth operator-console theme (PLAN.md §9).
-   Dark-first, evidence-forward, with a full light theme. Tokens are driven by
-   the `data-theme` attribute on <html> (set by ThemeProvider). Every surface
-   works 360px -> wide desktop. Colors meet WCAG AA contrast in both themes. */
+/* LoadTruth operator-console theme.
+   Dark-first, evidence-forward, high-density. Tokens are driven by the
+   `data-theme` attribute on <html> (set by ThemeProvider before paint).
+   Palette follows the LoadTruth brand pack (Ink Navy / Safety Amber /
+   Verified Green / Anomaly Red). Semantic colors meet WCAG AA for the
+   text/background pairs they are actually used on; status is never conveyed
+   by color alone (always paired with a label and/or icon). */
 
 @theme {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
   --color-text: var(--text);
   --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+
   --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-fill: var(--accent-fill);
+  --color-on-accent: var(--on-accent);
+
+  /* Money accent — amber, reserved for dollars/variance only. */
+  --color-money: var(--money);
+  --color-money-strong: var(--money-strong);
+  --color-money-soft: var(--money-soft);
+
   --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+
+  --font-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, "Menlo", "Consolas", monospace;
 }
 
-/* Dark theme (default) */
+/* ── Dark theme (default) — Ink Navy canvas ─────────────────────────────── */
 :root,
 [data-theme="dark"] {
-  --bg: #0a0b0d;
-  --surface: #14161a;
-  --surface-2: #1b1e24;
-  --border: #262a30;
-  --text: #e6e8eb;
-  --muted: #9aa3ad;
-  --accent: #4f8cff; /* "needs review" */
-  --ok: #35c28b;
-  --warn: #f2b24c;
-  --danger: #ff5c5c;
   color-scheme: dark;
+
+  --bg: #0b1220;
+  --surface: #111c2d;
+  --surface-2: #172438;
+  --surface-3: #1d2c42;
+  --border: #2b3a50;
+  --border-strong: #3a4c66;
+
+  --text: #f1f5fb;
+  --muted: #a5b2c4;
+  --subtle: #7889a0;
+
+  /* Primary accent — blue. Nav, links, focus, selection, chart bars. */
+  --accent: #4f8cff;
+  --accent-strong: #6ea0ff;
+  --accent-soft: #15233f;
+  /* Deeper blue for solid fills so white text clears AA (buttons, solid chips). */
+  --accent-fill: #2f6fe0;
+  /* Text/icon color that sits on a solid blue fill. */
+  --on-accent: #ffffff;
+
+  /* Money accent — amber. Dollars, variance, the money frame only. */
+  --money: #f5a623;
+  --money-strong: #ffc15a;
+  --money-soft: #332819;
+
+  --ok: #35d08a;
+  --ok-soft: #10311f;
+  --warn: #f5a623;
+  --warn-soft: #332819;
+  --danger: #ff6b6f;
+  --danger-soft: #3a1d22;
+  --info: #63a7ff;
 }
 
-/* Light theme — warmer surfaces, stronger borders so cards read clearly */
+/* ── Light theme — quiet white/navy canvas, darker semantic foregrounds ── */
 [data-theme="light"] {
-  --bg: #eef1f5;
-  --surface: #ffffff;
-  --surface-2: #f4f6f9;
-  --border: #c9d1db;
-  --text: #0d1117;
-  --muted: #566070;
-  --accent: #1f6feb;
-  --ok: #157a52;
-  --warn: #a96a12;
-  --danger: #c5362f;
   color-scheme: light;
-}
 
-/* Cards get a subtle shadow in light mode for depth (flat in dark). */
-[data-theme="light"] .lt-card-shadow {
-  box-shadow: 0 1px 2px rgba(13, 17, 23, 0.04), 0 2px 8px rgba(13, 17, 23, 0.06);
+  --bg: #eef2f7;
+  --surface: #ffffff;
+  --surface-2: #f5f8fc;
+  --surface-3: #eaf0f7;
+  --border: #cdd7e3;
+  --border-strong: #b4c1d2;
+
+  --text: #0e1a2b;
+  --muted: #4a5a70;
+  --subtle: #64748b;
+
+  /* Primary accent — blue. */
+  --accent: #1f6feb;
+  --accent-strong: #1a5fd0;
+  --accent-soft: #e5efff;
+  --accent-fill: #1f6feb;
+  --on-accent: #ffffff;
+
+  /* Money accent — amber (darkened for AA on light surfaces). */
+  --money: #8a4b00;
+  --money-strong: #6f3c00;
+  --money-soft: #fff0d5;
+
+  --ok: #0f7a3b;
+  --ok-soft: #e2f6e9;
+  --warn: #8a4b00;
+  --warn-soft: #fff0d5;
+  --danger: #b4232c;
+  --danger-soft: #fde8e8;
+  --info: #155db5;
 }
 
 html,
@@ -59,11 +123,131 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Smooth theme transition without animating layout. */
 body {
+  font-family:
+    "Inter", "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  /* Smooth theme transition without animating layout. */
   transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+/* Monospace for evidence numerals wherever `.tabular-nums` is applied. */
+.tabular-nums {
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Shared primitives ──────────────────────────────────────────────────── */
+
+/* Cards get depth in both themes — stronger in light, a faint lift in dark. */
+.lt-card-shadow {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+[data-theme="light"] .lt-card-shadow {
+  box-shadow:
+    0 1px 2px rgba(14, 26, 43, 0.05),
+    0 2px 10px rgba(14, 26, 43, 0.06);
+}
+
+/* Sidebar/panel edge shadow (used on the left rail). */
+.lt-rail-shadow {
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.28);
+}
+[data-theme="light"] .lt-rail-shadow {
+  box-shadow: 2px 0 16px rgba(14, 26, 43, 0.06);
+}
+
+/* Visible, consistent keyboard focus everywhere. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Thin technical grid texture for the evidence canvas backdrop. */
+.lt-grid-bg {
+  background-image:
+    linear-gradient(var(--color-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: center;
+  opacity: 0.35;
+}
+
+/* Custom scrollbars tuned for the dense dark console. */
+.lt-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+.lt-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.lt-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.lt-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Smooth, consistent interaction transitions across the console. */
+a,
+button,
+[role="button"],
+[role="option"],
+[role="tab"],
+input,
+select,
+textarea,
+.lt-card-shadow {
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+/* Gentle lift on hoverable cards (opt-in via .lt-hover). */
+.lt-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  border-color: var(--color-border-strong);
+}
+[data-theme="light"] .lt-hover:hover {
+  box-shadow: 0 6px 20px rgba(14, 26, 43, 0.1);
+}
+
+/* Subtle page-content entrance. */
+@keyframes lt-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.lt-fade-in {
+  animation: lt-fade-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }

@@ -1,43 +1,109 @@
 "use client";
 
-import { AppNav } from "@/components/app-nav";
+import { useState } from "react";
+
+import { AppShell } from "@/components/shell/app-shell";
 import { RateTableEditor } from "@/components/admin/rate-table";
+import { RolesPanel } from "@/components/admin/roles-panel";
 import { SourceConnections } from "@/components/admin/source-connections";
 import { TruckRegistry } from "@/components/admin/truck-registry";
-import { useEvents } from "@/lib/hooks";
+import { Panel, SectionTitle, ErrorState, Skeleton } from "@/components/ui/primitives";
+import { CameraIcon, DollarIcon, TruckIcon, UsersIcon } from "@/components/ui/icons";
+import { useEventContext } from "@/lib/event-context";
 
-/**
- * Admin surface (previously deferred, §1a): event rate table, certified-truck
- * registry, and source connections. Single seeded tenant in this build — the
- * multi-tenant RBAC data layer exists (infra/rbac) but role/invite screens stay
- * on the roadmap.
- */
+type Tab = "rates" | "trucks" | "sources" | "roles";
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: "rates", label: "Rate table" },
+  { id: "trucks", label: "Truck registry" },
+  { id: "sources", label: "Source connections" },
+  { id: "roles", label: "Users & roles" },
+];
+
+/** Admin surface: tabbed sections for rates, trucks, sources, and roles. */
 export default function AdminPage() {
-  const events = useEvents();
-  const event = events.data?.[0];
+  const { selected: event, isLoading, isError } = useEventContext();
+  const [tab, setTab] = useState<Tab>("rates");
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-1">
-          <span className="text-xs font-medium uppercase tracking-widest text-[var(--color-muted)]">
-            LoadTruth · Admin
-          </span>
-          <h1 className="text-xl font-semibold sm:text-2xl">{event?.name ?? "Loading…"}</h1>
-          {event?.location && <p className="text-sm text-[var(--color-muted)]">{event.location}</p>}
+    <AppShell section="Admin">
+      <div className="flex flex-col gap-5">
+        <header className="flex flex-col gap-0.5">
+          <h1 className="text-[20px] font-semibold text-[var(--color-text)]">
+            {event?.name ?? "Admin"}
+          </h1>
+          <p className="text-[13px] text-[var(--color-muted)]">
+            Configure rates, trucks, evidence sources, and review the role model.
+          </p>
         </header>
 
-        {event ? (
-          <div className="flex flex-col gap-6">
-            <RateTableEditor event={event} />
-            <TruckRegistry />
-            <SourceConnections eventId={event.id} />
-          </div>
+        {/* Tab bar */}
+        <div
+          className="lt-scroll flex gap-1 overflow-x-auto border-b border-[var(--color-border)]"
+          role="tablist"
+          aria-label="Admin sections"
+        >
+          {TABS.map((t) => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(t.id)}
+                className="shrink-0 border-b-2 px-3 py-2 text-[13px] font-medium transition-colors"
+                style={{
+                  borderColor: active ? "var(--color-accent)" : "transparent",
+                  color: active ? "var(--color-text)" : "var(--color-muted)",
+                }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {isError ? (
+          <ErrorState title="Events unavailable" description="The backend didn’t return any events." />
+        ) : isLoading || !event ? (
+          <Skeleton className="h-64" />
         ) : (
-          <p className="text-sm text-[var(--color-muted)]">Loading admin data…</p>
+          <>
+            {tab === "rates" && (
+              <Panel>
+                <SectionTitle icon={<DollarIcon size={16} />} className="mb-4">
+                  Rate table ($/CY by debris class)
+                </SectionTitle>
+                <RateTableEditor event={event} />
+              </Panel>
+            )}
+            {tab === "trucks" && (
+              <Panel>
+                <SectionTitle icon={<TruckIcon size={16} />} className="mb-4">
+                  Certified-truck registry
+                </SectionTitle>
+                <TruckRegistry />
+              </Panel>
+            )}
+            {tab === "sources" && (
+              <Panel>
+                <SectionTitle icon={<CameraIcon size={16} />} className="mb-4">
+                  Source connections
+                </SectionTitle>
+                <SourceConnections eventId={event.id} />
+              </Panel>
+            )}
+            {tab === "roles" && (
+              <Panel>
+                <SectionTitle icon={<UsersIcon size={16} />} className="mb-4">
+                  Users &amp; roles
+                </SectionTitle>
+                <RolesPanel />
+              </Panel>
+            )}
+          </>
         )}
-      </main>
-    </>
+      </div>
+    </AppShell>
   );
 }

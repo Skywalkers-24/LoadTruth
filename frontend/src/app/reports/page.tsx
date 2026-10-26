@@ -1,57 +1,75 @@
 "use client";
 
-import { AppNav } from "@/components/app-nav";
-import { ReportsSummaryPanel } from "@/components/reports-summary";
+import { AppShell } from "@/components/shell/app-shell";
+import { ReportsPanel } from "@/components/reports/reports-panel";
+import { LinkButton } from "@/components/ui/button";
+import { DownloadIcon, FileIcon } from "@/components/ui/icons";
+import { EmptyState, ErrorState, Skeleton } from "@/components/ui/primitives";
 import { api } from "@/lib/api";
-import { useEvents, useReportsSummary } from "@/lib/hooks";
+import { useEventContext } from "@/lib/event-context";
+import { useReportsSummary } from "@/lib/hooks";
 
-/** Reports page: event-level summary breakdowns + export actions. */
+/** Event-level reporting workspace: KPIs, breakdowns, and exports. */
 export default function ReportsPage() {
-  const events = useEvents();
-  const eventId = events.data?.[0]?.id;
+  const { selected, selectedId: eventId, isError: eventsError } = useEventContext();
   const summary = useReportsSummary(eventId);
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+    <AppShell section="Reports">
+      <div className="flex flex-col gap-5">
         <header className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-widest text-[var(--color-muted)]">
-              LoadTruth · Reports
-            </span>
-            <h1 className="text-xl font-semibold sm:text-2xl">
-              {events.data?.[0]?.name ?? "Loading…"}
+          <div className="flex flex-col gap-0.5">
+            <h1 className="text-[20px] font-semibold text-[var(--color-text)]">
+              {selected?.name ?? "Reports"}
             </h1>
+            <p className="text-[13px] text-[var(--color-muted)]">
+              Historical analysis and audit exports for this event.
+            </p>
           </div>
           {eventId && (
             <div className="flex flex-wrap gap-2">
-              <a
-                href={api.exportCsvUrl(eventId)}
-                className="rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)]"
-              >
+              <LinkButton href={api.exportCsvUrl(eventId)} icon={<DownloadIcon size={15} />}>
                 Export CSV
-              </a>
-              <a
+              </LinkButton>
+              <LinkButton
                 href={api.auditPacketUrl(eventId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)]"
+                icon={<FileIcon size={15} />}
+                external
               >
-                Audit packet
-              </a>
+                FEMA-format audit packet
+              </LinkButton>
             </div>
           )}
         </header>
 
-        {summary.isLoading ? (
-          <p className="text-sm text-[var(--color-muted)]">Loading summary…</p>
+        <p className="text-[11px] text-[var(--color-subtle)]">
+          “FEMA-format audit packet” describes the document layout only. LoadTruth is not affiliated
+          with or endorsed by FEMA.
+        </p>
+
+        {eventsError ? (
+          <ErrorState title="Events unavailable" description="The backend didn’t return any events." />
+        ) : summary.isLoading ? (
+          <div className="flex flex-col gap-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-28" />
+              ))}
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-44" />
+              ))}
+            </div>
+          </div>
+        ) : summary.isError ? (
+          <ErrorState description="Couldn’t load the report." onRetry={() => summary.refetch()} />
         ) : summary.data ? (
-          <ReportsSummaryPanel s={summary.data} />
+          <ReportsPanel s={summary.data} />
         ) : (
-          <p className="text-sm text-[var(--color-muted)]">No report data yet.</p>
+          <EmptyState title="No report data" description="This event has no tickets yet." />
         )}
-      </main>
-    </>
+      </div>
+    </AppShell>
   );
 }

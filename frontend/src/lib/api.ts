@@ -108,7 +108,15 @@ export interface TruckInput {
 }
 
 export type SourceKind =
-  "upload" | "rtsp" | "hls" | "ip_camera" | "cloud_bucket" | "webhook" | "mobile";
+  | "upload"
+  | "s3"
+  | "gcs"
+  | "azure_blob"
+  | "google_drive"
+  | "dropbox"
+  | "rtsp"
+  | "hls"
+  | "webhook";
 export type SourceStatus = "active" | "paused" | "error";
 
 export interface Source {
@@ -139,6 +147,39 @@ export interface EventInput {
   location?: string | null;
   status?: string;
   rate_table?: Record<string, number>;
+}
+
+/** A role within the product's RBAC vocabulary. */
+export type Role = "monitor" | "supervisor" | "county_admin" | "auditor" | "super_admin";
+export type UserStatus = "active" | "inactive";
+
+export interface User {
+  id: string;
+  tenant_id: string;
+  email: string;
+  full_name: string | null;
+  role: Role;
+  status: UserStatus;
+  created_at: string;
+}
+
+export interface UserInput {
+  email: string;
+  full_name?: string | null;
+  role?: Role;
+  status?: UserStatus;
+}
+
+export interface TenantMembership {
+  tenant_id: string;
+  tenant_name: string;
+  roles: string[];
+}
+
+export interface AuthContext {
+  user_id: string;
+  email: string | null;
+  memberships: TenantMembership[];
 }
 
 export interface ReportsSummary {
@@ -186,6 +227,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export async function getHealth(): Promise<Health | null> {
   try {
     return await request<Health>("/health");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns the signed-in user's tenants + roles, or null when unavailable.
+ * This build does not wire a bearer-token sign-in flow, so the endpoint
+ * typically returns 401 and we surface a reference view instead of fake users.
+ */
+export async function getAuthContext(): Promise<AuthContext | null> {
+  try {
+    return await request<AuthContext>("/auth-context");
   } catch {
     return null;
   }
@@ -250,6 +304,14 @@ export const api = {
   updateTruck: (id: string, body: Partial<TruckInput>) =>
     request<Truck>(`/trucks/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   deleteTruck: (id: string) => request<void>(`/trucks/${id}`, { method: "DELETE" }),
+
+  // Admin — users (tenant members + roles)
+  listUsers: () => request<User[]>("/users"),
+  createUser: (body: UserInput) =>
+    request<User>("/users", { method: "POST", body: JSON.stringify(body) }),
+  updateUser: (id: string, body: Partial<UserInput>) =>
+    request<User>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteUser: (id: string) => request<void>(`/users/${id}`, { method: "DELETE" }),
 
   // Admin — sources
   listSources: (eventId: string) => request<Source[]>(`/events/${eventId}/sources`),

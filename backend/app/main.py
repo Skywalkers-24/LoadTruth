@@ -19,6 +19,7 @@ from app.api.reports import router as reports_router
 from app.api.sources import router as sources_router
 from app.api.tickets import router as tickets_router
 from app.api.trucks import router as trucks_router
+from app.api.users import router as users_router
 from app.config import get_settings
 from app.log import configure_logging, get_logger
 
@@ -83,6 +84,7 @@ async def health() -> dict[str, object]:
 app.include_router(auth_context_router)
 app.include_router(tickets_router)
 app.include_router(trucks_router)
+app.include_router(users_router)
 app.include_router(sources_router)
 app.include_router(ingest_router)
 app.include_router(reports_router)

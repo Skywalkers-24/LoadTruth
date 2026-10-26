@@ -2,131 +2,180 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { AppNav } from "@/components/app-nav";
-import { ClipUploader } from "@/components/clip-uploader";
-import { DashboardPanel } from "@/components/dashboard";
+import { AppShell } from "@/components/shell/app-shell";
+import { QueueFilters, type SortKey, type StatusFilter } from "@/components/console/queue-filters";
+import { ReviewWorkspace } from "@/components/console/review-workspace";
+import { TicketQueue } from "@/components/console/ticket-queue";
 import { Pagination } from "@/components/pagination";
-import { ReviewConsole } from "@/components/review-console";
-import { TicketList } from "@/components/ticket-list";
-import type { TicketStatus } from "@/lib/api";
-import { useDashboard, useEvents, useTickets } from "@/lib/hooks";
+import { Button } from "@/components/ui/button";
+import { ChevronDownIcon } from "@/components/ui/icons";
+import { EmptyState, ErrorState, Panel, Skeleton } from "@/components/ui/primitives";
+import type { Ticket } from "@/lib/api";
+import { useEventContext } from "@/lib/event-context";
+import { useTickets } from "@/lib/hooks";
 
-const PAGE_SIZE = 10;
-
-const STATUS_FILTERS: { value: TicketStatus | "all"; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "draft", label: "Needs review" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "disputed", label: "Disputed" },
-];
+const PAGE_SIZE = 12;
 
 /**
- * Operator console: event header + dashboard roll-up, a paginated/filterable
- * review queue, and the review console for the selected ticket (PLAN.md §3).
- * Single seeded tenant in this build (§1a).
+ * Review Console — detail review of a single ticket. A dense, self-scrolling
+ * queue on the left and the selected ticket's evidence/money/review workspace on
+ * the right. Event-level KPIs live on Overview; this screen stays focused on the
+ * one task and fits a desktop viewport without page scroll.
  */
 export default function ConsolePage() {
-  const events = useEvents();
-  const eventId = events.data?.[0]?.id;
+  const { selectedId: eventId, isError: eventsError } = useEventContext();
 
-  const [statusFilter, setStatusFilter] = useState<TicketStatus | "all">("all");
+  const [status, setStatus] = useState<StatusFilter>("all");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<SortKey>("newest");
   const [offset, setOffset] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mobileDetail, setMobileDetail] = useState(false);
 
   const tickets = useTickets({
     eventId,
-    status: statusFilter === "all" ? undefined : statusFilter,
+    status: status === "all" ? undefined : status,
     limit: PAGE_SIZE,
     offset,
   });
-  const dashboard = useDashboard(eventId);
 
-  const rows = useMemo(() => tickets.data?.items ?? [], [tickets.data]);
+  const page = useMemo(() => tickets.data?.items ?? [], [tickets.data]);
   const total = tickets.data?.total ?? 0;
+  const rows = useMemo(() => filterAndSort(page, search, sort), [page, search, sort]);
 
-  // Default-select the first over-called ticket (the money frame) on first load.
   useEffect(() => {
-    if (selectedId || rows.length === 0) return;
-    const hero = rows.find((t) => t.valuation.is_overbill) ?? rows[0];
-    if (hero) setSelectedId(hero.id);
-  }, [rows, selectedId]);
+    if (rows.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+    setSelectedId((cur) => {
+      if (cur && rows.some((t) => t.id === cur)) return cur;
+      const hero = rows.find((t) => t.valuation.is_overbill) ?? rows[0];
+      return hero?.id ?? null;
+    });
+  }, [rows]);
 
   const selected = rows.find((t) => t.id === selectedId) ?? null;
 
-  function changeFilter(next: TicketStatus | "all") {
-    setStatusFilter(next);
-    setOffset(0);
-    setSelectedId(null);
+  function selectTicket(id: string) {
+    setSelectedId(id);
+    setMobileDetail(true);
+  }
+
+  const queuePanel = (
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="flex flex-col gap-3">
+        <QueueFilters
+          search={search}
+          onSearch={setSearch}
+          status={status}
+          onStatus={(s) => {
+            setStatus(s);
+            setOffset(0);
+          }}
+          sort={sort}
+          onSort={setSort}
+        />
+        <div className="text-[11px] tabular-nums text-[var(--color-subtle)]">
+          Showing {rows.length} of {total} ticket{total === 1 ? "" : "s"}
+        </div>
+      </div>
+
+      <div className="lt-scroll min-h-0 flex-1 overflow-y-auto pr-1">
+        {tickets.isLoading ? (
+          <div className="flex flex-col gap-1.5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-[72px]" />
+            ))}
+          </div>
+        ) : tickets.isError ? (
+          <ErrorState description="Couldn’t load the ticket queue." onRetry={() => tickets.refetch()} />
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title="No tickets match"
+            description={
+              search ? "No tickets on this page match your search." : "No tickets for this filter yet."
+            }
+          />
+        ) : (
+          <TicketQueue tickets={rows} selectedId={selectedId} onSelect={selectTicket} />
+        )}
+      </div>
+
+      {!tickets.isLoading && !tickets.isError && rows.length > 0 && (
+        <div className="border-t border-[var(--color-border)] pt-3">
+          <Pagination total={total} limit={PAGE_SIZE} offset={offset} onOffset={setOffset} />
+        </div>
+      )}
+    </div>
+  );
+
+  const workspacePanel = selected ? (
+    <ReviewWorkspace ticket={selected} />
+  ) : (
+    <Panel className="h-full">
+      <EmptyState
+        title="Select a ticket"
+        description="Choose a ticket from the queue to review its evidence, money frame, and anomalies."
+      />
+    </Panel>
+  );
+
+  if (eventsError) {
+    return (
+      <AppShell section="Review Console">
+        <ErrorState title="Events unavailable" description="The backend didn’t return any events." />
+      </AppShell>
+    );
   }
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-2">
-          <span className="text-xs font-medium uppercase tracking-widest text-[var(--color-muted)]">
-            LoadTruth · Operator console
-          </span>
-          <h1 className="text-xl font-semibold sm:text-2xl">
-            {events.data?.[0]?.name ?? "Loading event…"}
-          </h1>
-          {events.data?.[0]?.location && (
-            <p className="text-sm text-[var(--color-muted)]">{events.data[0].location}</p>
-          )}
-          {eventId && <ClipUploader eventId={eventId} />}
-        </header>
+    <AppShell section="Review Console">
+      {/* Desktop: fixed-height two-pane that fills the viewport (no page scroll). */}
+      <div className="hidden h-[calc(100dvh-108px)] gap-5 lg:grid lg:grid-cols-[minmax(300px,32%)_1fr]">
+        <Panel className="min-h-0 overflow-hidden">{queuePanel}</Panel>
+        <div className="lt-scroll min-h-0 min-w-0 overflow-y-auto pr-1">{workspacePanel}</div>
+      </div>
 
-        {dashboard.data && <DashboardPanel d={dashboard.data} />}
-
-        <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
-          <section className="flex flex-col gap-3">
-            <div className="flex flex-wrap gap-1.5">
-              {STATUS_FILTERS.map((f) => {
-                const active = statusFilter === f.value;
-                return (
-                  <button
-                    key={f.value}
-                    type="button"
-                    onClick={() => changeFilter(f.value)}
-                    className="rounded-full px-3 py-1 text-xs transition-colors"
-                    style={{
-                      color: active ? "var(--color-text)" : "var(--color-muted)",
-                      backgroundColor: active
-                        ? "color-mix(in srgb, var(--color-accent) 14%, transparent)"
-                        : "var(--color-surface)",
-                      borderWidth: 1,
-                      borderColor: active ? "var(--color-accent)" : "var(--color-border)",
-                    }}
-                  >
-                    {f.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {tickets.isLoading ? (
-              <p className="text-sm text-[var(--color-muted)]">Loading tickets…</p>
-            ) : rows.length === 0 ? (
-              <p className="text-sm text-[var(--color-muted)]">No tickets match this filter.</p>
-            ) : (
-              <>
-                <TicketList tickets={rows} selectedId={selectedId} onSelect={setSelectedId} />
-                <Pagination total={total} limit={PAGE_SIZE} offset={offset} onOffset={setOffset} />
-              </>
-            )}
-          </section>
-
-          <section>
-            {selected ? (
-              <ReviewConsole key={selected.id} ticket={selected} />
-            ) : (
-              <p className="text-sm text-[var(--color-muted)]">
-                Select a ticket from the queue to review.
-              </p>
-            )}
-          </section>
-        </div>
-      </main>
-    </>
+      {/* Mobile/tablet: queue, slide to detail. */}
+      <div className="lg:hidden">
+        {!mobileDetail ? (
+          <Panel>{queuePanel}</Panel>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<ChevronDownIcon size={14} className="rotate-90" />}
+              onClick={() => setMobileDetail(false)}
+              className="w-fit"
+            >
+              Back to queue
+            </Button>
+            {workspacePanel}
+          </div>
+        )}
+      </div>
+    </AppShell>
   );
+}
+
+function filterAndSort(items: Ticket[], search: string, sort: SortKey): Ticket[] {
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? items.filter((t) => `${t.truck_id ?? ""} ${t.id}`.toLowerCase().includes(q))
+    : items;
+  const sorted = [...filtered];
+  if (sort === "delta") {
+    sorted.sort(
+      (a, b) =>
+        Math.abs(Number.parseFloat(b.valuation.delta_dollar_value ?? "0")) -
+        Math.abs(Number.parseFloat(a.valuation.delta_dollar_value ?? "0")),
+    );
+  } else if (sort === "severity") {
+    sorted.sort((a, b) => b.anomaly_count - a.anomaly_count);
+  } else {
+    sorted.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+  }
+  return sorted;
 }

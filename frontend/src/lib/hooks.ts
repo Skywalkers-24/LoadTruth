@@ -4,15 +4,38 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import {
   api,
+  getAuthContext,
+  getHealth,
   type EventInput,
   type SourceInput,
   type TicketQuery,
   type TicketStatus,
   type TruckInput,
+  type UserInput,
 } from "@/lib/api";
 
 export function useEvents() {
   return useQuery({ queryKey: ["events"], queryFn: () => api.listEvents() });
+}
+
+/** Signed-in user's tenants + roles. Null when no session is wired. */
+export function useAuthContext() {
+  return useQuery({
+    queryKey: ["auth-context"],
+    queryFn: () => getAuthContext(),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+/** Live backend health, polled. Used by the top-bar status indicator. */
+export function useHealth() {
+  return useQuery({
+    queryKey: ["health"],
+    queryFn: () => getHealth(),
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
 }
 
 /** Paginated/filtered ticket list. Keeps the previous page visible while fetching. */
@@ -92,6 +115,24 @@ export function useTruckMutations() {
     onSuccess: done,
   });
   const remove = useMutation({ mutationFn: (id: string) => api.deleteTruck(id), onSuccess: done });
+  return { create, update, remove };
+}
+
+// ── Admin: users (tenant members) ────────────────────────────────────────────
+export function useUsers() {
+  return useQuery({ queryKey: ["users"], queryFn: () => api.listUsers() });
+}
+
+export function useUserMutations() {
+  const qc = useQueryClient();
+  const done = () => void qc.invalidateQueries({ queryKey: ["users"] });
+  const create = useMutation({ mutationFn: api.createUser, onSuccess: done });
+  const update = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Partial<UserInput> }) =>
+      api.updateUser(id, body),
+    onSuccess: done,
+  });
+  const remove = useMutation({ mutationFn: (id: string) => api.deleteUser(id), onSuccess: done });
   return { create, update, remove };
 }
 

@@ -132,6 +132,16 @@ async def seed_demo(session: AsyncSession) -> None:
                 registry_source="seed",
             )
         )
+    for u in data.get("users", []):
+        session.add(
+            models.User(
+                tenant_id=tenant_id,
+                email=u["email"],
+                full_name=u.get("full_name"),
+                role=u.get("role", "monitor"),
+                status=u.get("status", "active"),
+            )
+        )
     for s in data.get("sources", []):
         session.add(
             models.Source(

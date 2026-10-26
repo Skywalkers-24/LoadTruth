@@ -45,10 +45,12 @@ def test_upload_validate_ok_without_config() -> None:
     [
         (SourceKind.RTSP, {"url": "rtsp://a/b"}),
         (SourceKind.HLS, {"url": "https://x/s.m3u8"}),
-        (SourceKind.IP_CAMERA, {"url": "http://cam/stream"}),
-        (SourceKind.CLOUD_BUCKET, {"bucket": "b", "prefix": "p/"}),
+        (SourceKind.S3, {"bucket": "b", "region": "us-east-1"}),
+        (SourceKind.GCS, {"bucket": "b"}),
+        (SourceKind.AZURE_BLOB, {"account": "a", "container": "c"}),
+        (SourceKind.GOOGLE_DRIVE, {"folder_id": "f"}),
+        (SourceKind.DROPBOX, {"path": "/clips"}),
         (SourceKind.WEBHOOK, {"endpoint": "https://hook/x"}),
-        (SourceKind.MOBILE, {"device_id": "d-1"}),
     ],
 )
 def test_validate_ok_with_required_keys(kind: SourceKind, config: dict[str, object]) -> None:
@@ -60,9 +62,10 @@ def test_validate_ok_with_required_keys(kind: SourceKind, config: dict[str, obje
     [
         (SourceKind.RTSP, {}, "url"),
         (SourceKind.HLS, {"url": ""}, "url"),  # empty value counts as missing
-        (SourceKind.CLOUD_BUCKET, {"bucket": "b"}, "prefix"),
+        (SourceKind.S3, {"bucket": "b"}, "region"),
+        (SourceKind.AZURE_BLOB, {"account": "a"}, "container"),
         (SourceKind.WEBHOOK, {}, "endpoint"),
-        (SourceKind.MOBILE, {"device_id": None}, "device_id"),
+        (SourceKind.DROPBOX, {"path": None}, "path"),
     ],
 )
 def test_validate_not_ok_when_required_key_missing(
@@ -92,10 +95,12 @@ def test_upload_fetch_requires_filename_and_bytes() -> None:
     [
         SourceKind.RTSP,
         SourceKind.HLS,
-        SourceKind.IP_CAMERA,
-        SourceKind.CLOUD_BUCKET,
+        SourceKind.S3,
+        SourceKind.GCS,
+        SourceKind.AZURE_BLOB,
+        SourceKind.GOOGLE_DRIVE,
+        SourceKind.DROPBOX,
         SourceKind.WEBHOOK,
-        SourceKind.MOBILE,
     ],
 )
 def test_unwired_fetch_raises(kind: SourceKind) -> None:
