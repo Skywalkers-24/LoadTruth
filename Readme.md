@@ -152,6 +152,15 @@ The pipeline makes **five distinct AI calls**, and each is independently tunable
 
 **Reasoning effort** (`minimal → low → balanced → high → max`) maps to Meta's `reasoning_effort` parameter: higher effort spends more tokens for better quality on hard calls; lower effort is cheaper and faster for high-volume perception. **Cost mode** is `standard` (normal price, content never trained on) or `contributor` (heavily discounted in exchange for Meta training on your content; rate-limited, no `max` effort — never for sensitive data). Admins pick per task so capability and spend are tuned where it matters, not globally.
 
+### Media handling & cost optimization (grounded in Meta's limits)
+
+The seven stages are unchanged; what's optimized is *how bytes reach the models*, per the Meta docs (50 MB inline, 1 GiB Files-API upload, 50-image VLM budget, SAM billed per frame). `pipeline/media.py` + `frames.py` apply:
+
+- **Sample, don't stream every frame.** Stage 1 samples at 2–4 fps and hard-caps the keyframe count (`max_sampled_frames`), so a 10-minute clip is ~120 frames to SAM, not 18,000 — and SAM is billed per frame, so this is the dominant cost lever.
+- **Upload once, reuse the `file_id`.** A clip above ~8 MB is uploaded to the Files API once and referenced by id across all three per-clip calls (SAM track + Spark OCR + Spark classify) — the bytes travel once, not three times. Smaller clips go inline to skip the round-trip; clips over 1 GiB are rejected with `413`.
+- **Few, downscaled keyframes for the VLM.** OCR and classification get a handful of evenly-spaced keyframes (far under the 50-image budget), each downscaled to a 1024 px longest edge so the base64 payload — and the input-token cost — stays small.
+- **Content-hash cache + budget caps** mean repeats cost nothing and a volume spike can't run away. ([Full notes → LEARNINGS.md §5](./LEARNINGS.md))
+
 ### The $0-to-run seam
 
 Each clip is content-hashed; the hash keys both the result cache and the fixture lookup. A **mock AI client** (`ai/mock.py`) replays recorded fixtures keyed by that hash, so the whole stack runs end-to-end with `MOCK_AI=true` at **zero credits and no network** — then flips to the live Meta Model API with one env var (`ai/factory.py` selects the client). The mock also steers scenarios by a filename prefix (`no-truck__clip.mp4`, `uncertified-truck__clip.mp4`, …) so each positive/negative path is demoable on demand.

@@ -80,10 +80,17 @@ def _sample_with_pyav(data: bytes, fps: float) -> list[FrameRef]:
     interval = 1.0 / fps
     next_at = 0.0
     index = 0
+    # Hard cap on sampled keyframes, independent of clip length. SAM bills per
+    # frame, so a 10-minute clip at 3 fps must not silently queue 1,800 frames;
+    # we stop once the cap is reached (the whole clip is still represented by
+    # evenly-spaced samples up to the cap). See pipeline/media.py.
+    cap = get_settings().max_sampled_frames
     with av.open(io.BytesIO(data)) as container:
         stream = container.streams.video[0]
         time_base = float(stream.time_base) if stream.time_base else 0.0
         for frame in container.decode(stream):
+            if len(frames) >= cap:
+                break
             pts = frame.pts
             ts = pts * time_base if (pts is not None and time_base) else index * interval
             if ts + 1e-9 >= next_at:

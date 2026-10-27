@@ -17,16 +17,19 @@ from app.ai.live import LiveAINotWiredError
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_ingest
+from app.log import get_logger
 from app.pipeline.cache import InMemoryResultCache
 from app.pipeline.frames import sample_frames
 from app.pipeline.ingest import ingest_upload
 from app.pipeline.ledger import CostLedger
+from app.pipeline.media import MediaTooLargeError, plan_transport
 from app.pipeline.orchestrator import PipelineResult, run_pipeline
 from app.pipeline.registry import CertifiedTruck, TruckRegistry
 from app.pipeline.trace import get_job_store
 from app.tickets.schemas import TicketOut, ticket_to_out
 
 router = APIRouter(tags=["ingest"])
+log = get_logger("ingest")
 
 # Process-local pipeline cache + cost ledger. In-memory now (per the cache's
 # ResultCache protocol, swap for Redis later); the ledger backs the future cost
@@ -68,8 +71,27 @@ async def ingest_clip(
             status.HTTP_400_BAD_REQUEST, "The upload was empty. Choose a file."
         ) from exc
 
-    # Stage 1 — sample keyframes at the cost-safe fps. A corrupt/non-video file
-    # makes the decoder throw; treat that as a bad upload (400), never a 500.
+    # Decide how the clip's bytes reach the models (inline vs upload-once-and-
+    # reuse-file_id). Oversized clips (> 1 GiB) are rejected here, not at the
+    # model. See pipeline/media.py for the Meta-doc-grounded rules.
+    try:
+        plan = plan_transport(len(data))
+    except MediaTooLargeError as exc:
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            "That clip is too large (over 1 GB). Upload a shorter or lower-resolution clip.",
+        ) from exc
+    log.info(
+        "ingest_media_plan",
+        filename=filename,
+        size_bytes=plan.size_bytes,
+        send_method=plan.send_method.value,
+        reuse_across_calls=plan.reuse_across_calls,
+    )
+
+    # Stage 1 — sample keyframes at the cost-safe fps (capped by media.py). A
+    # corrupt/non-video file makes the decoder throw; treat that as a bad
+    # upload (400), never a 500.
     try:
         sample_frames(data, filename=filename, media_kind=artifact.media_kind)
     except Exception as exc:  # noqa: BLE001 — any decode failure is a bad upload
