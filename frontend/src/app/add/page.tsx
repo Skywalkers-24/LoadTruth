@@ -12,7 +12,7 @@ import {
   UploadCloudIcon,
 } from "lucide-react";
 
-import type { Ticket } from "@/lib/api";
+import { ApiError, type Ticket } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
 import { shortId } from "@/components/console/ticket-metadata";
 import { StatusBadge } from "@/components/ui/badge";
@@ -25,6 +25,27 @@ import { useEventContext } from "@/lib/event-context";
 import { useIngest, useTickets } from "@/lib/hooks";
 import { debrisLabel, money, relativeTime, signedMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+/** Map an ingest failure to a clear, status-specific message for the operator. */
+function ingestErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    switch (err.status) {
+      case 400:
+        return err.message || "That file could not be read. Upload a video or image clip.";
+      case 403:
+        return "You don't have permission to upload clips for this event.";
+      case 404:
+        return "This event no longer exists. Pick another event and try again.";
+      case 422:
+        return err.message || "No truck or load was detected, so no ticket was drafted.";
+      case 503:
+        return "The AI models aren't available right now. Please try again shortly.";
+      default:
+        return err.message || "The clip could not be processed. Please try again.";
+    }
+  }
+  return "Something went wrong uploading that clip. Please try again.";
+}
 
 /**
  * New Ticket: upload a clip or image of a loaded truck; the pipeline measures
@@ -55,8 +76,7 @@ export default function NewTicketPage() {
       { eventId, file },
       {
         onSuccess: (t) => setResult(t),
-        onError: () =>
-          setError("No truck was detected in that file, so no ticket was drafted. Try another clip."),
+        onError: (err) => setError(ingestErrorMessage(err)),
       },
     );
   }

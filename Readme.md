@@ -2,107 +2,159 @@
 
 # 🚛 LoadTruth
 
-### Video-verified load tickets for hauling that gets paid by the cubic yard.
+### Turning tower video into an auditable, machine-measured load ticket.
 
-**A phone replaces a $50K laser gantry. SAM 3.1 + Muse Spark turn tower video into an auditable load ticket — and flag the overbilling a tired human monitor can't.**
+**A measurement problem, not a paperwork one.** After a disaster, how full a dump truck is gets decided by a tired human eyeballing it from a tower. LoadTruth replaces that guess with a number that traces back to pixels — using Meta's **SAM 3.1** for segmentation/tracking and **Muse Spark** for reading and classifying — and keeps a human in the loop to confirm every call.
 
 Built for the [Meta Global AI Developer Hackathon](https://cerebralvalley.ai/e/meta-ai-developer-hackathon) · Oct 26 – Nov 4, 2026
 **Track:** Indie Developer · **Theme:** Push the Frontier
-[Event notes, waiver & judging criteria →](./Hackathon.md) · [Deep research & case studies →](./Research.md)
+[Event notes & judging →](./Hackathon.md) · [Deep research & case studies →](./Research.md)
 
 </div>
 
 ---
 
-## 📌 TL;DR for judges
+## 📌 TL;DR
 
-> After a hurricane, a human in a tower eyeballs how full each dump truck is. That guess — often in 10% increments — becomes a **load ticket**, and the ticket decides how many federal dollars the hauler is paid. It is subjective, prosecutable, and audited years later.
+> After a hurricane, debris is hauled away by the **cubic yard**, and a short-term "tower monitor" estimates each truck's fill percentage by eye — often in 10% increments. That subjective estimate becomes the official **load ticket**, which is audited years later when the evidence is long gone.
 >
-> **LoadTruth points a camera at the tower instead.** SAM 3.1 tracks and segments each truck's bed and load; Muse Spark reads the truck's ID placard and classifies the debris; a **deterministic geometry engine** converts the masks into a fill % that traces back to pixels, not a model's opinion; and a **rules engine** flags overbilling, impossible cycle times, and hollow "fluffed" loads. Every number links to its evidence frame, and a human confirms or overrides each call.
+> **LoadTruth points a camera at the tower instead.** A seven-stage pipeline tracks and segments each truck's bed and load (SAM 3.1), reads the ID placard and classifies the debris (Muse Spark), converts the segmentation masks into a fill % with a **deterministic geometry engine**, and flags anomalies (impossible cycle times, hollow "fluffed" loads, loads above certified capacity) with a **rules engine**. Every figure links to its evidence frame; a human confirms or overrides each one.
 >
-> The output is a FEMA-format ticket plus a dashboard showing the **dollar gap between the monitor's call and what LoadTruth measured** — the money story, on one screen.
+> The core engineering idea: **the AI measures, but no model decides the number.** The fill % is a ratio of mask pixels; the arithmetic is exact `Decimal`; the anomaly checks are plain code. A model mistake can surface a flag for review — it can never silently redefine a record.
 
 ---
 
-## 💥 The problem (and why it's worth real money)
+## 🧩 The problem, stated as a systems problem
 
-Local governments hire contractors to haul storm debris, paid **per cubic yard**. A short-term "tower monitor" looks down into each truck and estimates its fill percentage. That estimate is the invoice. FEMA reimburses the government afterward — and can claw the money back years later if the paperwork doesn't hold up.
+A load ticket is a **quantity that nobody can independently reproduce.** That single property causes every downstream failure:
 
-Four things go wrong:
-
-| Problem | What it means |
+| Property of the current system | Consequence |
 |---|---|
-| **Subjective** | A fatigued surge hire's eyeball guess can't be reproduced or re-checked. |
-| **Fraud-prone** | The load ticket *is* the unit of fraud: inflated fill, fake slips, bribed monitors. |
-| **Audited late** | FEMA deobligations take funding back **after** it's spent, when evidence is gone. |
-| **Labor-heavy** | Armies of monitors, billed hourly, for a job that is a measurement problem. |
+| The measurement is a human eyeball estimate | Not reproducible, not re-checkable, varies by operator and fatigue |
+| The estimate *is* the record of record | The ticket becomes the single point of failure for the whole process |
+| Verification happens years later, by audit | By the time anyone checks, the truck and the load are gone |
+| Throughput is bounded by human attention | Scaling coverage means hiring more people, not better instruments |
 
-### The scale — this is a multi-billion-dollar line item
+So the real problem is: **produce a per-load volume measurement that is reproducible, evidence-linked, and cheap enough to run on every truck — without adding hardware to a site that only exists for 72 hours.**
+
+### The scale that makes it worth solving well
+
+These figures frame how large and how error-prone the current process is — they're the size of the problem, not a business projection:
 
 <div align="center">
 
 | Figure | Source |
 |---|---|
 | **~107 million cubic yards** of debris cleared in the 2024 season alone | [FEMA](https://www.fema.gov/press-release/20250926/recovery-continues-after-historic-2024-hurricane-season) |
-| **~$2.0 billion** obligated to Florida for Helene/Milton debris & recovery | [FEMA](https://www.fema.gov/fact-sheet/florida-helene-and-milton-recovery-fact-sheet-076) |
 | **$190,070,000** — a single county's 5-year debris-*monitoring* contract (Miami-Dade) | [Miami-Dade County](https://www.miamidade.gov/govaction/legistarfiles/Matters/Y2026/261096.pdf) |
-| **~$604,615** — one small city's monitoring bill for a single season (Dunedin, FL) | [City of Dunedin](https://d2kbkoa27fdvtw.cloudfront.net/dunedin/1d89f73d26bf5fa9422ada2d1efa65480.pdf) |
 | **15M+ cubic yards** removed after Hurricane Sandy | [FEMA](https://news.va.gov/wp-content/uploads/sites/3/2013/10/FEMA-Sandy-One-Year-Fact-Sheet.pdf) |
+| Trucks documented **above 500% of certified capacity** in a post-Katrina audit | [DHS OIG](https://www.oig.dhs.gov/sites/default/files/assets/GrantReports/OIG_DD-09-04_Jan09.pdf) |
 
 </div>
 
-### The failure mode LoadTruth is built to catch — real cases
-
-- **Trucks logged at 500%+ of capacity.** A DHS OIG audit questioned **$5.5M** in Katrina debris costs in Kenner, LA after finding trucks recorded well over 95% full — some documented above **500% of certified capacity**. This is *exactly* the "estimated fullness" gap LoadTruth measures against the bed rails. [NOLA.com](https://www.nola.com/news/audit-questions-5-5-million-in-katrina-debris-removal-costs-paid-to-kenner-by-fema/article_0b34e794-cfc9-5d5e-95e3-141c0df20869.html) · [DHS OIG](https://www.oig.dhs.gov/sites/default/files/assets/GrantReports/OIG_DD-09-04_Jan09.pdf)
-- **Fake load slips & bribed monitors.** DOJ prosecuted a conspiracy over **$716,677** in false debris load slips, and separately charged a subcontractor with **bribing a monitor to write tickets for debris never dumped**. [DOJ](https://www.justice.gov/criminal/disasters/pr/2007/may/05-18-07akitto-sent.pdf) · [DoD/DOJ](https://media.defense.gov/2005/Dec/06/2001711424/-1/-1/1/katrinafraudrelease5.pdf)
-- **"Little to no oversight."** A DHS OIG alert on Hurricane Irma warned of fraud risk across **~$1.5B** in debris costs, noting overstated loads turn into ineligible reimbursement requests. [DHS OIG](https://www.oig.dhs.gov/sites/default/files/assets/2018-10/OIG-18-85-Sep18.pdf) · [House Oversight](https://oversightdemocrats.house.gov/news/press-releases/new-report-exposes-fema-s-inadequate-oversight-of-contractors-after-hurricane)
-
-> The common thread in every case: **a quantity on a ticket that nobody could independently verify.** LoadTruth makes it verifiable. ([Full case studies with 11 sourced examples →](./Research.md))
+That last row is the exact error LoadTruth is built to catch: a ticket says a 25 CY truck carried 125+ CY, and nothing in the old process could contradict it. Measuring the load surface against the bed rails makes that physically impossible to record unchallenged. ([11 sourced case studies →](./Research.md))
 
 ---
 
-## ✅ The solution
+## ✅ How the system works
 
-A phone or pole camera at the tower records every truck. LoadTruth turns that video into a verified load ticket in seven stages:
+A phone or pole camera at the tower records every truck. LoadTruth turns that clip into a verified ticket in seven stages. Stages shaded **AI** call Meta models; stages shaded **deterministic** are pure code with no model in the loop.
 
 ```
 ┌─────────┐   ┌──────────────┐   ┌─────────────┐   ┌───────────────┐
 │ 0–1     │   │ 2  SAM 3.1   │   │ 3  Muse     │   │ 4  Registry   │
 │ Ingest  │──▶│ track + seg  │──▶│ Spark OCR   │──▶│ capacity      │
-│ + hash  │   │ truck/bed/   │   │ read placard│   │ lookup (fuzzy)│
-│ (cache) │   │ debris/plcard│   │             │   │               │
+│ + hash  │AI │ bed/debris/  │AI │ read placard│AI │ lookup (fuzzy)│ det.
+│ (cache) │   │ placard      │   │             │   │               │
 └─────────┘   └──────────────┘   └─────────────┘   └───────┬───────┘
                                                             │
      ┌──────────────────────────────────────────────────────┘
      ▼
 ┌───────────────┐   ┌───────────────┐   ┌───────────────────┐   ┌──────────────┐
-│ 5  Geometry   │   │ 5b Muse Spark │   │ 6  Anomaly rules  │   │ 7  Ticket +  │
-│ fill %        │──▶│ classify      │──▶│ (deterministic)   │──▶│ dashboard +  │
-│ (DETERMINISTIC│   │ debris class  │   │ overbill/cycle/   │   │ CSV + audit  │
-│  from masks)  │   │               │   │ hollow/uncertified│   │ packet       │
-└───────────────┘   └───────────────┘   └───────────────────┘   └──────────────┘
+│ 5  Geometry   │   │ 5b Muse Spark │   │ 6  Anomaly rules  │   │ 7  Draft      │
+│ fill %        │──▶│ classify      │──▶│ (deterministic)   │──▶│ ticket +      │
+│ DETERMINISTIC │det│ debris class  │AI │ capacity/cycle/   │det│ evidence +    │ det.
+│ from masks    │   │               │   │ hollow/uncertified│   │ exports       │
+└───────────────┘   └───────────────┘   └───────────────────┘   └──────┬───────┘
                                                                         │
                                                         ┌───────────────┘
-                                                        ▼  Human confirms / overrides
+                                                        ▼  Human confirms / overrides (never authors)
 ```
 
-1. **Track & identify** — SAM 3.1 tracks each truck across frames and segments `dump truck`, `truck bed`, `debris pile`, `placard`. Muse Spark OCRs the placard.
-2. **Look up capacity** — the OCR'd ID is matched to the certified-truck registry with **fuzzy matching** (exact → normalized → edit-distance) so OCR noise doesn't silently guess wrong.
-3. **Estimate fill %** — a **deterministic geometry engine** turns the bed and load masks into planar coverage × depth factor (body-type prior) → a fill % that is *reproducible and auditable*.
-4. **Classify debris** — Muse Spark sorts the load into vegetative / construction & demolition / white goods / hazardous; each pays a different rate.
-5. **Flag anomalies** — plain-Python rules (no model decides) raise: `capacity_exceeded`, `impossible_cycle`, `hollow_load`, `uncertified_truck`, `duplicate_truck`, `identity_unreadable`, `low_confidence`. Muse Spark only *narrates* a flag the rules already raised.
-6. **Human in the loop** — the monitor confirms or overrides; every decision keeps its evidence frames.
-7. **Export** — FEMA-format ticket, event CSV, and a standalone HTML **audit packet** — plus a dashboard comparing the monitor's call with LoadTruth's estimate in **dollars**.
+1. **Ingest & hash** — the clip is normalized and SHA-256 content-hashed. The hash is the cache key for every downstream AI call, so re-processing the same footage is free and deterministic.
+2. **Track & segment (SAM 3.1)** — text-prompted multi-object tracking/segmentation of `dump truck`, `truck bed`, `debris pile`, `placard` across frames, returning per-instance masks.
+3. **Read placard (Muse Spark)** — OCR the truck's ID from the clearest frame.
+4. **Capacity lookup** — the OCR'd ID is matched to the certified-truck registry with **fuzzy matching** (exact → normalized → edit-distance) so OCR noise fails loudly instead of guessing.
+5. **Measure fill % (deterministic)** — the geometry engine turns the bed and load masks into `planar coverage × depth factor` (a body-type depth prior) → a fill % that is reproducible and traceable to the mask pixels.
+6. **Classify debris (Muse Spark)** — vegetative / construction & demolition / white goods / hazardous / other; this selects the per-class rate.
+7. **Flag + draft (deterministic)** — plain-Python rules raise `capacity_exceeded`, `impossible_cycle`, `hollow_load`, `uncertified_truck`, `duplicate_truck`, `identity_unreadable`, `low_confidence`; Muse Spark only *narrates* a flag the rules already decided. A **draft ticket** is written with its evidence frames and the full stage trace.
+
+The human monitor then reviews the draft — **confirm**, **override**, or **dispute**. They never type a ticket from scratch; they adjudicate a machine-made one.
 
 ---
 
-## 🧠 Why this is the strongest version of the idea
+## 🤔 Design questions this build answers
 
-**The AI measures, but the money math is deterministic.** The fill % comes from a ratio of segmentation-mask pixels (`geometry.py`), not a model saying "looks 80% full." Cubic yards and dollars use exact `Decimal` arithmetic (`money.py`). Anomalies are plain-Python decisions (`anomalies.py`). This means **a model mistake can never silently redefine a payment** — the number always traces to pixels and a rule a human can read. That design choice is the whole pitch: *verifiable, not vibes.*
+### Who creates a ticket? Is it automatic?
 
-**The delta is the demo.** Every ticket carries a signed `monitor − LoadTruth` delta in cubic yards and dollars. Sum it across an event and the dashboard shows, in one number, how much a county was over- or under-billed. That's the screen that wins the room.
+**The pipeline creates it, automatically — no human authors a ticket.** A clip arrives, the seven stages run, and a ticket is written in `draft` status. The only human action is review (confirm / override / dispute). This inverts the status quo: instead of *human measures → system records the human's guess*, it's *system measures from evidence → human adjudicates the measurement.*
 
-**$0-to-run architecture.** Each clip is content-hashed; the hash is the cache key for every AI call, and a **mock AI client** replays recorded fixtures. The entire stack runs end-to-end with `MOCK_AI=true` for **zero credits** — critical on a $150 budget — then flips to live Meta Model API with one env var.
+In this build the clip arrives via a manual upload (the scope-cut demo path). The architecture already generalizes to automatic capture: a `sources` table + a per-kind **source adapter** layer (`upload`, `rtsp`, `hls`, `s3`, `gcs`, `azure_blob`, `google_drive`, `dropbox`, `webhook`) lets a fixed site camera or a cloud bucket feed clips with no human in the ingest step. The non-upload adapters validate their configuration today and are the wiring point for live capture.
+
+### How does this scale to 1,000+ trucks a day?
+
+Throughput and cost are the two things that break a naive "call a vision model per truck" design. The architecture addresses both:
+
+- **Stateless, queue-fronted pipeline.** The orchestrator is pure application logic that takes an artifact + the tenant's registry/rate table and returns a result — it never touches the database. Ingest's job is to **enqueue** and return immediately; an ARQ (Redis-backed) worker pool drains the queue at whatever concurrency the budget allows. 1,000 clips/day is ≈ one every ~90s over an 8-hour window — comfortably absorbed by a small worker pool, with bursts smoothed by the queue rather than dropped.
+- **Content-hash result cache.** Every clip is hashed; a repeat (duplicate capture, re-run, demo replay) returns the cached result for **zero model calls**. The cache key is the same hash the AI seam uses, so hot paths never re-pay.
+- **Cost ledger + budget caps.** Each stage records spend; soft and hard caps (`spend_warn_usd` / `build_spend_cap_usd`) stop runaway cost when volume spikes — the single most important control for a per-call vision pipeline.
+- **Pagination and event scoping everywhere.** Ticket lists, the review queue, and reports are all `limit/offset` paginated with a separate `COUNT`, and data is scoped to `(tenant_id, event_id)` on indexed hot paths, so query latency stays flat as a single event grows to tens of thousands of tickets.
+
+**Honest status:** the queue is architected (the orchestrator is already fully decoupled from the request and the DB, so moving it behind a worker is a lift-and-shift) but not yet wired — today ingest runs the pipeline synchronously in the request, which is fine at demo volume. The live job store that powers the "AI Pipeline" view is process-local in-memory and becomes Redis/DB-backed at scale. These are the two seams to turn on for production throughput; nothing in the pipeline logic needs to change to do it.
+
+---
+
+## 🧠 The central engineering decision: AI measures, code decides
+
+The fill % comes from a ratio of segmentation-mask pixels (`pipeline/geometry.py`), **not** a model saying "looks 80% full." Cubic yards and the monitor-vs-measured difference use exact `Decimal` arithmetic (`tickets/money.py`). Anomalies are plain-Python decisions (`pipeline/anomalies.py`); a model only phrases a flag the rules already raised.
+
+Why this matters as a system property:
+
+- **Auditability** — every number resolves to either a pixel mask or a rule a reviewer can read. There is no "the model felt this was right."
+- **Failure isolation** — a model error can only *surface a draft for review* or *raise a flag*. It cannot change a recorded quantity. The human-confirm step is the backstop, and the deterministic core is what makes that review meaningful.
+- **Testability** — the geometry, money math, registry matching, and rules are pure functions with unit tests; the AI is mocked by content hash, so the whole pipeline runs end-to-end offline and deterministically.
+
+---
+
+## 🤖 Meta AI usage & model configuration
+
+LoadTruth uses two Meta models for complementary jobs, behind a single **AIClient seam** (`ai/base.py`) so swapping mock ↔ live changes nothing for callers:
+
+| Model | What it does here | Billing shape |
+|---|---|---|
+| **SAM 3.1** (`sam-3.1`) | Text-prompted multi-object **tracking + segmentation** of truck / bed / debris / placard across video frames — the "where and how much" (pixels). | per 1k images |
+| **Muse Spark 1.3** (`muse-spark-1.3`) | **Placard OCR**, **debris classification**, and one-line **anomaly narration** — the "what and who". | per 1M tokens |
+| **Muse Wonder** (`muse-wonder-1.0`) | Optional upgrade for the hardest reasoning (e.g. the analyst chat) when capability matters more than cost. | per 1M tokens (premium) |
+
+> SAM gives *where and how much*. Spark gives *what and who*. The deterministic engine turns both into an auditable quantity.
+
+### Per-task model configuration
+
+The pipeline makes **five distinct AI calls**, and each is independently tunable from the admin "AI & Models" screen — model, **reasoning effort**, and **cost mode** — because they have very different difficulty and volume. The catalog (`ai/catalog.py`) is the typed source of truth the settings UI renders.
+
+| Task (pipeline stage) | Eligible models | Recommended model · effort | Why |
+|---|---|---|---|
+| `sam_track` — vision track & segment | SAM 3.1 | SAM 3.1 (no effort knob) | The measurement step; segmentation has no reasoning-effort dial |
+| `spark_ocr` — read placard | Spark 1.1–1.3, Wonder | Spark 1.3 · **low** | Narrow perception task; minimal reasoning is plenty |
+| `spark_classify` — debris class | Spark 1.1–1.3, Wonder | Spark 1.3 · **balanced** | Drives the rate; worth a little more care |
+| `narrate_anomaly` — phrase a flag | Spark 1.2–1.3 | Spark 1.3 · **minimal** | Short, low-stakes output; keep it cheap |
+| `analyst_chat` — grounded Q&A | Wonder, Spark 1.2–1.3 | Spark 1.3 · **balanced** | Can escalate to Wonder for hard questions |
+
+**Reasoning effort** (`minimal → low → balanced → high → max`) maps to Meta's `reasoning_effort` parameter: higher effort spends more tokens for better quality on hard calls; lower effort is cheaper and faster for high-volume perception. **Cost mode** is `standard` (normal price, content never trained on) or `contributor` (heavily discounted in exchange for Meta training on your content; rate-limited, no `max` effort — never for sensitive data). Admins pick per task so capability and spend are tuned where it matters, not globally.
+
+### The $0-to-run seam
+
+Each clip is content-hashed; the hash keys both the result cache and the fixture lookup. A **mock AI client** (`ai/mock.py`) replays recorded fixtures keyed by that hash, so the whole stack runs end-to-end with `MOCK_AI=true` at **zero credits and no network** — then flips to the live Meta Model API with one env var (`ai/factory.py` selects the client). The mock also steers scenarios by a filename prefix (`no-truck__clip.mp4`, `uncertified-truck__clip.mp4`, …) so each positive/negative path is demoable on demand.
 
 ---
 
@@ -111,53 +163,73 @@ A phone or pole camera at the tower records every truck. LoadTruth turns that vi
 ```
 loadtruth/
 ├── backend/app/
-│   ├── main.py              # FastAPI app: lifespan, CORS, routers, /health
+│   ├── main.py              # FastAPI: lifespan, CORS, routers, /health
 │   ├── config.py            # pydantic-settings; MOCK_AI, spend caps, model names
 │   ├── ai/                  # ── the AI seam ──
 │   │   ├── base.py          #   AIClient Protocol + normalized result types
 │   │   ├── factory.py       #   picks Mock vs Live from config
-│   │   ├── mock.py          #   fixture replay ($0, deterministic, demo-safe)
-│   │   └── live.py          #   real Meta Model API (SAM 3.1 + Muse Spark)
+│   │   ├── mock.py          #   fixture replay ($0, deterministic, scenario-steerable)
+│   │   ├── live.py          #   real Meta Model API (SAM 3.1 + Muse Spark)
+│   │   ├── catalog.py       #   models + efforts + cost modes + per-task config
+│   │   └── config_store.py  #   admin's per-task model/effort selections
 │   ├── pipeline/            # ── the 7-stage pipeline ──
 │   │   ├── ingest.py        #   Stage 0–1: normalize + SHA-256 content hash
+│   │   ├── frames.py        #   Stage 1: keyframe sampling (PyAV, optional)
 │   │   ├── registry.py      #   Stage 4: fuzzy certified-capacity lookup
 │   │   ├── geometry.py      #   Stage 5: DETERMINISTIC fill-% from masks
-│   │   └── anomalies.py     #   Stage 6: DETERMINISTIC rule engine
+│   │   ├── anomalies.py     #   Stage 6: DETERMINISTIC rule engine
+│   │   ├── orchestrator.py  #   runs stages 0–7; cache + ledger injected
+│   │   ├── cache.py         #   content-hash result cache (Redis-ready)
+│   │   ├── ledger.py        #   per-stage cost ledger + budget caps
+│   │   └── sources.py       #   per-kind source adapters (upload/rtsp/hls/s3/gcs/…)
 │   ├── tickets/
-│   │   └── money.py         #   exact Decimal CY/$ math + monitor-vs-estimate delta
+│   │   ├── money.py         #   exact Decimal CY math + monitor-vs-measured difference
+│   │   ├── domain.py        #   Event/Ticket records
+│   │   └── repository.py    #   async, tenant-scoped storage (paginated)
 │   ├── db/                  # SQLAlchemy models, multi-tenant, SQLite→Postgres
-│   └── api/                 # events, tickets, trucks, sources, ingest, reports
+│   └── api/                 # events, tickets, trucks, sources, ingest, reports, chat, system
+│                            # (ARQ worker for off-request video is the planned next seam)
+├── frontend/                # Next.js 16 operator console (overview, review, pipeline, reports, admin)
 └── infra/rbac/              # Postgres schema + row-level-security policies
 ```
 
-**Stack:** Python 3.12 · FastAPI · SQLAlchemy (async) · pydantic-settings · ARQ worker (heavy video off the request path) · SQLite for dev → Supabase/Postgres with RLS for multi-tenant prod · Meta Model API (`sam-3.1`, `muse-spark-1.3`).
+**Stack:** Python 3.12 · FastAPI · SQLAlchemy (async) · pydantic-settings · ARQ (Redis) worker · SQLite for dev → Supabase/Postgres with RLS for multi-tenant prod · Next.js 16 · Meta Model API (`sam-3.1`, `muse-spark-1.3`, `muse-wonder-1.0`).
 
-### API surface (real, implemented endpoints)
+### Data flow (one clip → one ticket)
+
+```
+capture/upload → POST /events/{id}/ingest → stages 1–7 → draft ticket + anomalies
+                                          └─(planned: enqueue → ARQ worker)─┘
+                                                                                        │
+review console reads ticket + masks + stage trace → monitor confirms / overrides → exports (CSV / audit packet)
+analyst chat → POST /chat → Muse Spark + read-only, tenant-scoped tools over the event's data
+```
+
+### Invariants (the rules the architecture enforces)
+
+- **Tenant isolation** is enforced in *both* Postgres RLS and the API layer.
+- **Every model call is cached by content hash**; repeats cost nothing.
+- **No model decides a recorded quantity** — fill %, cubic yards, and anomalies are deterministic.
+- **Heavy work stays off the request path** (worker/queue); the demo path reads cache only.
+
+### API surface (implemented)
 
 | Method | Route | Purpose |
 |---|---|---|
 | `GET` | `/health` | Liveness + whether the Model API key is configured |
 | `GET`/`POST`/`PATCH` | `/events…` | Manage disaster events & per-class rate tables |
 | `POST` | `/events/{id}/ingest` | Run a clip through the pipeline → a draft ticket |
-| `GET` | `/tickets`, `/tickets/{id}` | List/fetch tickets with valuation + evidence frames |
-| `PATCH` | `/tickets/{id}/monitor-call` | Record the monitor's call → computes the delta |
-| `PATCH` | `/tickets/{id}/status` | Confirm / override / resolve a ticket |
+| `GET` | `/tickets`, `/tickets/{id}` | List/fetch tickets (paginated) with valuation + evidence |
+| `PATCH` | `/tickets/{id}/monitor-call` | Record the monitor's call → computes the difference |
+| `PATCH` | `/tickets/{id}/status` | Confirm / override / dispute a ticket |
+| `GET` | `/tickets/{id}/pipeline` | The persisted AI stage trace for a ticket |
 | `GET`/`POST`/… | `/trucks…` | Certified-truck registry (unique per tenant) |
 | `GET`/`POST`/… | `/events/{id}/sources…` | Connected evidence sources (upload, RTSP, bucket) |
-| `GET` | `/events/{id}/dashboard` | Summed dollar-delta, review progress, anomalies, accuracy |
+| `GET` | `/events/{id}/dashboard` | Review progress, anomalies, fill accuracy, summed difference |
 | `GET` | `/events/{id}/export.csv` | Event tickets as CSV |
 | `GET` | `/events/{id}/audit-packet.html` | Standalone HTML evidence packet for auditors |
-
----
-
-## 🤖 Meta AI stack
-
-| Model | Role in LoadTruth |
-|---|---|
-| **SAM 3.1** (Responses API) | Text-prompted multi-object tracking + segmentation of `dump truck`, `truck bed`, `debris pile`, `placard` across video frames. Returns per-instance boxes + one-bit masks (see [LEARNINGS.md](./LEARNINGS.md) for how the response is decoded). |
-| **Muse Spark 1.3** | Placard OCR, debris classification, and one-line human narration of anomalies the rules raised. Billed per token; native image/video reasoning. |
-
-> SAM gives **where and how much** (pixels). Spark gives **what and who** (class, ID, narrative). The deterministic engine turns that into **dollars**.
+| `GET`/`PATCH` | `/system/ai-config…` | Per-task model / effort / cost-mode configuration |
+| `POST` | `/chat` | Grounded analyst Q&A over the event (read-only tools) |
 
 ---
 
@@ -174,78 +246,39 @@ echo "MOCK_AI=true" >> ../.env          # replay fixtures, $0, no network
 # 3. run the API (seeds a demo tenant + sample data on boot in SQLite)
 uv run uvicorn app.main:app --reload
 #   → http://localhost:8000/health   and   /docs for the OpenAPI UI
+
+# full stack (backend + frontend + Postgres + Redis)
+docker compose up          # → frontend http://localhost:3000
 ```
 
-To run against the **live Meta Model API**, set `MODEL_API_KEY` in `.env` and remove `MOCK_AI=true`. The factory (`ai/factory.py`) switches clients automatically; the content-hash cache keeps repeat runs free.
+Sample ~1 MB test clips live in [`data_tests/`](./data_tests/README.md), named so each exercises a specific mock scenario (clean / unreadable placard / hollow / uncertified / no-truck). To run against the **live Meta Model API**, set `MODEL_API_KEY` and remove `MOCK_AI`; the factory switches clients automatically and the content-hash cache keeps repeat runs free.
 
 ```bash
-# run the test suite (money math + record matching + rules)
-cd backend && uv run pytest
+cd backend && uv run pytest        # money math · record matching · rules · ingest scenarios
 ```
 
 ---
 
-## 🎯 10-day MVP plan
+## ⚠️ Scope & honest limits
 
-| Days | Deliverable |
-|---|---|
-| 1–2 | Collect clips (public storm-cleanup footage + phone video of haul trucks); ingest + SAM 3.1 tracking |
-| 3–5 | Deterministic fill-% estimator (bed rails vs. load-surface mask + depth prior); fuzzy capacity lookup |
-| 6–7 | Debris classification; anomaly rule engine; confirm/override review UI |
-| 8–9 | FEMA-format ticket export; county dashboard; accuracy benchmark on 50+ clips |
-| 10 | Demo video: truck passes the tower → ticket with evidence → a dispute resolved in one click |
-
-**Success metric:** fill-% estimates within **±10%** of careful human measurement.
-
----
-
-## 💰 Market, customers & moat
-
-**First customer:** a small/mid-size debris-monitoring firm competing with Tetra Tech in county bids that wants an "AI-verified monitoring" edge to win fixed-fee work with fewer people.
-**Also:** county finance & emergency-management directors burned by a FEMA deobligation; haulers disputing low calls.
-
-**Expansion:** automate truck certification → all disaster debris (wildfire, tornado, flood) → year-round volume hauling (construction haul-off, landfill/transfer-station gates, snow, mulch, dredge spoils) → same-day settlement against verified loads → ground-truth volume data for insurers & parametric programs.
-
-**Moat:** a cross-disaster registry of certified trucks (haulers follow the storms); a dataset of truck bodies × load states × debris types linked to audit outcomes; becoming the neutral evidence standard written into state ticket templates.
-
-### Closest alternatives
-
-| Product | Gap LoadTruth fills |
-|---|---|
-| **Loadscan** (laser gantry) | Expensive hardware, slow to deploy at temporary sites that open in 72h |
-| **Ticketpros** (paper-ticket OCR) | Digitizes the human's guess; doesn't measure |
-| In-house monitoring apps | Digital forms, no measurement |
-| Rice DebrisHeightNet (research) | Aerial forecasting before hauling, not per-load verification |
-
----
-
-## ⚠️ Honest risks
-
-- **Buyer incentives** — monitoring firms bill hourly for the labor this replaces. *Mitigation:* sell to challenger firms chasing fixed-fee bids.
-- **Accuracy** — irregular vegetative loads are hard to measure. *Mitigation:* the human-confirm step, confidence scoring, and the ±10% benchmark.
-- **Policy** — a proposed parametric FEMA formula could weaken documentation needs. *Mitigation:* year-round, non-disaster hauling use cases.
-- **Not a compliance guarantee** — LoadTruth produces auditable evidence and flags; the responsible monitor retains authority over the official record. It is not FEMA-certified and does not guarantee reimbursement.
-
----
-
-## 📣 The pitch
-
-> **Loadscan accuracy for the price of a phone** — video-verified tickets for every truck paid by the yard, with the overbilling gap shown in dollars.
+- **Upload-only capture in this build.** Automatic site-camera ingest is architected (sources + adapters) but the non-upload adapters don't do live network I/O yet.
+- **Queue is planned, not wired.** Ingest runs synchronously today; adding an ARQ worker and enqueuing from ingest is the production throughput step and requires no pipeline-logic changes (the orchestrator is already request/DB-decoupled).
+- **Irregular vegetative loads are the hardest to measure.** Mitigated by the human-confirm step, per-stage confidence scoring, and the ±10% accuracy benchmark.
+- **Not a certification.** LoadTruth produces auditable evidence and flags; the responsible monitor retains authority over the official record.
 
 ---
 
 ## 📚 Sources & further reading
 
-- **Project docs:** [Research.md](./Research.md) (design + 11 sourced case studies) · [Hackathon.md](./Hackathon.md) (event/judging) · [LEARNINGS.md](./LEARNINGS.md) (Meta model usage notes)
+- **Project docs:** [Research.md](./Research.md) (design + 11 sourced case studies) · [Hackathon.md](./Hackathon.md) · [LEARNINGS.md](./LEARNINGS.md) (Meta model usage notes) · [docs/ARCHITECTURE_MAP.md](./docs/ARCHITECTURE_MAP.md)
 - **Meta models:** [SAM 3.1](https://ai.meta.com/blog/segment-anything-model-3/) · [Muse Spark](https://dev.meta.ai/resources/blog/build-with-muse-spark)
 - **FEMA debris volumes (2024):** https://www.fema.gov/press-release/20250926/recovery-continues-after-historic-2024-hurricane-season
 - **DHS OIG debris-monitoring alert (Irma):** https://www.oig.dhs.gov/sites/default/files/assets/2018-10/OIG-18-85-Sep18.pdf
 - **Miami-Dade $190M monitoring contract:** https://www.miamidade.gov/govaction/legistarfiles/Matters/Y2026/261096.pdf
 - **FEMA Debris Monitoring Guide:** https://www.fema.gov/sites/default/files/documents/fema_debris-monitoring-guide_sop_3-01-2021.pdf
-- **Loadscan (incumbent):** https://www.loadscan.com/debris-monitoring-technology-conference/
 
 <div align="center">
 
-*Dollar figures and quantities are paraphrased from government reports (FEMA, DHS OIG, GAO, DOJ) and news coverage linked inline; they establish the problem's scale, not any claim of certification. Content rephrased for compliance with licensing restrictions.*
+*Figures and quantities are paraphrased from government reports (FEMA, DHS OIG, GAO, DOJ) and news coverage linked inline; they establish the scale of the measurement problem, not any claim of certification. Content rephrased for compliance with licensing restrictions.*
 
 </div>

@@ -31,3 +31,6 @@ responses.log
 
 # Local scratch / experiment scripts and logs (not part of the app)
 scratch/
+
+# Generated test clips (regenerable ~1MB fixtures); keep only the README.
+data_tests/*.mp4

@@ -38,14 +38,40 @@ def content_hash(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+# Demo convenience: a filename prefixed "scenario__…" forces a specific mock
+# scenario so positive/negative paths can be shown on demand (e.g.
+# "no-truck__clip.mp4", "over-capacity__clip.mp4"). The prefix must match a
+# fixture key; otherwise it's ignored and the real content hash is used. This
+# only affects MOCK_AI mode — the live pipeline keys off the true hash.
+_SCENARIO_SEP = "__"
+
+
+def scenario_override(filename: str) -> str | None:
+    """Return the fixture key encoded in a `scenario__name.ext` filename, if any."""
+    from app.ai.mock import fixture_keys  # local import avoids a cycle
+
+    base = filename.rsplit("/", 1)[-1]
+    if _SCENARIO_SEP not in base:
+        return None
+    candidate = base.split(_SCENARIO_SEP, 1)[0].strip().lower()
+    return candidate if candidate in fixture_keys() else None
+
+
 def ingest_upload(filename: str, data: bytes, *, source_kind: str = "upload") -> IngestedArtifact:
-    """Stage 0+1 for a direct upload: normalize + hash. Raises on empty input."""
+    """Stage 0+1 for a direct upload: normalize + hash. Raises on empty input.
+
+    If the filename carries a `scenario__…` prefix matching a known mock fixture,
+    the content hash is set to that key so the mock replays that exact scenario
+    (handy for demoing the positive and negative paths). Otherwise the true
+    SHA-256 content hash is used.
+    """
     if not data:
         raise ValueError("empty upload")
+    override = scenario_override(filename)
     return IngestedArtifact(
         filename=filename,
         media_kind=_guess_media_kind(filename),
-        content_hash=content_hash(data),
+        content_hash=override or content_hash(data),
         size_bytes=len(data),
         source_kind=source_kind,
     )

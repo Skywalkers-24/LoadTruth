@@ -18,7 +18,9 @@ import { useEventContext } from "@/lib/event-context";
 import { useTicket, useTickets } from "@/lib/hooks";
 import { isTypingTarget, useMediaQuery } from "@/lib/use-media-query";
 
-const PAGE_SIZE = 12;
+// Show a compact page of tickets that fits on screen without a long scroll;
+// the rest are reachable via pagination below the queue.
+const PAGE_SIZE = 4;
 
 /**
  * Review Console: single-ticket review. A self-scrolling queue on the left and
@@ -230,7 +232,7 @@ function ConsoleView() {
           <div className="min-h-0 overflow-hidden rounded-xl border border-border bg-card">
             {queuePanel}
           </div>
-          <div ref={workspaceRef} className="lt-scroll min-h-0 min-w-0 overflow-y-auto pr-1">
+          <div ref={workspaceRef} className="lt-scroll min-h-0 min-w-0 overflow-y-auto pb-20 pr-1">
             {workspacePanel}
           </div>
         </div>

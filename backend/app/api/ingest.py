@@ -13,6 +13,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 
 from app.ai import get_ai_client
+from app.ai.live import LiveAINotWiredError
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_ingest
@@ -63,10 +64,19 @@ async def ingest_clip(
     try:
         artifact = ingest_upload(filename, data)
     except ValueError as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "empty or invalid upload") from exc
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "The upload was empty. Choose a file."
+        ) from exc
 
-    # Stage 1 — sample keyframes at the cost-safe fps (degrades if PyAV is absent).
-    sample_frames(data, filename=filename, media_kind=artifact.media_kind)
+    # Stage 1 — sample keyframes at the cost-safe fps. A corrupt/non-video file
+    # makes the decoder throw; treat that as a bad upload (400), never a 500.
+    try:
+        sample_frames(data, filename=filename, media_kind=artifact.media_kind)
+    except Exception as exc:  # noqa: BLE001 — any decode failure is a bad upload
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "That file could not be read as a video or image. Try a different clip.",
+        ) from exc
 
     registry = TruckRegistry(
         [
@@ -75,16 +85,29 @@ async def ingest_clip(
         ]
     )
 
-    result = await run_pipeline(
-        artifact=artifact,
-        tenant_id=tenant,
-        event_id=event_id,
-        registry=registry,
-        rate_table=event.rate_table,
-        ai=get_ai_client(),
-        cache=get_pipeline_cache(),
-        ledger=get_cost_ledger(),
-    )
+    try:
+        result = await run_pipeline(
+            artifact=artifact,
+            tenant_id=tenant,
+            event_id=event_id,
+            registry=registry,
+            rate_table=event.rate_table,
+            ai=get_ai_client(),
+            cache=get_pipeline_cache(),
+            ledger=get_cost_ledger(),
+        )
+    except LiveAINotWiredError as exc:
+        # Live AI selected but not configured — a clear 503, not a 500.
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "The AI models are not configured on this server. Set MOCK_AI=1 or a MODEL_API_KEY.",
+        ) from exc
+    except Exception as exc:  # noqa: BLE001 — surface a clean 500, never a stack trace
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "The analysis pipeline failed on that clip. Please try again.",
+        ) from exc
+
     # Record the run in the job store so the Pipeline view and the ticket's AI
     # analysis panel can show exactly how the result was produced.
     if result.trace is not None:
@@ -93,7 +116,7 @@ async def ingest_clip(
     if result.no_truck:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
-            "no truck detected in the footage; no ticket drafted",
+            "No truck or load was detected in that footage, so no ticket was drafted.",
         )
 
     saved = await repo.add_from_pipeline(result.ticket, list(result.anomalies))
