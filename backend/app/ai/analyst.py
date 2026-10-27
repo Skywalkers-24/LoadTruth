@@ -86,7 +86,11 @@ class AnalystTools:
                 "debris_class": t.debris_class.value,
                 "status": t.status.value,
                 "measured_value": round(_f(t.est_dollar_value), 2),
-                "delta": round(_f(t.delta_dollar_value), 2) if t.delta_dollar_value else None,
+                "delta": (
+                    round(_f(t.delta_dollar_value), 2)
+                    if t.delta_dollar_value is not None
+                    else None
+                ),
             }
             for t in rows
         ]
@@ -118,7 +122,11 @@ class AnalystTools:
             {
                 "ticket": f"LT-{str(t.id).replace('-', '')[:6].upper()}",
                 "truck_id": t.truck_id,
-                "delta": round(_f(t.delta_dollar_value), 2) if t.delta_dollar_value else None,
+                "delta": (
+                    round(_f(t.delta_dollar_value), 2)
+                    if t.delta_dollar_value is not None
+                    else None
+                ),
             }
             for t in disputed
         ]

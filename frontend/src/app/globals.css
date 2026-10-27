@@ -105,12 +105,25 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* ── Dark theme (default) — Ink Navy canvas ─────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════════════
+   THEMES
+   Five curated themes, each defining the full token contract. The active one
+   is selected by `data-theme` on <html> (set before paint). Grouped by base
+   scheme: dark (Midnight, Graphite) and light (Daylight, Classic, Arctic).
+   `:root` mirrors Midnight so there's always a sane default pre-hydration.
+
+   Design references (recreated, not copied): Linear/Vercel (Midnight),
+   GitHub dimmed + Apple (Graphite), Stripe Dashboard (Daylight), classic
+   enterprise admin consoles (Classic), Apple/Material 3 (Arctic).
+   Semantic colors target WCAG AA on the pairs they're used on; status is
+   never color-only (always paired with a label/icon).
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── Midnight (modern dark, default) — indigo on deep ink navy ─────────── */
 :root,
-[data-theme="dark"] {
+[data-theme="midnight"] {
   color-scheme: dark;
 
-  /* Deep slate canvas with a faint cool tint. Surfaces step up subtly. */
   --bg: #0a0f1a;
   --surface: #121829;
   --surface-2: #1a2236;
@@ -120,7 +133,7 @@
   --text: #f4f6fb;
   --subtle: #8e9bb5;
 
-  /* Primary — indigo/violet. Modern, premium, high contrast on the dark canvas. */
+  /* Primary — indigo/violet. Modern, premium, high contrast on dark. */
   --brand: #818cf8;
   --brand-strong: #a5b0ff;
   --brand-soft: #1e2546;
@@ -139,7 +152,6 @@
   --danger-soft: #3a1c22;
   --info: #818cf8;
 
-  /* ── shadcn/ui tokens (dark). ── */
   --background: #0a0f1a;
   --foreground: #f4f6fb;
   --card: #121829;
@@ -161,14 +173,12 @@
   --ring: #818cf8;
   --radius: 0.7rem;
 
-  /* Chart series: indigo primary, gold money, teal, violet, rose. */
   --chart-1: #818cf8;
   --chart-2: #34d399;
   --chart-3: #fbbf24;
   --chart-4: #c084fc;
   --chart-5: #fb7185;
 
-  /* Left rail: a near-black indigo-tinted panel, premium and anchoring. */
   --sidebar: #0c111f;
   --sidebar-foreground: #eef1f8;
   --sidebar-muted: #8a95b0;
@@ -180,12 +190,84 @@
   --sidebar-ring: #818cf8;
 }
 
-/* ── Light theme — clean cool-white canvas, soft shadows, crisp borders ── */
-[data-theme="light"] {
+/* ── Graphite (warm neutral dark) — zinc canvas, teal accent ──────────── */
+[data-theme="graphite"] {
+  color-scheme: dark;
+
+  /* Neutral warm-gray canvas (zinc). Softer on the eyes than navy; the teal
+     accent reads as calm/technical, à la GitHub dimmed + Apple. */
+  --bg: #18181b;
+  --surface: #1f1f23;
+  --surface-2: #27272a;
+  --surface-3: #323238;
+  --border-strong: #52525b;
+
+  --text: #f4f4f5;
+  --subtle: #a1a1aa;
+
+  /* Primary — teal. Fresh, high contrast on the warm gray. */
+  --brand: #2dd4bf;
+  --brand-strong: #5eead4;
+  --brand-soft: #113b38;
+  --brand-fill: #14b8a6;
+  --on-brand: #06201d;
+
+  /* Money accent — amber. */
+  --money: #fbbf24;
+  --money-strong: #fcd34d;
+  --money-soft: #2c2410;
+
+  --ok: #4ade80;
+  --ok-soft: #10281a;
+  --warn: #fbbf24;
+  --warn-soft: #2c2410;
+  --danger-soft: #3a1d1d;
+  --info: #38bdf8;
+
+  --background: #18181b;
+  --foreground: #f4f4f5;
+  --card: #1f1f23;
+  --card-foreground: #f4f4f5;
+  --popover: #27272a;
+  --popover-foreground: #f4f4f5;
+  --primary: #14b8a6;
+  --primary-foreground: #06201d;
+  --secondary: #323238;
+  --secondary-foreground: #f4f4f5;
+  --muted: #27272a;
+  --muted-foreground: #b4b4bd;
+  --accent: #323238;
+  --accent-foreground: #f4f4f5;
+  --destructive: #f87171;
+  --destructive-foreground: #1a0d0d;
+  --border: #2e2e33;
+  --input: #2e2e33;
+  --ring: #2dd4bf;
+  --radius: 0.65rem;
+
+  --chart-1: #2dd4bf;
+  --chart-2: #4ade80;
+  --chart-3: #fbbf24;
+  --chart-4: #a78bfa;
+  --chart-5: #fb7185;
+
+  --sidebar: #141416;
+  --sidebar-foreground: #ededf0;
+  --sidebar-muted: #8f8f99;
+  --sidebar-primary: #14b8a6;
+  --sidebar-primary-foreground: #06201d;
+  --sidebar-accent: #252529;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #262629;
+  --sidebar-ring: #2dd4bf;
+}
+
+/* ── Daylight (modern light) — clean cool-white, indigo, soft shadows ─── */
+[data-theme="daylight"] {
   color-scheme: light;
 
-  /* A soft, neutral off-white canvas with a hint of indigo. White cards float
-     with a gentle shadow; borders are hairline. */
+  /* Soft neutral off-white with a hint of indigo. White cards float on a
+     gentle shadow; hairline borders. Stripe-dashboard calm. */
   --bg: #f5f6fb;
   --surface: #ffffff;
   --surface-2: #f7f8fc;
@@ -195,14 +277,12 @@
   --text: #141a2e;
   --subtle: #697089;
 
-  /* Primary — indigo. Vivid and premium, clears AA on white. */
   --brand: #4f46e5;
   --brand-strong: #4338ca;
   --brand-soft: #ecebfd;
   --brand-fill: #4f46e5;
   --on-brand: #ffffff;
 
-  /* Money accent — deep gold/amber; warm, legible on white (~4.7:1). */
   --money: #a16207;
   --money-strong: #854d0e;
   --money-soft: #fbf3df;
@@ -214,7 +294,6 @@
   --danger-soft: #fdeaec;
   --info: #4338ca;
 
-  /* ── shadcn/ui tokens (light). ── */
   --background: #f5f6fb;
   --foreground: #141a2e;
   --card: #ffffff;
@@ -234,6 +313,7 @@
   --border: #e4e7f0;
   --input: #dde1ec;
   --ring: #4f46e5;
+  --radius: 0.7rem;
 
   --chart-1: #4f46e5;
   --chart-2: #0f8a4c;
@@ -241,7 +321,7 @@
   --chart-4: #9333ea;
   --chart-5: #dc2626;
 
-  /* Keep the rail dark in light mode too, for a consistent premium anchor. */
+  /* Keep the rail dark for a consistent premium anchor in the light themes. */
   --sidebar: #0c111f;
   --sidebar-foreground: #eef1f8;
   --sidebar-muted: #8a95b0;
@@ -251,6 +331,150 @@
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #202a44;
   --sidebar-ring: #818cf8;
+}
+
+/* ── Classic (enterprise light) — neutral slate, trustworthy blue ─────── */
+[data-theme="classic"] {
+  color-scheme: light;
+
+  /* Traditional admin-console look: cool neutral gray canvas, white cards,
+     crisp 1px borders, a dependable corporate blue. Lower radius for a
+     business-like feel. */
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --surface-2: #f6f8fb;
+  --surface-3: #e9edf3;
+  --border-strong: #b4bdcb;
+
+  --text: #1b2433;
+  --subtle: #5c6880;
+
+  --brand: #2563eb;
+  --brand-strong: #1d4ed8;
+  --brand-soft: #e5edfd;
+  --brand-fill: #2563eb;
+  --on-brand: #ffffff;
+
+  --money: #9a6a00;
+  --money-strong: #7c5300;
+  --money-soft: #fbf1db;
+
+  --ok: #15803d;
+  --ok-soft: #e6f4ea;
+  --warn: #9a6a00;
+  --warn-soft: #fbf1db;
+  --danger-soft: #fdeaea;
+  --info: #1d4ed8;
+
+  --background: #eef1f6;
+  --foreground: #1b2433;
+  --card: #ffffff;
+  --card-foreground: #1b2433;
+  --popover: #ffffff;
+  --popover-foreground: #1b2433;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #e9edf3;
+  --secondary-foreground: #1b2433;
+  --muted: #eef1f6;
+  --muted-foreground: #556179;
+  --accent: #e5edfd;
+  --accent-foreground: #1b2433;
+  --destructive: #c62828;
+  --destructive-foreground: #ffffff;
+  --border: #dde3ec;
+  --input: #ced6e2;
+  --ring: #2563eb;
+  --radius: 0.4rem;
+
+  --chart-1: #2563eb;
+  --chart-2: #15803d;
+  --chart-3: #b45309;
+  --chart-4: #7c3aed;
+  --chart-5: #c62828;
+
+  /* Classic uses a light slate rail rather than a dark one — a tidy,
+     traditional sidebar that matches the enterprise feel. */
+  --sidebar: #1e293b;
+  --sidebar-foreground: #e8edf5;
+  --sidebar-muted: #93a1b8;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2b3952;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #334155;
+  --sidebar-ring: #60a5fa;
+}
+
+/* ── Arctic (airy high-contrast light) — pure white, sky blue ─────────── */
+[data-theme="arctic"] {
+  color-scheme: light;
+
+  /* Maximum clarity: pure white cards on a faint slate wash, generous
+     contrast, a vivid sky-blue accent. Apple/Material-3 crispness. */
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --surface-3: #e2e8f0;
+  --border-strong: #94a3b8;
+
+  --text: #0f172a;
+  --subtle: #64748b;
+
+  --brand: #0284c7;
+  --brand-strong: #0369a1;
+  --brand-soft: #e0f2fe;
+  --brand-fill: #0284c7;
+  --on-brand: #ffffff;
+
+  --money: #b45309;
+  --money-strong: #92400e;
+  --money-soft: #fef3e2;
+
+  --ok: #047857;
+  --ok-soft: #d1fae5;
+  --warn: #b45309;
+  --warn-soft: #fef3e2;
+  --danger-soft: #fee2e2;
+  --info: #0369a1;
+
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0284c7;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
+  --accent: #e0f2fe;
+  --accent-foreground: #0c4a6e;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #cbd5e1;
+  --ring: #0284c7;
+  --radius: 0.85rem;
+
+  --chart-1: #0284c7;
+  --chart-2: #047857;
+  --chart-3: #b45309;
+  --chart-4: #7c3aed;
+  --chart-5: #dc2626;
+
+  /* Light, crisp rail to match the airy canvas. */
+  --sidebar: #0f172a;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-muted: #94a3b8;
+  --sidebar-primary: #38bdf8;
+  --sidebar-primary-foreground: #06283d;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #38bdf8;
 }
 
 html,
@@ -315,7 +539,7 @@ body {
 .lt-card-shadow {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
 }
-[data-theme="light"] .lt-card-shadow {
+:is([data-theme="daylight"], [data-theme="classic"], [data-theme="arctic"]) .lt-card-shadow {
   box-shadow:
     0 1px 2px rgba(14, 26, 43, 0.05),
     0 2px 10px rgba(14, 26, 43, 0.06);
@@ -325,7 +549,7 @@ body {
 .lt-rail-shadow {
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.28);
 }
-[data-theme="light"] .lt-rail-shadow {
+:is([data-theme="daylight"], [data-theme="classic"], [data-theme="arctic"]) .lt-rail-shadow {
   box-shadow: 2px 0 16px rgba(14, 26, 43, 0.06);
 }
 
@@ -389,7 +613,7 @@ textarea,
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
   border-color: var(--color-border-strong);
 }
-[data-theme="light"] .lt-hover:hover {
+:is([data-theme="daylight"], [data-theme="classic"], [data-theme="arctic"]) .lt-hover:hover {
   box-shadow: 0 6px 20px rgba(14, 26, 43, 0.1);
 }
 
@@ -401,7 +625,7 @@ textarea,
     0 1px 0 rgba(255, 255, 255, 0.02) inset;
   transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
 }
-[data-theme="light"] [data-slot="card"] {
+:is([data-theme="daylight"], [data-theme="classic"], [data-theme="arctic"]) [data-slot="card"] {
   box-shadow:
     0 1px 2px rgba(15, 27, 45, 0.04),
     0 4px 16px -4px rgba(15, 27, 45, 0.1);

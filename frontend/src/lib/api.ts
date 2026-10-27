@@ -204,6 +204,8 @@ export interface ReportsSummary {
   reviewed_count: number;
   pending_count: number;
   accuracy_within_10pct: number | null;
+  /** Tickets with a monitor call — the accuracy denominator. */
+  benchmarked_count: number;
 }
 
 export class ApiError extends Error {
@@ -516,12 +518,20 @@ export function streamChat(
         const frames = buffer.split("\n\n");
         buffer = frames.pop() ?? "";
         for (const frame of frames) {
-          const ev = /event:\s*(.+)/.exec(frame)?.[1]?.trim();
-          const dataLine = /data:\s*(.+)/.exec(frame)?.[1];
+          // Anchor to line starts so a literal "event:"/"data:" inside the JSON
+          // payload can't be mis-parsed as a frame header.
+          const ev = /^event:\s*(.+)/m.exec(frame)?.[1]?.trim();
+          const dataLine = /^data:\s*(.+)/m.exec(frame)?.[1];
           if (!ev || !dataLine) continue;
-          const data = JSON.parse(dataLine);
-          if (ev === "tool") handlers.onTool?.(data.tool);
-          else if (ev === "token") handlers.onToken?.(data.text);
+          // A garbled or chunk-split frame must not abort the whole stream.
+          let data: { tool?: string; text?: string; suggestions?: string[] };
+          try {
+            data = JSON.parse(dataLine);
+          } catch {
+            continue;
+          }
+          if (ev === "tool" && data.tool) handlers.onTool?.(data.tool);
+          else if (ev === "token" && data.text != null) handlers.onToken?.(data.text);
           else if (ev === "done") handlers.onDone?.(data.suggestions ?? []);
         }
       }

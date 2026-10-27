@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { AppShell } from "@/components/shell/app-shell";
+import { AssistantWidget } from "@/components/ai/assistant-widget";
 import { OPEN_TICKET_EVENT } from "@/components/shell/command-palette";
 import { QueueFilters, type SortKey, type StatusFilter } from "@/components/console/queue-filters";
 import { ReviewWorkspace } from "@/components/console/review-workspace";
@@ -25,8 +27,19 @@ const PAGE_SIZE = 12;
  * Keyboard: J/K or arrow keys move through the queue, C/O/D decide.
  */
 export default function ConsolePage() {
+  // useSearchParams requires a Suspense boundary during static rendering.
+  return (
+    <Suspense fallback={null}>
+      <ConsoleView />
+    </Suspense>
+  );
+}
+
+function ConsoleView() {
   const { selectedId: eventId, isError: eventsError } = useEventContext();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const searchParams = useSearchParams();
+  const urlTicket = searchParams.get("ticket");
 
   const [status, setStatus] = useState<StatusFilter>("draft");
   const [search, setSearch] = useState("");
@@ -48,14 +61,18 @@ export default function ConsolePage() {
   const total = tickets.data?.total ?? 0;
   const rows = useMemo(() => filterAndSort(page, search, sort), [page, search, sort]);
 
-  // Deep link (?ticket=) and command-palette requests.
+  // Deep link (?ticket=): react to the search param so client-side navigations
+  // (e.g. clicking a row in the Reports ledger) always open the requested
+  // ticket, not just the first mount. This is the fix for "wrong ticket opens".
   useEffect(() => {
-    const fromUrl = new URLSearchParams(window.location.search).get("ticket");
-    if (fromUrl) {
-      setRequestedId(fromUrl);
-      setSelectedId(fromUrl);
-      setMobileDetail(true);
-    }
+    if (!urlTicket) return;
+    setRequestedId(urlTicket);
+    setSelectedId(urlTicket);
+    setMobileDetail(true);
+  }, [urlTicket]);
+
+  // Command-palette requests (open a specific ticket without a URL change).
+  useEffect(() => {
     function onOpen(e: Event) {
       const id = (e as CustomEvent<string>).detail;
       setRequestedId(id);
@@ -69,6 +86,12 @@ export default function ConsolePage() {
   // A requested ticket may not be on the current page; fetch it directly.
   const pinned = useTicket(requestedId && !rows.some((t) => t.id === requestedId) ? requestedId : null);
 
+  // Once the requested ticket actually appears in the queue (after paging or a
+  // filter change), drop the "requested" pin so normal queue navigation resumes.
+  useEffect(() => {
+    if (requestedId && rows.some((t) => t.id === requestedId)) setRequestedId(null);
+  }, [rows, requestedId]);
+
   useEffect(() => {
     if (requestedId) return;
     if (rows.length === 0) {
@@ -77,6 +100,12 @@ export default function ConsolePage() {
     }
     setSelectedId((cur) => (cur && rows.some((t) => t.id === cur) ? cur : (rows[0]?.id ?? null)));
   }, [rows, requestedId]);
+
+  // If the list shrinks (e.g. after a decision) and the current page is now
+  // beyond the end, snap back to the first page so the user isn't stranded.
+  useEffect(() => {
+    if (offset > 0 && offset >= total) setOffset(0);
+  }, [offset, total]);
 
   const selected =
     rows.find((t) => t.id === selectedId) ?? (pinned.data?.id === selectedId ? pinned.data : null) ?? null;
@@ -228,6 +257,7 @@ export default function ConsolePage() {
           {workspacePanel}
         </div>
       )}
+      <AssistantWidget />
     </AppShell>
   );
 }

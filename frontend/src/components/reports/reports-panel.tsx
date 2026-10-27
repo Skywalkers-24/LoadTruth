@@ -183,19 +183,32 @@ function Ledger({ tickets }: { tickets: Ticket[] }) {
   const [sort, setSort] = useState<{ col: SortCol; dir: 1 | -1 }>({ col: "delta", dir: -1 });
 
   const rows = useMemo(() => {
-    const key = (t: Ticket): number => {
+    // Returns the sort value, or null for "no value" rows (e.g. uncalled
+    // tickets have no delta). Null rows are always pushed to the end,
+    // independent of sort direction, so they don't masquerade as extreme values.
+    const key = (t: Ticket): number | null => {
       switch (sort.col) {
         case "created":
           return +new Date(t.created_at);
         case "delta":
-          return Number.parseFloat(t.valuation.delta_dollar_value ?? "-1e9");
+          return t.valuation.delta_dollar_value === null
+            ? null
+            : Number.parseFloat(t.valuation.delta_dollar_value);
         case "measured":
-          return Number.parseFloat(t.valuation.est_fill_pct);
+          // The "Measured" column shows volume (cubic yards); sort by it.
+          return Number.parseFloat(t.valuation.est_cubic_yards);
         case "value":
           return Number.parseFloat(t.valuation.est_dollar_value);
       }
     };
-    return [...tickets].sort((a, b) => (key(a) - key(b)) * sort.dir);
+    return [...tickets].sort((a, b) => {
+      const ka = key(a);
+      const kb = key(b);
+      if (ka === null && kb === null) return 0;
+      if (ka === null) return 1; // a sinks to the end
+      if (kb === null) return -1; // b sinks to the end
+      return (ka - kb) * sort.dir;
+    });
   }, [tickets, sort]);
 
   function header(col: SortCol, label: string, align: "left" | "right" = "right") {

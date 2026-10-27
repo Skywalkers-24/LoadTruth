@@ -17,6 +17,7 @@ import { getDirectory, type DirectoryMember, type Role } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { LogoMark } from "@/components/ui/logo";
 import { Button } from "@/components/ui/shadcn/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -145,7 +146,11 @@ export function LoginScreen() {
       </div>
 
       {/* Sign-in panel */}
-      <div className="flex items-center justify-center bg-background p-6">
+      <div className="relative flex items-center justify-center bg-background p-6">
+        {/* Theme picker — reachable before sign-in so users land in their preferred look. */}
+        <div className="absolute right-5 top-5 z-10">
+          <ThemeToggle />
+        </div>
         <div className="w-full max-w-md">
           <div className="mb-6 flex items-center gap-2.5 lg:hidden">
             <span className="grid size-9 place-items-center rounded-xl bg-[var(--color-brand-fill)] text-white">

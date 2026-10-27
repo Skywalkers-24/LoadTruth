@@ -5,6 +5,7 @@ import { DownloadIcon, FileTextIcon } from "lucide-react";
 
 import type { ReportsSummary, Ticket } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
+import { AssistantWidget } from "@/components/ai/assistant-widget";
 import { ReportsPanel, type PerEvent } from "@/components/reports/reports-panel";
 import { Button } from "@/components/ui/shadcn/button";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/primitives";
@@ -39,6 +40,7 @@ function aggregate(parts: { eventId: string; summary: ReportsSummary; tickets: T
     reviewed_count: 0,
     pending_count: 0,
     accuracy_within_10pct: null,
+    benchmarked_count: 0,
   };
   let est = 0;
   let delta = 0;
@@ -57,9 +59,12 @@ function aggregate(parts: { eventId: string; summary: ReportsSummary; tickets: T
     est += num(s.total_est_dollar_value);
     delta += num(s.total_delta_dollar_value);
     overbill += num(s.overbill_dollar_value);
-    if (s.accuracy_within_10pct !== null) {
-      accNum += s.accuracy_within_10pct * s.ticket_count;
-      accDen += s.ticket_count;
+    summary.benchmarked_count += s.benchmarked_count;
+    // Weight by the benchmarked count (the accuracy denominator), not the full
+    // ticket count, so the combined accuracy is exact.
+    if (s.accuracy_within_10pct !== null && s.benchmarked_count > 0) {
+      accNum += s.accuracy_within_10pct * s.benchmarked_count;
+      accDen += s.benchmarked_count;
     }
   }
   summary.total_est_dollar_value = est.toFixed(2);
@@ -173,6 +178,7 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
+      <AssistantWidget />
     </AppShell>
   );
 }

@@ -95,7 +95,7 @@ export function Notifications() {
                     type="button"
                     onClick={() => {
                       setOpen(false);
-                      router.push("/console");
+                      router.push(`/console?ticket=${t.id}`);
                     }}
                     className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[var(--color-surface-2)]"
                   >

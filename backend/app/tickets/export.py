@@ -69,10 +69,10 @@ def audit_packet_html(
     total_delta = sum((t.delta_dollar_value or 0) for t in tickets)
     rows = "\n".join(_ticket_row(t) for t in tickets)
     accuracy = (
-        f"{round(accuracy_within_10pct * 100)}% of benchmark clips within ±10% of careful "
-        "human measurement."
+        f"{round(accuracy_within_10pct * 100)}% of monitor-reviewed loads had the machine "
+        "estimate within ±10 points of the monitor's own call."
         if accuracy_within_10pct is not None
-        else "No accuracy benchmark recorded for this event yet."
+        else "No monitor calls recorded yet, so no accuracy benchmark is available."
     )
     loc = html.escape(event_location or "")
     return f"""<!doctype html>

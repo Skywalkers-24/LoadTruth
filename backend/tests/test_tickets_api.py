@@ -112,7 +112,27 @@ def test_dashboard_rollup(client: TestClient) -> None:
     assert d["reviewed_count"] == 14  # seeded confirmed + overridden tickets
     assert d["overbill_ticket_count"] >= 1
     assert float(d["total_delta_dollar_value"]) > 0  # money flagged for review
-    assert d["accuracy_within_10pct"] == 0.9
+
+    # Accuracy is now computed from real data: the fraction of tickets with a
+    # monitor call whose machine estimate is within 10 points of that call.
+    assert d["accuracy_within_10pct"] == _expected_accuracy(client)
+
+
+def _expected_accuracy(client: TestClient) -> float:
+    """Recompute the within-10-points accuracy from the live ticket data, so the
+    assertion tracks the seed instead of a hard-coded constant."""
+    benchmarked = [
+        t
+        for t in _all_tickets(client)
+        if t["valuation"]["monitor_fill_pct"] is not None
+    ]
+    within = sum(
+        1
+        for t in benchmarked
+        if abs(float(t["valuation"]["est_fill_pct"]) - float(t["valuation"]["monitor_fill_pct"]))
+        <= 10
+    )
+    return within / len(benchmarked)
 
 
 def test_list_tickets_default_envelope(client: TestClient) -> None:
@@ -226,7 +246,8 @@ def test_reports_summary(client: TestClient) -> None:
     assert s["anomaly_counts_by_severity"]["high"] == 4
     assert s["anomaly_counts_by_severity"]["warn"] == 3
 
-    assert s["accuracy_within_10pct"] == 0.9
+    # Accuracy matches the dashboard roll-up, both computed from the same data.
+    assert s["accuracy_within_10pct"] == _expected_accuracy(client)
 
 
 def test_reports_summary_overbill_matches_dollar_sum(client: TestClient) -> None:

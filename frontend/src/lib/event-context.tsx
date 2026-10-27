@@ -49,17 +49,27 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEY, id);
   }, []);
 
-  const selected = events.find((e) => e.id === selectedId);
+  const selected = useMemo(
+    () => events.find((e) => e.id === selectedId),
+    [events, selectedId],
+  );
 
-  const value: EventContextValue = {
-    events,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    selected,
-    selectedId,
-    setSelectedId,
-    refetch: () => void query.refetch(),
-  };
+  const refetch = useCallback(() => void query.refetch(), [query]);
+
+  // Memoized so consumers of this app-wide context don't re-render on every
+  // parent render.
+  const value = useMemo<EventContextValue>(
+    () => ({
+      events,
+      isLoading: query.isLoading,
+      isError: query.isError,
+      selected,
+      selectedId,
+      setSelectedId,
+      refetch,
+    }),
+    [events, query.isLoading, query.isError, selected, selectedId, setSelectedId, refetch],
+  );
 
   return <EventCtx.Provider value={value}>{children}</EventCtx.Provider>;
 }

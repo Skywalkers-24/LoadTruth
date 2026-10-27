@@ -9,7 +9,7 @@ import {
   ClipboardIcon,
   DownloadIcon,
   GaugeIcon,
-  MoonIcon,
+  PaletteIcon,
   SearchIcon,
   SettingsIcon,
   TruckIcon,
@@ -37,7 +37,7 @@ export function usePalette(): PaletteApi {
 
 interface Item {
   id: string;
-  group: "Tickets" | "Navigate" | "Actions";
+  group: "Tickets" | "Navigate" | "Actions" | "Theme";
   label: string;
   hint?: string;
   right?: string;
@@ -75,7 +75,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
 
 function Palette({ onClose }: { onClose: () => void }) {
   const router = useRouter();
-  const { toggle, theme } = useTheme();
+  const { theme, themes, setTheme } = useTheme();
   const { selectedId: eventId } = useEventContext();
   const tickets = useTickets({ eventId, limit: 100, offset: 0 });
   const [q, setQ] = useState("");
@@ -97,17 +97,20 @@ function Palette({ onClose }: { onClose: () => void }) {
       { id: "nav-reports", group: "Navigate", label: "Reports", icon: <ChartIcon size={15} />, run: () => go("/reports") },
       { id: "nav-admin", group: "Navigate", label: "Admin", icon: <SettingsIcon size={15} />, run: () => go("/admin") },
     ];
-    const actions: Item[] = [
-      {
-        id: "act-theme",
-        group: "Actions",
-        label: `Switch to ${theme === "dark" ? "light" : "dark"} theme`,
-        icon: <MoonIcon size={15} />,
-        run: () => {
-          toggle();
-          onClose();
-        },
+    const themeActions: Item[] = themes.map((t) => ({
+      id: `act-theme-${t.id}`,
+      group: "Theme" as const,
+      label: `Theme: ${t.label}`,
+      hint: t.description,
+      icon: <PaletteIcon size={15} />,
+      right: theme === t.id ? "Active" : undefined,
+      rightColor: "var(--color-ok)",
+      run: () => {
+        setTheme(t.id);
+        onClose();
       },
+    }));
+    const actions: Item[] = [
       ...(eventId
         ? [
             {
@@ -141,8 +144,13 @@ function Palette({ onClose }: { onClose: () => void }) {
     const needle = q.trim().toLowerCase();
     const match = (i: Item) => !needle || `${i.label} ${i.hint ?? ""}`.toLowerCase().includes(needle);
     const filteredTickets = ticketItems.filter(match).slice(0, needle ? 8 : 5);
-    return [...nav.filter(match), ...filteredTickets, ...actions.filter(match)];
-  }, [tickets.data, q, theme, eventId, go, toggle, onClose, router]);
+    return [
+      ...nav.filter(match),
+      ...filteredTickets,
+      ...actions.filter(match),
+      ...themeActions.filter(match),
+    ];
+  }, [tickets.data, q, theme, themes, eventId, go, setTheme, onClose, router]);
 
   useEffect(() => setActive(0), [q]);
 
@@ -168,7 +176,7 @@ function Palette({ onClose }: { onClose: () => void }) {
     listRef.current?.querySelector<HTMLElement>(`[data-idx="${active}"]`)?.scrollIntoView({ block: "nearest" });
   }, [active]);
 
-  const groups: Item["group"][] = ["Navigate", "Tickets", "Actions"];
+  const groups: Item["group"][] = ["Navigate", "Tickets", "Actions", "Theme"];
 
   return (
     <div

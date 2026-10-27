@@ -332,6 +332,9 @@ class ReportsSummary(BaseModel):
     reviewed_count: int
     pending_count: int
     accuracy_within_10pct: float | None = None
+    # Number of tickets with a monitor call (the accuracy denominator); lets the
+    # "All events" view weight combined accuracy exactly.
+    benchmarked_count: int = 0
 
 
 def build_valuation(

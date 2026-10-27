@@ -240,4 +240,5 @@ async def event_reports_summary(
         reviewed_count=s.reviewed_count,
         pending_count=s.pending_count,
         accuracy_within_10pct=s.accuracy_within_10pct,
+        benchmarked_count=s.benchmarked_count,
     )
