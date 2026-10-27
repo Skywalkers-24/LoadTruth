@@ -1,20 +1,18 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 /**
  * LoadTruth theme system.
  *
- * Five curated themes, each driven by the `data-theme` attribute on <html>
+ * Six curated dark themes, each driven by the `data-theme` attribute on <html>
  * (set before paint by the inline script to avoid a flash of the wrong theme).
- * Every theme defines the same CSS-variable contract in globals.css, so all
- * screens and shadcn components recolor automatically.
- *
- * Themes are grouped by their base `scheme` (dark | light) so the OS
- * `color-scheme` and form controls match, and so we can pick a sensible
- * default when a user has never chosen one.
+ * Palettes follow Material Design's dark-theme guidance: dark-gray surfaces
+ * with elevation shown via lighter overlays, desaturated accent hues, and
+ * high-contrast text. Every theme defines the same CSS-variable contract in
+ * globals.css, so all screens and shadcn components recolor automatically.
  */
-export type Theme = "midnight" | "graphite" | "daylight" | "classic" | "arctic";
+export type Theme = "midnight" | "graphite" | "abyss" | "evergreen" | "plum" | "enterprise";
 
 export type ThemeScheme = "dark" | "light";
 
@@ -37,9 +35,9 @@ export interface ThemeMeta {
 const MIDNIGHT: ThemeMeta = {
   id: "midnight",
   label: "Midnight",
-  description: "Modern dark · indigo on deep navy",
+  description: "Material baseline dark · desaturated violet",
   scheme: "dark",
-  swatches: ["#0a0f1a", "#1a2236", "#6366f1"],
+  swatches: ["#121212", "#1f1b24", "#bb86fc"],
 };
 
 export const THEMES: ThemeMeta[] = [
@@ -52,25 +50,32 @@ export const THEMES: ThemeMeta[] = [
     swatches: ["#18181b", "#27272a", "#2dd4bf"],
   },
   {
-    id: "daylight",
-    label: "Daylight",
-    description: "Clean light · soft shadows, indigo",
-    scheme: "light",
-    swatches: ["#f5f6fb", "#ffffff", "#4f46e5"],
+    id: "abyss",
+    label: "Abyss",
+    description: "Deep blue dark · desaturated cyan",
+    scheme: "dark",
+    swatches: ["#0e1116", "#171c24", "#4dd0e1"],
   },
   {
-    id: "classic",
-    label: "Classic",
-    description: "Enterprise light · trustworthy blue",
-    scheme: "light",
-    swatches: ["#eef1f6", "#ffffff", "#2563eb"],
+    id: "evergreen",
+    label: "Evergreen",
+    description: "Calm dark · desaturated green",
+    scheme: "dark",
+    swatches: ["#121613", "#1b211c", "#81c995"],
   },
   {
-    id: "arctic",
-    label: "Arctic",
-    description: "Airy high-contrast · sky blue",
-    scheme: "light",
-    swatches: ["#ffffff", "#f1f5f9", "#0284c7"],
+    id: "plum",
+    label: "Plum",
+    description: "Dark · desaturated magenta-rose",
+    scheme: "dark",
+    swatches: ["#141016", "#1e1822", "#f48fb1"],
+  },
+  {
+    id: "enterprise",
+    label: "Enterprise",
+    description: "Professional dark navy · corporate blue",
+    scheme: "dark",
+    swatches: ["#0d1420", "#162133", "#4c8dff"],
   },
 ];
 
@@ -103,14 +108,12 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 const STORAGE_KEY = "loadtruth-theme";
 const DEFAULT_THEME: Theme = "midnight";
 
-/** The last dark/light theme a user landed on, so toggle() returns there. */
-const LIGHT_DEFAULT: Theme = "daylight";
-const DARK_DEFAULT: Theme = "midnight";
-
-/** Legacy values from the old binary toggle map onto the new theme ids. */
+/** Legacy values map onto the new theme ids (all themes are dark now). */
 function migrate(stored: string | null): Theme | null {
-  if (stored === "dark") return "midnight";
-  if (stored === "light") return "daylight";
+  if (stored === "dark" || stored === "light" || stored === "daylight" || stored === "classic") {
+    return "midnight";
+  }
+  if (stored === "arctic") return "abyss";
   return isTheme(stored) ? stored : null;
 }
 
@@ -121,24 +124,11 @@ function initialTheme(): Theme {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
-  // Remember the last theme used in each scheme so toggle() returns the user to
-  // their chosen look (e.g. graphite⇄daylight⇄graphite), not a fixed default.
-  const lastByScheme = useRef<Record<ThemeScheme, Theme>>({
-    dark: DARK_DEFAULT,
-    light: LIGHT_DEFAULT,
-  });
 
   // Align React state with the attribute the inline script already set.
   useEffect(() => {
-    const t = initialTheme();
-    lastByScheme.current[isDarkTheme(t) ? "dark" : "light"] = t;
-    setThemeState(t);
+    setThemeState(initialTheme());
   }, []);
-
-  // Keep the per-scheme memory current as the theme changes.
-  useEffect(() => {
-    lastByScheme.current[isDarkTheme(theme) ? "dark" : "light"] = theme;
-  }, [theme]);
 
   useEffect(() => {
     const el = document.documentElement;
@@ -156,10 +146,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (isTheme(t)) setThemeState(t);
   }, []);
 
+  // All themes are dark; toggle cycles to the next theme in the catalog.
   const toggle = useCallback(() => {
-    setThemeState((cur) =>
-      isDarkTheme(cur) ? lastByScheme.current.light : lastByScheme.current.dark,
-    );
+    setThemeState((cur) => {
+      const i = THEME_IDS.indexOf(cur);
+      return THEME_IDS[(i + 1) % THEME_IDS.length] ?? DEFAULT_THEME;
+    });
   }, []);
 
   const value = useMemo<ThemeContextValue>(
@@ -190,12 +182,11 @@ export function useTheme(): ThemeContextValue {
 export const themeInitScript = `
 (function(){try{
   var k='${STORAGE_KEY}';var s=localStorage.getItem(k);
-  var map={dark:'midnight',light:'daylight'};
+  var map={dark:'midnight',light:'midnight',daylight:'midnight',classic:'midnight',arctic:'abyss'};
   var ids=${JSON.stringify(THEME_IDS)};
-  var darks=${JSON.stringify(DARK_THEMES)};
   var t=map[s]||(ids.indexOf(s)>=0?s:'${DEFAULT_THEME}');
   var e=document.documentElement;
   e.setAttribute('data-theme',t);
-  if(darks.indexOf(t)>=0){e.classList.add('dark');}
+  e.classList.add('dark');
 }catch(e){document.documentElement.setAttribute('data-theme','${DEFAULT_THEME}');document.documentElement.classList.add('dark');}})();
 `;

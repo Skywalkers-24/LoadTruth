@@ -107,87 +107,91 @@
 
 /* ════════════════════════════════════════════════════════════════════════
    THEMES
-   Five curated themes, each defining the full token contract. The active one
-   is selected by `data-theme` on <html> (set before paint). Grouped by base
-   scheme: dark (Midnight, Graphite) and light (Daylight, Classic, Arctic).
-   `:root` mirrors Midnight so there's always a sane default pre-hydration.
+   Six curated dark themes, each defining the full token contract. The active
+   one is selected by `data-theme` on <html> (set before paint). `:root`
+   mirrors Midnight so there's always a sane default pre-hydration.
 
-   Design references (recreated, not copied): Linear/Vercel (Midnight),
-   GitHub dimmed + Apple (Graphite), Stripe Dashboard (Daylight), classic
-   enterprise admin consoles (Classic), Apple/Material 3 (Arctic).
+   Palettes follow Material Design's dark-theme guidance: dark-gray #121212-
+   family surfaces that lift via lighter overlays, desaturated accent hues
+   (200-tone), and high-contrast text. Themes: Midnight (violet), Graphite
+   (teal), Abyss (cyan), Evergreen (green), Plum (rose), Enterprise (blue).
    Semantic colors target WCAG AA on the pairs they're used on; status is
    never color-only (always paired with a label/icon).
    ════════════════════════════════════════════════════════════════════════ */
 
-/* ── Midnight (modern dark, default) — indigo on deep ink navy ─────────── */
+/* ── Midnight (default) — Material baseline dark ────────────────────────
+   Material's reference dark theme: a near-black #121212 canvas with surfaces
+   that lift via lighter overlays (dp elevation), the signature desaturated
+   violet (#BB86FC) primary and teal (#03DAC6) secondary, and high-emphasis
+   text at ~87% white. */
 :root,
 [data-theme="midnight"] {
   color-scheme: dark;
 
-  --bg: #0a0f1a;
-  --surface: #121829;
-  --surface-2: #1a2236;
-  --surface-3: #232d45;
-  --border-strong: #3a4766;
+  --bg: #121212;
+  --surface: #1e1b24;
+  --surface-2: #272330;
+  --surface-3: #332d3d;
+  --border-strong: #4a4458;
 
-  --text: #f4f6fb;
-  --subtle: #8e9bb5;
+  --text: #ece8f1;
+  --subtle: #a39eb0;
 
-  /* Primary — indigo/violet. Modern, premium, high contrast on dark. */
-  --brand: #818cf8;
-  --brand-strong: #a5b0ff;
-  --brand-soft: #1e2546;
-  --brand-fill: #6366f1;
-  --on-brand: #ffffff;
+  /* Primary — Material desaturated violet (200 tone). */
+  --brand: #cbb2fc;
+  --brand-strong: #d7c4ff;
+  --brand-soft: #241f30;
+  --brand-fill: #bb86fc;
+  --on-brand: #1a1222;
 
-  /* Money accent — gold (warm, not orange-brown). Dollars/variance only. */
-  --money: #fbbf24;
-  --money-strong: #fcd34d;
-  --money-soft: #2e2512;
+  /* Money accent — clean bright gold (not muddy amber). Dollars/variance only. */
+  --money: #ffca62;
+  --money-strong: #ffd98a;
+  --money-soft: #2e2615;
 
-  --ok: #34d399;
-  --ok-soft: #0c2e24;
-  --warn: #fbbf24;
-  --warn-soft: #2e2512;
-  --danger-soft: #3a1c22;
-  --info: #818cf8;
+  --ok: #03dac6;
+  --ok-soft: #0a2b28;
+  --warn: #ffca62;
+  --warn-soft: #2e2615;
+  --danger-soft: #3a1f24;
+  --info: #cbb2fc;
 
-  --background: #0a0f1a;
-  --foreground: #f4f6fb;
-  --card: #121829;
-  --card-foreground: #f4f6fb;
-  --popover: #1a2236;
-  --popover-foreground: #f4f6fb;
-  --primary: #6366f1;
-  --primary-foreground: #ffffff;
-  --secondary: #232d45;
-  --secondary-foreground: #f4f6fb;
-  --muted: #1a2236;
-  --muted-foreground: #aab4cc;
-  --accent: #232d45;
-  --accent-foreground: #f4f6fb;
-  --destructive: #fb7185;
-  --destructive-foreground: #ffffff;
-  --border: #283350;
-  --input: #283350;
-  --ring: #818cf8;
+  --background: #121212;
+  --foreground: #ece8f1;
+  --card: #1e1b24;
+  --card-foreground: #ece8f1;
+  --popover: #272330;
+  --popover-foreground: #ece8f1;
+  --primary: #bb86fc;
+  --primary-foreground: #1a1222;
+  --secondary: #332d3d;
+  --secondary-foreground: #ece8f1;
+  --muted: #272330;
+  --muted-foreground: #b4aec1;
+  --accent: #332d3d;
+  --accent-foreground: #ece8f1;
+  --destructive: #cf6679;
+  --destructive-foreground: #1a0d10;
+  --border: #302b3a;
+  --input: #302b3a;
+  --ring: #cbb2fc;
   --radius: 0.7rem;
 
-  --chart-1: #818cf8;
-  --chart-2: #34d399;
-  --chart-3: #fbbf24;
-  --chart-4: #c084fc;
-  --chart-5: #fb7185;
+  --chart-1: #bb86fc;
+  --chart-2: #03dac6;
+  --chart-3: #ffca62;
+  --chart-4: #cf9bff;
+  --chart-5: #cf6679;
 
-  --sidebar: #0c111f;
-  --sidebar-foreground: #eef1f8;
-  --sidebar-muted: #8a95b0;
-  --sidebar-primary: #6366f1;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1a2238;
+  --sidebar: #0e0d12;
+  --sidebar-foreground: #ece8f1;
+  --sidebar-muted: #9d98a8;
+  --sidebar-primary: #bb86fc;
+  --sidebar-primary-foreground: #1a1222;
+  --sidebar-accent: #221e2b;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #202a44;
-  --sidebar-ring: #818cf8;
+  --sidebar-border: #221e2b;
+  --sidebar-ring: #cbb2fc;
 }
 
 /* ── Graphite (warm neutral dark) — zinc canvas, teal accent ──────────── */
@@ -212,15 +216,15 @@
   --brand-fill: #14b8a6;
   --on-brand: #06201d;
 
-  /* Money accent — amber. */
-  --money: #fbbf24;
-  --money-strong: #fcd34d;
-  --money-soft: #2c2410;
+  /* Money accent — clean bright gold (replaces the old muddy amber). */
+  --money: #ffca62;
+  --money-strong: #ffd98a;
+  --money-soft: #2c2512;
 
   --ok: #4ade80;
   --ok-soft: #10281a;
-  --warn: #fbbf24;
-  --warn-soft: #2c2410;
+  --warn: #ffca62;
+  --warn-soft: #2c2512;
   --danger-soft: #3a1d1d;
   --info: #38bdf8;
 
@@ -247,7 +251,7 @@
 
   --chart-1: #2dd4bf;
   --chart-2: #4ade80;
-  --chart-3: #fbbf24;
+  --chart-3: #ffca62;
   --chart-4: #a78bfa;
   --chart-5: #fb7185;
 
@@ -262,219 +266,294 @@
   --sidebar-ring: #2dd4bf;
 }
 
-/* ── Daylight (modern light) — clean cool-white, indigo, soft shadows ─── */
-[data-theme="daylight"] {
-  color-scheme: light;
+/* ── Abyss — deep blue dark, desaturated cyan ───────────────────────────
+   A cool blue-charcoal canvas (Material dark, blue-leaning). Desaturated cyan
+   (#4DD0E1, Material Cyan 300) primary reads as calm and technical; surfaces
+   lift with lighter cool overlays. */
+[data-theme="abyss"] {
+  color-scheme: dark;
 
-  /* Soft neutral off-white with a hint of indigo. White cards float on a
-     gentle shadow; hairline borders. Stripe-dashboard calm. */
-  --bg: #f5f6fb;
-  --surface: #ffffff;
-  --surface-2: #f7f8fc;
-  --surface-3: #eef0f8;
-  --border-strong: #c7cde0;
+  --bg: #0e1116;
+  --surface: #171c24;
+  --surface-2: #1f2530;
+  --surface-3: #2a323f;
+  --border-strong: #3d4757;
 
-  --text: #141a2e;
-  --subtle: #697089;
+  --text: #e8edf4;
+  --subtle: #93a0b3;
 
-  --brand: #4f46e5;
-  --brand-strong: #4338ca;
-  --brand-soft: #ecebfd;
-  --brand-fill: #4f46e5;
-  --on-brand: #ffffff;
+  /* Primary — desaturated cyan. */
+  --brand: #7ddbe8;
+  --brand-strong: #a6e9f1;
+  --brand-soft: #122630;
+  --brand-fill: #4dd0e1;
+  --on-brand: #04181e;
 
-  --money: #a16207;
-  --money-strong: #854d0e;
-  --money-soft: #fbf3df;
+  --money: #ffca62;
+  --money-strong: #ffd98a;
+  --money-soft: #2c2614;
 
-  --ok: #0f8a4c;
-  --ok-soft: #e6f6ee;
-  --warn: #a16207;
-  --warn-soft: #fbf3df;
-  --danger-soft: #fdeaec;
-  --info: #4338ca;
+  --ok: #5dd6a0;
+  --ok-soft: #0c2a20;
+  --warn: #ffca62;
+  --warn-soft: #2c2614;
+  --danger-soft: #38202a;
+  --info: #7ddbe8;
 
-  --background: #f5f6fb;
-  --foreground: #141a2e;
-  --card: #ffffff;
-  --card-foreground: #141a2e;
-  --popover: #ffffff;
-  --popover-foreground: #141a2e;
-  --primary: #4f46e5;
-  --primary-foreground: #ffffff;
-  --secondary: #eef0f8;
-  --secondary-foreground: #141a2e;
-  --muted: #f1f3fa;
-  --muted-foreground: #525b73;
-  --accent: #ecebfd;
-  --accent-foreground: #141a2e;
-  --destructive: #d33140;
-  --destructive-foreground: #ffffff;
-  --border: #e4e7f0;
-  --input: #dde1ec;
-  --ring: #4f46e5;
+  --background: #0e1116;
+  --foreground: #e8edf4;
+  --card: #171c24;
+  --card-foreground: #e8edf4;
+  --popover: #1f2530;
+  --popover-foreground: #e8edf4;
+  --primary: #4dd0e1;
+  --primary-foreground: #04181e;
+  --secondary: #2a323f;
+  --secondary-foreground: #e8edf4;
+  --muted: #1f2530;
+  --muted-foreground: #aab6c7;
+  --accent: #2a323f;
+  --accent-foreground: #e8edf4;
+  --destructive: #f2889b;
+  --destructive-foreground: #1d0f13;
+  --border: #252d39;
+  --input: #252d39;
+  --ring: #7ddbe8;
   --radius: 0.7rem;
 
-  --chart-1: #4f46e5;
-  --chart-2: #0f8a4c;
-  --chart-3: #b7791f;
-  --chart-4: #9333ea;
-  --chart-5: #dc2626;
+  --chart-1: #4dd0e1;
+  --chart-2: #5dd6a0;
+  --chart-3: #ffca62;
+  --chart-4: #8ab4ff;
+  --chart-5: #f2889b;
 
-  /* Keep the rail dark for a consistent premium anchor in the light themes. */
-  --sidebar: #0c111f;
-  --sidebar-foreground: #eef1f8;
-  --sidebar-muted: #8a95b0;
-  --sidebar-primary: #6366f1;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1a2238;
+  --sidebar: #0a0d12;
+  --sidebar-foreground: #e8edf4;
+  --sidebar-muted: #8c99ac;
+  --sidebar-primary: #4dd0e1;
+  --sidebar-primary-foreground: #04181e;
+  --sidebar-accent: #161b23;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #202a44;
-  --sidebar-ring: #818cf8;
+  --sidebar-border: #161b23;
+  --sidebar-ring: #7ddbe8;
 }
 
-/* ── Classic (enterprise light) — neutral slate, trustworthy blue ─────── */
-[data-theme="classic"] {
-  color-scheme: light;
+/* ── Evergreen — calm dark, desaturated green ───────────────────────────
+   A dark neutral canvas with a faint green tint. Desaturated green (#81C995,
+   Material-style green 200) primary feels calm and natural. Because green is
+   the primary here, the success/OK signal shifts to a distinct teal so status
+   never collides with the brand. */
+[data-theme="evergreen"] {
+  color-scheme: dark;
 
-  /* Traditional admin-console look: cool neutral gray canvas, white cards,
-     crisp 1px borders, a dependable corporate blue. Lower radius for a
-     business-like feel. */
-  --bg: #eef1f6;
-  --surface: #ffffff;
-  --surface-2: #f6f8fb;
-  --surface-3: #e9edf3;
-  --border-strong: #b4bdcb;
+  --bg: #121613;
+  --surface: #1b211c;
+  --surface-2: #232a24;
+  --surface-3: #2f382f;
+  --border-strong: #46503f;
 
-  --text: #1b2433;
-  --subtle: #5c6880;
+  --text: #e9efe9;
+  --subtle: #9aa89a;
 
-  --brand: #2563eb;
-  --brand-strong: #1d4ed8;
-  --brand-soft: #e5edfd;
-  --brand-fill: #2563eb;
-  --on-brand: #ffffff;
+  /* Primary — desaturated green. */
+  --brand: #a3d9b1;
+  --brand-strong: #c0e8c9;
+  --brand-soft: #16281a;
+  --brand-fill: #81c995;
+  --on-brand: #0c1f12;
 
-  --money: #9a6a00;
-  --money-strong: #7c5300;
-  --money-soft: #fbf1db;
+  --money: #ffca62;
+  --money-strong: #ffd98a;
+  --money-soft: #2c2714;
 
-  --ok: #15803d;
-  --ok-soft: #e6f4ea;
-  --warn: #9a6a00;
-  --warn-soft: #fbf1db;
-  --danger-soft: #fdeaea;
-  --info: #1d4ed8;
+  /* OK/success is teal so it doesn't collide with the green primary. */
+  --ok: #4dd0e1;
+  --ok-soft: #0c272c;
+  --warn: #ffca62;
+  --warn-soft: #2c2714;
+  --danger-soft: #371f23;
+  --info: #a3d9b1;
 
-  --background: #eef1f6;
-  --foreground: #1b2433;
-  --card: #ffffff;
-  --card-foreground: #1b2433;
-  --popover: #ffffff;
-  --popover-foreground: #1b2433;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  --secondary: #e9edf3;
-  --secondary-foreground: #1b2433;
-  --muted: #eef1f6;
-  --muted-foreground: #556179;
-  --accent: #e5edfd;
-  --accent-foreground: #1b2433;
-  --destructive: #c62828;
-  --destructive-foreground: #ffffff;
-  --border: #dde3ec;
-  --input: #ced6e2;
-  --ring: #2563eb;
-  --radius: 0.4rem;
+  --background: #121613;
+  --foreground: #e9efe9;
+  --card: #1b211c;
+  --card-foreground: #e9efe9;
+  --popover: #232a24;
+  --popover-foreground: #e9efe9;
+  --primary: #81c995;
+  --primary-foreground: #0c1f12;
+  --secondary: #2f382f;
+  --secondary-foreground: #e9efe9;
+  --muted: #232a24;
+  --muted-foreground: #abb8ab;
+  --accent: #2f382f;
+  --accent-foreground: #e9efe9;
+  --destructive: #ef9a9a;
+  --destructive-foreground: #1d0f0f;
+  --border: #29312a;
+  --input: #29312a;
+  --ring: #a3d9b1;
+  --radius: 0.6rem;
 
-  --chart-1: #2563eb;
-  --chart-2: #15803d;
-  --chart-3: #b45309;
-  --chart-4: #7c3aed;
-  --chart-5: #c62828;
+  --chart-1: #81c995;
+  --chart-2: #4dd0e1;
+  --chart-3: #ffca62;
+  --chart-4: #b9a6f0;
+  --chart-5: #ef9a9a;
 
-  /* Classic uses a light slate rail rather than a dark one — a tidy,
-     traditional sidebar that matches the enterprise feel. */
-  --sidebar: #1e293b;
-  --sidebar-foreground: #e8edf5;
-  --sidebar-muted: #93a1b8;
-  --sidebar-primary: #3b82f6;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #2b3952;
+  --sidebar: #0d110e;
+  --sidebar-foreground: #e9efe9;
+  --sidebar-muted: #93a093;
+  --sidebar-primary: #81c995;
+  --sidebar-primary-foreground: #0c1f12;
+  --sidebar-accent: #19201a;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #334155;
-  --sidebar-ring: #60a5fa;
+  --sidebar-border: #19201a;
+  --sidebar-ring: #a3d9b1;
 }
 
-/* ── Arctic (airy high-contrast light) — pure white, sky blue ─────────── */
-[data-theme="arctic"] {
-  color-scheme: light;
+/* ── Plum — dark, desaturated magenta-rose ──────────────────────────────
+   A warm dark canvas with a faint plum tint. Desaturated rose (#F48FB1,
+   Material Pink 200) primary is distinctive and premium without being loud;
+   surfaces lift with lighter warm overlays. */
+[data-theme="plum"] {
+  color-scheme: dark;
 
-  /* Maximum clarity: pure white cards on a faint slate wash, generous
-     contrast, a vivid sky-blue accent. Apple/Material-3 crispness. */
-  --bg: #ffffff;
-  --surface: #ffffff;
-  --surface-2: #f1f5f9;
-  --surface-3: #e2e8f0;
-  --border-strong: #94a3b8;
+  --bg: #141016;
+  --surface: #1e1822;
+  --surface-2: #27202c;
+  --surface-3: #342b3a;
+  --border-strong: #4e4356;
 
-  --text: #0f172a;
-  --subtle: #64748b;
+  --text: #f0e9f0;
+  --subtle: #a99fab;
 
-  --brand: #0284c7;
-  --brand-strong: #0369a1;
-  --brand-soft: #e0f2fe;
-  --brand-fill: #0284c7;
-  --on-brand: #ffffff;
+  /* Primary — desaturated rose/magenta. */
+  --brand: #f7b2c9;
+  --brand-strong: #ffc9da;
+  --brand-soft: #2b1a22;
+  --brand-fill: #f48fb1;
+  --on-brand: #2a0f1a;
 
-  --money: #b45309;
-  --money-strong: #92400e;
-  --money-soft: #fef3e2;
+  --money: #ffca62;
+  --money-strong: #ffd98a;
+  --money-soft: #2e2615;
 
-  --ok: #047857;
-  --ok-soft: #d1fae5;
-  --warn: #b45309;
-  --warn-soft: #fef3e2;
-  --danger-soft: #fee2e2;
-  --info: #0369a1;
+  --ok: #6bd6a0;
+  --ok-soft: #10281f;
+  --warn: #ffca62;
+  --warn-soft: #2e2615;
+  --danger-soft: #3a1c26;
+  --info: #c9a7f0;
 
-  --background: #ffffff;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-foreground: #0f172a;
-  --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --primary: #0284c7;
-  --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #475569;
-  --accent: #e0f2fe;
-  --accent-foreground: #0c4a6e;
-  --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
-  --border: #e2e8f0;
-  --input: #cbd5e1;
-  --ring: #0284c7;
-  --radius: 0.85rem;
+  --background: #141016;
+  --foreground: #f0e9f0;
+  --card: #1e1822;
+  --card-foreground: #f0e9f0;
+  --popover: #27202c;
+  --popover-foreground: #f0e9f0;
+  --primary: #f48fb1;
+  --primary-foreground: #2a0f1a;
+  --secondary: #342b3a;
+  --secondary-foreground: #f0e9f0;
+  --muted: #27202c;
+  --muted-foreground: #bbafbd;
+  --accent: #342b3a;
+  --accent-foreground: #f0e9f0;
+  --destructive: #f28b9b;
+  --destructive-foreground: #1d0d12;
+  --border: #2d2533;
+  --input: #2d2533;
+  --ring: #f7b2c9;
+  --radius: 0.75rem;
 
-  --chart-1: #0284c7;
-  --chart-2: #047857;
-  --chart-3: #b45309;
-  --chart-4: #7c3aed;
-  --chart-5: #dc2626;
+  --chart-1: #f48fb1;
+  --chart-2: #6bd6a0;
+  --chart-3: #ffca62;
+  --chart-4: #c9a7f0;
+  --chart-5: #f2889b;
 
-  /* Light, crisp rail to match the airy canvas. */
-  --sidebar: #0f172a;
-  --sidebar-foreground: #e2e8f0;
-  --sidebar-muted: #94a3b8;
-  --sidebar-primary: #38bdf8;
-  --sidebar-primary-foreground: #06283d;
-  --sidebar-accent: #1e293b;
+  --sidebar: #0f0b11;
+  --sidebar-foreground: #f0e9f0;
+  --sidebar-muted: #a197a3;
+  --sidebar-primary: #f48fb1;
+  --sidebar-primary-foreground: #2a0f1a;
+  --sidebar-accent: #1c1620;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1e293b;
-  --sidebar-ring: #38bdf8;
+  --sidebar-border: #1c1620;
+  --sidebar-ring: #f7b2c9;
+}
+
+/* ── Enterprise — professional dark navy, corporate blue ────────────────
+   A businesslike dark theme: a deep blue-navy canvas with crisp cool-gray
+   surfaces and a dependable corporate blue (#4C8DFF) accent. Tighter radius
+   for an enterprise-console feel. The "blue + dark" combination. */
+[data-theme="enterprise"] {
+  color-scheme: dark;
+
+  --bg: #0d1420;
+  --surface: #162133;
+  --surface-2: #1d2a40;
+  --surface-3: #27374f;
+  --border-strong: #3c4f6e;
+
+  --text: #eef2f8;
+  --subtle: #93a2bd;
+
+  /* Primary — corporate blue, bright enough to clear AA on the navy. */
+  --brand: #7eb0ff;
+  --brand-strong: #a3c8ff;
+  --brand-soft: #142440;
+  --brand-fill: #4c8dff;
+  --on-brand: #06142e;
+
+  --money: #ffca62;
+  --money-strong: #ffd98a;
+  --money-soft: #2c2714;
+
+  --ok: #3ecf8e;
+  --ok-soft: #0c2c20;
+  --warn: #ffca62;
+  --warn-soft: #2c2714;
+  --danger-soft: #3a1f26;
+  --info: #7eb0ff;
+
+  --background: #0d1420;
+  --foreground: #eef2f8;
+  --card: #162133;
+  --card-foreground: #eef2f8;
+  --popover: #1d2a40;
+  --popover-foreground: #eef2f8;
+  --primary: #4c8dff;
+  --primary-foreground: #06142e;
+  --secondary: #27374f;
+  --secondary-foreground: #eef2f8;
+  --muted: #1d2a40;
+  --muted-foreground: #aab8d1;
+  --accent: #27374f;
+  --accent-foreground: #eef2f8;
+  --destructive: #f2889b;
+  --destructive-foreground: #1d0f13;
+  --border: #233149;
+  --input: #233149;
+  --ring: #7eb0ff;
+  --radius: 0.45rem;
+
+  --chart-1: #4c8dff;
+  --chart-2: #3ecf8e;
+  --chart-3: #ffca62;
+  --chart-4: #a78bfa;
+  --chart-5: #f2889b;
+
+  --sidebar: #0a0f18;
+  --sidebar-foreground: #eef2f8;
+  --sidebar-muted: #8c9bb6;
+  --sidebar-primary: #4c8dff;
+  --sidebar-primary-foreground: #06142e;
+  --sidebar-accent: #141d2d;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #141d2d;
+  --sidebar-ring: #7eb0ff;
 }
 
 html,
@@ -535,22 +614,14 @@ body {
 
 /* ── Shared primitives ──────────────────────────────────────────────────── */
 
-/* Cards get depth in both themes — stronger in light, a faint lift in dark. */
+/* Cards get a faint lift against the dark canvas. */
 .lt-card-shadow {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
-}
-:is([data-theme="daylight"], [data-theme="classic"], [data-theme="arctic"]) .lt-card-shadow {
-  box-shadow:
-    0 1px 2px rgba(14, 26, 43, 0.05),
-    0 2px 10px rgba(14, 26, 43, 0.06);
 }
 
 /* Sidebar/panel edge shadow (used on the left rail). */
 .lt-rail-shadow {
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.28);
-}
-:is([data-theme="daylight"], [data-theme="classic"], [data-theme="arctic"]) .lt-rail-shadow {
-  box-shadow: 2px 0 16px rgba(14, 26, 43, 0.06);
 }
 
 /* Visible, consistent keyboard focus everywhere. */
@@ -613,23 +684,13 @@ textarea,
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
   border-color: var(--color-border-strong);
 }
-:is([data-theme="daylight"], [data-theme="classic"], [data-theme="arctic"]) .lt-hover:hover {
-  box-shadow: 0 6px 20px rgba(14, 26, 43, 0.1);
-}
 
-/* Softer, more premium card elevation for shadcn cards (data-slot="card"),
-   stronger and crisper in light mode where a flat card looks cheap. */
+/* Soft card elevation for shadcn cards (data-slot="card"), tuned for dark. */
 [data-slot="card"] {
   box-shadow:
     0 1px 2px rgba(5, 12, 24, 0.28),
     0 1px 0 rgba(255, 255, 255, 0.02) inset;
   transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-}
-:is([data-theme="daylight"], [data-theme="classic"], [data-theme="arctic"]) [data-slot="card"] {
-  box-shadow:
-    0 1px 2px rgba(15, 27, 45, 0.04),
-    0 4px 16px -4px rgba(15, 27, 45, 0.1);
-  border-color: var(--color-border);
 }
 
 /* A soft pulsing dot for live/health indicators (reference dashboards use this). */

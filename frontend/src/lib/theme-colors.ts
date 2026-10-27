@@ -23,18 +23,18 @@ const TOKENS = [
 export type ChartColors = Record<(typeof TOKENS)[number], string>;
 
 const FALLBACK: ChartColors = {
-  "--text": "#f1f5fb",
-  "--muted": "#a5b2c4",
-  "--subtle": "#7889a0",
-  "--border": "#2b3a50",
-  "--surface": "#111c2d",
-  "--surface-2": "#172438",
-  "--accent": "#4f8cff",
-  "--money": "#f5a623",
-  "--ok": "#35d08a",
-  "--warn": "#f5a623",
-  "--danger": "#ff6b6f",
-  "--info": "#63a7ff",
+  "--text": "#ece8f1",
+  "--muted": "#b4aec1",
+  "--subtle": "#a39eb0",
+  "--border": "#302b3a",
+  "--surface": "#1e1b24",
+  "--surface-2": "#272330",
+  "--accent": "#bb86fc",
+  "--money": "#ffca62",
+  "--ok": "#03dac6",
+  "--warn": "#ffca62",
+  "--danger": "#cf6679",
+  "--info": "#cbb2fc",
 };
 
 /**

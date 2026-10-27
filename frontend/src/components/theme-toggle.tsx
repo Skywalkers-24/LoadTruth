@@ -5,10 +5,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/shadcn/dropdown-menu";
-import { CheckIcon, MoonIcon, PaletteIcon, SunIcon } from "@/components/ui/icons";
+import { CheckIcon, PaletteIcon } from "@/components/ui/icons";
 import { type Theme, type ThemeMeta, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -65,10 +64,7 @@ function ThemeRow({
  * The trigger icon reflects the active scheme (sun for light, moon for dark).
  */
 export function ThemeToggle() {
-  const { theme, scheme, themes, setTheme } = useTheme();
-
-  const darks = themes.filter((t) => t.scheme === "dark");
-  const lights = themes.filter((t) => t.scheme === "light");
+  const { theme, themes, setTheme } = useTheme();
   const choose = (id: Theme) => setTheme(id);
 
   return (
@@ -80,32 +76,14 @@ export function ThemeToggle() {
           title="Change theme"
           className="inline-flex size-9 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] data-[state=open]:border-[var(--color-brand)] data-[state=open]:text-[var(--color-text)] sm:size-8"
         >
-          {scheme === "dark" ? <MoonIcon size={16} /> : <SunIcon size={16} />}
+          <PaletteIcon size={16} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={8} className="w-72 p-1.5">
         <DropdownMenuLabel className="flex items-center gap-2 px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           <PaletteIcon size={13} /> Theme
         </DropdownMenuLabel>
-
-        <div className="px-2 pb-1 pt-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
-          Dark
-        </div>
-        {darks.map((meta) => (
-          <ThemeRow
-            key={meta.id}
-            meta={meta}
-            active={theme === meta.id}
-            onSelect={() => choose(meta.id)}
-          />
-        ))}
-
-        <DropdownMenuSeparator />
-
-        <div className="px-2 pb-1 pt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
-          Light
-        </div>
-        {lights.map((meta) => (
+        {themes.map((meta) => (
           <ThemeRow
             key={meta.id}
             meta={meta}
