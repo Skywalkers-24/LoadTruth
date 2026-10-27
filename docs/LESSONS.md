@@ -91,3 +91,38 @@ Entry format:
 - **Root cause:** (1) An inline per-line ignore has to name the *exact* code mypy would emit, and that code depends on whether the package is present — brittle for an optional dep. (2) A stale `.mypy_cache` surfaced errors from an unrelated file on the first incremental run.
 - **Fix:** Removed the inline ignore and added a scoped override in `pyproject.toml` — `[[tool.mypy.overrides]] module = ["av", "av.*"]; ignore_missing_imports = true`. This is installed-or-not agnostic. For the phantom errors, re-running the gate (cache warmed) returned `Success: no issues found in 51 source files`.
 - **Rule going forward:** For an optional/native dependency that ships no stubs and may be absent, silence it with a module-scoped `ignore_missing_imports` override, never an inline `# type: ignore[...]` (the code is environment-dependent and `warn_unused_ignores` will bite). And when mypy reports errors in a file you didn't touch, re-run once (stale incremental cache) before chasing them.
+
+### 2026-10-27 — Leaked shells exhausted the process table; dev server never reaches networkidle
+
+- **What happened:** Mid-session every command failed with `fork failed: resource temporarily unavailable`, and the backend on :8000 died. Separately, the puppeteer layout script timed out on `page.goto(..., { waitUntil: "networkidle0" })` against `next dev`.
+- **Root cause:** (1) Dozens of background terminals (one per helper script) were left open; each zsh also spawns a powerlevel10k `gitstatusd`, so they piled up until fork failed. (2) The Next dev server keeps an HMR websocket open, so the network never goes idle.
+- **Fix:** Stopped every finished background terminal, restarted the backend from `scratch/dev-be.sh`. The script now loads with `domcontentloaded` and waits for `[aria-label="Review queue"] li` before measuring.
+- **Rule going forward:** Stop a background terminal as soon as its log shows `DONE`. Never wait on `networkidle0` against the dev server; wait for a concrete selector. If the backend stops answering, check `lsof -iTCP:8000` before debugging the frontend.
+
+### 2026-10-27 — Use container queries for panes whose width depends on a sibling column
+
+- **What happened:** The money frame switched to its two-column layout at the `lg` viewport breakpoint, but at 1280px the review pane is only ~630px wide (the queue column takes the rest), so the hero clipped the Difference column.
+- **Root cause:** Viewport breakpoints describe the window, not the pane a component actually renders in.
+- **Fix:** `ReviewWorkspace` is an `@container`; the money frame and the evidence/flags split use `@2xl` / `@[40rem]` variants. Verified with measured element boxes at 1024, 1280, 1440, and 1512 widths.
+- **Rule going forward:** Inside the console panes, lay out with container-query variants (`@sm`, `@2xl`, `@[40rem]`), not `lg`/`xl`. Measure with `scratch/shots/console-measure.mjs` at 1280x800 before calling a layout done.
+
+
+### 2026-10-28 — `scripts/eval.sh` has a pre-existing baseline of findings; scope checks to your files
+
+- **What happened:** Running the full `scripts/eval.sh` after the billing feature reported 13 ruff-format files "would be reformatted" and ~30 `mypy --strict` errors across 8 files. Almost all were pre-existing drift (`app/ai/agent.py`, `app/ai/analyst.py`, `app/api/deps.py`, `app/tickets/seed.py`, several `tests/*.py`, plus bandit noise scanning `.venv`). Only one finding was mine: a new test helper in `tests/test_billing.py` missing a `-> Ticket` return annotation (`mypy --strict` checks the `tests/` dir too).
+- **Root cause:** The repo carries a known format/type baseline the eval flags wholesale; `ruff format --check .` and `mypy --strict .` run over everything, so the real signal (did *my* change add a finding?) is buried. Also: the eval log is huge because bandit dumps every `.venv` file, so an inline `grep`/`awk` over it times out.
+- **Fix:** Verify your change by scoping the tools to the files you touched: `ruff check <files>`, `ruff format --check <files>`, `mypy --strict <files incl. your new tests>`. `mypy --strict` flags test helpers, so annotate their return types. Don't reformat the 13 pre-existing files to make the whole-repo gate pass — that's out of scope and churns unrelated code. Read the big eval log with the grep tool (include pattern), never an inline shell pipe.
+- **Rule going forward:** A task is "clean" when the files it adds/edits pass ruff + mypy --strict with no new findings; the whole-repo eval's pre-existing baseline is not yours to fix in a feature change. Annotate new test helpers (`-> None`/`-> Ticket`) because strict mode covers `tests/`.
+
+
+### 2026-10-28 — Authed file exports can't be plain `<a href>` links (they redirect to sign-in)
+
+- **What happened:** Clicking "Print / PDF" on the Billing page opened a new tab that landed on the sign-in screen instead of the invoice. Same latent bug existed on every export (CSV, audit packet) across Reports, the console event actions, and the command palette.
+- **Root cause:** Auth in this build is a bearer token kept in `localStorage` and sent as an `Authorization` header by the `fetch` client. A plain `<a href="/api/events/.../invoice.html">` is a top-level browser navigation that carries cookies, not the in-memory/localStorage bearer, so the backend's `current_member` dep returns 401 and the SPA routes to login.
+- **Fix:** `openAuthedExport(path, { download? })` in `frontend/src/lib/api.ts` — `fetch` the export with the bearer header, `URL.createObjectURL(blob)`, then open that blob URL in a new tab (or set `a.download` for a CSV). Open the blank tab *synchronously* on the click (before the `await`) so it counts as a user-gesture popup and isn't blocked; close it and throw on a non-OK response. Revoke the object URL after a delay.
+- **Rule going forward:** Never link to an authenticated backend export with a bare `<a href>`/`window.location` when auth is a bearer token (not a cookie). Route every export through `openAuthedExport` so the token travels with the request. If auth ever moves to an httpOnly cookie, plain links would work, but until then this helper is the only correct path.
+### 2026-10-27 — Console overflow on a Mac was a layout problem, not a text-size problem
+- **What happened:** The one-screen Review console looked right on a 1920x1080 monitor but overflowed on a 1440x900 MacBook. Shrinking text made it look cramped and did not fix it. The real causes were a decision bar that forced one row of buttons, a money hero that could not wrap its status chip, a queue subtitle that wrapped to two lines, and a fixed 17rem evidence canvas that pushed the truck record under the sticky decision bar.
+- **Root cause:** Sizing was keyed to the window width only. Laptop screens are both narrower and much shorter, and the center column's height budget was never checked against a 900px viewport.
+- **Fix:** Container queries on the pane (`@[46rem]`) for column layout and for the bar's one-row versus two-row button grid; `min-w-0` on grid children; the evidence canvas cap on wide panes is `clamp(11rem, 100dvh - 44rem, 17rem)` so it shrinks on short screens; the queue count moved into a badge so the subtitle stays one line. Text sizes stay on the density scale.
+- **Rule going forward:** Before changing type sizes to fix overflow, measure with `scratch/shots/console-measure.mjs` at 1280x800, 1440x900, 1512x982, and 1920x1080 and find the element that overflows. Budget height as well as width for any one-screen layout.

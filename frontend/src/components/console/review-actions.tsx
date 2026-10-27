@@ -21,7 +21,10 @@ import { isTypingTarget } from "@/lib/use-media-query";
  */
 type Decision = Exclude<TicketStatus, "draft">;
 
-const COPY: Record<Decision, { title: string; body: string; cta: string; variant: "ok" | "warn" | "danger"; done: string }> = {
+const COPY: Record<
+  Decision,
+  { title: string; body: string; cta: string; variant: "ok" | "warn" | "danger"; done: string }
+> = {
   confirmed: {
     title: "Confirm this ticket?",
     body: "LoadTruth's measurement becomes the ticket of record for this load.",
@@ -45,7 +48,14 @@ const COPY: Record<Decision, { title: string; body: string; cta: string; variant
   },
 };
 
-export function ReviewActions({ ticket }: { ticket: Ticket }) {
+export function ReviewActions({
+  ticket,
+  layout = "stack",
+}: {
+  ticket: Ticket;
+  /** `stack` for a narrow card; `bar` for the one-row action bar under the evidence. */
+  layout?: "stack" | "bar";
+}) {
   const toast = useToast();
   const { can } = useAuth();
   const canReview = can("review_tickets");
@@ -69,7 +79,15 @@ export function ReviewActions({ ticket }: { ticket: Ticket }) {
   // Keyboard shortcuts for the three decisions.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (!canReview || pending || busy || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target))
+      if (
+        !canReview ||
+        pending ||
+        busy ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey ||
+        isTypingTarget(e.target)
+      )
         return;
       // Don't fire decisions while any dialog/popover is open (notifications,
       // command palette, confirm dialog) — matches the queue's J/K guard.
@@ -127,111 +145,201 @@ export function ReviewActions({ ticket }: { ticket: Ticket }) {
     );
   }
 
+  const bar = layout === "bar";
+
+  const decidedNote = decided && (
+    <div
+      className={
+        bar
+          ? "flex w-full items-center gap-1.5 text-[12px] text-[var(--color-muted-foreground)]"
+          : "flex items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-[12px] text-[var(--color-muted-foreground)]"
+      }
+    >
+      <span className={bar ? "text-[var(--color-subtle)]" : "mt-0.5 text-[var(--color-subtle)]"}>
+        <AlertIcon size={13} />
+      </span>
+      This ticket already has a decision. A new decision replaces it.
+    </div>
+  );
+
+  const callLabel = (
+    <label
+      htmlFor="monitor-call"
+      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[12px] font-medium text-[var(--color-muted-foreground)]"
+    >
+      {bar ? "Inspector call" : "Inspector's fill call"}
+      <Tooltip content="The fill percentage the on-site human inspector called for this load. The contractor is paid on this number. Enter it to see how it compares to what the AI measured.">
+        <span tabIndex={0} className="text-[var(--color-subtle)] hover:text-[var(--color-text)]">
+          <InfoIcon size={12} />
+        </span>
+      </Tooltip>
+    </label>
+  );
+
+  const callInput = (
+    <div className={bar ? "relative w-[88px] shrink-0" : "relative flex-1"}>
+      <input
+        id="monitor-call"
+        type="number"
+        min={0}
+        max={100}
+        step={1}
+        inputMode="numeric"
+        value={call}
+        onChange={(e) => setCall(e.target.value)}
+        className={`w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] pl-3 pr-7 text-[13px] tabular-nums text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none ${bar ? "py-1.5" : "py-2"}`}
+        placeholder={bar ? "0-100" : "0 to 100"}
+      />
+      <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[13px] text-[var(--color-subtle)]">
+        %
+      </span>
+    </div>
+  );
+
+  const updateButton = (
+    <Button
+      type="submit"
+      variant="secondary"
+      size={bar ? "sm" : "md"}
+      className={bar ? "py-1.5" : undefined}
+      disabled={busy || call.trim() === ""}
+    >
+      Update
+    </Button>
+  );
+
+  const confirmButton = (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={() => setPending("confirmed")}
+      className={`group flex items-center justify-between gap-2 rounded-md bg-[var(--color-ok)] text-[13px] font-semibold text-[var(--color-on-accent)] transition-all hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ok)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-40 ${bar ? "min-w-0 px-3 py-2" : "w-full px-4 py-2.5"}`}
+    >
+      <span className="flex min-w-0 items-center gap-2">
+        <CheckIcon size={16} className="shrink-0" />
+        <span className="truncate">Confirm assessment</span>
+      </span>
+      <kbd className="hidden shrink-0 rounded bg-black/15 px-1.5 py-0.5 text-[11px] font-medium lg:inline">
+        C
+      </kbd>
+    </button>
+  );
+
+  const overrideButton = (
+    <Button
+      variant="warn"
+      disabled={busy}
+      onClick={() => setPending("overridden")}
+      className={bar ? "min-w-0 whitespace-nowrap" : undefined}
+    >
+      Override{" "}
+      <Kbd className="ml-1 hidden border-current/30 bg-transparent text-current lg:inline-flex">
+        O
+      </Kbd>
+    </Button>
+  );
+
+  const disputeButton = (
+    <Button
+      variant="danger"
+      disabled={busy}
+      onClick={() => setPending("disputed")}
+      className={bar ? "min-w-0 whitespace-nowrap" : undefined}
+    >
+      Dispute{" "}
+      <Kbd className="ml-1 hidden border-current/30 bg-transparent text-current lg:inline-flex">
+        D
+      </Kbd>
+    </Button>
+  );
+
+  const dialog = (
+    <ConfirmDialog
+      open={copy !== null}
+      title={copy?.title ?? ""}
+      description={copy?.body}
+      confirmLabel={copy?.cta}
+      confirmVariant={copy?.variant}
+      busy={busy}
+      reason={needsReason ? { required: true, valid: reasonValid } : undefined}
+      onConfirm={confirmAction}
+      onCancel={() => {
+        setPending(null);
+        setReason("");
+      }}
+    >
+      {needsReason && (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12px] font-medium text-[var(--color-muted-foreground)]">
+            Reason <span className="text-[var(--color-danger)]">*</span>
+          </span>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+            placeholder="For example: load visibly heaped above the rail on frame 2."
+            className="w-full resize-none rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-[13px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+            autoFocus
+          />
+          {!reasonValid && (
+            <span className="text-[12px] text-[var(--color-subtle)]">
+              A short reason is required.
+            </span>
+          )}
+        </label>
+      )}
+    </ConfirmDialog>
+  );
+
+  // One row under the evidence: the inspector call on the left, the three
+  // decisions on the right. Wraps to two rows when the pane is narrow.
+  if (bar) {
+    // Sized by its own width (container query): one row when the center pane
+    // is wide, two rows when it is narrow. The three decisions share the row in
+    // fixed proportions so they can shrink instead of overflowing the bar.
+    return (
+      <div className="@container">
+        <div className="flex flex-col gap-2 @[46rem]:flex-row @[46rem]:items-center @[46rem]:gap-3">
+          {decidedNote}
+          <form onSubmit={submitCall} className="flex shrink-0 items-center gap-2">
+            {callLabel}
+            {callInput}
+            {updateButton}
+          </form>
+          <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+            {confirmButton}
+            {overrideButton}
+            {disputeButton}
+          </div>
+        </div>
+        {dialog}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      {decided && (
-        <div className="flex items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-[12px] text-[var(--color-muted-foreground)]">
-          <span className="mt-0.5 text-[var(--color-subtle)]">
-            <AlertIcon size={13} />
-          </span>
-          This ticket already has a decision. A new decision replaces it.
-        </div>
-      )}
+      {decidedNote}
 
       {/* Monitor call */}
       <form onSubmit={submitCall} className="flex flex-col gap-1.5">
-        <label
-          htmlFor="monitor-call"
-          className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--color-muted-foreground)]"
-        >
-          Inspector&apos;s fill call
-          <Tooltip content="The fill % the on-site human inspector (the 'monitor') called for this load. The contractor is paid on this number — enter it to see how it compares to what the AI measured.">
-            <span tabIndex={0} className="text-[var(--color-subtle)] hover:text-[var(--color-text)]">
-              <InfoIcon size={12} />
-            </span>
-          </Tooltip>
-        </label>
+        {callLabel}
         <div className="flex gap-2">
-          <div className="relative flex-1">
-            <input
-              id="monitor-call"
-              type="number"
-              min={0}
-              max={100}
-              step={1}
-              inputMode="numeric"
-              value={call}
-              onChange={(e) => setCall(e.target.value)}
-              className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] py-2 pl-3 pr-8 text-[13px] tabular-nums text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
-              placeholder="0 to 100"
-            />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-[var(--color-subtle)]">
-              %
-            </span>
-          </div>
-          <Button type="submit" variant="secondary" disabled={busy || call.trim() === ""}>
-            Update
-          </Button>
+          {callInput}
+          {updateButton}
         </div>
       </form>
 
       {/* Decisions */}
       <div className="flex flex-col gap-2">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setPending("confirmed")}
-          className="group flex w-full items-center justify-between gap-2 rounded-md bg-[var(--color-ok)] px-4 py-2.5 text-[13px] font-semibold text-[var(--color-on-accent)] transition-all hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ok)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <span className="flex items-center gap-2">
-            <CheckIcon size={16} />
-            Confirm assessment
-          </span>
-          <kbd className="hidden rounded bg-black/15 px-1.5 py-0.5 text-[11px] font-medium lg:inline">C</kbd>
-        </button>
+        {confirmButton}
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="warn" disabled={busy} onClick={() => setPending("overridden")}>
-            Override <Kbd className="ml-1 hidden border-current/30 bg-transparent text-current lg:inline-flex">O</Kbd>
-          </Button>
-          <Button variant="danger" disabled={busy} onClick={() => setPending("disputed")}>
-            Dispute <Kbd className="ml-1 hidden border-current/30 bg-transparent text-current lg:inline-flex">D</Kbd>
-          </Button>
+          {overrideButton}
+          {disputeButton}
         </div>
       </div>
 
-      <ConfirmDialog
-        open={copy !== null}
-        title={copy?.title ?? ""}
-        description={copy?.body}
-        confirmLabel={copy?.cta}
-        confirmVariant={copy?.variant}
-        busy={busy}
-        reason={needsReason ? { required: true, valid: reasonValid } : undefined}
-        onConfirm={confirmAction}
-        onCancel={() => {
-          setPending(null);
-          setReason("");
-        }}
-      >
-        {needsReason && (
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-medium text-[var(--color-muted-foreground)]">
-              Reason <span className="text-[var(--color-danger)]">*</span>
-            </span>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={3}
-              placeholder="For example: load visibly heaped above the rail on frame 2."
-              className="w-full resize-none rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-[13px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
-              autoFocus
-            />
-            {!reasonValid && (
-              <span className="text-[12px] text-[var(--color-subtle)]">A short reason is required.</span>
-            )}
-          </label>
-        )}
-      </ConfirmDialog>
+      {dialog}
     </div>
   );
 }

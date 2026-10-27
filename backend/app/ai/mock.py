@@ -12,7 +12,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
 
-from app.ai.base import ClassifyResult, OCRResult, TrackedObject, TrackResult
+from app.ai.base import (
+    ClassifyResult,
+    ClipMedia,
+    Narration,
+    OCRResult,
+    TrackedObject,
+    TrackResult,
+)
 
 _FIXTURES_PATH = Path(__file__).parent / "fixtures" / "scenarios.json"
 _DEFAULT_KEY = "clean-full-cd"
@@ -56,8 +63,8 @@ class MockAIClient:
         idx = int(content_hash[:8], 16) % len(positives) if content_hash else 0
         return fixtures[positives[idx]]
 
-    async def track(self, content_hash: str) -> TrackResult:
-        t = self._scenario(content_hash)["track"]
+    async def track(self, clip: ClipMedia) -> TrackResult:
+        t = self._scenario(clip.content_hash)["track"]
         objects = [
             TrackedObject(
                 label=o["label"],
@@ -69,22 +76,26 @@ class MockAIClient:
         ]
         return TrackResult(objects=objects, frame_count=int(t["frame_count"]))
 
-    async def read_placard(self, content_hash: str) -> OCRResult:
-        o = self._scenario(content_hash)["ocr"]
+    async def read_placard(self, clip: ClipMedia) -> OCRResult:
+        o = self._scenario(clip.content_hash)["ocr"]
         return OCRResult(
             truck_id=o.get("truck_id"),
             confidence=float(o["confidence"]),
             frame_ref=o.get("frame_ref"),
         )
 
-    async def classify_debris(self, content_hash: str) -> ClassifyResult:
-        c = self._scenario(content_hash)["classify"]
+    async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
+        c = self._scenario(clip.content_hash)["classify"]
         return ClassifyResult(
             debris_class=c["debris_class"],
             confidence=float(c["confidence"]),
         )
 
-    async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> str:
+    async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
+        return Narration(text=self._narrative(anomaly_type, facts))
+
+    @staticmethod
+    def _narrative(anomaly_type: str, facts: dict[str, str]) -> str:
         # Deterministic, grounded narrative standing in for Muse Spark. The rules
         # in app.pipeline.anomalies already decided; this only phrases the facts
         # into a sentence a monitor can read. The live client asks Muse Spark to

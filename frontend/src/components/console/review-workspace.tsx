@@ -1,113 +1,154 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { SparklesIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, ClockIcon, SparklesIcon } from "lucide-react";
 
 import type { Ticket } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/badge";
-import { AlertIcon, ClipboardIcon, TruckIcon } from "@/components/ui/icons";
+import { AlertIcon, TruckIcon } from "@/components/ui/icons";
 import { AnomalyList } from "@/components/console/anomaly-list";
 import { EvidenceCanvas } from "@/components/console/evidence-canvas";
 import { MoneyFrame } from "@/components/console/money-frame";
 import { ReviewActions } from "@/components/console/review-actions";
+import { SectionCard } from "@/components/console/section-card";
 import { TicketMetadata, shortId } from "@/components/console/ticket-metadata";
 import { PipelineTrace } from "@/components/ai/pipeline-trace";
 import { Skeleton } from "@/components/ui/shadcn/skeleton";
 import { useTicketPipeline } from "@/lib/hooks";
 import { debrisLabel, relativeTime } from "@/lib/format";
 
-/**
- * Single-ticket review. Reading order follows the decision: what is the money
- * at stake (money frame), what does the evidence show, then decide. The
- * decision rail stays pinned on wide screens.
- */
-/**
- * The Decision card on its own, so it can be placed in the left column directly
- * below the ticket queue (keeping the confirm/override/dispute controls in the
- * user's sight) rather than buried at the bottom of the right rail.
- */
-export function DecisionCard({ ticket }: { ticket: Ticket }) {
-  return (
-    <Card title="Decision" icon={<ClipboardIcon size={15} />}>
-      <ReviewActions ticket={ticket} />
-    </Card>
-  );
+/** Previous/next stepping through the current queue page. */
+export interface TicketNav {
+  index: number;
+  total: number;
+  onPrev: () => void;
+  onNext: () => void;
 }
 
-export function ReviewWorkspace({ ticket }: { ticket: Ticket }) {
+/**
+ * Single-ticket review, laid out to fit one screen.
+ *
+ * Wide pane (a container query, so it tracks the pane, not the window): two
+ * columns that each scroll on their own. The center holds what the reviewer
+ * reads and decides on, top to bottom: ticket header, money frame, evidence,
+ * truck record, and the decision bar pinned to the bottom. The right rail holds
+ * the AI analysis, then the anomaly flags.
+ *
+ * Narrow pane: a single scrolling column in reading order, with the decision
+ * bar still pinned to the bottom of the view.
+ */
+export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketNav }) {
   const reviewed = ticket.status !== "draft";
   return (
-    <div className="lt-fade-in flex flex-col gap-4">
-      {/* Ticket header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-[20px] font-semibold tracking-tight tabular-nums text-[var(--color-text)]">
-              {shortId(ticket.id)}
-            </h2>
-            <StatusBadge status={ticket.status} />
-          </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[var(--color-muted-foreground)]">
-            <span className="flex items-center gap-1.5 tabular-nums">
-              <TruckIcon size={14} className="text-[var(--color-subtle)]" />
-              {ticket.truck_id ?? "Unidentified truck"}
-            </span>
-            <span>{debrisLabel(ticket.debris_class)}</span>
-            <span className="text-[var(--color-subtle)]">Captured {relativeTime(ticket.created_at)}</span>
-          </div>
-        </div>
-      </div>
-
-      <MoneyFrame v={ticket.valuation} reviewed={reviewed} />
-
-      {/* Two continuous columns so neither side leaves a gap:
-            • Left (wider): Evidence → Truck & ticket → Anomaly flags.
-            • Right (rail): AI analysis (the Meta SAM 3.1 + Muse Spark read, up
-              top) → Decision.
-          Each column flows its own cards, so the two sides end near the same
-          height instead of leaving empty space beneath a short card. On narrow
-          screens everything stacks in reading order. */}
-      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:items-start">
-        {/* Left column */}
-        <div className="flex min-w-0 flex-col gap-4">
+    <div className="lt-fade-in @container h-full min-h-0">
+      {/* Narrow pane on desktop: this element is the one scroll area. Wide
+          pane: it is a fixed-height grid and each column scrolls instead. */}
+      <div className="lt-scroll flex min-h-0 flex-col gap-3 lg:h-full lg:@max-[46rem]:overflow-y-auto @[46rem]:grid @[46rem]:grid-cols-[minmax(0,1fr)_17rem] @[46rem]:grid-rows-1 @[46rem]:gap-4 @[46rem]:overflow-hidden @[64rem]:grid-cols-[minmax(0,1fr)_20rem]">
+        {/* Center column. On a narrow pane its wrapper is `display: contents`
+            so the decision bar can sit after the rail and stay pinned. */}
+        <div className="lt-scroll contents @[46rem]:flex @[46rem]:min-h-0 @[46rem]:min-w-0 @[46rem]:flex-col @[46rem]:gap-3 @[46rem]:overflow-y-auto @[46rem]:pr-1">
+          <TicketHeader ticket={ticket} nav={nav} />
+          <MoneyFrame v={ticket.valuation} reviewed={reviewed} />
           <EvidenceCanvas ticket={ticket} />
-          <Card title="Truck and ticket" icon={<TruckIcon size={15} />}>
+          <SectionCard title="Truck and ticket" icon={<TruckIcon size={15} />}>
             <TicketMetadata ticket={ticket} />
-          </Card>
-          <Card title="Anomaly flags" icon={<AlertIcon size={15} />} count={ticket.anomaly_count}>
-            <AnomalyList ticket={ticket} />
-          </Card>
+          </SectionCard>
+
+          {/* Decision bar: last in reading order, pinned to the bottom of the
+              scroll area (and above the mobile tab bar). */}
+          <div className="sticky bottom-0 z-10 order-last max-lg:bottom-[calc(4rem+env(safe-area-inset-bottom))] @[46rem]:order-none">
+            <div className="lt-card-shadow rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 shadow-[0_-6px_20px_-12px_rgba(0,0,0,0.5)]">
+              <ReviewActions ticket={ticket} layout="bar" />
+            </div>
+          </div>
         </div>
 
-        {/* Right rail — AI analysis, pinned on wide. The Decision card now
-            lives in the left column beside the queue so it stays in sight. */}
-        <div className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-0">
+        {/* Right rail: the AI read, then the flags it raised. Bottom padding
+            (lt-fab-safe) clears the floating AI analyst launcher. */}
+        <div className="lt-scroll lt-fab-safe flex min-w-0 flex-col gap-3 @[46rem]:min-h-0 @[46rem]:gap-4 @[46rem]:overflow-y-auto">
           <AiAnalysisCard ticketId={ticket.id} />
+          <SectionCard
+            title="Anomaly flags"
+            icon={<AlertIcon size={15} />}
+            count={ticket.anomaly_count}
+            countTone="danger"
+          >
+            <AnomalyList ticket={ticket} />
+          </SectionCard>
         </div>
       </div>
     </div>
   );
 }
 
+function TicketHeader({ ticket, nav }: { ticket: Ticket; nav?: TicketNav }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex items-center gap-2.5">
+          <h2 className="lt-page-title tabular-nums" style={{ fontSize: "var(--lt-ticket-title)" }}>
+            {shortId(ticket.id)}
+          </h2>
+          <StatusBadge status={ticket.status} />
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[var(--color-muted-foreground)]">
+          <span className="flex items-center gap-1.5">
+            <ClockIcon className="size-3.5 text-[var(--color-subtle)]" />
+            Captured {relativeTime(ticket.created_at)}
+          </span>
+          <span className="flex items-center gap-1.5 tabular-nums">
+            <TruckIcon size={14} className="text-[var(--color-subtle)]" />
+            {ticket.truck_id ?? "Unidentified truck"}
+          </span>
+          <span>{debrisLabel(ticket.debris_class)}</span>
+        </div>
+      </div>
+
+      {nav && nav.total > 1 && (
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={nav.onPrev}
+            disabled={nav.index <= 0}
+            aria-label="Previous ticket"
+            className="grid size-7 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)] disabled:opacity-40"
+          >
+            <ChevronLeftIcon className="size-4" />
+          </button>
+          <span className="min-w-[3.25rem] text-center text-[12px] tabular-nums text-[var(--color-muted-foreground)]">
+            {nav.index + 1} of {nav.total}
+          </span>
+          <button
+            type="button"
+            onClick={nav.onNext}
+            disabled={nav.index >= nav.total - 1}
+            aria-label="Next ticket"
+            className="grid size-7 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)] disabled:opacity-40"
+          >
+            <ChevronRightIcon className="size-4" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
- * The AI's read of this ticket, surfaced prominently in row 1 next to the
- * evidence. Leads with the models that did the work (SAM 3.1 + Muse Spark),
- * then the expandable per-stage trace, so the AI contribution is front-and-
- * center rather than buried below the fold.
+ * The AI's read of this ticket, at the top of the right rail. A branded header
+ * names the models that did the work, then the full stage trace sits open.
  */
 function AiAnalysisCard({ ticketId }: { ticketId: string }) {
   return (
     <section className="lt-card-shadow overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-      <header className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-brand)_14%,transparent),transparent)] px-4 py-2.5">
+      <header className="lt-card-head border-b border-[var(--color-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-brand)_14%,transparent),transparent)]">
         <span className="grid size-6 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
           <SparklesIcon size={14} />
         </span>
-        <h3 className="text-[13px] font-semibold text-[var(--color-text)]">AI analysis</h3>
-        <span className="ml-auto rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
+        <h3 className="lt-card-title shrink-0 whitespace-nowrap">AI analysis</h3>
+        <span className="ml-auto min-w-0 truncate rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-muted-foreground)]">
           SAM 3.1 · Muse Spark
         </span>
       </header>
-      <div className="p-4">
+      <div className="lt-card-body">
         <AiAnalysis ticketId={ticketId} />
       </div>
     </section>
@@ -125,31 +166,4 @@ function AiAnalysis({ ticketId }: { ticketId: string }) {
     );
   }
   return <PipelineTrace stages={trace.data} compact />;
-}
-
-function Card({
-  title,
-  icon,
-  count,
-  children,
-}: {
-  title: string;
-  icon: ReactNode;
-  count?: number;
-  children: ReactNode;
-}) {
-  return (
-    <section className="lt-card-shadow rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-      <header className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-2.5">
-        <span className="text-[var(--color-subtle)]">{icon}</span>
-        <h3 className="text-[13px] font-semibold text-[var(--color-text)]">{title}</h3>
-        {count !== undefined && count > 0 && (
-          <span className="rounded-full bg-[var(--color-surface-3)] px-1.5 text-[11px] font-semibold tabular-nums text-[var(--color-muted-foreground)]">
-            {count}
-          </span>
-        )}
-      </header>
-      <div className="p-4">{children}</div>
-    </section>
-  );
 }

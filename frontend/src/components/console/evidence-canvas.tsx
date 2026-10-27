@@ -57,16 +57,35 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
           </div>
           {frames.length > 0 && (
             <div className="flex items-center gap-1.5">
-              <OverlayToggle label="Rail" color="var(--color-info)" on={overlays.rail} onClick={() => toggle("rail")} />
-              <OverlayToggle label="Load" color="var(--color-money)" on={overlays.load} onClick={() => toggle("load")} />
+              <OverlayToggle
+                label="Rail"
+                color="var(--color-info)"
+                on={overlays.rail}
+                onClick={() => toggle("rail")}
+              />
+              <OverlayToggle
+                label="Load"
+                color="var(--color-money)"
+                on={overlays.load}
+                onClick={() => toggle("load")}
+              />
               {monitor !== null && (
-                <OverlayToggle label="Call" color="var(--color-text)" on={overlays.call} onClick={() => toggle("call")} />
+                <OverlayToggle
+                  label="Call"
+                  color="var(--color-text)"
+                  on={overlays.call}
+                  onClick={() => toggle("call")}
+                />
               )}
             </div>
           )}
         </div>
 
-        <div className="relative aspect-[16/8] w-full overflow-hidden bg-[var(--color-bg)]">
+        {/* 2:1 canvas, capped so it never pushes the decision bar off screen on
+            a wide pane (the SVG letterboxes inside the capped box). On a wide
+            pane the cap also tracks viewport height, so a 900px-tall laptop
+            screen fits the whole center column without scrolling. */}
+        <div className="relative aspect-[16/8] max-h-[17rem] w-full overflow-hidden bg-[var(--color-bg)] @[46rem]:max-h-[clamp(11rem,calc(100dvh_-_44rem),17rem)]">
           {frames.length === 0 ? (
             <div className="absolute inset-0 grid place-items-center p-6">
               <EmptyState
@@ -82,7 +101,11 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
 
               {/* Readouts */}
               <div className="absolute right-3 top-3 hidden gap-2 sm:flex">
-                <Readout label="Measured" value={percent(v.est_fill_pct)} color="var(--color-money)" />
+                <Readout
+                  label="Measured"
+                  value={percent(v.est_fill_pct)}
+                  color="var(--color-money)"
+                />
                 {monitor !== null && (
                   <Readout
                     label="Monitor call"
@@ -132,7 +155,7 @@ function Readout({ label, value, color }: { label: string; value: string; color:
   return (
     <div className="rounded-md border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] px-2.5 py-1.5 backdrop-blur">
       <div className="text-[11px] font-medium text-[var(--color-subtle)]">{label}</div>
-      <div className="text-[17px] font-bold leading-tight tabular-nums" style={{ color }}>
+      <div className="text-[15px] font-bold leading-tight tabular-nums" style={{ color }}>
         {value}
       </div>
     </div>
@@ -185,8 +208,22 @@ function TruckIllustration({
           <stop offset="0%" stopColor="var(--color-money)" stopOpacity="0.55" />
           <stop offset="100%" stopColor="var(--color-money)" stopOpacity="0.22" />
         </linearGradient>
-        <pattern id="lt-gap" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <line x1="0" y1="0" x2="0" y2="3" stroke="var(--color-danger)" strokeWidth="0.8" strokeOpacity="0.5" />
+        <pattern
+          id="lt-gap"
+          width="3"
+          height="3"
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(45)"
+        >
+          <line
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="3"
+            stroke="var(--color-danger)"
+            strokeWidth="0.8"
+            strokeOpacity="0.5"
+          />
         </pattern>
       </defs>
 
@@ -194,30 +231,66 @@ function TruckIllustration({
       <line x1="4" y1="92" x2="196" y2="92" stroke="var(--color-border-strong)" strokeWidth="0.6" />
 
       {/* Chassis + cab */}
-      <rect x="12" y="72" width="172" height="5" rx="1.2" fill="var(--color-surface-3)" stroke="var(--color-border-strong)" strokeWidth="0.5" />
+      <rect
+        x="12"
+        y="72"
+        width="172"
+        height="5"
+        rx="1.2"
+        fill="var(--color-surface-3)"
+        stroke="var(--color-border-strong)"
+        strokeWidth="0.5"
+      />
       <path
         d="M 140 72 L 140 46 Q 140 42 144 42 L 164 42 L 178 57 L 182 60 L 182 72 Z"
         fill="var(--color-surface-2)"
         stroke="var(--color-border-strong)"
         strokeWidth="0.7"
       />
-      <path d="M 146 47 L 162 47 L 172 58 L 146 58 Z" fill="var(--color-surface-3)" stroke="var(--color-border)" strokeWidth="0.4" />
+      <path
+        d="M 146 47 L 162 47 L 172 58 L 146 58 Z"
+        fill="var(--color-surface-3)"
+        stroke="var(--color-border)"
+        strokeWidth="0.4"
+      />
 
       {/* Wheels */}
       {[36, 58, 162].map((cx) => (
         <g key={cx}>
-          <circle cx={cx} cy="83" r="8.5" fill="var(--color-surface-3)" stroke="var(--color-border-strong)" strokeWidth="0.7" />
-          <circle cx={cx} cy="83" r="3.2" fill="var(--color-surface-2)" stroke="var(--color-border-strong)" strokeWidth="0.5" />
+          <circle
+            cx={cx}
+            cy="83"
+            r="8.5"
+            fill="var(--color-surface-3)"
+            stroke="var(--color-border-strong)"
+            strokeWidth="0.7"
+          />
+          <circle
+            cx={cx}
+            cy="83"
+            r="3.2"
+            fill="var(--color-surface-2)"
+            stroke="var(--color-border-strong)"
+            strokeWidth="0.5"
+          />
         </g>
       ))}
 
       {/* Overcall gap: hatched band between measured surface and the monitor call */}
       {overlays.call && callY !== null && gap > 0 && (
-        <rect x={BED_X + 1} y={callY} width={BED_W - 2} height={surfaceY - callY} fill="url(#lt-gap)" />
+        <rect
+          x={BED_X + 1}
+          y={callY}
+          width={BED_W - 2}
+          height={surfaceY - callY}
+          fill="url(#lt-gap)"
+        />
       )}
 
       {/* Load surface */}
-      {overlays.load && <path d={loadPath} fill="url(#lt-load)" stroke="var(--color-money)" strokeWidth="0.7" />}
+      {overlays.load && (
+        <path d={loadPath} fill="url(#lt-load)" stroke="var(--color-money)" strokeWidth="0.7" />
+      )}
 
       {/* Bed walls */}
       <path
@@ -232,8 +305,22 @@ function TruckIllustration({
       {/* Bed-rail reference: label sits above the line, left aligned */}
       {overlays.rail && (
         <>
-          <line x1={BED_X - 4} y1={BED_TOP} x2={BED_X + BED_W + 4} y2={BED_TOP} stroke="var(--color-info)" strokeWidth="0.8" strokeDasharray="2.5 1.5" />
-          <text x={BED_X} y={BED_TOP - 2} fontSize={LABEL} fill="var(--color-info)" fontWeight="600">
+          <line
+            x1={BED_X - 4}
+            y1={BED_TOP}
+            x2={BED_X + BED_W + 4}
+            y2={BED_TOP}
+            stroke="var(--color-info)"
+            strokeWidth="0.8"
+            strokeDasharray="2.5 1.5"
+          />
+          <text
+            x={BED_X}
+            y={BED_TOP - 2}
+            fontSize={LABEL}
+            fill="var(--color-info)"
+            fontWeight="600"
+          >
             Bed rail 100%
           </text>
         </>
@@ -242,7 +329,15 @@ function TruckIllustration({
       {/* Monitor call marker: label above the line, right aligned inside the bed */}
       {overlays.call && callY !== null && (
         <>
-          <line x1={BED_X - 4} y1={callY} x2={BED_X + BED_W + 4} y2={callY} stroke="var(--color-text)" strokeWidth="0.9" strokeDasharray="1.4 1.2" />
+          <line
+            x1={BED_X - 4}
+            y1={callY}
+            x2={BED_X + BED_W + 4}
+            y2={callY}
+            stroke="var(--color-text)"
+            strokeWidth="0.9"
+            strokeDasharray="1.4 1.2"
+          />
           <text
             x={BED_X + BED_W - 2}
             y={callY - 1.8}
@@ -290,12 +385,18 @@ function OverlayToggle({
       aria-pressed={on}
       className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] font-medium transition-colors"
       style={{
-        borderColor: on ? `color-mix(in srgb, ${color} 55%, var(--color-border))` : "var(--color-border)",
+        borderColor: on
+          ? `color-mix(in srgb, ${color} 55%, var(--color-border))`
+          : "var(--color-border)",
         backgroundColor: on ? `color-mix(in srgb, ${color} 10%, transparent)` : "transparent",
         color: on ? "var(--color-text)" : "var(--color-subtle)",
       }}
     >
-      <span className="size-2 rounded-sm" style={{ backgroundColor: on ? color : "var(--color-border-strong)" }} aria-hidden />
+      <span
+        className="size-2 rounded-sm"
+        style={{ backgroundColor: on ? color : "var(--color-border-strong)" }}
+        aria-hidden
+      />
       {label}
     </button>
   );

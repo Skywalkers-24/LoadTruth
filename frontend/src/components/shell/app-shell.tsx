@@ -19,16 +19,20 @@ import {
   SettingsIcon,
   XIcon,
 } from "@/components/ui/icons";
-import { ActivityIcon, BookOpenIcon, LogOutIcon, PanelLeftIcon, PlusIcon, SparklesIcon } from "lucide-react";
+import {
+  ActivityIcon,
+  BookOpenIcon,
+  CircleDollarSignIcon,
+  LogOutIcon,
+  PanelLeftIcon,
+  PlusIcon,
+  SparklesIcon,
+} from "lucide-react";
 
 import type { Capabilities } from "@/lib/api";
 import { Kbd } from "@/components/ui/kbd";
 import { LogoMark } from "@/components/ui/logo";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/shadcn/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/shadcn/tooltip";
 import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
 import { useReportsSummary } from "@/lib/hooks";
@@ -52,6 +56,7 @@ const NAV: NavItem[] = [
   { href: "/assistant", label: "AI Analyst", short: "Analyst", icon: SparklesIcon },
   { href: "/pipeline", label: "AI Pipeline", short: "Pipeline", icon: ActivityIcon },
   { href: "/reports", label: "Reports", short: "Reports", icon: ChartIcon },
+  { href: "/billing", label: "Billing", short: "Billing", icon: CircleDollarSignIcon },
   { href: "/admin", label: "Admin", short: "Admin", icon: SettingsIcon, cap: "manage_events" },
   { href: "/guide", label: "Guide", short: "Guide", icon: BookOpenIcon },
 ];
@@ -107,7 +112,11 @@ export function AppShell({ children, section }: { children: ReactNode; section: 
 
       {drawer && (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-label="Navigation">
-          <div className="lt-fade-in absolute inset-0 bg-black/55" onClick={() => setDrawer(false)} aria-hidden />
+          <div
+            className="lt-fade-in absolute inset-0 bg-black/55"
+            onClick={() => setDrawer(false)}
+            aria-hidden
+          />
           <aside className="lt-pop-in absolute left-0 top-0 flex h-full w-[280px] flex-col bg-sidebar text-sidebar-foreground">
             <div className="flex items-center justify-between px-4 pt-4">
               <Brand collapsed={false} />
@@ -131,7 +140,9 @@ export function AppShell({ children, section }: { children: ReactNode; section: 
       <div className="flex min-w-0 flex-col lg:min-h-0">
         <TopBar section={section} onMenu={() => setDrawer(true)} />
         <main className="lt-fade-in min-w-0 flex-1 px-4 pb-24 pt-4 sm:px-6 lg:min-h-0 lg:overflow-hidden lg:px-8 lg:pb-6 lg:pt-5">
-          <div className="mx-auto flex h-full min-h-0 w-full max-w-[1600px] flex-col">{children}</div>
+          <div className="mx-auto flex h-full min-h-0 w-full max-w-[1600px] flex-col">
+            {children}
+          </div>
         </main>
       </div>
 
@@ -148,7 +159,9 @@ function Brand({ collapsed }: { collapsed: boolean }) {
     <Link href="/" className="flex items-center gap-2.5 rounded-md" aria-label="LoadTruth home">
       <LogoMark size={collapsed ? 26 : 28} className="shrink-0" />
       {!collapsed && (
-        <span className="text-[16px] font-bold tracking-tight text-sidebar-foreground">LoadTruth</span>
+        <span className="text-[16px] font-bold tracking-tight text-sidebar-foreground">
+          LoadTruth
+        </span>
       )}
     </Link>
   );
@@ -173,7 +186,12 @@ function RailContent({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {!hideBrand && (
-        <div className={cn("flex items-center pb-5 pt-5", collapsed ? "justify-center px-2" : "justify-between px-4")}>
+        <div
+          className={cn(
+            "flex items-center pb-5 pt-5",
+            collapsed ? "justify-center px-2" : "justify-between px-4",
+          )}
+        >
           <Brand collapsed={collapsed} />
           {onToggle && !collapsed && (
             <button
@@ -279,7 +297,9 @@ function RailContent({
             <span className="flex items-center gap-2">
               <SearchIcon size={14} /> Quick search
             </span>
-            <kbd className="rounded border border-white/10 bg-white/[0.04] px-1 text-[10px] text-sidebar-muted">⌘K</kbd>
+            <kbd className="rounded border border-white/10 bg-white/[0.04] px-1 text-[10px] text-sidebar-muted">
+              ⌘K
+            </kbd>
           </button>
         )}
         <UserFooter collapsed={collapsed} />
@@ -316,7 +336,9 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
       <div className="flex flex-col items-center gap-2">
         <Tooltip>
           <TooltipTrigger asChild>
-            <button type="button" aria-label={name}>{avatar}</button>
+            <button type="button" aria-label={name}>
+              {avatar}
+            </button>
           </TooltipTrigger>
           <TooltipContent side="right">
             {name} · {ROLE_LABEL[member.role] ?? member.role}
@@ -340,7 +362,9 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
       {avatar}
       <div className="flex min-w-0 flex-1 flex-col leading-tight">
         <span className="truncate text-[13px] font-semibold text-sidebar-foreground">{name}</span>
-        <span className="truncate text-[12px] text-sidebar-muted">{ROLE_LABEL[member.role] ?? member.role}</span>
+        <span className="truncate text-[12px] text-sidebar-muted">
+          {ROLE_LABEL[member.role] ?? member.role}
+        </span>
       </div>
       <button
         type="button"

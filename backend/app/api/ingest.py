@@ -12,9 +12,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 
-from app.ai import get_ai_client
+from app.ai import clip_session, get_ai_client
 from app.ai.cached_client import CachingAIClient
-from app.ai.live import LiveAINotWiredError
+from app.ai.meta_http import (
+    ModelAPIAuthError,
+    ModelAPIError,
+    ModelAPIRequestError,
+    ModelAPIUnavailableError,
+)
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_ingest
@@ -23,7 +28,7 @@ from app.log import get_logger
 from app.pipeline.cache import InMemoryResultCache
 from app.pipeline.frames import sample_frames
 from app.pipeline.ingest import ingest_upload
-from app.pipeline.ledger import CostLedger
+from app.pipeline.ledger import BudgetExceededError, CostLedger
 from app.pipeline.media import MediaTooLargeError, plan_transport
 from app.pipeline.orchestrator import PipelineResult, run_pipeline
 from app.pipeline.registry import CertifiedTruck, TruckRegistry
@@ -66,8 +71,13 @@ async def ingest_clip(
 
     data = await file.read()
     filename = file.filename or "upload.mp4"
+    settings = get_settings()
     try:
-        artifact = ingest_upload(filename, data)
+        # Scenario filenames only steer the fixture replay; live results are
+        # always keyed by the true content hash.
+        artifact = ingest_upload(
+            filename, data, allow_scenario_override=not settings.live_ai_enabled
+        )
     except ValueError as exc:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, "The upload was empty. Choose a file."
@@ -114,28 +124,34 @@ async def ingest_clip(
     # restart) the raw outputs are replayed from the DB with no model call and
     # no media sent. The process-local result cache below is now just a fast
     # same-process shortcut layered on top of that durable store.
-    settings = get_settings()
     model_label = f"{settings.sam_model} · {settings.spark_model}"
-    ai = CachingAIClient(get_ai_client(), repo, tenant, model_label=model_label)
+    inner = get_ai_client()
+    ai = CachingAIClient(inner, repo, tenant, model_label=model_label)
 
     try:
-        result = await run_pipeline(
-            artifact=artifact,
-            tenant_id=tenant,
-            event_id=event_id,
-            registry=registry,
-            rate_table=event.rate_table,
-            ai=ai,
-            cache=get_pipeline_cache(),
-            ledger=get_cost_ledger(),
-        )
-    except LiveAINotWiredError as exc:
-        # Live AI selected but not configured — a clear 503, not a 500.
+        async with clip_session(inner, artifact.content_hash):
+            result = await run_pipeline(
+                artifact=artifact,
+                tenant_id=tenant,
+                event_id=event_id,
+                registry=registry,
+                rate_table=event.rate_table,
+                ai=ai,
+                cache=get_pipeline_cache(),
+                ledger=get_cost_ledger(),
+                data=data,
+            )
+    except BudgetExceededError as exc:
+        log.warning("ingest_budget_cap_reached", spent_usd=exc.spent_usd)
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
-            "The AI models are not configured on this server. Set MOCK_AI=1 or a MODEL_API_KEY.",
+            "This workspace has reached its AI spending limit. Raise the limit to analyze "
+            "new clips.",
         ) from exc
+    except ModelAPIError as exc:
+        raise _model_api_http_error(exc) from exc
     except Exception as exc:  # noqa: BLE001 — surface a clean 500, never a stack trace
+        log.error("ingest_pipeline_failed", content_hash=artifact.content_hash, exc_info=True)
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             "The analysis pipeline failed on that clip. Please try again.",
@@ -157,3 +173,39 @@ async def ingest_clip(
     if result.trace is not None and result.trace.stages:
         await repo.save_pipeline_stages(tenant, saved.id, list(result.trace.stages))
     return ticket_to_out(saved)
+
+
+def _model_api_http_error(exc: ModelAPIError) -> HTTPException:
+    """Map a Meta Model API failure to a clear status and message.
+
+    The upstream message is logged (it can name the problem precisely) but not
+    returned, so no provider internals reach the browser.
+    """
+    log.error(
+        "ingest_model_api_failed",
+        error=type(exc).__name__,
+        status=exc.status,
+        code=exc.code,
+        detail=str(exc)[:300],
+    )
+    if isinstance(exc, ModelAPIAuthError):
+        return HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "The AI service did not accept this server's credentials. An administrator "
+            "should check the Model API key.",
+        )
+    if isinstance(exc, ModelAPIUnavailableError):
+        return HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "The AI service is busy right now. Try the upload again in a minute.",
+        )
+    if isinstance(exc, ModelAPIRequestError):
+        return HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "The AI service could not read that file. Upload an MP4 or MOV video, or a "
+            "JPEG or PNG photo.",
+        )
+    return HTTPException(
+        status.HTTP_502_BAD_GATEWAY,
+        "The AI service could not finish analyzing that clip. Try again or use a different clip.",
+    )

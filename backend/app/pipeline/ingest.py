@@ -57,17 +57,24 @@ def scenario_override(filename: str) -> str | None:
     return candidate if candidate in fixture_keys() else None
 
 
-def ingest_upload(filename: str, data: bytes, *, source_kind: str = "upload") -> IngestedArtifact:
+def ingest_upload(
+    filename: str,
+    data: bytes,
+    *,
+    source_kind: str = "upload",
+    allow_scenario_override: bool = True,
+) -> IngestedArtifact:
     """Stage 0+1 for a direct upload: normalize + hash. Raises on empty input.
 
-    If the filename carries a `scenario__…` prefix matching a known mock fixture,
-    the content hash is set to that key so the mock replays that exact scenario
-    (handy for demoing the positive and negative paths). Otherwise the true
-    SHA-256 content hash is used.
+    If the filename carries a `scenario__…` prefix matching a known mock fixture
+    (and ``allow_scenario_override`` is set, as it is under MOCK_AI), the content
+    hash is set to that key so the mock replays that exact scenario. The live
+    pipeline passes ``allow_scenario_override=False`` so results are always
+    keyed by the true SHA-256 of the bytes.
     """
     if not data:
         raise ValueError("empty upload")
-    override = scenario_override(filename)
+    override = scenario_override(filename) if allow_scenario_override else None
     return IngestedArtifact(
         filename=filename,
         media_kind=_guess_media_kind(filename),

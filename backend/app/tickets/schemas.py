@@ -346,6 +346,41 @@ class ReportsSummary(BaseModel):
     benchmarked_count: int = 0
 
 
+class BillingLineOut(BaseModel):
+    """One invoice line: all loads of a debris class, billed at that rate."""
+
+    debris_class: str
+    rate_per_cy: Decimal
+    ticket_count: int
+    cubic_yards: Decimal
+    amount: Decimal
+
+
+class BillingPeriodOut(BaseModel):
+    """One point in the billing-history series (a calendar month)."""
+
+    period: str
+    ticket_count: int
+    amount: Decimal
+
+
+class BillingSummaryOut(BaseModel):
+    """County→contractor invoice roll-up for one event or all events."""
+
+    scope: str
+    event_id: str | None = None
+    location: str | None = None
+    ticket_count: int
+    billed_count: int
+    pending_count: int
+    total_cubic_yards: Decimal
+    total_amount: Decimal
+    settled_amount: Decimal
+    pending_amount: Decimal
+    lines: list[BillingLineOut] = Field(default_factory=list)
+    history: list[BillingPeriodOut] = Field(default_factory=list)
+
+
 def build_valuation(
     *,
     certified_cubic_yards: Number,

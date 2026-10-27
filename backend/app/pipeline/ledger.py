@@ -59,6 +59,14 @@ class BudgetStatus:
     hard_cap_hit: bool
 
 
+class BudgetExceededError(RuntimeError):
+    """Raised before a new pipeline run once spend reaches the hard cap."""
+
+    def __init__(self, spent_usd: float) -> None:
+        super().__init__(f"AI spend cap reached (${spent_usd:.2f} spent).")
+        self.spent_usd = spent_usd
+
+
 class CostLedger:
     """Async-safe, in-memory ledger of pipeline runs."""
 

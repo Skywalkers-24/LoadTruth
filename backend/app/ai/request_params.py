@@ -42,9 +42,19 @@ class SparkRequestParams:
         """Shape the knobs into Meta `/responses` request fields."""
         return {
             "model": self.model,
-            "reasoning": {"effort": self.effort.value},
+            "reasoning": {"effort": wire_effort(self.effort)},
             "max_output_tokens": self.max_output_tokens,
         }
+
+
+# The admin UI calls the middle level "balanced"; the API names it "medium"
+# (dev.meta.ai/docs/reasoning accepts minimal, low, medium, high, xhigh, max).
+_WIRE_EFFORT = {ReasoningEffort.BALANCED: "medium"}
+
+
+def wire_effort(effort: ReasoningEffort) -> str:
+    """The `reasoning.effort` value Meta accepts for an admin effort level."""
+    return _WIRE_EFFORT.get(effort, effort.value)
 
 
 def _default_output_cap(task_id: str) -> int:
@@ -65,8 +75,8 @@ def params_for(task_id: str) -> SparkRequestParams:
     fills a task-appropriate output cap when the admin left it unset.
     """
     cfg = get_ai_config_store().resolve(task_id)
-    max_out = cfg.max_output_tokens if cfg.max_output_tokens is not None else _default_output_cap(
-        task_id
+    max_out = (
+        cfg.max_output_tokens if cfg.max_output_tokens is not None else _default_output_cap(task_id)
     )
     return SparkRequestParams(
         model=cfg.model,

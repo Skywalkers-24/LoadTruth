@@ -21,14 +21,47 @@ import { cn } from "@/lib/utils";
 
 type Tab = "rates" | "trucks" | "sources" | "users" | "models" | "pipeline";
 
-const SECTIONS: { id: Tab; label: string; blurb: string; icon: ReactNode; usersOnly?: boolean }[] = [
-  { id: "rates", label: "Rates", blurb: "Price per cubic yard by debris class", icon: <DollarIcon size={16} /> },
-  { id: "trucks", label: "Truck registry", blurb: "Certified trucks and bed capacity", icon: <TruckIcon size={16} /> },
-  { id: "sources", label: "Evidence sources", blurb: "Storage, cameras, and webhooks", icon: <CameraIcon size={16} /> },
-  { id: "users", label: "Users and roles", blurb: "Who can review and approve", icon: <UsersIcon size={16} />, usersOnly: true },
-  { id: "models", label: "AI models", blurb: "Model, effort, and cost per task", icon: <SlidersHorizontalIcon size={16} />, usersOnly: true },
-  { id: "pipeline", label: "AI pipeline", blurb: "Models, cache, and spend", icon: <SparklesIcon size={16} /> },
-];
+const SECTIONS: { id: Tab; label: string; blurb: string; icon: ReactNode; usersOnly?: boolean }[] =
+  [
+    {
+      id: "rates",
+      label: "Rates",
+      blurb: "Price per cubic yard by debris class",
+      icon: <DollarIcon size={16} />,
+    },
+    {
+      id: "trucks",
+      label: "Truck registry",
+      blurb: "Certified trucks and bed capacity",
+      icon: <TruckIcon size={16} />,
+    },
+    {
+      id: "sources",
+      label: "Evidence sources",
+      blurb: "Storage, cameras, and webhooks",
+      icon: <CameraIcon size={16} />,
+    },
+    {
+      id: "users",
+      label: "Users and roles",
+      blurb: "Who can review and approve",
+      icon: <UsersIcon size={16} />,
+      usersOnly: true,
+    },
+    {
+      id: "models",
+      label: "AI models",
+      blurb: "Model, effort, and cost per task",
+      icon: <SlidersHorizontalIcon size={16} />,
+      usersOnly: true,
+    },
+    {
+      id: "pipeline",
+      label: "AI pipeline",
+      blurb: "Models, cache, and spend",
+      icon: <SparklesIcon size={16} />,
+    },
+  ];
 
 /** Admin: settings-style layout with a section list and a focused content pane. */
 export default function AdminPage() {
@@ -51,14 +84,17 @@ export default function AdminPage() {
     <AppShell section="Admin">
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         <div className="flex flex-col">
-          <h1 className="text-[20px] font-semibold tracking-tight">Workspace settings</h1>
+          <h1 className="lt-page-title">Workspace settings</h1>
           <p className="text-[12px] text-muted-foreground">
             {event ? `Configuration for ${event.name}.` : "Configuration for the active event."}
           </p>
         </div>
 
         {isError ? (
-          <ErrorState title="Events unavailable" description="The server did not return any events." />
+          <ErrorState
+            title="Events unavailable"
+            description="The server did not return any events."
+          />
         ) : isLoading || !event ? (
           <Skeleton className="h-80 rounded-xl" />
         ) : (
@@ -116,7 +152,10 @@ export default function AdminPage() {
                   <span className="text-[12px] text-muted-foreground">{active.blurb}</span>
                 </div>
               </header>
-              <div key={active.id} className="lt-fade-in min-h-0 flex-1 overflow-y-auto p-5">
+              <div
+                key={active.id}
+                className="lt-fade-in lt-fab-safe lt-scroll min-h-0 flex-1 overflow-y-auto p-5"
+              >
                 {active.id === "rates" && <RateTableEditor event={event} />}
                 {active.id === "trucks" && <TruckRegistry />}
                 {active.id === "sources" && <SourceConnections eventId={event.id} />}

@@ -205,6 +205,28 @@ instance 0.
 
 ---
 
+## 2a. How the live pipeline calls Meta (backend/app/ai/live.py)
+
+Verified against the docs on 2026-10-27 ([segmenting](https://dev.meta.ai/docs/sam/segmenting), [reading output](https://dev.meta.ai/docs/sam/reading-segmentation), [video understanding](https://dev.meta.ai/docs/video-understanding), [structured output](https://dev.meta.ai/docs/features/structured-output/), [reasoning](https://dev.meta.ai/docs/reasoning), [file handling](https://dev.meta.ai/docs/file-handling)). Some earlier notes in §2 were inferred and are corrected here.
+
+- **SAM takes one concept per request.** Comma lists return zero matches; a second `input_text` part segments only one concept. The pipeline sends two streamed requests per clip ("truck bed", "debris pile"; settings `sam_bed_concept` / `sam_load_concept`) in parallel.
+- **Video is first class.** Send `input_video` with `video_url` (data URL) or `file_id`. The output is one line per frame: `<Nf>` then `id<|box…|><|mask…|>` records. Object ids are stable across frames and not dense. Frames with nothing visible emit no line.
+- **Masks are base85, not printable run lengths.** The first character after `H,W,` is the encoding (`~` lossless, `!` one_bit), and the mask raster spans the box. The pipeline decodes with Meta's `meta-sam-parser` package (`decode_mask_to_raster`), not hand-written regexes.
+- **The live API finalizes the text lane with `response.content_part.done`.** The transport takes the final text from that event (or `output_text.done`, or `response.completed`), and only falls back to joining deltas.
+- **Zero matches is a valid answer.** The stream completes with empty text. The pipeline treats "no bed found" as no truck (HTTP 422), and "bed found, no debris" as a 0% fill.
+- **SAM billing:** $2.50 per 1,000 images; video $0.20 per 1,000 frames with a 50-frame minimum per request. Before sending, ffmpeg resamples the clip to `frame_sample_fps` (3), drops audio, and caps the longest edge at 1024 px (`app/pipeline/transcode.py`).
+- **Spark accepts video directly** through `input_video` (`file_id` or `video_url`), MP4 only, so no frame extraction is needed for OCR or classification.
+- **Structured output on the Responses API is `text.format`,** not `response_format` (that returns 400): `{"type": "json_schema", "name", "schema", "strict": true}`.
+- **Reasoning tokens count against `max_output_tokens`.** A 64-token cap returns an empty answer. Caps are now 4000 for perception and 2000 for narration; billing is on tokens actually used.
+- **Effort values are** `minimal, low, medium, high, xhigh, max` (`none` returns 400 on Spark). The admin UI's "balanced" is sent as `medium`.
+- **Uploaded files never expire by default.** Uploads set `expires_after` (1 hour) and are deleted with `DELETE /v1/files/{id}` when the run ends.
+
+**Geometry calibration (open item).** `app/ai/sam_measure.py` measures the bed track with the largest box area, counts debris pixels inside the bed's horizontal span and above its floor, and takes load height from the top of the debris on the frame with the largest bed area. These are first-pass heuristics. Check them against clips with known fills (the ±10% target) and tune the concept phrases, which are settings.
+
+**Try it:** `make live-check` (key check, one tiny Spark call) and `make live-check CLIP=data_tests/ordinary__random-haul.mp4` (full pipeline live, prints each stage and the cost).
+
+---
+
 ## 3. Quick comparison
 
 | | Muse Spark 1.3 | SAM 3.1 |

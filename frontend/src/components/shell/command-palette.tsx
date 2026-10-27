@@ -1,9 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import { api } from "@/lib/api";
+import { openAuthedExport } from "@/lib/api";
 import {
   ChartIcon,
   ClipboardIcon,
@@ -92,10 +100,34 @@ function Palette({ onClose }: { onClose: () => void }) {
 
   const items = useMemo<Item[]>(() => {
     const nav: Item[] = [
-      { id: "nav-overview", group: "Navigate", label: "Overview", icon: <GaugeIcon size={15} />, run: () => go("/") },
-      { id: "nav-console", group: "Navigate", label: "Review", icon: <ClipboardIcon size={15} />, run: () => go("/console") },
-      { id: "nav-reports", group: "Navigate", label: "Reports", icon: <ChartIcon size={15} />, run: () => go("/reports") },
-      { id: "nav-admin", group: "Navigate", label: "Admin", icon: <SettingsIcon size={15} />, run: () => go("/admin") },
+      {
+        id: "nav-overview",
+        group: "Navigate",
+        label: "Overview",
+        icon: <GaugeIcon size={15} />,
+        run: () => go("/"),
+      },
+      {
+        id: "nav-console",
+        group: "Navigate",
+        label: "Review",
+        icon: <ClipboardIcon size={15} />,
+        run: () => go("/console"),
+      },
+      {
+        id: "nav-reports",
+        group: "Navigate",
+        label: "Reports",
+        icon: <ChartIcon size={15} />,
+        run: () => go("/reports"),
+      },
+      {
+        id: "nav-admin",
+        group: "Navigate",
+        label: "Admin",
+        icon: <SettingsIcon size={15} />,
+        run: () => go("/admin"),
+      },
     ];
     const themeActions: Item[] = [
       {
@@ -133,7 +165,9 @@ function Palette({ onClose }: { onClose: () => void }) {
               icon: <DownloadIcon size={15} />,
               run: () => {
                 onClose();
-                window.location.href = api.exportCsvUrl(eventId);
+                void openAuthedExport(`/events/${eventId}/export.csv`, {
+                  download: `loadtruth-${eventId}.csv`,
+                });
               },
             },
           ]
@@ -144,7 +178,9 @@ function Palette({ onClose }: { onClose: () => void }) {
       group: "Tickets",
       label: `${shortId(t.id)}  ${t.truck_id ?? "Unidentified"}`,
       hint: `${debrisLabel(t.debris_class)} · ${statusLabel(t.status)}`,
-      right: t.valuation.delta_dollar_value ? signedMoney(t.valuation.delta_dollar_value) : undefined,
+      right: t.valuation.delta_dollar_value
+        ? signedMoney(t.valuation.delta_dollar_value)
+        : undefined,
       rightColor: t.valuation.is_overbill ? "var(--color-money)" : "var(--color-muted-foreground)",
       icon: <TruckIcon size={15} />,
       run: () => {
@@ -155,7 +191,8 @@ function Palette({ onClose }: { onClose: () => void }) {
     }));
 
     const needle = q.trim().toLowerCase();
-    const match = (i: Item) => !needle || `${i.label} ${i.hint ?? ""}`.toLowerCase().includes(needle);
+    const match = (i: Item) =>
+      !needle || `${i.label} ${i.hint ?? ""}`.toLowerCase().includes(needle);
     const filteredTickets = ticketItems.filter(match).slice(0, needle ? 8 : 5);
     return [
       ...nav.filter(match),
@@ -186,7 +223,9 @@ function Palette({ onClose }: { onClose: () => void }) {
   }, [items, active, onClose]);
 
   useEffect(() => {
-    listRef.current?.querySelector<HTMLElement>(`[data-idx="${active}"]`)?.scrollIntoView({ block: "nearest" });
+    listRef.current
+      ?.querySelector<HTMLElement>(`[data-idx="${active}"]`)
+      ?.scrollIntoView({ block: "nearest" });
   }, [active]);
 
   const groups: Item["group"][] = ["Navigate", "Tickets", "Actions", "Theme"];
@@ -238,19 +277,32 @@ function Palette({ onClose }: { onClose: () => void }) {
                         onMouseMove={() => setActive(idx)}
                         onClick={it.run}
                         className="flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left"
-                        style={{ backgroundColor: isActive ? "var(--color-accent-soft)" : "transparent" }}
+                        style={{
+                          backgroundColor: isActive ? "var(--color-accent-soft)" : "transparent",
+                        }}
                       >
-                        <span className={isActive ? "text-[var(--color-accent)]" : "text-[var(--color-subtle)]"}>
+                        <span
+                          className={
+                            isActive ? "text-[var(--color-accent)]" : "text-[var(--color-subtle)]"
+                          }
+                        >
                           {it.icon}
                         </span>
                         <span className="flex min-w-0 flex-1 flex-col leading-tight">
                           <span className="truncate text-[13px] font-medium tabular-nums text-[var(--color-text)]">
                             {it.label}
                           </span>
-                          {it.hint && <span className="truncate text-[12px] text-[var(--color-muted-foreground)]">{it.hint}</span>}
+                          {it.hint && (
+                            <span className="truncate text-[12px] text-[var(--color-muted-foreground)]">
+                              {it.hint}
+                            </span>
+                          )}
                         </span>
                         {it.right && (
-                          <span className="shrink-0 text-[13px] font-semibold tabular-nums" style={{ color: it.rightColor }}>
+                          <span
+                            className="shrink-0 text-[13px] font-semibold tabular-nums"
+                            style={{ color: it.rightColor }}
+                          >
                             {it.right}
                           </span>
                         )}

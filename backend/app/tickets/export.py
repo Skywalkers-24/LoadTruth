@@ -77,7 +77,7 @@ def audit_packet_html(
     loc = html.escape(event_location or "")
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
-<title>LoadTruth audit packet — {html.escape(event_name)}</title>
+<title>LoadTruth audit packet: {html.escape(event_name)}</title>
 <style>
   body {{ font-family: system-ui, sans-serif; margin: 2rem; color: #111; }}
   h1 {{ font-size: 1.4rem; margin-bottom: 0.2rem; }}
@@ -103,9 +103,10 @@ def audit_packet_html(
   </tbody>
 </table>
 <p class="stmt"><strong>Accuracy statement.</strong> {accuracy} Every estimate links to its
-evidence frame; a human monitor confirms or overrides each ticket. LoadTruth produces
+evidence frame, and a human monitor confirms or overrides each ticket. LoadTruth produces
 evidence and flags inconsistencies; the responsible monitor retains authority over the
-official record.</p>
+official record. This packet is formatted for a Federal Emergency Management Agency (FEMA)
+reimbursement review.</p>
 </body></html>
 """
 
@@ -127,3 +128,131 @@ def _ticket_row(t: Ticket) -> str:
         f"<td>{frames}</td>"
         "</tr>"
     )
+
+
+_INVOICE_DEBRIS_LABELS = {
+    "vegetative": "Vegetative",
+    "construction_demolition": "Construction &amp; demolition",
+    "white_goods": "White goods",
+    "hazardous": "Hazardous",
+    "other": "Other",
+}
+
+
+def _invoice_debris_label(debris_class: str) -> str:
+    return _INVOICE_DEBRIS_LABELS.get(debris_class, html.escape(debris_class))
+
+
+def invoice_html(
+    *,
+    scope: str,
+    location: str | None,
+    event_id: str | None,
+    ticket_count: int,
+    billed_count: int,
+    pending_count: int,
+    total_cubic_yards: object,
+    total_amount: object,
+    settled_amount: object,
+    pending_amount: object,
+    lines: list[object],
+) -> str:
+    """Render a self-contained printable invoice (county owes contractor).
+
+    HTML, not a PDF dependency, so the export is zero-dependency; the browser's
+    "Print to PDF" produces the filable invoice. A real PDF renderer can slot in
+    later behind this function.
+    """
+    generated = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    invoice_no = f"LT-{event_id[:8].upper()}" if event_id else f"LT-ALL-{datetime.now(UTC):%Y%m}"
+    loc = html.escape(location or "")
+
+    line_rows = "\n".join(
+        "    <tr>"
+        f"<td>{_invoice_debris_label(str(line.debris_class))}</td>"  # type: ignore[attr-defined]
+        f"<td class='num'>{line.ticket_count}</td>"  # type: ignore[attr-defined]
+        f"<td class='num'>{line.cubic_yards:,.2f}</td>"  # type: ignore[attr-defined]
+        f"<td class='num'>${line.rate_per_cy:,.2f}</td>"  # type: ignore[attr-defined]
+        f"<td class='num'>${line.amount:,.2f}</td>"  # type: ignore[attr-defined]
+        "</tr>"
+        for line in lines
+    )
+
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>LoadTruth invoice, {html.escape(scope)}</title>
+<style>
+  :root {{ color-scheme: light; }}
+  body {{ font-family: system-ui, -apple-system, sans-serif; margin: 2.5rem; color: #0f172a; }}
+  .head {{ display: flex; justify-content: space-between; align-items: flex-start; gap: 2rem;
+    border-bottom: 2px solid #0f172a; padding-bottom: 1rem; }}
+  .brand {{ font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; }}
+  .brand small {{ display: block; font-size: 0.72rem; font-weight: 500;
+    color: #64748b; letter-spacing: 0.04em; }}
+  .meta {{ text-align: right; font-size: 0.82rem; color: #475569; line-height: 1.6; }}
+  .meta b {{ color: #0f172a; }}
+  h2 {{ font-size: 0.95rem; margin: 1.6rem 0 0.4rem; }}
+  .bill-to {{ font-size: 0.9rem; color: #334155; }}
+  .bill-to b {{ color: #0f172a; }}
+  table {{ border-collapse: collapse; width: 100%; margin-top: 0.8rem; font-size: 0.85rem; }}
+  th, td {{ border-bottom: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; }}
+  th {{ background: #f8fafc; text-transform: uppercase; font-size: 0.68rem;
+    letter-spacing: 0.06em; color: #64748b; }}
+  td.num, th.num {{ text-align: right; font-variant-numeric: tabular-nums; }}
+  tfoot td {{ font-weight: 600; border-top: 2px solid #0f172a; border-bottom: none; }}
+  .totals {{ margin-top: 1.4rem; margin-left: auto; width: 320px; font-size: 0.9rem; }}
+  .totals .row {{ display: flex; justify-content: space-between; padding: 4px 0; color: #475569; }}
+  .totals .grand {{ border-top: 2px solid #0f172a; margin-top: 6px; padding-top: 10px;
+    font-size: 1.25rem; font-weight: 700; color: #0f172a; }}
+  .note {{ margin-top: 2rem; font-size: 0.78rem; color: #64748b; line-height: 1.6;
+    border-top: 1px solid #e2e8f0; padding-top: 1rem; }}
+  @media print {{ body {{ margin: 0.6in; }} }}
+</style></head><body>
+<div class="head">
+  <div>
+    <div class="brand">LoadTruth<small>Video-verified load tickets</small></div>
+  </div>
+  <div class="meta">
+    <div><b>Invoice</b> {html.escape(invoice_no)}</div>
+    <div>Issued {generated}</div>
+    <div>{ticket_count} loads · {billed_count} settled · {pending_count} pending</div>
+  </div>
+</div>
+
+<h2>Bill to</h2>
+<div class="bill-to"><b>{html.escape(scope)}</b>{"<br>" + loc if loc else ""}</div>
+
+<h2>Line items</h2>
+<table>
+  <thead><tr>
+    <th>Debris class</th>
+    <th class="num">Loads</th>
+    <th class="num">Cubic yards</th>
+    <th class="num">Rate / CY</th>
+    <th class="num">Amount</th>
+  </tr></thead>
+  <tbody>
+{line_rows}
+  </tbody>
+  <tfoot><tr>
+    <td>Total</td>
+    <td class="num">{ticket_count}</td>
+    <td class="num">{total_cubic_yards:,.2f}</td>
+    <td class="num"></td>
+    <td class="num">${total_amount:,.2f}</td>
+  </tr></tfoot>
+</table>
+
+<div class="totals">
+  <div class="row"><span>Settled loads</span><span>${settled_amount:,.2f}</span></div>
+  <div class="row"><span>Pending review</span><span>${pending_amount:,.2f}</span></div>
+  <div class="row grand"><span>Amount due</span><span>${total_amount:,.2f}</span></div>
+</div>
+
+<p class="note">Each load is billed on its credited volume (certified capacity times the
+reviewed fill percentage) at the contracted rate for its debris class. Settled amounts
+reflect a monitor's confirmed call; pending amounts reflect the current estimate and
+finalize once a monitor reviews the load. Every amount traces to a ticket with its
+evidence frame.</p>
+</body></html>
+"""

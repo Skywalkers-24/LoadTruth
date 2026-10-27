@@ -83,63 +83,66 @@ export function LoginScreen() {
           <span className="text-[18px] font-bold tracking-tight">LoadTruth</span>
         </div>
 
-        <div className="relative flex flex-col gap-5">
-          <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--color-brand-strong)]">
-            Disaster-debris billing, verified
-          </span>
-          <h1 className="max-w-md text-[30px] font-semibold leading-tight tracking-tight">
-            Every debris haul, measured and paid on the evidence.
-          </h1>
-          <p className="max-w-lg text-[14px] leading-relaxed text-sidebar-muted">
-            After a hurricane or wildfire, counties pay contractors by the cubic yard to clear debris. LoadTruth
-            measures each truckload from the footage, checks it against the monitor&apos;s call, and turns it into
-            a payment record that stands up to a FEMA audit.
-          </p>
+        <div className="relative flex flex-col gap-6">
+          <div className="flex flex-col gap-3">
+            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--color-brand-strong)]">
+              Disaster-debris billing, verified
+            </span>
+            <h1 className="max-w-md text-[30px] font-semibold leading-tight tracking-tight">
+              Every debris haul, measured and paid on the evidence.
+            </h1>
+            <p className="max-w-md text-[14px] leading-relaxed text-sidebar-muted">
+              Counties pay contractors by the cubic yard to clear debris. LoadTruth measures each
+              truckload from the footage, checks it against the monitor&apos;s call, and produces a
+              payment record ready for a Federal Emergency Management Agency (FEMA) audit.
+            </p>
+          </div>
 
-          {/* Stat strip — the numbers that make the case */}
+          {/* The numbers that make the case */}
           <div className="grid max-w-lg grid-cols-3 gap-3">
             <Stat value="$1,402" label="Over-calls caught per event" />
-            <Stat value="7-stage" label="AI pipeline per clip" />
+            <Stat value="7 stages" label="AI pipeline per clip" />
             <Stat value="100%" label="Decisions traced to evidence" />
           </div>
 
-          <ul className="grid max-w-xl grid-cols-2 gap-x-5 gap-y-3.5">
+          {/* Capabilities, one tight line each */}
+          <ul className="grid max-w-xl grid-cols-2 gap-x-6 gap-y-4">
             <Feature
               icon={<ScanEyeIcon className="size-4" />}
-              title="Measured from the footage"
-              body="SAM 3.1 segments the bed and load; Muse reads the placard and classifies the debris."
+              title="Measured from footage"
+              body="SAM 3.1 segments the load; Muse reads the placard and classifies the debris."
             />
             <Feature
               icon={<DollarSignIcon className="size-4" />}
               title="The money frame"
-              body="Measured value against the monitor's call, with the exact dollar delta on every ticket."
+              body="Measured value against the monitor's call, with the exact dollar delta."
             />
             <Feature
               icon={<ShieldAlertIcon className="size-4" />}
               title="Anomaly detection"
-              body="Over-calls, hollow loads, capacity exceeded, and unreadable placards flagged automatically."
+              body="Over-calls, hollow loads, and unreadable placards flagged automatically."
             />
             <Feature
               icon={<SparklesIcon className="size-4" />}
-              title="AI analyst, grounded"
-              body="Ask about exposure, disputes, or accuracy and get answers from your own data, with its work shown."
+              title="Grounded AI analyst"
+              body="Ask about exposure or disputes and get answers from your own data."
             />
             <Feature
               icon={<FileCheck2Icon className="size-4" />}
               title="Audit-ready exports"
-              body="Signed tickets, anomaly logs, and CSV plus FEMA-style packets, ready for review."
+              body="Signed tickets, anomaly logs, CSV, and FEMA-style packets."
             />
             <Feature
               icon={<BuildingIcon className="size-4" />}
-              title="Multi-tenant SaaS"
-              body="Each agency runs its own events, trucks, rates, and team with role-based access."
+              title="Multi-tenant"
+              body="Each agency runs its own events, trucks, rates, and team."
             />
           </ul>
         </div>
 
         <div className="relative flex items-center gap-2 text-[12px] text-sidebar-muted">
           <span className="size-1.5 rounded-full bg-[var(--color-brand-strong)]" aria-hidden />
-          Powered by Meta SAM 3.1 and Muse
+          Powered by Meta SAM 3.1 and Muse Spark
         </div>
       </div>
 
@@ -188,12 +191,16 @@ export function LoginScreen() {
                       {(m.full_name ?? m.email).slice(0, 2).toUpperCase()}
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-[14px] font-semibold">{m.full_name ?? m.email}</span>
+                      <span className="truncate text-[14px] font-semibold">
+                        {m.full_name ?? m.email}
+                      </span>
                       <span className="truncate text-[12px] text-muted-foreground">
                         {ROLE_LABEL[m.role]} · {ROLE_BLURB[m.role]}
                       </span>
                     </span>
-                    {active && <ArrowRightIcon className="size-4 shrink-0 text-[var(--color-brand)]" />}
+                    {active && (
+                      <ArrowRightIcon className="size-4 shrink-0 text-[var(--color-brand)]" />
+                    )}
                   </button>
                 );
               })

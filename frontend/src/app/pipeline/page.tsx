@@ -54,9 +54,10 @@ export default function PipelinePage() {
             <ActivityIcon className="size-5" />
           </span>
           <div className="flex min-w-0 flex-col">
-            <h1 className="text-[18px] font-semibold leading-tight tracking-tight">AI Pipeline</h1>
+            <h1 className="lt-page-title">AI Pipeline</h1>
             <p className="text-[12px] text-muted-foreground">
-              Every clip run through SAM 3.1 and Muse Spark, with live status and the full stage trace.
+              Every clip run through SAM 3.1 and Muse Spark, with live status and the full stage
+              trace.
             </p>
           </div>
           <span className="ml-auto inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
@@ -106,7 +107,8 @@ export default function PipelinePage() {
                             </span>
                             <span className="truncate text-[11px] text-muted-foreground">
                               {j.debris_class ? debrisLabel(j.debris_class) : "No load"} ·{" "}
-                              {j.stages.length} stages · {relativeTime(new Date(j.started_at * 1000).toISOString())}
+                              {j.stages.length} stages ·{" "}
+                              {relativeTime(new Date(j.started_at * 1000).toISOString())}
                             </span>
                           </span>
                           {j.dollar_value != null && (
@@ -114,7 +116,9 @@ export default function PipelinePage() {
                               {money(j.dollar_value)}
                             </span>
                           )}
-                          <StatusChip tone={OUTCOME_TONE[j.outcome]}>{OUTCOME_LABEL[j.outcome]}</StatusChip>
+                          <StatusChip tone={OUTCOME_TONE[j.outcome]}>
+                            {OUTCOME_LABEL[j.outcome]}
+                          </StatusChip>
                         </button>
                       </li>
                     );
@@ -130,15 +134,23 @@ export default function PipelinePage() {
               <CpuIcon className="size-4 text-[var(--color-brand)]" />
               <h2 className="text-[14px] font-semibold">Stage trace</h2>
             </header>
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            <div className="lt-scroll lt-fab-safe min-h-0 flex-1 overflow-y-auto p-4">
               {!active ? (
-                <p className="text-[13px] text-muted-foreground">Select a job to see how the AI produced it.</p>
+                <p className="text-[13px] text-muted-foreground">
+                  Select a job to see how the AI produced it.
+                </p>
               ) : (
                 <div className="flex flex-col gap-4">
                   <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-secondary/40 p-3 sm:grid-cols-4">
                     <Field label="Truck" value={active.truck_id ?? "Unidentified"} />
-                    <Field label="Debris" value={active.debris_class ? debrisLabel(active.debris_class) : "N/A"} />
-                    <Field label="Value" value={active.dollar_value != null ? money(active.dollar_value) : "N/A"} />
+                    <Field
+                      label="Debris"
+                      value={active.debris_class ? debrisLabel(active.debris_class) : "N/A"}
+                    />
+                    <Field
+                      label="Value"
+                      value={active.dollar_value != null ? money(active.dollar_value) : "N/A"}
+                    />
                     <Field label="Flags" value={String(active.anomaly_count)} />
                   </div>
                   <PipelineTrace stages={active.stages} />

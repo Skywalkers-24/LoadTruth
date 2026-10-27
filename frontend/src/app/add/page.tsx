@@ -39,7 +39,7 @@ function ingestErrorMessage(err: unknown): string {
       case 422:
         return err.message || "No truck or load was detected, so no ticket was drafted.";
       case 503:
-        return "The AI models aren't available right now. Please try again shortly.";
+        return err.message || "The AI models aren't available right now. Please try again shortly.";
       default:
         return err.message || "The clip could not be processed. Please try again.";
     }
@@ -104,11 +104,11 @@ export default function NewTicketPage() {
     <AppShell section="New Ticket">
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="flex min-w-0 flex-col">
-          <h1 className="text-[20px] font-semibold tracking-tight">Capture a new ticket</h1>
+          <h1 className="lt-page-title">Capture a new ticket</h1>
           <p className="text-[12px] text-muted-foreground">
             Upload evidence for{" "}
-            <span className="font-medium text-foreground">{selected?.name ?? "this event"}</span> and LoadTruth
-            drafts a ticket from the measured load.
+            <span className="font-medium text-foreground">{selected?.name ?? "this event"}</span>{" "}
+            and LoadTruth drafts a ticket from the measured load.
           </p>
         </div>
 
@@ -154,7 +154,9 @@ export default function NewTicketPage() {
                   </span>
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[15px] font-semibold">
-                      {ingest.isPending ? "Analyzing the clip" : "Drop a clip here, or click to browse"}
+                      {ingest.isPending
+                        ? "Analyzing the clip"
+                        : "Drop a clip here, or click to browse"}
                     </span>
                     <span className="text-[12px] text-muted-foreground">
                       {ingest.isPending
@@ -189,7 +191,10 @@ export default function NewTicketPage() {
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <Field label="Ticket" value={shortId(result.id)} />
                     <Field label="Truck" value={result.truck_id ?? "Unidentified"} />
-                    <Field label="Measured value" value={money(result.valuation.est_dollar_value)} />
+                    <Field
+                      label="Measured value"
+                      value={money(result.valuation.est_dollar_value)}
+                    />
                     <Field
                       label="Delta"
                       value={
@@ -220,7 +225,7 @@ export default function NewTicketPage() {
                 {tickets.data?.total ?? recent.length} tickets
               </span>
             </header>
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="lt-scroll lt-fab-safe min-h-0 flex-1 overflow-y-auto">
               {tickets.isLoading ? (
                 <div className="flex flex-col gap-2 p-3">
                   {Array.from({ length: 6 }).map((_, i) => (
@@ -255,7 +260,9 @@ export default function NewTicketPage() {
                         </span>
                         <StatusBadge status={t.status} />
                         <span className="w-16 shrink-0 text-right text-[13px] font-semibold tabular-nums text-[var(--color-money)]">
-                          {t.valuation.delta_dollar_value ? signedMoney(t.valuation.delta_dollar_value) : "N/A"}
+                          {t.valuation.delta_dollar_value
+                            ? signedMoney(t.valuation.delta_dollar_value)
+                            : "N/A"}
                         </span>
                       </button>
                     </li>

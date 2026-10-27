@@ -8,7 +8,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { ReportsPanel, type PerEvent } from "@/components/reports/reports-panel";
 import { Button } from "@/components/ui/shadcn/button";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/primitives";
-import { api } from "@/lib/api";
+import { openAuthedExport } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
 import { useAllReports, useReportsSummary, useTickets } from "@/lib/hooks";
@@ -112,7 +112,7 @@ export default function ReportsPage() {
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-col">
-            <h1 className="truncate text-[20px] font-semibold tracking-tight">
+            <h1 className="lt-page-title truncate">
               {allMode ? "All events" : (selected?.name ?? "Reports")}
             </h1>
             <p className="truncate text-[12px] text-muted-foreground">
@@ -129,7 +129,9 @@ export default function ReportsPage() {
                     onClick={() => setScope(s)}
                     className={cn(
                       "rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors",
-                      scope === s ? "bg-[var(--color-brand-fill)] text-white" : "text-muted-foreground hover:text-foreground",
+                      scope === s
+                        ? "bg-[var(--color-brand-fill)] text-white"
+                        : "text-muted-foreground hover:text-foreground",
                     )}
                   >
                     {s === "event" ? "This event" : "All events"}
@@ -139,26 +141,37 @@ export default function ReportsPage() {
             )}
             {eventId && !allMode && (
               <>
-                <Button asChild variant="outline" size="sm">
-                  <a href={api.exportCsvUrl(eventId)}>
-                    <DownloadIcon />
-                    Export CSV
-                  </a>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    void openAuthedExport(`/events/${eventId}/export.csv`, {
+                      download: `loadtruth-${eventId}.csv`,
+                    })
+                  }
+                >
+                  <DownloadIcon />
+                  Export CSV
                 </Button>
-                <Button asChild variant="outline" size="sm">
-                  <a href={api.auditPacketUrl(eventId)} target="_blank" rel="noreferrer">
-                    <FileTextIcon />
-                    Audit packet
-                  </a>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void openAuthedExport(`/events/${eventId}/audit-packet.html`)}
+                >
+                  <FileTextIcon />
+                  Audit packet
                 </Button>
               </>
             )}
           </div>
         </div>
 
-        <div className="lt-scroll min-h-0 flex-1 overflow-y-auto pr-1">
+        <div className="lt-scroll lt-fab-safe min-h-0 flex-1 overflow-y-auto pr-1">
           {eventsError ? (
-            <ErrorState title="Events unavailable" description="The server did not return any events." />
+            <ErrorState
+              title="Events unavailable"
+              description="The server did not return any events."
+            />
           ) : loading ? (
             <div className="flex flex-col gap-4">
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -169,11 +182,21 @@ export default function ReportsPage() {
               <Skeleton className="h-[280px] rounded-xl" />
             </div>
           ) : errored ? (
-            <ErrorState description="Could not load the report." onRetry={() => (allMode ? all.refetch() : summary.refetch())} />
+            <ErrorState
+              description="Could not load the report."
+              onRetry={() => (allMode ? all.refetch() : summary.refetch())}
+            />
           ) : panelSummary && panelSummary.ticket_count > 0 ? (
-            <ReportsPanel s={panelSummary} tickets={panelTickets} perEvent={allMode ? perEvent : undefined} />
+            <ReportsPanel
+              s={panelSummary}
+              tickets={panelTickets}
+              perEvent={allMode ? perEvent : undefined}
+            />
           ) : (
-            <EmptyState title="No tickets yet" description="Reports appear once tickets are captured." />
+            <EmptyState
+              title="No tickets yet"
+              description="Reports appear once tickets are captured."
+            />
           )}
         </div>
       </div>

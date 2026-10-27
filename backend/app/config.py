@@ -71,12 +71,35 @@ class Settings(BaseSettings):
     # well-chosen keyframes are plenty and keep token cost low; never exceed the
     # image budget above.
     spark_frames_per_task: int = Field(default=4)
-    # Output-token caps per Spark call type. Capping output is the cheapest LLM
-    # lever ($4.25/1M out): perception tasks return a word or two, the analyst a
-    # short paragraph — never the 4000-token default. Keeps every query bounded.
-    spark_perception_max_output_tokens: int = Field(default=64)  # OCR / classify
-    spark_narrate_max_output_tokens: int = Field(default=120)  # one-line flag narrative
-    analyst_max_output_tokens: int = Field(default=512)  # grounded analyst answer
+    # Output-token caps per Spark call type. Muse Spark is a reasoning model and
+    # its reasoning tokens count against `max_output_tokens` (dev.meta.ai/docs/
+    # reasoning), so a tight cap returns an empty answer. Billing is on tokens
+    # actually generated, so a roomy cap costs nothing extra; low reasoning
+    # effort is what keeps perception calls cheap.
+    spark_perception_max_output_tokens: int = Field(default=4000)  # OCR / classify
+    spark_narrate_max_output_tokens: int = Field(default=2000)  # one-line flag narrative
+    analyst_max_output_tokens: int = Field(default=4000)  # grounded analyst answer
+
+    # ── Live Meta client (app/ai/live.py) ──
+    model_api_timeout_s: float = Field(default=300.0)
+    # Retries for 429 / 5xx / network errors (a 400 is permanent, never retried).
+    model_api_max_retries: int = Field(default=2)
+    # SAM takes one short noun phrase per request (dev.meta.ai/docs/sam/segmenting),
+    # so the clip is segmented once per concept. Tune these on real footage.
+    sam_bed_concept: str = Field(default="truck bed")
+    sam_load_concept: str = Field(default="debris pile")
+    # SAM pricing (dev.meta.ai/docs/pricing-rate-limits): images per 1k, video per
+    # 1k frames with a 50-frame minimum per request.
+    sam_image_price_per_1k: float = Field(default=2.50)
+    sam_video_frame_price_per_1k: float = Field(default=0.20)
+    sam_video_min_billed_frames: int = Field(default=50)
+    # Before a clip goes to Meta, ffmpeg (when installed) resamples it to
+    # `frame_sample_fps`, drops audio, and caps the longest edge at
+    # `frame_downscale_longest_edge`. SAM bills per frame, so this is the main
+    # cost lever. Without ffmpeg the original bytes are sent.
+    transcode_timeout_s: float = Field(default=180.0)
+    # Uploaded clips are deleted after the run; this expiry is the safety net.
+    media_file_ttl_s: int = Field(default=3600)
     # Hard cap on keyframes sampled from any one clip (bounds SAM frame cost and
     # memory for a long video, regardless of fps/duration).
     max_sampled_frames: int = Field(default=120)
@@ -92,6 +115,11 @@ class Settings(BaseSettings):
     @property
     def model_api_configured(self) -> bool:
         return bool(self.model_api_key) and self.model_api_key != "TO_BE_UPDATED_LATER"
+
+    @property
+    def live_ai_enabled(self) -> bool:
+        """True when the pipeline calls Meta (a key is set and MOCK_AI is off)."""
+        return self.model_api_configured and not self.mock_ai
 
     @property
     def is_sqlite(self) -> bool:

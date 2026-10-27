@@ -10,6 +10,10 @@
 #   make fmt     auto-format backend + frontend
 #   make test    quick tests (no coverage) — fast feedback
 #   make ci      the FULL gate CI runs (slow; mirrors scripts/eval.sh)
+#   make up      rebuild + start the app in Docker (frontend :3000, backend :8000)
+#   make down    stop the Docker stack
+#   make logs    follow the Docker logs
+#   make live-check [CLIP=path]  verify the Meta key, optionally run one clip live
 #
 # Backend commands assume the venv at backend/.venv (see scripts/setup.sh).
 
@@ -18,7 +22,22 @@ FRONTEND := frontend
 PY := $(BACKEND)/.venv/bin
 
 .DEFAULT_GOAL := check
-.PHONY: check fmt test ci check-be check-fe test-be test-fe
+.PHONY: check fmt test ci check-be check-fe test-be test-fe up down logs live-check
+
+# ── Run the app (always Docker, standard ports) ─────────────────────────────
+up:
+	docker compose up -d --build
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs -f --tail=100
+
+# Calls Meta (costs a few cents with a CLIP). Runs in the backend container so
+# ffmpeg is available; start the stack first with `make up`.
+live-check:
+	@./scripts/live-check.sh --docker $(CLIP)
 
 # ── Fast local checks (low friction) ────────────────────────────────────────
 check: check-be check-fe ## Fast lint only — no type-check, no coverage.

@@ -59,7 +59,7 @@ function spendBadge(weight: number): { tone: "ok" | "warn" | "danger"; label: st
 
 function priceLine(model: ModelInfo): string {
   const p = model.pricing;
-  if (!p) return "Self-hosted / subscription — no per-token price.";
+  if (!p) return "Self-hosted or subscription, no per-token price.";
   if (p.unit === "per_1k_images") return `$${p.output?.toFixed(2)} per 1,000 images`;
   if (p.unit === "per_image") return `$${p.output?.toFixed(2)} per image`;
   if (p.unit === "per_hour") return `$${p.output?.toFixed(2)} per hour of audio`;

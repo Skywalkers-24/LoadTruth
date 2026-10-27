@@ -12,18 +12,19 @@ not touch the DB itself, which keeps it trivially testable.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from decimal import Decimal
 from uuid import UUID
 
-from app.ai.base import AIClient, OCRResult
+from app.ai.base import AIClient, CallUsage, ClipMedia, OCRResult
 from app.ai.config_store import get_ai_config_store
 from app.config import get_settings
 from app.pipeline.anomalies import Anomaly, AnomalyInput, evaluate
 from app.pipeline.cache import ResultCache
 from app.pipeline.geometry import MaskMeasurement, estimate_fill
 from app.pipeline.ingest import IngestedArtifact
-from app.pipeline.ledger import CostLedger
+from app.pipeline.ledger import BudgetExceededError, CostLedger
 from app.pipeline.registry import TruckRegistry
 from app.pipeline.trace import PipelineTrace
 from app.tickets.domain import Ticket, new_ticket
@@ -58,9 +59,12 @@ async def run_pipeline(
     ai: AIClient,
     cache: ResultCache[PipelineResult] | None = None,
     ledger: CostLedger | None = None,
+    data: bytes = b"",
 ) -> PipelineResult:
     """Run the full pipeline for one ingested clip and return a draft ticket.
 
+    ``data`` is the clip's bytes; the live client sends them to Meta (the mock
+    and the durable cache only need the content hash, so tests may omit them).
     ``cache`` and ``ledger`` are optional and injected. When a ``cache`` is given
     and already holds a result for this clip's content hash, the cached result is
     returned for free (every stage recorded as a $0 cache hit) and no AI call is
@@ -76,10 +80,15 @@ async def run_pipeline(
             trace = PipelineTrace(content_hash=h)
             trace.cached = True
             trace.outcome = "cached" if not hit.no_truck else "no_truck"
-            trace.stage("cache", "Result cache", "cache", "Served from the result cache (no model call).")  # noqa: E501
+            trace.stage(
+                "cache", "Result cache", "cache", "Served from the result cache (no model call)."
+            )  # noqa: E501
             trace.ticket_id = str(hit.ticket.id) if not hit.no_truck else None
             hit.trace = trace
             return hit
+
+    if ledger is not None and ledger.budget_status().hard_cap_hit:
+        raise BudgetExceededError(ledger.budget_status().spent_usd)
 
     trace = PipelineTrace(content_hash=h)
     result = await _compute_pipeline(
@@ -91,6 +100,7 @@ async def run_pipeline(
         ai=ai,
         ledger=ledger,
         trace=trace,
+        data=data,
     )
     result.trace = trace
     if cache is not None:
@@ -108,15 +118,19 @@ async def _compute_pipeline(
     ai: AIClient,
     ledger: CostLedger | None,
     trace: PipelineTrace | None = None,
+    data: bytes = b"",
 ) -> PipelineResult:
     """The uncached compute path (the stages themselves)."""
     h = artifact.content_hash
     sam = get_settings().sam_model
     spark = get_settings().spark_model
+    clip = ClipMedia(
+        content_hash=h, media_kind=artifact.media_kind, filename=artifact.filename, data=data
+    )
 
     # Stage 2 — SAM track + segment.
-    tracks = await ai.track(h)
-    await _record(ledger, "sam_track", ai)
+    tracks = await ai.track(clip)
+    await _record(ledger, "sam_track", tracks.usage)
     bed = tracks.by_label("truck bed")
     debris = tracks.by_label("debris pile")
     if bed is None or debris is None or not bed.mask_areas:
@@ -142,9 +156,10 @@ async def _compute_pipeline(
             f"Tracked truck, bed, and debris across {tracks.frame_count} frames.",
         )
 
-    # Stage 3 — identify the truck (Spark OCR).
-    ocr = await ai.read_placard(h)
-    await _record(ledger, "spark_ocr", ai)
+    # Stage 3 (Spark OCR) and the Stage 5 debris class (Spark classify) are
+    # independent of each other and of the geometry, so they run concurrently.
+    ocr, classify = await asyncio.gather(ai.read_placard(clip), ai.classify_debris(clip))
+    await _record(ledger, "spark_ocr", ocr.usage)
     if trace:
         if ocr.truck_id:
             trace.stage(
@@ -168,7 +183,7 @@ async def _compute_pipeline(
     match = registry.lookup(ocr.truck_id)
     certified = match.truck.certified_cubic_yards if match.truck else Decimal(0)
     body_type = match.truck.body_type if match.truck else None
-    await _record(ledger, "capacity", ai)
+    await _record(ledger, "capacity")
     if trace:
         trace.stage(
             "capacity",
@@ -189,7 +204,7 @@ async def _compute_pipeline(
         [_mask_measurement(bed_area, load_area, debris.load_height_ratio)],
         body_type=body_type,
     )
-    await _record(ledger, "geometry", ai)
+    await _record(ledger, "geometry")
     if trace:
         trace.stage(
             "geometry",
@@ -198,8 +213,7 @@ async def _compute_pipeline(
             f"Measured bed fill at {fill.fill_pct}% from the segmentation masks.",
             confidence=fill.confidence,
         )
-    classify = await ai.classify_debris(h)
-    await _record(ledger, "spark_classify", ai)
+    await _record(ledger, "spark_classify", classify.usage)
     debris_class = _safe_debris_class(classify.debris_class)
     rate = Decimal(str(rate_table.get(debris_class.value, 0)))
     if trace:
@@ -246,8 +260,8 @@ async def _compute_pipeline(
     # Stage 6b — Muse Spark phrases a human narrative for each flag (PLAN.md §5,
     # §6). The rules already decided; the model only explains. Falls back to the
     # rule's own text if narration fails.
-    anomalies = await _narrate(anomalies, ai, ticket, ocr)
-    await _record(ledger, "anomalies", ai)
+    anomalies, narration_usage = await _narrate(anomalies, ai, ticket, ocr)
+    await _record(ledger, "anomalies", narration_usage)
     ticket.anomaly_count = len(anomalies)
     if trace:
         # Stage 6 — Flag anomalies (recorded before the Stage 7 valuation).
@@ -279,7 +293,7 @@ async def _compute_pipeline(
         )
         trace.anomaly_count = len(anomalies)
         trace.outcome = "drafted"
-    await _record(ledger, "dollar_math", ai)
+    await _record(ledger, "dollar_math")
     return PipelineResult(
         ticket=ticket,
         anomalies=anomalies,
@@ -293,20 +307,30 @@ async def _narrate(
     ai: AIClient,
     ticket: Ticket,
     ocr: OCRResult,
-) -> list[Anomaly]:
-    """Attach a Muse Spark narrative to each anomaly, grounded in the load facts."""
+) -> tuple[list[Anomaly], CallUsage | None]:
+    """Attach a Muse Spark narrative to each anomaly, grounded in the load facts.
+
+    Narrations run concurrently. A failed narration falls back to the rule's own
+    text, so narration can never break the pipeline. Returns the anomalies and
+    the summed usage of the narration calls (None when nothing was billed).
+    """
+    facts = {
+        "truck": ocr.truck_id or "unidentified",
+        "debris_class": ticket.debris_class.value,
+        "est_cy": str(ticket.est_cubic_yards),
+        "fill_pct": str(ticket.est_fill_pct),
+    }
+    results = await asyncio.gather(
+        *(ai.narrate_anomaly(a.type.value, facts) for a in anomalies), return_exceptions=True
+    )
     narrated: list[Anomaly] = []
-    for a in anomalies:
-        facts = {
-            "truck": ocr.truck_id or "unidentified",
-            "debris_class": ticket.debris_class.value,
-            "est_cy": str(ticket.est_cubic_yards),
-            "fill_pct": str(ticket.est_fill_pct),
-        }
-        try:
-            text = await ai.narrate_anomaly(a.type.value, facts)
-        except Exception:  # noqa: BLE001 — never let narration break the pipeline
-            text = a.explanation
+    usage: CallUsage | None = None
+    for a, r in zip(anomalies, results, strict=True):
+        text = a.explanation
+        if not isinstance(r, BaseException):
+            text = r.text or a.explanation
+            if r.usage is not None:
+                usage = r.usage if usage is None else usage.plus(r.usage)
         narrated.append(
             Anomaly(
                 type=a.type,
@@ -315,20 +339,31 @@ async def _narrate(
                 evidence_frame=a.evidence_frame,
             )
         )
-    return narrated
+    return narrated, usage
 
 
-async def _record(ledger: CostLedger | None, stage: str, ai: AIClient) -> None:
-    """Record a $0 ledger row for a stage.
+async def _record(ledger: CostLedger | None, stage: str, usage: CallUsage | None = None) -> None:
+    """Record one ledger row for a stage.
 
-    Deterministic stages and the fixture-backed MockAIClient cost nothing, so every
-    row here is ``cost_usd=0``. When the live SAM/Spark client is wired it will
-    surface real tokens/cost and this is where the orchestrator will record them.
+    AI stages pass the usage the client reported (real tokens, latency, and
+    dollars from the live client; a $0 ``cached`` row for a durable-cache
+    replay). Deterministic stages and the fixture-backed mock report nothing, so
+    their row is ``cost_usd=0``.
     """
     if ledger is None:
         return
-    model = _stage_model(stage)
-    await ledger.record_run(stage=stage, model=model, cost_usd=0.0, cached=False)
+    if usage is None:
+        await ledger.record_run(stage=stage, model=_stage_model(stage), cost_usd=0.0)
+        return
+    await ledger.record_run(
+        stage=stage,
+        model=usage.model or _stage_model(stage),
+        tokens_in=usage.tokens_in,
+        tokens_out=usage.tokens_out,
+        latency_ms=usage.latency_ms,
+        cost_usd=usage.cost_usd,
+        cached=usage.cached,
+    )
 
 
 async def _record_cached(ledger: CostLedger | None) -> None:

@@ -30,9 +30,12 @@ export function Metric({
   const color = tone ? `var(--color-${tone})` : undefined;
   return (
     <div
-      className="lt-card-shadow relative flex flex-col gap-3 overflow-hidden rounded-xl border bg-[var(--color-surface)] p-4"
+      className="lt-card-shadow relative flex flex-col gap-2.5 overflow-hidden rounded-xl border bg-[var(--color-surface)] p-3.5"
       style={{
-        borderColor: hero && color ? `color-mix(in srgb, ${color} 45%, var(--color-border))` : "var(--color-border)",
+        borderColor:
+          hero && color
+            ? `color-mix(in srgb, ${color} 45%, var(--color-border))`
+            : "var(--color-border)",
         ...(hero && color
           ? {
               background: `linear-gradient(160deg, color-mix(in srgb, ${color} 12%, var(--color-surface)), var(--color-surface) 65%)`,
@@ -42,10 +45,16 @@ export function Metric({
     >
       <div className="flex items-center justify-between gap-1.5">
         <span className="flex items-center gap-1.5">
-          <span className="text-[12px] font-medium text-[var(--color-muted-foreground)]">{label}</span>
+          <span className="text-[12px] font-medium text-[var(--color-muted-foreground)]">
+            {label}
+          </span>
           {hint && (
             <Tooltip content={hint}>
-              <span className="text-[var(--color-subtle)] hover:text-[var(--color-text)]" tabIndex={0} aria-label={hint}>
+              <span
+                className="text-[var(--color-subtle)] hover:text-[var(--color-text)]"
+                tabIndex={0}
+                aria-label={hint}
+              >
                 <InfoIcon size={13} />
               </span>
             </Tooltip>
@@ -56,7 +65,9 @@ export function Metric({
             className="grid size-7 place-items-center rounded-md"
             style={{
               color: color ?? "var(--color-subtle)",
-              backgroundColor: color ? `color-mix(in srgb, ${color} 12%, transparent)` : "var(--color-surface-2)",
+              backgroundColor: color
+                ? `color-mix(in srgb, ${color} 12%, transparent)`
+                : "var(--color-surface-2)",
             }}
           >
             {icon}
@@ -64,16 +75,22 @@ export function Metric({
         )}
       </div>
       <div
-        className={`font-bold tracking-tight tabular-nums leading-none ${hero ? "text-[32px]" : "text-[26px]"}`}
+        className={`font-bold tracking-tight tabular-nums leading-none ${hero ? "text-[28px]" : "text-[22px]"}`}
         style={{ color: hero && color ? color : "var(--color-text)" }}
       >
         {value}
       </div>
       {progress !== undefined && (
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-surface-3)]" aria-hidden>
+        <div
+          className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-surface-3)]"
+          aria-hidden
+        >
           <div
             className="h-full rounded-full transition-[width] duration-700"
-            style={{ width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%`, backgroundColor: color ?? "var(--color-accent)" }}
+            style={{
+              width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%`,
+              backgroundColor: color ?? "var(--color-accent)",
+            }}
           />
         </div>
       )}
