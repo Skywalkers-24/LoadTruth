@@ -3,12 +3,13 @@
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/shadcn/dropdown-menu";
 import { CheckIcon, MoonIcon, PaletteIcon, SunIcon } from "@/components/ui/icons";
-import { type ThemeMeta, useTheme } from "@/lib/theme";
+import { type Theme, type ThemeMeta, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 /** Three stacked color dots previewing a theme (bg · surface · accent). */
@@ -36,14 +37,13 @@ function ThemeRow({
   onSelect: () => void;
 }) {
   return (
-    <button
-      type="button"
-      role="menuitemradio"
+    <DropdownMenuItem
+      // Radix manages menu focus/keyboard + closes the menu on select; using the
+      // real menu item (not a raw <button>) is what makes selection actually fire.
+      onSelect={onSelect}
       aria-checked={active}
-      onClick={onSelect}
       className={cn(
-        "flex w-full items-center gap-3 rounded-md px-2 py-2 text-left outline-hidden transition-colors",
-        "hover:bg-accent focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]",
+        "flex w-full cursor-pointer items-center gap-3 rounded-md px-2 py-2",
         active && "bg-accent/60",
       )}
     >
@@ -55,7 +55,7 @@ function ThemeRow({
       <span className="flex size-4 shrink-0 items-center justify-center text-[var(--color-brand)]">
         {active ? <CheckIcon size={15} /> : null}
       </span>
-    </button>
+    </DropdownMenuItem>
   );
 }
 
@@ -69,6 +69,7 @@ export function ThemeToggle() {
 
   const darks = themes.filter((t) => t.scheme === "dark");
   const lights = themes.filter((t) => t.scheme === "light");
+  const choose = (id: Theme) => setTheme(id);
 
   return (
     <DropdownMenu>
@@ -95,7 +96,7 @@ export function ThemeToggle() {
             key={meta.id}
             meta={meta}
             active={theme === meta.id}
-            onSelect={() => setTheme(meta.id)}
+            onSelect={() => choose(meta.id)}
           />
         ))}
 
@@ -109,7 +110,7 @@ export function ThemeToggle() {
             key={meta.id}
             meta={meta}
             active={theme === meta.id}
-            onSelect={() => setTheme(meta.id)}
+            onSelect={() => choose(meta.id)}
           />
         ))}
       </DropdownMenuContent>
