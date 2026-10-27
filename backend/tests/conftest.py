@@ -27,6 +27,15 @@ from app.tickets.repository import SqlTicketRepository
 from app.tickets.seed import DEMO_TENANT_ID, seed_demo
 
 
+@pytest.fixture(autouse=True)
+def _no_meta_api_log(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Tests never append to the real logs/meta_api.jsonl."""
+    monkeypatch.setenv("MODEL_API_LOG_PATH", "")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
 def make_session(role: str = "super_admin", email: str = "test@loadtruth.io") -> Session:
     """A test session identity for the demo tenant with the given role."""
     return Session(

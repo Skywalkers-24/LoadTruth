@@ -39,6 +39,10 @@ services:
       # key the pipeline replays recorded fixtures at zero cost. Set MOCK_AI=1
       # in .env to force fixtures even with a key.
       MOCK_AI: "${MOCK_AI:-0}"
+      # Every Meta API exchange is appended here (redacted); ./logs on the host.
+      MODEL_API_LOG_PATH: /app/logs/meta_api.jsonl
+    volumes:
+      - ./logs:/app/logs
     ports:
       - "8000:8000"
     depends_on:

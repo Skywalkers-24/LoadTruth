@@ -100,6 +100,12 @@ class Settings(BaseSettings):
     transcode_timeout_s: float = Field(default=180.0)
     # Uploaded clips are deleted after the run; this expiry is the safety net.
     media_file_ttl_s: int = Field(default=3600)
+    # Every Meta API exchange is appended here as one JSON line (app/ai/api_log.py).
+    # Empty disables recording. Media bytes and the key are never written.
+    model_api_log_path: str = Field(
+        default=str(_REPO_ROOT / "logs" / "meta_api.jsonl"), alias="MODEL_API_LOG_PATH"
+    )
+    model_api_log_max_chars: int = Field(default=200_000)
     # Hard cap on keyframes sampled from any one clip (bounds SAM frame cost and
     # memory for a long video, regardless of fps/duration).
     max_sampled_frames: int = Field(default=120)

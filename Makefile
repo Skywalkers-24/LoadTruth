@@ -14,6 +14,7 @@
 #   make down    stop the Docker stack
 #   make logs    follow the Docker logs
 #   make live-check [CLIP=path]  verify the Meta key, optionally run one clip live
+#   make meta-log [N=50]         summarize logs/meta_api.jsonl (every Meta call)
 #
 # Backend commands assume the venv at backend/.venv (see scripts/setup.sh).
 
@@ -22,7 +23,7 @@ FRONTEND := frontend
 PY := $(BACKEND)/.venv/bin
 
 .DEFAULT_GOAL := check
-.PHONY: check fmt test ci check-be check-fe test-be test-fe up down logs live-check
+.PHONY: check fmt test ci check-be check-fe test-be test-fe up down logs live-check meta-log
 
 # ── Run the app (always Docker, standard ports) ─────────────────────────────
 up:
@@ -38,6 +39,10 @@ logs:
 # ffmpeg is available; start the stack first with `make up`.
 live-check:
 	@./scripts/live-check.sh --docker $(CLIP)
+
+# One line per recorded Meta API call (full exchanges in logs/meta_api.jsonl).
+meta-log:
+	@./scripts/meta-log.sh $(N)
 
 # ── Fast local checks (low friction) ────────────────────────────────────────
 check: check-be check-fe ## Fast lint only — no type-check, no coverage.

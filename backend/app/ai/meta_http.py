@@ -21,12 +21,14 @@ import asyncio
 import json
 import re
 import time
+from collections import Counter
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, cast
 
 import httpx
 
+from app.ai import api_log
 from app.log import get_logger
 
 log = get_logger("ai.meta_http")
@@ -75,6 +77,8 @@ class StreamedText:
     text: str
     usage: dict[str, Any] = field(default_factory=dict)
     latency_ms: float = 0.0
+    # How many of each event type the stream carried (recorded for learning).
+    event_counts: dict[str, int] = field(default_factory=dict)
 
 
 def output_text(response: Mapping[str, Any]) -> str:
@@ -131,9 +135,11 @@ class _SSECollector:
         self.final: str | None = None
         self.usage: dict[str, Any] = {}
         self.completed = False
+        self.events: Counter[str] = Counter()
 
     def accept(self, event: Mapping[str, Any]) -> None:
         kind = str(event.get("type") or "")
+        self.events[kind] += 1
         if kind == "response.output_text.delta":
             self.deltas.append(str(event.get("delta") or ""))
         elif kind == "response.output_text.done":
@@ -272,7 +278,67 @@ class MetaHTTP:
 
     async def create_response(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         """Non-streaming ``POST /responses``. Raises unless the status is completed."""
+        timer = api_log.Timer()
+        try:
+            body = await self._create_response(payload)
+        except ModelAPIError as exc:
+            await api_log.record(
+                "responses", request=payload, status=exc.status, latency_ms=timer.ms, error=exc
+            )
+            raise
+        await api_log.record(
+            "responses",
+            request=payload,
+            status=200,
+            latency_ms=timer.ms,
+            usage=body.get("usage") if isinstance(body.get("usage"), Mapping) else None,
+            output_text=output_text(body),
+            response=body,
+        )
+        return body
 
+    async def stream_response(self, payload: Mapping[str, Any]) -> StreamedText:
+        """Streamed ``POST /responses``; returns the final text and usage."""
+        timer = api_log.Timer()
+        try:
+            out = await self._stream_response(payload)
+        except ModelAPIError as exc:
+            await api_log.record(
+                "responses.stream",
+                request=payload,
+                status=exc.status,
+                latency_ms=timer.ms,
+                error=exc,
+            )
+            raise
+        await api_log.record(
+            "responses.stream",
+            request=payload,
+            status=200,
+            latency_ms=timer.ms,
+            usage=out.usage,
+            output_text=out.text,
+            extra={"stream_events": out.event_counts},
+        )
+        return out
+
+    async def upload_file(self, data: bytes, *, filename: str, mime: str, ttl_s: int) -> str:
+        """Upload bytes to the Files API and return the ``file-…`` id."""
+        timer = api_log.Timer()
+        meta = {"filename": filename, "mime": mime, "bytes": len(data), "ttl_s": ttl_s}
+        try:
+            file_id = await self._upload_file(data, filename=filename, mime=mime, ttl_s=ttl_s)
+        except ModelAPIError as exc:
+            await api_log.record(
+                "files.upload", status=exc.status, latency_ms=timer.ms, error=exc, extra=meta
+            )
+            raise
+        await api_log.record(
+            "files.upload", status=200, latency_ms=timer.ms, extra={**meta, "file_id": file_id}
+        )
+        return file_id
+
+    async def _create_response(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         async def call() -> dict[str, Any]:
             resp = await self._http().post("/responses", json=dict(payload))
             _raise_for_status(resp)
@@ -287,8 +353,7 @@ class MetaHTTP:
             raise ModelAPIResponseError(_stream_failure({"response": body}), code=str(status))
         return body
 
-    async def stream_response(self, payload: Mapping[str, Any]) -> StreamedText:
-        """Streamed ``POST /responses``; returns the final text and usage."""
+    async def _stream_response(self, payload: Mapping[str, Any]) -> StreamedText:
         body = {**payload, "stream": True}
 
         async def call() -> StreamedText:
@@ -305,13 +370,13 @@ class MetaHTTP:
             if not collector.completed:
                 raise ModelAPIResponseError("The response stream ended before it completed.")
             latency = (time.perf_counter() - started) * 1000
-            return StreamedText(collector.text(), collector.usage, round(latency, 1))
+            return StreamedText(
+                collector.text(), collector.usage, round(latency, 1), dict(collector.events)
+            )
 
         return await self._retrying("responses.stream", call)
 
-    async def upload_file(self, data: bytes, *, filename: str, mime: str, ttl_s: int) -> str:
-        """Upload bytes to the Files API and return the ``file-…`` id."""
-
+    async def _upload_file(self, data: bytes, *, filename: str, mime: str, ttl_s: int) -> str:
         async def call(with_expiry: bool) -> str:
             form: dict[str, str] = {"purpose": "user_data"}
             if with_expiry:
@@ -335,9 +400,19 @@ class MetaHTTP:
 
     async def delete_file(self, file_id: str) -> None:
         """Best-effort ``DELETE /files/{id}``; failures are logged, not raised."""
+        timer = api_log.Timer()
         try:
             resp = await self._http().delete(f"/files/{file_id}")
             if resp.status_code >= 400 and resp.status_code != 404:
                 log.warning("model_api_file_delete_failed", status=resp.status_code)
-        except httpx.HTTPError:
+            await api_log.record(
+                "files.delete",
+                status=resp.status_code,
+                latency_ms=timer.ms,
+                extra={"file_id": file_id},
+            )
+        except httpx.HTTPError as exc:
             log.warning("model_api_file_delete_failed", exc_info=True)
+            await api_log.record(
+                "files.delete", latency_ms=timer.ms, error=exc, extra={"file_id": file_id}
+            )
