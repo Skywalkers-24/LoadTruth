@@ -18,7 +18,7 @@ import {
   SettingsIcon,
   XIcon,
 } from "@/components/ui/icons";
-import { BookOpenIcon, LogOutIcon, PanelLeftIcon, PlusIcon } from "lucide-react";
+import { ActivityIcon, BookOpenIcon, LogOutIcon, PanelLeftIcon, PlusIcon, SparklesIcon } from "lucide-react";
 
 import type { Capabilities } from "@/lib/api";
 import { Kbd } from "@/components/ui/kbd";
@@ -48,6 +48,8 @@ const NAV: NavItem[] = [
   { href: "/", label: "Overview", short: "Overview", icon: GaugeIcon },
   { href: "/console", label: "Review Console", short: "Review", icon: ClipboardIcon, badge: true },
   { href: "/add", label: "New Ticket", short: "New", icon: PlusIcon, cap: "ingest" },
+  { href: "/assistant", label: "AI Analyst", short: "Analyst", icon: SparklesIcon },
+  { href: "/pipeline", label: "AI Pipeline", short: "Pipeline", icon: ActivityIcon },
   { href: "/reports", label: "Reports", short: "Reports", icon: ChartIcon },
   { href: "/admin", label: "Admin", short: "Admin", icon: SettingsIcon, cap: "manage_events" },
   { href: "/guide", label: "Guide", short: "Guide", icon: BookOpenIcon },
@@ -98,7 +100,7 @@ export function AppShell({ children, section }: { children: ReactNode; section: 
       className="min-h-dvh lg:grid lg:h-dvh lg:overflow-hidden"
       style={{ gridTemplateColumns: collapsed ? "72px 1fr" : "248px 1fr" }}
     >
-      <aside className="sticky top-0 z-20 hidden h-dvh flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200 lg:flex">
+      <aside className="sticky top-0 z-20 hidden h-dvh flex-col border-r border-sidebar-border bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-sidebar)_100%,white_2%),var(--color-sidebar))] text-sidebar-foreground shadow-[1px_0_0_rgba(255,255,255,0.03),8px_0_28px_-16px_rgba(0,0,0,0.6)] transition-[width] duration-200 lg:flex">
         <RailContent pathname={pathname} collapsed={collapsed} onToggle={toggleCollapse} />
       </aside>
 
@@ -140,7 +142,7 @@ export function AppShell({ children, section }: { children: ReactNode; section: 
 function Brand({ collapsed }: { collapsed: boolean }) {
   return (
     <Link href="/" className="flex items-center gap-2.5 rounded-md" aria-label="LoadTruth home">
-      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--color-brand-fill)] text-white shadow-[0_6px_16px_-4px_var(--color-brand)]">
+      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[linear-gradient(140deg,var(--color-brand-strong),var(--color-brand-fill))] text-white ring-1 ring-white/10">
         <LogoMark size={20} className="text-white" />
       </span>
       {!collapsed && (
@@ -199,11 +201,11 @@ function RailContent({
 
       <nav className="min-h-0 flex-1 overflow-y-auto px-3" aria-label="Primary">
         {!collapsed && (
-          <div className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-muted">
+          <div className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color-mix(in_srgb,var(--color-sidebar-foreground)_42%,transparent)]">
             Workspace
           </div>
         )}
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col gap-0.5">
           {items.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
@@ -212,15 +214,21 @@ function RailContent({
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group relative flex items-center rounded-xl text-[13.5px] font-medium transition-all",
-                  collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
+                  "group relative flex items-center rounded-lg text-[13.5px] font-medium transition-colors duration-150",
+                  collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2",
                   active
-                    ? "bg-[var(--color-brand-fill)] text-white shadow-[0_8px_20px_-8px_var(--color-brand)]"
-                    : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                    ? "bg-[linear-gradient(180deg,var(--color-brand-strong),var(--color-brand-fill))] text-white shadow-[0_4px_12px_-4px_color-mix(in_srgb,var(--color-brand)_60%,transparent)]"
+                    : "text-[color-mix(in_srgb,var(--color-sidebar-foreground)_72%,transparent)] hover:bg-white/[0.06] hover:text-sidebar-foreground",
                 )}
               >
                 <span className="relative">
-                  <Icon size={18} className={active ? "text-white" : "text-current"} />
+                  <Icon
+                    size={18}
+                    className={cn(
+                      "transition-colors",
+                      active ? "text-white" : "text-current opacity-80 group-hover:opacity-100",
+                    )}
+                  />
                   {collapsed && item.badge && pending > 0 && (
                     <span className="absolute -right-2 -top-1.5 rounded-full bg-[var(--color-brand-fill)] px-1 text-[9px] font-bold text-white">
                       {pending}
@@ -232,7 +240,9 @@ function RailContent({
                   <span
                     className={cn(
                       "rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
-                      active ? "bg-white/20 text-white" : "bg-[var(--color-brand-fill)] text-white",
+                      active
+                        ? "bg-white/20 text-white"
+                        : "bg-[var(--color-brand)]/15 text-[var(--color-brand-strong)]",
                     )}
                     aria-label={`${pending} awaiting review`}
                   >
@@ -257,17 +267,17 @@ function RailContent({
         </ul>
       </nav>
 
-      <div className="flex flex-col gap-2 border-t border-sidebar-border p-3">
+      <div className="flex flex-col gap-2 border-t border-white/[0.06] p-3">
         {!collapsed && (
           <button
             type="button"
             onClick={palette.open}
-            className="flex items-center justify-between rounded-xl border border-sidebar-border bg-sidebar-accent/50 px-3 py-2 text-[12px] text-sidebar-muted transition-colors hover:text-sidebar-foreground"
+            className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-[12px] text-sidebar-muted transition-colors hover:border-white/10 hover:bg-white/[0.06] hover:text-sidebar-foreground"
           >
             <span className="flex items-center gap-2">
               <SearchIcon size={14} /> Quick search
             </span>
-            <kbd className="rounded border border-sidebar-border px-1 text-[10px] text-sidebar-muted">⌘K</kbd>
+            <kbd className="rounded border border-white/10 bg-white/[0.04] px-1 text-[10px] text-sidebar-muted">⌘K</kbd>
           </button>
         )}
         <UserFooter collapsed={collapsed} />

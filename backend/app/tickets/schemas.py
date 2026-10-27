@@ -122,6 +122,15 @@ class MonitorCallIn(BaseModel):
     monitor_fill_pct: Decimal = Field(ge=0, le=100)
 
 
+class AnomalyOut(BaseModel):
+    """One anomaly flag with its AI-written narrative (Stage 6 / §6)."""
+
+    type: str
+    severity: str
+    explanation: str
+    evidence_frame: str | None = None
+
+
 class TicketOut(BaseModel):
     """A load ticket as returned by the API, with its valuation embedded."""
 
@@ -137,6 +146,9 @@ class TicketOut(BaseModel):
     confirmed_fill_pct: Decimal | None = None
     evidence_frames: list[str] = Field(default_factory=list)
     anomaly_count: int = 0
+    # Itemized flags with their narratives. Populated on the single-ticket GET;
+    # empty on list responses (where only the count is carried).
+    anomalies: list[AnomalyOut] = Field(default_factory=list)
     valuation: ValuationOut
     created_at: datetime
 

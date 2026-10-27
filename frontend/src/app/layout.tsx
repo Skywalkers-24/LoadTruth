@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     template: "%s · LoadTruth",
   },
   description:
-    "Video-verified load tickets for disaster-debris hauling paid by the cubic yard. Measure truck-bed fill from camera evidence and produce auditable payment records.",
+    "LoadTruth is a multi-tenant platform for disaster-debris hauling. It measures every truckload from the footage, checks it against the monitor's call, and produces FEMA-ready payment records.",
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },

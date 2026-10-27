@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRightIcon, Loader2Icon, ShieldCheckIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  BuildingIcon,
+  DollarSignIcon,
+  FileCheck2Icon,
+  Loader2Icon,
+  ScanEyeIcon,
+  ShieldAlertIcon,
+  SparklesIcon,
+} from "lucide-react";
 
 import { getDirectory, type DirectoryMember, type Role } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -69,25 +78,70 @@ export function LoginScreen() {
           }}
         />
         <div className="relative flex items-center gap-2.5">
-          <span className="grid size-10 place-items-center rounded-xl bg-[var(--color-brand-fill)] text-white shadow-[0_8px_24px_-6px_var(--color-brand)]">
+          <span className="grid size-10 place-items-center rounded-xl bg-[linear-gradient(140deg,var(--color-brand-strong),var(--color-brand-fill))] text-white ring-1 ring-white/10">
             <LogoMark size={22} className="text-white" />
           </span>
           <span className="text-[18px] font-bold tracking-tight">LoadTruth</span>
         </div>
-        <div className="relative flex flex-col gap-4">
+
+        <div className="relative flex flex-col gap-5">
+          <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--color-brand-strong)]">
+            Disaster-debris billing, verified
+          </span>
           <h1 className="max-w-md text-[30px] font-semibold leading-tight tracking-tight">
-            Video-verified load tickets, measured by the cubic yard.
+            Every debris haul, measured and paid on the evidence.
           </h1>
-          <p className="max-w-md text-[14px] leading-relaxed text-sidebar-muted">
-            Measure truck-bed fill from camera evidence, compare it to the monitor call, and produce
-            an auditable payment record for every load.
+          <p className="max-w-lg text-[14px] leading-relaxed text-sidebar-muted">
+            After a hurricane or wildfire, counties pay contractors by the cubic yard to clear debris. LoadTruth
+            measures each truckload from the footage, checks it against the monitor&apos;s call, and turns it into
+            a payment record that stands up to a FEMA audit.
           </p>
-          <div className="mt-2 flex items-center gap-2 text-[13px] text-sidebar-muted">
-            <ShieldCheckIcon className="size-4 text-[var(--color-brand-strong)]" />
-            Role-based access is enforced on every action.
+
+          {/* Stat strip — the numbers that make the case */}
+          <div className="grid max-w-lg grid-cols-3 gap-3">
+            <Stat value="$1,402" label="Over-calls caught per event" />
+            <Stat value="7-stage" label="AI pipeline per clip" />
+            <Stat value="100%" label="Decisions traced to evidence" />
           </div>
+
+          <ul className="grid max-w-xl grid-cols-2 gap-x-5 gap-y-3.5">
+            <Feature
+              icon={<ScanEyeIcon className="size-4" />}
+              title="Measured from the footage"
+              body="SAM 3.1 segments the bed and load; Muse reads the placard and classifies the debris."
+            />
+            <Feature
+              icon={<DollarSignIcon className="size-4" />}
+              title="The money frame"
+              body="Measured value against the monitor's call, with the exact dollar delta on every ticket."
+            />
+            <Feature
+              icon={<ShieldAlertIcon className="size-4" />}
+              title="Anomaly detection"
+              body="Over-calls, hollow loads, capacity exceeded, and unreadable placards flagged automatically."
+            />
+            <Feature
+              icon={<SparklesIcon className="size-4" />}
+              title="AI analyst, grounded"
+              body="Ask about exposure, disputes, or accuracy and get answers from your own data, with its work shown."
+            />
+            <Feature
+              icon={<FileCheck2Icon className="size-4" />}
+              title="Audit-ready exports"
+              body="Signed tickets, anomaly logs, and CSV plus FEMA-style packets, ready for review."
+            />
+            <Feature
+              icon={<BuildingIcon className="size-4" />}
+              title="Multi-tenant SaaS"
+              body="Each agency runs its own events, trucks, rates, and team with role-based access."
+            />
+          </ul>
         </div>
-        <div className="relative text-[12px] text-sidebar-muted">Sample workspace. Not real haul records.</div>
+
+        <div className="relative flex items-center gap-2 text-[12px] text-sidebar-muted">
+          <span className="size-1.5 rounded-full bg-[var(--color-brand-strong)]" aria-hidden />
+          Powered by Meta SAM 3.1 and Muse
+        </div>
       </div>
 
       {/* Sign-in panel */}
@@ -159,5 +213,28 @@ export function LoginScreen() {
         </div>
       </div>
     </div>
+  );
+}
+
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5">
+      <div className="text-[18px] font-bold tabular-nums text-sidebar-foreground">{value}</div>
+      <div className="mt-0.5 text-[11px] leading-tight text-sidebar-muted">{label}</div>
+    </div>
+  );
+}
+
+function Feature({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+  return (
+    <li className="flex gap-3">
+      <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-white/[0.06] text-[var(--color-brand-strong)] ring-1 ring-white/[0.06]">
+        {icon}
+      </span>
+      <span className="flex flex-col">
+        <span className="text-[13.5px] font-semibold text-sidebar-foreground">{title}</span>
+        <span className="text-[12.5px] leading-relaxed text-sidebar-muted">{body}</span>
+      </span>
+    </li>
   );
 }

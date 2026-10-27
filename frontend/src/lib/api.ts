@@ -50,8 +50,17 @@ export interface Ticket {
   confirmed_fill_pct: string | null;
   evidence_frames: string[];
   anomaly_count: number;
+  /** Itemized flags with AI narratives; populated on the single-ticket GET. */
+  anomalies?: AnomalyItem[];
   valuation: Valuation;
   created_at: string;
+}
+
+export interface AnomalyItem {
+  type: string;
+  severity: "info" | "warn" | "high";
+  explanation: string;
+  evidence_frame: string | null;
 }
 
 export interface EventSummary {
@@ -338,6 +347,191 @@ export async function logout(): Promise<void> {
   await request<void>("/auth/logout", { method: "POST" });
 }
 
+// ── AI analyst chat + system insight ──
+export interface PipelineStats {
+  total_runs: number;
+  cache_hits: number;
+  cache_hit_rate: number;
+  per_stage: Record<string, number>;
+  spent_usd: number;
+  hard_cap_usd: number;
+  remaining_usd: number;
+  soft_cap_hit: boolean;
+  hard_cap_hit: boolean;
+  mode: "live" | "fixtures";
+  sam_model: string;
+  spark_model: string;
+}
+
+export function getPipelineStats(): Promise<PipelineStats> {
+  return request<PipelineStats>("/system/pipeline");
+}
+
+export interface PipelineStage {
+  key: string;
+  label: string;
+  model: string;
+  status: "ok" | "skipped" | "flagged";
+  summary: string;
+  confidence: number | null;
+  duration_ms: number;
+}
+
+export interface PipelineJob {
+  content_hash: string;
+  event_id: string;
+  ticket_id: string | null;
+  truck_id: string | null;
+  debris_class: string | null;
+  outcome: "running" | "drafted" | "no_truck" | "cached";
+  cached: boolean;
+  anomaly_count: number;
+  dollar_value: number | null;
+  started_at: number;
+  stages: PipelineStage[];
+}
+
+export function getPipelineJobs(eventId?: string): Promise<PipelineJob[]> {
+  const q = eventId ? `?event_id=${eventId}&limit=50` : "?limit=50";
+  return request<PipelineJob[]>(`/system/jobs${q}`);
+}
+
+export function getJobForTicket(ticketId: string): Promise<PipelineJob | null> {
+  return request<PipelineJob | null>(`/system/jobs/ticket/${ticketId}`);
+}
+
+/** The persisted AI pipeline trace for a ticket (always available, from the DB). */
+export function getTicketPipeline(ticketId: string): Promise<PipelineStage[]> {
+  return request<PipelineStage[]>(`/tickets/${ticketId}/pipeline`);
+}
+
+// ── AI model & reasoning-effort configuration (admin) ──
+export type ReasoningEffort = "minimal" | "low" | "balanced" | "high" | "max";
+export type CostMode = "standard" | "contributor";
+
+export interface ModelPricing {
+  input: number | null;
+  cached_input: number | null;
+  output: number | null;
+  unit: string;
+}
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  kind: string;
+  context_tokens: number | null;
+  modalities: string[];
+  description: string;
+  efforts: ReasoningEffort[];
+  cost_modes: CostMode[];
+  pricing: ModelPricing | null;
+  premium: boolean;
+  available: boolean;
+}
+
+export interface TaskInfo {
+  id: string;
+  name: string;
+  description: string;
+  kind: string;
+  eligible_models: string[];
+  default_model: string;
+  default_effort: ReasoningEffort;
+  default_cost_mode: CostMode;
+  supports_effort: boolean;
+}
+
+export interface TaskConfig {
+  task_id: string;
+  model: string;
+  effort: ReasoningEffort;
+  cost_mode: CostMode;
+  max_output_tokens: number | null;
+}
+
+export interface AiConfigResponse {
+  catalog: {
+    models: ModelInfo[];
+    tasks: TaskInfo[];
+    efforts: ReasoningEffort[];
+    cost_modes: CostMode[];
+  };
+  config: TaskConfig[];
+}
+
+export interface TaskConfigUpdate {
+  model?: string;
+  effort?: ReasoningEffort;
+  cost_mode?: CostMode;
+  max_output_tokens?: number | null;
+}
+
+export function getAiConfig(): Promise<AiConfigResponse> {
+  return request<AiConfigResponse>("/system/ai-config");
+}
+
+export function getChatStarters(): Promise<{ prompts: string[] }> {
+  return request<{ prompts: string[] }>("/chat/starters");
+}
+
+export interface ChatEvents {
+  onTool?: (tool: string) => void;
+  onToken?: (text: string) => void;
+  onDone?: (suggestions: string[]) => void;
+  onError?: (message: string) => void;
+}
+
+/**
+ * Stream an analyst answer over SSE. Parses `event:`/`data:` frames and invokes
+ * the callbacks. Returns a function to abort the stream.
+ */
+export function streamChat(
+  body: { event_id: string; message: string; event_name?: string },
+  handlers: ChatEvents,
+): () => void {
+  const controller = new AbortController();
+  (async () => {
+    try {
+      const res = await fetch(`${baseUrl()}/chat`, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "content-type": "application/json",
+          ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok || !res.body) {
+        handlers.onError?.(`chat failed (${res.status})`);
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() ?? "";
+        for (const frame of frames) {
+          const ev = /event:\s*(.+)/.exec(frame)?.[1]?.trim();
+          const dataLine = /data:\s*(.+)/.exec(frame)?.[1];
+          if (!ev || !dataLine) continue;
+          const data = JSON.parse(dataLine);
+          if (ev === "tool") handlers.onTool?.(data.tool);
+          else if (ev === "token") handlers.onToken?.(data.text);
+          else if (ev === "done") handlers.onDone?.(data.suggestions ?? []);
+        }
+      }
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") handlers.onError?.(String(err));
+    }
+  })();
+  return () => controller.abort();
+}
+
 async function upload<T>(path: string, file: File): Promise<T> {
   const form = new FormData();
   form.append("file", file);
@@ -381,6 +575,9 @@ export const api = {
   reportsSummary: (eventId: string) =>
     request<ReportsSummary>(`/events/${eventId}/reports/summary`),
   ingest: (eventId: string, file: File) => upload<Ticket>(`/events/${eventId}/ingest`, file),
+  getPipelineJobs,
+  getJobForTicket,
+  getTicketPipeline,
   /** Absolute-via-rewrite URLs for the downloadable exports. */
   exportCsvUrl: (eventId: string) => `${baseUrl()}/events/${eventId}/export.csv`,
   auditPacketUrl: (eventId: string) => `${baseUrl()}/events/${eventId}/audit-packet.html`,
@@ -406,6 +603,16 @@ export const api = {
   updateUser: (id: string, body: Partial<UserInput>) =>
     request<User>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   deleteUser: (id: string) => request<void>(`/users/${id}`, { method: "DELETE" }),
+
+  // Admin — AI models & reasoning effort
+  getAiConfig,
+  updateAiConfig: (taskId: string, body: TaskConfigUpdate) =>
+    request<TaskConfig>(`/system/ai-config/${taskId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  resetAiConfig: (taskId: string) =>
+    request<TaskConfig>(`/system/ai-config/${taskId}/reset`, { method: "POST" }),
 
   // Admin — sources
   listSources: (eventId: string) => request<Source[]>(`/events/${eventId}/sources`),

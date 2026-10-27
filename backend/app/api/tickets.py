@@ -12,12 +12,14 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_manage_events, can_review_tickets
 from app.tickets.repository import EventNotFoundError, TicketNotFoundError
 from app.tickets.schemas import (
+    AnomalyOut,
     DashboardOut,
     DebrisClass,
     EventIn,
@@ -122,11 +124,55 @@ async def list_tickets(
 
 @router.get("/tickets/{ticket_id}", response_model=TicketOut)
 async def get_ticket(repo: Repository, tenant: ActiveTenant, ticket_id: UUID) -> TicketOut:
-    """Fetch a single ticket with its valuation and evidence frames."""
+    """Fetch a single ticket with its valuation, evidence, and itemized flags."""
     try:
-        return ticket_to_out(await repo.get_ticket(tenant, ticket_id))
+        ticket = await repo.get_ticket(tenant, ticket_id)
     except TicketNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
+    out = ticket_to_out(ticket)
+    rows = await repo.list_anomalies_for_ticket(tenant, ticket_id)
+    out.anomalies = [
+        AnomalyOut(
+            type=r.type,
+            severity=r.severity,
+            explanation=r.explanation or "",
+            evidence_frame=r.evidence_frame,
+        )
+        for r in rows
+    ]
+    return out
+
+
+class PipelineStageOut(BaseModel):
+    """One persisted AI pipeline stage for a ticket."""
+
+    key: str
+    label: str
+    model: str
+    status: str
+    summary: str
+    confidence: float | None = None
+    duration_ms: float = 0.0
+
+
+@router.get("/tickets/{ticket_id}/pipeline", response_model=list[PipelineStageOut])
+async def ticket_pipeline(
+    repo: Repository, tenant: ActiveTenant, ticket_id: UUID
+) -> list[PipelineStageOut]:
+    """The persisted AI pipeline trace for a ticket (how its numbers were produced)."""
+    rows = await repo.list_pipeline_stages(tenant, ticket_id)
+    return [
+        PipelineStageOut(
+            key=r.stage_key,
+            label=r.label,
+            model=r.model,
+            status=r.status,
+            summary=r.summary,
+            confidence=float(r.confidence) if r.confidence is not None else None,
+            duration_ms=float(r.duration_ms),
+        )
+        for r in rows
+    ]
 
 
 @router.patch(

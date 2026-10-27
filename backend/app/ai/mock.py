@@ -33,7 +33,14 @@ class MockAIClient:
 
     def _scenario(self, content_hash: str) -> dict[str, Any]:
         fixtures = _load_fixtures()
-        return fixtures.get(content_hash, fixtures[_DEFAULT_KEY])
+        if content_hash in fixtures:
+            return fixtures[content_hash]
+        # Unknown clip (a real upload): deterministically pick a *positive*
+        # scenario from the content hash so each upload drafts a believable
+        # ticket (varied truck/debris/fill), never the empty no-truck fixture.
+        positives = [k for k in fixtures if k != "no-truck"] or [_DEFAULT_KEY]
+        idx = int(content_hash[:8], 16) % len(positives) if content_hash else 0
+        return fixtures[positives[idx]]
 
     async def track(self, content_hash: str) -> TrackResult:
         t = self._scenario(content_hash)["track"]
@@ -64,12 +71,43 @@ class MockAIClient:
         )
 
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> str:
-        # Deterministic, fixture-style narrative (no model). The live client asks
-        # Muse Spark to phrase the same facts; the decision was already made by
-        # the rules in app.pipeline.anomalies.
-        detail = "; ".join(f"{k}={v}" for k, v in sorted(facts.items()))
-        return (
-            f"[{anomaly_type}] flagged for review ({detail})."
-            if detail
-            else (f"[{anomaly_type}] flagged for review.")
+        # Deterministic, grounded narrative standing in for Muse Spark. The rules
+        # in app.pipeline.anomalies already decided; this only phrases the facts
+        # into a sentence a monitor can read. The live client asks Muse Spark to
+        # phrase the same facts.
+        truck = facts.get("truck", "the truck")
+        fill = facts.get("fill_pct", "?")
+        cy = facts.get("est_cy", "?")
+        templates = {
+            "uncertified_truck": (
+                f"Truck {truck} has no active certification in the registry. "
+                "Verify the truck before certifying this ticket."
+            ),
+            "identity_unreadable": (
+                "The placard could not be read confidently from the evidence. "
+                "Identify the truck manually before certifying."
+            ),
+            "capacity_exceeded": (
+                f"The measured load ({cy} CY) exceeds this truck's certified capacity. "
+                "Check the evidence for an overfilled or misidentified truck."
+            ),
+            "hollow_load": (
+                f"The load covers most of the bed opening but credits only {fill}% fill, "
+                "which can indicate a hollow or fluffed load. Review the surface against the depth."
+            ),
+            "low_confidence": (
+                f"Fill-estimate confidence is low for this load (measured near {fill}%), "
+                "likely from occlusion or extreme fill. Confirm the measurement manually."
+            ),
+            "impossible_cycle": (
+                f"Truck {truck} recorded two loads closer together than a realistic round trip "
+                "for this site. Check for a duplicate or mislabeled capture."
+            ),
+            "duplicate_truck": (
+                f"Truck {truck} appears on overlapping loads. Confirm these are distinct hauls."
+            ),
+        }
+        return templates.get(
+            anomaly_type,
+            f"This load was flagged for review ({anomaly_type.replace('_', ' ')}).",
         )
