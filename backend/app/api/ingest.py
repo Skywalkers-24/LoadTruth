@@ -13,10 +13,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 
 from app.ai import get_ai_client
+from app.ai.cached_client import CachingAIClient
 from app.ai.live import LiveAINotWiredError
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_ingest
+from app.config import get_settings
 from app.log import get_logger
 from app.pipeline.cache import InMemoryResultCache
 from app.pipeline.frames import sample_frames
@@ -107,6 +109,15 @@ async def ingest_clip(
         ]
     )
 
+    # Wrap the model client in the durable, content-hash-keyed cache so each
+    # vision stage runs at most once per clip, ever. On a re-ingest (or after a
+    # restart) the raw outputs are replayed from the DB with no model call and
+    # no media sent. The process-local result cache below is now just a fast
+    # same-process shortcut layered on top of that durable store.
+    settings = get_settings()
+    model_label = f"{settings.sam_model} · {settings.spark_model}"
+    ai = CachingAIClient(get_ai_client(), repo, tenant, model_label=model_label)
+
     try:
         result = await run_pipeline(
             artifact=artifact,
@@ -114,7 +125,7 @@ async def ingest_clip(
             event_id=event_id,
             registry=registry,
             rate_table=event.rate_table,
-            ai=get_ai_client(),
+            ai=ai,
             cache=get_pipeline_cache(),
             ledger=get_cost_ledger(),
         )

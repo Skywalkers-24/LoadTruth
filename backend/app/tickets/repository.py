@@ -364,6 +364,66 @@ class SqlTicketRepository:
         )
         return sorted(rows, key=lambda r: int(r.position))
 
+    async def get_ai_stage_result(
+        self, tenant_id: UUID, content_hash: str, stage_key: str
+    ) -> dict[str, object] | None:
+        """The persisted raw output of one AI stage for a clip, or None on a miss.
+
+        This is the read side of "run the vision model once, forever": when a row
+        exists for ``(tenant, content_hash, stage)`` the pipeline replays it with
+        no model call. Tenant-scoped so one tenant never reads another's results.
+        """
+        row = (
+            await self._s.execute(
+                select(models.AIStageResult)
+                .where(models.AIStageResult.tenant_id == tenant_id)
+                .where(models.AIStageResult.content_hash == content_hash)
+                .where(models.AIStageResult.stage_key == stage_key)
+            )
+        ).scalar_one_or_none()
+        return dict(row.result_json) if row is not None else None
+
+    async def save_ai_stage_result(
+        self,
+        tenant_id: UUID,
+        content_hash: str,
+        stage_key: str,
+        *,
+        result_json: dict[str, object],
+        model: str = "",
+        confidence: float | None = None,
+    ) -> None:
+        """Persist one AI stage's raw output, keyed by the clip's content hash.
+
+        Idempotent per ``(tenant, content_hash, stage)``: if a row already exists
+        (e.g. a concurrent ingest of the same clip won the race) it is updated in
+        place rather than duplicated, honouring the unique index.
+        """
+        existing = (
+            await self._s.execute(
+                select(models.AIStageResult)
+                .where(models.AIStageResult.tenant_id == tenant_id)
+                .where(models.AIStageResult.content_hash == content_hash)
+                .where(models.AIStageResult.stage_key == stage_key)
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            existing.result_json = result_json
+            existing.model = model
+            existing.confidence = confidence
+        else:
+            self._s.add(
+                models.AIStageResult(
+                    tenant_id=tenant_id,
+                    content_hash=content_hash,
+                    stage_key=stage_key,
+                    result_json=result_json,
+                    model=model,
+                    confidence=confidence,
+                )
+            )
+        await self._s.flush()
+
     async def add_from_pipeline(self, ticket: Ticket, anomalies: list[object]) -> Ticket:
         """Persist a pipeline-produced draft ticket and its anomalies.
 

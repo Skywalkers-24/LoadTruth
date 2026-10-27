@@ -19,7 +19,7 @@ interface AssistantChatProps {
 }
 
 /**
- * Shared analyst chat surface: an animated empty state with starter prompts, a
+ * Shared analyst chat surface: an empty state with starter prompts, a
  * streaming transcript with grounded tool chips and follow-up suggestions, and
  * a composer. Used by the full AI Analyst page and the console chat widget.
  */
@@ -57,7 +57,14 @@ export function AssistantChat({
       <div ref={scrollRef} className={cn("lt-scroll min-h-0 flex-1 overflow-y-auto", compact ? "p-3" : "p-4")}>
         {empty ? (
           <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-            <LogoMark size={compact ? 34 : 44} animated />
+            <span
+              className={cn(
+                "grid place-items-center rounded-2xl bg-[var(--color-brand-soft)]",
+                compact ? "size-12" : "size-16",
+              )}
+            >
+              <LogoMark size={compact ? 28 : 36} />
+            </span>
             <div className="flex flex-col gap-1">
               <p className={cn("font-semibold", compact ? "text-[14px]" : "text-[15px]")}>
                 Ask about {eventName ?? "this event"}

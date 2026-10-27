@@ -79,7 +79,7 @@ export function LoginScreen() {
           }}
         />
         <div className="relative flex items-center gap-3">
-          <LogoMark size={34} animated />
+          <LogoMark size={34} />
           <span className="text-[18px] font-bold tracking-tight">LoadTruth</span>
         </div>
 
@@ -151,7 +151,7 @@ export function LoginScreen() {
         </div>
         <div className="w-full max-w-md">
           <div className="mb-6 flex items-center gap-3 lg:hidden">
-            <LogoMark size={30} animated />
+            <LogoMark size={30} />
             <span className="text-[16px] font-bold tracking-tight">LoadTruth</span>
           </div>
 
