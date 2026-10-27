@@ -47,22 +47,17 @@ export function ReviewWorkspace({ ticket }: { ticket: Ticket }) {
 
       <MoneyFrame v={ticket.valuation} reviewed={reviewed} />
 
-      {/* Row 1 — the evidence and the AI's read of it, side by side up top.
-          This is the demo's centerpiece: Meta SAM 3.1 + Muse Spark producing
-          the measurement and the stage trace, shown next to the footage. On
-          narrow screens the order is evidence → AI → decision → details. */}
-      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] xl:items-start">
-        <div className="min-w-0">
-          <EvidenceCanvas ticket={ticket} />
-        </div>
-        <AiAnalysisCard ticketId={ticket.id} />
-      </div>
-
-      {/* Row 2 — left column stacks the ticket facts and anomaly flags; the
-          Decision rail sits on the right. Stacking two cards on the left keeps
-          the columns balanced so there's no big empty gap under a short card. */}
-      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] xl:items-stretch">
+      {/* Two continuous columns so neither side leaves a gap:
+            • Left (wider): Evidence → Truck & ticket → Anomaly flags.
+            • Right (rail): AI analysis (the Meta SAM 3.1 + Muse Spark read, up
+              top) → Decision.
+          Each column flows its own cards, so the two sides end near the same
+          height instead of leaving empty space beneath a short card. On narrow
+          screens everything stacks in reading order. */}
+      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:items-start">
+        {/* Left column */}
         <div className="flex min-w-0 flex-col gap-4">
+          <EvidenceCanvas ticket={ticket} />
           <Card title="Truck and ticket" icon={<TruckIcon size={15} />}>
             <TicketMetadata ticket={ticket} />
           </Card>
@@ -70,9 +65,14 @@ export function ReviewWorkspace({ ticket }: { ticket: Ticket }) {
             <AnomalyList ticket={ticket} />
           </Card>
         </div>
-        <Card title="Decision" icon={<ClipboardIcon size={15} />}>
-          <ReviewActions ticket={ticket} />
-        </Card>
+
+        {/* Right rail — AI analysis on top, decision below, pinned on wide. */}
+        <div className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-0">
+          <AiAnalysisCard ticketId={ticket.id} />
+          <Card title="Decision" icon={<ClipboardIcon size={15} />}>
+            <ReviewActions ticket={ticket} />
+          </Card>
+        </div>
       </div>
     </div>
   );

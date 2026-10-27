@@ -4,7 +4,6 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useSearchParams } from "next/navigation";
 
 import { AppShell } from "@/components/shell/app-shell";
-import { AssistantWidget } from "@/components/ai/assistant-widget";
 import { OPEN_TICKET_EVENT } from "@/components/shell/command-palette";
 import { QueueFilters, type SortKey, type StatusFilter } from "@/components/console/queue-filters";
 import { ReviewWorkspace } from "@/components/console/review-workspace";
@@ -257,7 +256,6 @@ function ConsoleView() {
           {workspacePanel}
         </div>
       )}
-      <AssistantWidget />
     </AppShell>
   );
 }

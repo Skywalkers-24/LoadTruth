@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { AssistantWidget } from "@/components/ai/assistant-widget";
 import { usePalette } from "@/components/shell/command-palette";
 import { EventSwitcher } from "@/components/shell/event-switcher";
 import { HealthIndicator } from "@/components/shell/health-indicator";
@@ -135,6 +136,9 @@ export function AppShell({ children, section }: { children: ReactNode; section: 
       </div>
 
       <BottomTabs pathname={pathname} />
+
+      {/* AI Analyst — available on every page, labelled with the current screen. */}
+      <AssistantWidget page={section} />
     </div>
   );
 }
