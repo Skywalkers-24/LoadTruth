@@ -26,6 +26,9 @@ from app.pipeline.media import guess_mime
 
 log = get_logger("pipeline.transcode")
 
+# Anything smaller holds no decodable frame (an empty MP4 is about 260 bytes).
+_MIN_OUTPUT_BYTES = 2048
+
 
 @dataclass(frozen=True, slots=True)
 class PreparedBytes:
@@ -92,7 +95,10 @@ async def prepare_media(data: bytes, *, media_kind: str, filename: str) -> Prepa
         if not ok or not dst.exists():
             return original
         out = await asyncio.to_thread(dst.read_bytes)
-    if not out:
+    if len(out) < _MIN_OUTPUT_BYTES:
+        # A container with no frames (e.g. the fps filter dropped a one-frame
+        # clip). Sending it would segment nothing, so keep the original.
+        log.warning("media_prepare_empty_output", bytes_in=len(data), bytes_out=len(out))
         return original
     if media_kind == "image" and len(out) >= len(data):
         return original  # already small; keep the original pixels
