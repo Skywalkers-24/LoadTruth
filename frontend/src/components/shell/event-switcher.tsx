@@ -8,11 +8,11 @@ import { EmptyState, Skeleton } from "@/components/ui/primitives";
 import { orgFromEvent, useEventContext } from "@/lib/event-context";
 
 /**
- * Organization + disaster-event context selector for the left rail. Trigger
- * shows the active org/event compactly; the popover presents org context and a
- * searchable event list. Selection updates shared query state across routes.
+ * Disaster-event context selector. `compact` renders a top-bar-styled trigger
+ * (light surface, single line) for the header; the default renders the fuller
+ * rail/drawer trigger. The popover presents org context and a searchable list.
  */
-export function EventSwitcher() {
+export function EventSwitcher({ compact = false }: { compact?: boolean }) {
   const { events, selected, selectedId, setSelectedId, isLoading, isError } = useEventContext();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -38,7 +38,40 @@ export function EventSwitcher() {
     `${e.name} ${e.location ?? ""}`.toLowerCase().includes(q.trim().toLowerCase()),
   );
 
-  if (isLoading) return <Skeleton className="h-12 w-full rounded-lg" />;
+  if (isLoading) return <Skeleton className={compact ? "h-9 w-56 rounded-lg" : "h-12 w-full rounded-lg"} />;
+
+  if (compact) {
+    return (
+      <div className="relative" ref={ref}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 text-left transition-colors hover:border-[var(--color-brand)]"
+        >
+          <span
+            className="grid size-6 shrink-0 place-items-center rounded-md text-[10px] font-bold text-white"
+            style={{ backgroundColor: "var(--color-brand-fill)" }}
+            aria-hidden
+          >
+            {initials}
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col leading-none">
+            <span className="truncate text-[13px] font-semibold text-foreground">
+              {isError ? "Events unavailable" : (selected?.name ?? "Select an event")}
+            </span>
+          </span>
+          <ChevronDownIcon
+            size={15}
+            className="shrink-0 text-muted-foreground transition-transform"
+            style={open ? { transform: "rotate(180deg)" } : undefined}
+          />
+        </button>
+        {open && <Popover />}
+      </div>
+    );
+  }
 
   return (
     <div className="relative" ref={ref}>
@@ -70,8 +103,12 @@ export function EventSwitcher() {
           style={open ? { transform: "rotate(180deg)" } : undefined}
         />
       </button>
+      {open && <Popover />}
+    </div>
+  );
 
-      {open && (
+  function Popover() {
+    return (
         <div
           role="dialog"
           aria-label="Switch event"
@@ -80,8 +117,8 @@ export function EventSwitcher() {
           {/* Org header */}
           <div className="flex items-center gap-2.5 border-b border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2.5">
             <span
-              className="grid size-7 shrink-0 place-items-center rounded-md text-[11px] font-bold"
-              style={{ backgroundColor: "var(--color-accent-fill)", color: "var(--color-on-accent)" }}
+              className="grid size-7 shrink-0 place-items-center rounded-md text-[11px] font-bold text-white"
+              style={{ backgroundColor: "var(--color-brand-fill)" }}
               aria-hidden
             >
               {initials}
@@ -129,7 +166,7 @@ export function EventSwitcher() {
                           setQ("");
                         }}
                         className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-[var(--color-surface-2)]"
-                        style={active ? { backgroundColor: "var(--color-accent-soft)" } : undefined}
+                        style={active ? { backgroundColor: "var(--color-brand-soft)" } : undefined}
                       >
                         <span className="flex min-w-0 flex-1 flex-col leading-tight">
                           <span className="truncate text-[13px] font-medium text-[var(--color-text)]">
@@ -143,7 +180,7 @@ export function EventSwitcher() {
                         </span>
                         <Badge tone={e.status === "active" ? "ok" : "neutral"}>{e.status}</Badge>
                         {active && (
-                          <span className="text-[var(--color-accent)]" aria-hidden>
+                          <span className="text-[var(--color-brand)]" aria-hidden>
                             <CheckIcon size={15} />
                           </span>
                         )}
@@ -155,7 +192,6 @@ export function EventSwitcher() {
             )}
           </div>
         </div>
-      )}
-    </div>
-  );
+    );
+  }
 }
