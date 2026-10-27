@@ -61,6 +61,16 @@ def test_create_source_bad_kind_422(client: TestClient) -> None:
     assert resp.status_code == 422
 
 
+def test_create_disabled_kind_rejected(client: TestClient) -> None:
+    """A wired-but-not-enabled connector (e.g. dropbox) is refused with 422."""
+    resp = client.post(
+        f"/events/{DEMO_EVENT_ID}/sources",
+        json={"kind": "dropbox", "name": "Drive sync", "config": {"path": "/clips"}},
+    )
+    assert resp.status_code == 422
+    assert "not enabled" in resp.json()["detail"].lower()
+
+
 def test_patch_source(client: TestClient) -> None:
     created = client.post(
         f"/events/{DEMO_EVENT_ID}/sources",

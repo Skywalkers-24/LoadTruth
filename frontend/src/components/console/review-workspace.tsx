@@ -21,6 +21,19 @@ import { debrisLabel, relativeTime } from "@/lib/format";
  * at stake (money frame), what does the evidence show, then decide. The
  * decision rail stays pinned on wide screens.
  */
+/**
+ * The Decision card on its own, so it can be placed in the left column directly
+ * below the ticket queue (keeping the confirm/override/dispute controls in the
+ * user's sight) rather than buried at the bottom of the right rail.
+ */
+export function DecisionCard({ ticket }: { ticket: Ticket }) {
+  return (
+    <Card title="Decision" icon={<ClipboardIcon size={15} />}>
+      <ReviewActions ticket={ticket} />
+    </Card>
+  );
+}
+
 export function ReviewWorkspace({ ticket }: { ticket: Ticket }) {
   const reviewed = ticket.status !== "draft";
   return (
@@ -66,12 +79,10 @@ export function ReviewWorkspace({ ticket }: { ticket: Ticket }) {
           </Card>
         </div>
 
-        {/* Right rail — AI analysis on top, decision below, pinned on wide. */}
+        {/* Right rail — AI analysis, pinned on wide. The Decision card now
+            lives in the left column beside the queue so it stays in sight. */}
         <div className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-0">
           <AiAnalysisCard ticketId={ticket.id} />
-          <Card title="Decision" icon={<ClipboardIcon size={15} />}>
-            <ReviewActions ticket={ticket} />
-          </Card>
         </div>
       </div>
     </div>

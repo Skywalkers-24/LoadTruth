@@ -140,19 +140,26 @@ export function AssistantChat({
         )}
       </div>
 
-      {/* Follow-up suggestions */}
+      {/* Follow-up suggestions — contextual next questions offered after an answer. */}
       {suggestions.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 border-t border-border px-3 pt-2.5">
-          {suggestions.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => submit(s)}
-              className="rounded-full border border-border bg-card px-2.5 py-1 text-[11.5px] text-muted-foreground transition-colors hover:border-[var(--color-brand)] hover:text-foreground"
-            >
-              {s}
-            </button>
-          ))}
+        <div className="lt-fade-in flex flex-col gap-1.5 border-t border-border px-3 pt-2.5">
+          <span className="flex items-center gap-1 text-[10.5px] font-medium uppercase tracking-wide text-muted-foreground">
+            <SparklesIcon className="size-3 text-[var(--color-brand)]" />
+            Suggested follow-ups
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {suggestions.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => submit(s)}
+                className="inline-flex items-center gap-1 rounded-full border border-[var(--color-brand-soft)] bg-[var(--color-brand-soft)] px-2.5 py-1 text-[11.5px] text-[var(--color-brand)] transition-colors hover:border-[var(--color-brand)] hover:bg-card"
+              >
+                <ArrowUpIcon className="size-3 rotate-45" />
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

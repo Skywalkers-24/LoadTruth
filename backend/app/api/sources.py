@@ -18,7 +18,23 @@ from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_manage_sources
 from app.pipeline.sources import get_adapter
 from app.tickets.repository import EventNotFoundError, SourceNotFoundError
-from app.tickets.schemas import SourceIn, SourceOut, SourcePatch, SourceTestResult
+from app.tickets.schemas import (
+    ENABLED_SOURCE_KINDS,
+    SourceIn,
+    SourceKind,
+    SourceOut,
+    SourcePatch,
+    SourceTestResult,
+)
+
+
+def _require_enabled_kind(kind: SourceKind) -> None:
+    """Reject a source kind that is wired but not currently enabled."""
+    if kind not in ENABLED_SOURCE_KINDS:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            f"The '{kind.value}' source connector is not enabled yet.",
+        )
 
 router = APIRouter(tags=["sources"])
 
@@ -43,6 +59,7 @@ async def create_source(
     repo: Repository, tenant: ActiveTenant, event_id: UUID, body: SourceIn
 ) -> SourceOut:
     """Connect a new evidence source to an event."""
+    _require_enabled_kind(body.kind)
     try:
         row = await repo.create_source(
             tenant,
@@ -62,6 +79,8 @@ async def update_source(
     repo: Repository, tenant: ActiveTenant, source_id: UUID, body: SourcePatch
 ) -> SourceOut:
     """Update a source; only supplied fields change."""
+    if body.kind is not None:
+        _require_enabled_kind(body.kind)
     try:
         row = await repo.update_source(
             tenant,

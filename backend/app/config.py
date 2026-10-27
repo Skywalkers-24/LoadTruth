@@ -71,6 +71,12 @@ class Settings(BaseSettings):
     # well-chosen keyframes are plenty and keep token cost low; never exceed the
     # image budget above.
     spark_frames_per_task: int = Field(default=4)
+    # Output-token caps per Spark call type. Capping output is the cheapest LLM
+    # lever ($4.25/1M out): perception tasks return a word or two, the analyst a
+    # short paragraph — never the 4000-token default. Keeps every query bounded.
+    spark_perception_max_output_tokens: int = Field(default=64)  # OCR / classify
+    spark_narrate_max_output_tokens: int = Field(default=120)  # one-line flag narrative
+    analyst_max_output_tokens: int = Field(default=512)  # grounded analyst answer
     # Hard cap on keyframes sampled from any one clip (bounds SAM frame cost and
     # memory for a long video, regardless of fps/duration).
     max_sampled_frames: int = Field(default=120)

@@ -1,42 +1,25 @@
 /**
- * LoadTruth brand mark — the truck/check lockup, authored inline. The truck
- * outline uses `currentColor` so it adapts to the surrounding text color in
- * both themes; the load-bar and verification check keep Safety Amber.
+ * LoadTruth brand mark — the 🚛 truck emoji lockup. Rendered as text sized to
+ * the `size` prop so it scales with every call site (login, app-shell rail,
+ * assistant header). Emoji glyphs carry their own color, so a `text-*`
+ * className only affects spacing/layout, not the glyph itself.
  */
 export function LogoMark({ size = 24, className }: { size?: number; className?: string }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 60 60"
-      className={className}
+    <span
       role="img"
       aria-label="LoadTruth"
+      className={className}
+      style={{
+        fontSize: size,
+        lineHeight: 1,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
     >
-      <path
-        d="M7 17 H43 L53 29 V43 H7 Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="4"
-        strokeLinejoin="round"
-      />
-      <path d="M12 22 H39 L46 30 H12 Z" fill="var(--color-accent)" opacity="0.95" />
-      <path d="M10 48 H49" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-      <path
-        d="M17 49 a5 5 0 1 0 10 0 M38 49 a5 5 0 1 0 10 0"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
-      <path
-        d="M35 8 l6 6 12 -12"
-        fill="none"
-        stroke="var(--color-accent)"
-        strokeWidth="5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+      🚛
+    </span>
   );
 }
 
