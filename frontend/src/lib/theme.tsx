@@ -5,164 +5,201 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 /**
  * LoadTruth theme system.
  *
- * Six curated dark themes, each driven by the `data-theme` attribute on <html>
- * (set before paint by the inline script to avoid a flash of the wrong theme).
- * Palettes follow Material Design's dark-theme guidance: dark-gray surfaces
- * with elevation shown via lighter overlays, desaturated accent hues, and
- * high-contrast text. Every theme defines the same CSS-variable contract in
+ * Two independent axes:
+ *   • Theme identity (`data-theme` on <html>) — one of six researched palettes,
+ *     each a coordinated pair with its own dark AND light variant.
+ *   • Mode (`data-mode` + the `.dark` class) — dark or light.
+ *
+ * Both are set before paint by the inline script to avoid a flash of the wrong
+ * theme. Every theme/mode combination defines the same CSS-variable contract in
  * globals.css, so all screens and shadcn components recolor automatically.
+ *
+ * Semantic colors (verified green, rejected red, informational cyan) and the
+ * financial-exposure accent (Signal Violet) are HELD CONSTANT across all six
+ * themes — only the mode changes their exact value — so the meaning of a color
+ * never shifts when a user picks a different theme. This follows the role-based
+ * color approach of Carbon/Fluent/Atlassian and WCAG 2.2 AA guidance.
  */
-export type Theme = "midnight" | "graphite" | "abyss" | "evergreen" | "plum" | "enterprise";
+export type Theme =
+  | "command-blue"
+  | "field-ops"
+  | "indigo-ai"
+  | "civic-evergreen"
+  | "arctic-cyan"
+  | "plum-signal";
 
-export type ThemeScheme = "dark" | "light";
+export type ThemeMode = "dark" | "light";
 
 export interface ThemeMeta {
   id: Theme;
   /** Short display name shown in the picker. */
   label: string;
-  /** One-line description of the vibe / inspiration. */
+  /** One-line description of the identity / best use. */
   description: string;
-  /** Base scheme — drives `color-scheme` and the dark-mode `.dark` class. */
-  scheme: ThemeScheme;
-  /** Three representative swatch colors for the picker preview (bg, surface, accent). */
+  /** Preview swatches [bg, surface, accent] for the picker — dark mode. */
   swatches: [string, string, string];
+  /** Preview swatches [bg, surface, accent] for the picker — light mode. */
+  swatchesLight: [string, string, string];
 }
 
-/**
- * Ordered theme catalog. Order = display order in the picker.
- * Swatches are static previews so the menu can render before the theme loads.
- */
-const MIDNIGHT: ThemeMeta = {
-  id: "midnight",
-  label: "Midnight",
-  description: "Material baseline dark · desaturated violet",
-  scheme: "dark",
-  swatches: ["#121212", "#1f1b24", "#bb86fc"],
+/** Ordered theme catalog. Order = display order in the picker. */
+const COMMAND_BLUE: ThemeMeta = {
+  id: "command-blue",
+  label: "Command Blue",
+  description: "Best overall · professional navy + electric blue",
+  swatches: ["#0b1220", "#121d30", "#8ab4ff"],
+  swatchesLight: ["#f5f8fc", "#ffffff", "#245eea"],
 };
 
 export const THEMES: ThemeMeta[] = [
-  MIDNIGHT,
+  COMMAND_BLUE,
   {
-    id: "graphite",
-    label: "Graphite",
-    description: "Warm neutral dark · teal accent",
-    scheme: "dark",
-    swatches: ["#18181b", "#27272a", "#2dd4bf"],
+    id: "field-ops",
+    label: "Field Ops Teal",
+    description: "Operational · charcoal + teal",
+    swatches: ["#0a1416", "#122426", "#5eead4"],
+    swatchesLight: ["#f2f8f7", "#ffffff", "#0f766e"],
   },
   {
-    id: "abyss",
-    label: "Abyss",
-    description: "Deep blue dark · desaturated cyan",
-    scheme: "dark",
-    swatches: ["#0e1116", "#171c24", "#4dd0e1"],
+    id: "indigo-ai",
+    label: "Indigo AI",
+    description: "AI-focused · deep indigo + periwinkle",
+    swatches: ["#0d1020", "#171d36", "#a5b4fc"],
+    swatchesLight: ["#f7f7fc", "#ffffff", "#4338ca"],
   },
   {
-    id: "evergreen",
-    label: "Evergreen",
-    description: "Calm dark · desaturated green",
-    scheme: "dark",
-    swatches: ["#121613", "#1b211c", "#81c995"],
+    id: "civic-evergreen",
+    label: "Civic Evergreen",
+    description: "Environmental · forest + mint",
+    swatches: ["#0b1510", "#14251b", "#86efac"],
+    swatchesLight: ["#f4f8f4", "#ffffff", "#166534"],
   },
   {
-    id: "plum",
-    label: "Plum",
-    description: "Dark · desaturated magenta-rose",
-    scheme: "dark",
-    swatches: ["#141016", "#1e1822", "#f48fb1"],
+    id: "arctic-cyan",
+    label: "Arctic Cyan",
+    description: "Technical · blue charcoal + sky cyan",
+    swatches: ["#0b131a", "#132431", "#7dd3fc"],
+    swatchesLight: ["#f3f8fb", "#ffffff", "#0369a1"],
   },
   {
-    id: "enterprise",
-    label: "Enterprise",
-    description: "Professional dark navy · corporate blue",
-    scheme: "dark",
-    swatches: ["#0d1420", "#162133", "#4c8dff"],
+    id: "plum-signal",
+    label: "Plum Signal",
+    description: "Experimental · plum + magenta",
+    swatches: ["#160e1d", "#25182f", "#f0abfc"],
+    swatchesLight: ["#fbf6fc", "#ffffff", "#a21caf"],
   },
 ];
 
 const THEME_IDS = THEMES.map((t) => t.id);
-const DARK_THEMES = THEMES.filter((t) => t.scheme === "dark").map((t) => t.id);
 
 export function themeMeta(id: Theme): ThemeMeta {
-  return THEMES.find((t) => t.id === id) ?? MIDNIGHT;
+  return THEMES.find((t) => t.id === id) ?? COMMAND_BLUE;
 }
 
 function isTheme(v: unknown): v is Theme {
   return typeof v === "string" && (THEME_IDS as string[]).includes(v);
 }
 
-function isDarkTheme(id: Theme): boolean {
-  return (DARK_THEMES as string[]).includes(id);
+function isMode(v: unknown): v is ThemeMode {
+  return v === "dark" || v === "light";
 }
 
 interface ThemeContextValue {
   theme: Theme;
-  scheme: ThemeScheme;
+  mode: ThemeMode;
   themes: ThemeMeta[];
   setTheme: (t: Theme) => void;
-  /** Cycle dark⇄light (keeps the single-button affordance for the command palette). */
-  toggle: () => void;
+  setMode: (m: ThemeMode) => void;
+  /** Flip dark⇄light (the single-button affordance for the command palette). */
+  toggleMode: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-const STORAGE_KEY = "loadtruth-theme";
-const DEFAULT_THEME: Theme = "midnight";
+const THEME_KEY = "loadtruth-theme";
+const MODE_KEY = "loadtruth-mode";
+const DEFAULT_THEME: Theme = "command-blue";
+const DEFAULT_MODE: ThemeMode = "dark";
 
-/** Legacy values map onto the new theme ids (all themes are dark now). */
-function migrate(stored: string | null): Theme | null {
-  if (stored === "dark" || stored === "light" || stored === "daylight" || stored === "classic") {
-    return "midnight";
+/**
+ * Map legacy theme ids (from every prior iteration) onto the new identities so
+ * a returning user keeps a sensible look.
+ */
+function migrateTheme(stored: string | null): Theme | null {
+  if (isTheme(stored)) return stored;
+  switch (stored) {
+    case "enterprise":
+    case "midnight":
+    case "dark":
+    case "light":
+    case "daylight":
+    case "classic":
+      return "command-blue";
+    case "graphite":
+      return "field-ops";
+    case "abyss":
+    case "arctic":
+      return "arctic-cyan";
+    case "evergreen":
+      return "civic-evergreen";
+    case "plum":
+      return "plum-signal";
+    default:
+      return null;
   }
-  if (stored === "arctic") return "abyss";
-  return isTheme(stored) ? stored : null;
 }
 
 function initialTheme(): Theme {
   if (typeof window === "undefined") return DEFAULT_THEME;
-  return migrate(window.localStorage.getItem(STORAGE_KEY)) ?? DEFAULT_THEME;
+  return migrateTheme(window.localStorage.getItem(THEME_KEY)) ?? DEFAULT_THEME;
+}
+
+function initialMode(): ThemeMode {
+  if (typeof window === "undefined") return DEFAULT_MODE;
+  const stored = window.localStorage.getItem(MODE_KEY);
+  return isMode(stored) ? stored : DEFAULT_MODE;
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
+  const [mode, setModeState] = useState<ThemeMode>(DEFAULT_MODE);
 
-  // Align React state with the attribute the inline script already set.
+  // Align React state with the attributes the inline script already set.
   useEffect(() => {
     setThemeState(initialTheme());
+    setModeState(initialMode());
   }, []);
 
   useEffect(() => {
     const el = document.documentElement;
     el.setAttribute("data-theme", theme);
+    el.setAttribute("data-mode", mode);
+    el.style.colorScheme = mode;
     // shadcn components key dark mode off a `.dark` class; mirror it.
-    el.classList.toggle("dark", isDarkTheme(theme));
-    window.localStorage.setItem(STORAGE_KEY, theme);
+    el.classList.toggle("dark", mode === "dark");
+    window.localStorage.setItem(THEME_KEY, theme);
+    window.localStorage.setItem(MODE_KEY, mode);
     // Briefly ease colors so the switch cross-fades rather than cutting.
     el.setAttribute("data-theme-anim", "");
     const t = window.setTimeout(() => el.removeAttribute("data-theme-anim"), 350);
     return () => window.clearTimeout(t);
-  }, [theme]);
+  }, [theme, mode]);
 
   const setTheme = useCallback((t: Theme) => {
     if (isTheme(t)) setThemeState(t);
   }, []);
 
-  // All themes are dark; toggle cycles to the next theme in the catalog.
-  const toggle = useCallback(() => {
-    setThemeState((cur) => {
-      const i = THEME_IDS.indexOf(cur);
-      return THEME_IDS[(i + 1) % THEME_IDS.length] ?? DEFAULT_THEME;
-    });
+  const setMode = useCallback((m: ThemeMode) => {
+    if (isMode(m)) setModeState(m);
+  }, []);
+
+  const toggleMode = useCallback(() => {
+    setModeState((m) => (m === "dark" ? "light" : "dark"));
   }, []);
 
   const value = useMemo<ThemeContextValue>(
-    () => ({
-      theme,
-      scheme: isDarkTheme(theme) ? "dark" : "light",
-      themes: THEMES,
-      setTheme,
-      toggle,
-    }),
-    [theme, setTheme, toggle],
+    () => ({ theme, mode, themes: THEMES, setTheme, setMode, toggleMode }),
+    [theme, mode, setTheme, setMode, toggleMode],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -175,18 +212,22 @@ export function useTheme(): ThemeContextValue {
 }
 
 /**
- * Inline script that sets data-theme (and the `.dark` class for dark themes)
- * before paint to avoid a flash of the wrong theme. Migrates the old binary
- * "dark"/"light" values to the new theme ids.
+ * Inline script that sets `data-theme` + `data-mode` (and the `.dark` class)
+ * before paint to avoid a flash of the wrong theme. Migrates every prior theme
+ * id onto the new identities.
  */
 export const themeInitScript = `
 (function(){try{
-  var k='${STORAGE_KEY}';var s=localStorage.getItem(k);
-  var map={dark:'midnight',light:'midnight',daylight:'midnight',classic:'midnight',arctic:'abyss'};
+  var tk='${THEME_KEY}',mk='${MODE_KEY}';
+  var s=localStorage.getItem(tk);
+  var map={enterprise:'command-blue',midnight:'command-blue',dark:'command-blue',light:'command-blue',daylight:'command-blue',classic:'command-blue',graphite:'field-ops',abyss:'arctic-cyan',arctic:'arctic-cyan',evergreen:'civic-evergreen',plum:'plum-signal'};
   var ids=${JSON.stringify(THEME_IDS)};
-  var t=map[s]||(ids.indexOf(s)>=0?s:'${DEFAULT_THEME}');
+  var t=(ids.indexOf(s)>=0?s:map[s])||'${DEFAULT_THEME}';
+  var m=localStorage.getItem(mk); if(m!=='dark'&&m!=='light'){m='${DEFAULT_MODE}';}
   var e=document.documentElement;
   e.setAttribute('data-theme',t);
-  e.classList.add('dark');
-}catch(e){document.documentElement.setAttribute('data-theme','${DEFAULT_THEME}');document.documentElement.classList.add('dark');}})();
+  e.setAttribute('data-mode',m);
+  e.style.colorScheme=m;
+  if(m==='dark'){e.classList.add('dark');}
+}catch(e){var el=document.documentElement;el.setAttribute('data-theme','${DEFAULT_THEME}');el.setAttribute('data-mode','${DEFAULT_MODE}');el.classList.add('dark');}})();
 `;

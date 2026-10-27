@@ -75,7 +75,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
 
 function Palette({ onClose }: { onClose: () => void }) {
   const router = useRouter();
-  const { theme, themes, setTheme } = useTheme();
+  const { theme, mode, themes, setTheme, toggleMode } = useTheme();
   const { selectedId: eventId } = useEventContext();
   const tickets = useTickets({ eventId, limit: 100, offset: 0 });
   const [q, setQ] = useState("");
@@ -97,19 +97,32 @@ function Palette({ onClose }: { onClose: () => void }) {
       { id: "nav-reports", group: "Navigate", label: "Reports", icon: <ChartIcon size={15} />, run: () => go("/reports") },
       { id: "nav-admin", group: "Navigate", label: "Admin", icon: <SettingsIcon size={15} />, run: () => go("/admin") },
     ];
-    const themeActions: Item[] = themes.map((t) => ({
-      id: `act-theme-${t.id}`,
-      group: "Theme" as const,
-      label: `Theme: ${t.label}`,
-      hint: t.description,
-      icon: <PaletteIcon size={15} />,
-      right: theme === t.id ? "Active" : undefined,
-      rightColor: "var(--color-ok)",
-      run: () => {
-        setTheme(t.id);
-        onClose();
+    const themeActions: Item[] = [
+      {
+        id: "act-mode",
+        group: "Theme" as const,
+        label: `Switch to ${mode === "dark" ? "light" : "dark"} mode`,
+        hint: `Currently ${mode}`,
+        icon: <PaletteIcon size={15} />,
+        run: () => {
+          toggleMode();
+          onClose();
+        },
       },
-    }));
+      ...themes.map((t) => ({
+        id: `act-theme-${t.id}`,
+        group: "Theme" as const,
+        label: `Theme: ${t.label}`,
+        hint: t.description,
+        icon: <PaletteIcon size={15} />,
+        right: theme === t.id ? "Active" : undefined,
+        rightColor: "var(--color-ok)",
+        run: () => {
+          setTheme(t.id);
+          onClose();
+        },
+      })),
+    ];
     const actions: Item[] = [
       ...(eventId
         ? [
@@ -150,7 +163,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       ...actions.filter(match),
       ...themeActions.filter(match),
     ];
-  }, [tickets.data, q, theme, themes, eventId, go, setTheme, onClose, router]);
+  }, [tickets.data, q, theme, mode, themes, eventId, go, setTheme, toggleMode, onClose, router]);
 
   useEffect(() => setActive(0), [q]);
 
