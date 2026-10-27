@@ -47,39 +47,57 @@ export function ReviewWorkspace({ ticket }: { ticket: Ticket }) {
 
       <MoneyFrame v={ticket.valuation} reviewed={reviewed} />
 
-      {/* Narrow screens: one column ordered for the task (decide right after the
-          money frame). Wide screens: evidence left, pinned decision rail right. */}
-      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
-        <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-4">
-          <div className="order-2 min-w-0 xl:order-none">
-            <EvidenceCanvas ticket={ticket} />
-          </div>
-          <div className="order-4 xl:order-none">
-            <Card title="Truck and ticket" icon={<TruckIcon size={15} />}>
-              <TicketMetadata ticket={ticket} />
-            </Card>
-          </div>
-          <div className="order-5 xl:order-none">
-            <Card title="AI analysis" icon={<SparklesIcon size={15} />}>
-              <AiAnalysis ticketId={ticket.id} />
-            </Card>
-          </div>
+      {/* Row 1 — the evidence and the AI's read of it, side by side up top.
+          This is the demo's centerpiece: Meta SAM 3.1 + Muse Spark producing
+          the measurement and the stage trace, shown next to the footage. On
+          narrow screens the order is evidence → AI → decision → details. */}
+      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] xl:items-start">
+        <div className="min-w-0">
+          <EvidenceCanvas ticket={ticket} />
         </div>
-
-        <div className="contents xl:sticky xl:top-0 xl:flex xl:min-w-0 xl:flex-col xl:gap-4">
-          <div className="order-1 xl:order-none">
-            <Card title="Decision" icon={<ClipboardIcon size={15} />}>
-              <ReviewActions ticket={ticket} />
-            </Card>
-          </div>
-          <div className="order-3 xl:order-none">
-            <Card title="Anomaly flags" icon={<AlertIcon size={15} />} count={ticket.anomaly_count}>
-              <AnomalyList ticket={ticket} />
-            </Card>
-          </div>
-        </div>
+        <AiAnalysisCard ticketId={ticket.id} />
       </div>
+
+      {/* Row 2 — truck + ticket facts, and the decision (confirm/override/dispute). */}
+      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] xl:items-start">
+        <Card title="Truck and ticket" icon={<TruckIcon size={15} />}>
+          <TicketMetadata ticket={ticket} />
+        </Card>
+        <Card title="Decision" icon={<ClipboardIcon size={15} />}>
+          <ReviewActions ticket={ticket} />
+        </Card>
+      </div>
+
+      {/* Row 3 — remaining detail: anomaly flags. */}
+      <Card title="Anomaly flags" icon={<AlertIcon size={15} />} count={ticket.anomaly_count}>
+        <AnomalyList ticket={ticket} />
+      </Card>
     </div>
+  );
+}
+
+/**
+ * The AI's read of this ticket, surfaced prominently in row 1 next to the
+ * evidence. Leads with the models that did the work (SAM 3.1 + Muse Spark),
+ * then the expandable per-stage trace, so the AI contribution is front-and-
+ * center rather than buried below the fold.
+ */
+function AiAnalysisCard({ ticketId }: { ticketId: string }) {
+  return (
+    <section className="lt-card-shadow overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <header className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-brand)_14%,transparent),transparent)] px-4 py-2.5">
+        <span className="grid size-6 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
+          <SparklesIcon size={14} />
+        </span>
+        <h3 className="text-[13px] font-semibold text-[var(--color-text)]">AI analysis</h3>
+        <span className="ml-auto rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
+          SAM 3.1 · Muse Spark
+        </span>
+      </header>
+      <div className="p-4">
+        <AiAnalysis ticketId={ticketId} />
+      </div>
+    </section>
   );
 }
 

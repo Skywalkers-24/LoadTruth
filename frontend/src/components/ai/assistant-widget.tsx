@@ -81,20 +81,46 @@ export function AssistantWidget() {
         </div>
       )}
 
-      {/* Launcher */}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label={open ? "Close AI Analyst" : "Open AI Analyst"}
-        aria-expanded={open}
-        className={cn(
-          "fixed bottom-16 right-4 z-50 grid size-14 place-items-center rounded-full text-white shadow-xl transition-all sm:bottom-6 sm:right-6",
-          "bg-[linear-gradient(140deg,var(--color-brand-strong),var(--color-brand-fill))] hover:scale-105 hover:shadow-2xl",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]",
+      {/* Launcher — reads as an AI chat: a chat bubble with a sparkle "AI"
+          badge and a hover label, so it's obvious this is the AI Analyst. */}
+      <div className="group/ai fixed bottom-16 right-4 z-50 flex items-center gap-2 sm:bottom-6 sm:right-6">
+        {!open && (
+          <span className="pointer-events-none hidden items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text)] opacity-0 shadow-md transition-opacity duration-200 group-hover/ai:opacity-100 sm:inline-flex">
+            Ask AI Analyst
+          </span>
         )}
-      >
-        {open ? <XIcon className="size-6" /> : <MessageSquareIcon className="size-6" />}
-      </button>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-label={open ? "Close AI Analyst" : "Open AI Analyst"}
+          aria-expanded={open}
+          className={cn(
+            "relative grid size-14 place-items-center rounded-full text-white shadow-xl transition-all",
+            "bg-[linear-gradient(140deg,var(--color-brand-strong),var(--color-brand-fill))] hover:scale-105 hover:shadow-2xl",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]",
+          )}
+        >
+          {/* Soft attention pulse (hidden while open / reduced-motion). */}
+          {!open && (
+            <span
+              aria-hidden
+              className="lt-pulse absolute inset-0 rounded-full"
+              style={{ ["--color-ok" as string]: "var(--color-brand-fill)" }}
+            />
+          )}
+          {open ? (
+            <XIcon className="size-6" />
+          ) : (
+            <>
+              <MessageSquareIcon className="size-6" />
+              {/* Sparkle "AI" badge in the corner. */}
+              <span className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-white text-[var(--color-brand-fill)] shadow ring-2 ring-[var(--color-brand-fill)]">
+                <SparklesIcon className="size-3" />
+              </span>
+            </>
+          )}
+        </button>
+      </div>
     </>
   );
 }
