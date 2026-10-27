@@ -97,4 +97,7 @@ async def ingest_clip(
         )
 
     saved = await repo.add_from_pipeline(result.ticket, list(result.anomalies))
+    # Persist the AI stage trace so this ticket keeps its analysis permanently.
+    if result.trace is not None and result.trace.stages:
+        await repo.save_pipeline_stages(tenant, saved.id, list(result.trace.stages))
     return ticket_to_out(saved)

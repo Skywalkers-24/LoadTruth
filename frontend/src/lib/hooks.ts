@@ -224,6 +224,15 @@ export function useJobForTicket(ticketId: string | null) {
   });
 }
 
+/** The persisted per-ticket AI pipeline trace (always available). */
+export function useTicketPipeline(ticketId: string | null) {
+  return useQuery({
+    queryKey: ["ticket-pipeline", ticketId],
+    queryFn: () => api.getTicketPipeline(ticketId as string),
+    enabled: Boolean(ticketId),
+  });
+}
+
 // ── Admin: AI models, reasoning effort & cost mode ──────────────────────────
 export function useAiConfig() {
   return useQuery({ queryKey: ["ai-config"], queryFn: () => api.getAiConfig() });

@@ -315,6 +315,44 @@ class SqlTicketRepository:
         await self._s.flush()
         return await self.get_ticket(tenant_id, ticket_id)
 
+    async def save_pipeline_stages(
+        self, tenant_id: UUID, ticket_id: UUID, stages: list[object]
+    ) -> None:
+        """Persist the AI pipeline trace for a ticket. ``stages`` are StageRecords."""
+        for i, s in enumerate(stages):
+            self._s.add(
+                models.PipelineStageRow(
+                    tenant_id=tenant_id,
+                    ticket_id=ticket_id,
+                    position=i,
+                    stage_key=getattr(s, "key", ""),
+                    label=getattr(s, "label", ""),
+                    model=getattr(s, "model", ""),
+                    status=getattr(s, "status", "ok"),
+                    summary=getattr(s, "summary", ""),
+                    confidence=getattr(s, "confidence", None),
+                    duration_ms=getattr(s, "duration_ms", 0.0) or 0.0,
+                )
+            )
+        await self._s.flush()
+
+    async def list_pipeline_stages(
+        self, tenant_id: UUID, ticket_id: UUID
+    ) -> list[models.PipelineStageRow]:
+        """The persisted AI pipeline trace for a ticket, in order."""
+        rows = list(
+            (
+                await self._s.execute(
+                    select(models.PipelineStageRow)
+                    .where(models.PipelineStageRow.tenant_id == tenant_id)
+                    .where(models.PipelineStageRow.ticket_id == ticket_id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return sorted(rows, key=lambda r: int(r.position))
+
     async def add_from_pipeline(self, ticket: Ticket, anomalies: list[object]) -> Ticket:
         """Persist a pipeline-produced draft ticket and its anomalies.
 

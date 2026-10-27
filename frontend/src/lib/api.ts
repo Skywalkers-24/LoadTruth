@@ -400,6 +400,11 @@ export function getJobForTicket(ticketId: string): Promise<PipelineJob | null> {
   return request<PipelineJob | null>(`/system/jobs/ticket/${ticketId}`);
 }
 
+/** The persisted AI pipeline trace for a ticket (always available, from the DB). */
+export function getTicketPipeline(ticketId: string): Promise<PipelineStage[]> {
+  return request<PipelineStage[]>(`/tickets/${ticketId}/pipeline`);
+}
+
 // ── AI model & reasoning-effort configuration (admin) ──
 export type ReasoningEffort = "minimal" | "low" | "balanced" | "high" | "max";
 export type CostMode = "standard" | "contributor";
@@ -572,6 +577,7 @@ export const api = {
   ingest: (eventId: string, file: File) => upload<Ticket>(`/events/${eventId}/ingest`, file),
   getPipelineJobs,
   getJobForTicket,
+  getTicketPipeline,
   /** Absolute-via-rewrite URLs for the downloadable exports. */
   exportCsvUrl: (eventId: string) => `${baseUrl()}/events/${eventId}/export.csv`,
   auditPacketUrl: (eventId: string) => `${baseUrl()}/events/${eventId}/audit-packet.html`,

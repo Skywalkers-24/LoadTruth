@@ -13,7 +13,7 @@ import { ReviewActions } from "@/components/console/review-actions";
 import { TicketMetadata, shortId } from "@/components/console/ticket-metadata";
 import { PipelineTrace } from "@/components/ai/pipeline-trace";
 import { Skeleton } from "@/components/ui/shadcn/skeleton";
-import { useJobForTicket } from "@/lib/hooks";
+import { useTicketPipeline } from "@/lib/hooks";
 import { debrisLabel, relativeTime } from "@/lib/format";
 
 /**
@@ -84,17 +84,16 @@ export function ReviewWorkspace({ ticket }: { ticket: Ticket }) {
 }
 
 function AiAnalysis({ ticketId }: { ticketId: string }) {
-  const job = useJobForTicket(ticketId);
-  if (job.isLoading) return <Skeleton className="h-28" />;
-  if (!job.data) {
+  const trace = useTicketPipeline(ticketId);
+  if (trace.isLoading) return <Skeleton className="h-28" />;
+  if (!trace.data || trace.data.length === 0) {
     return (
       <p className="text-[12px] text-muted-foreground">
-        The stage trace for this ticket is no longer in the pipeline buffer. Newly captured tickets show their
-        full analysis here.
+        No AI stage trace is recorded for this ticket.
       </p>
     );
   }
-  return <PipelineTrace stages={job.data.stages} compact />;
+  return <PipelineTrace stages={trace.data} compact />;
 }
 
 function Card({

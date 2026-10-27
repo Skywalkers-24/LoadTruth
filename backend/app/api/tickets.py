@@ -12,6 +12,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
@@ -140,6 +141,38 @@ async def get_ticket(repo: Repository, tenant: ActiveTenant, ticket_id: UUID) ->
         for r in rows
     ]
     return out
+
+
+class PipelineStageOut(BaseModel):
+    """One persisted AI pipeline stage for a ticket."""
+
+    key: str
+    label: str
+    model: str
+    status: str
+    summary: str
+    confidence: float | None = None
+    duration_ms: float = 0.0
+
+
+@router.get("/tickets/{ticket_id}/pipeline", response_model=list[PipelineStageOut])
+async def ticket_pipeline(
+    repo: Repository, tenant: ActiveTenant, ticket_id: UUID
+) -> list[PipelineStageOut]:
+    """The persisted AI pipeline trace for a ticket (how its numbers were produced)."""
+    rows = await repo.list_pipeline_stages(tenant, ticket_id)
+    return [
+        PipelineStageOut(
+            key=r.stage_key,
+            label=r.label,
+            model=r.model,
+            status=r.status,
+            summary=r.summary,
+            confidence=float(r.confidence) if r.confidence is not None else None,
+            duration_ms=float(r.duration_ms),
+        )
+        for r in rows
+    ]
 
 
 @router.patch(

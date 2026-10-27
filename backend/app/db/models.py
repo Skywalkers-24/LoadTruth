@@ -142,3 +142,26 @@ class Anomaly(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
     evidence_frame: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     __table_args__ = (Index("ix_anomalies_tenant_ticket", "tenant_id", "ticket_id"),)
+
+
+class PipelineStageRow(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
+    """One persisted AI pipeline stage for a ticket (Stage 2-7 trace).
+
+    Stored so each ticket keeps its full AI analysis permanently — the visible
+    "how the numbers were produced" trace survives restarts and the in-memory
+    job buffer. Ordered by ``position`` within a ticket.
+    """
+
+    __tablename__ = "pipeline_stages"
+
+    ticket_id: Mapped[uuid.UUID] = mapped_column(GUID(), nullable=False)
+    position: Mapped[int] = mapped_column(Numeric(4, 0), nullable=False, default=0)
+    stage_key: Mapped[str] = mapped_column(String(32), nullable=False)
+    label: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str] = mapped_column(String(48), nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="ok")
+    summary: Mapped[str] = mapped_column(String(512), nullable=False)
+    confidence: Mapped[float | None] = mapped_column(Numeric(4, 3), nullable=True)
+    duration_ms: Mapped[float] = mapped_column(Numeric(10, 1), nullable=False, default=0)
+
+    __table_args__ = (Index("ix_pipeline_stages_tenant_ticket", "tenant_id", "ticket_id"),)
