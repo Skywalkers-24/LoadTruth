@@ -12,6 +12,8 @@ Conventions: bash scripts start with `set -euo pipefail`, are idempotent, print 
 | `test.sh` | Run backend `pytest --cov` + frontend `vitest` + Playwright | planned |
 | `eval.sh` | Full open-source quality gate the "AI judge" check mirrors (see protocol §5) | **present (stub)** |
 | `db-migrate.sh` | Apply Alembic migrations + verify RLS on tenant tables | planned |
+| `live-check.sh [clip]` | Verify the Meta Model API key and, with a clip, run the full pipeline live (`make live-check CLIP=…`) | **present** |
+| `meta-log.sh [N]` | One line per recorded Meta API call from `logs/meta_api.jsonl` (`make meta-log N=50`) | **present** |
 | `pipeline.sh <clip>` | Run the full video-to-ticket pipeline on one clip (cached) | planned |
 | `benchmark.sh` | Run the 50+ clip accuracy benchmark, assert ±10% target | planned |
 
@@ -21,3 +23,15 @@ As each script is implemented, flip its status to **present** and add usage note
 
 ### eval.sh
 Runs every quality gate locally. Must pass clean before a task is "done". Currently a stub that runs whatever tools are installed and skips the rest with a notice — fill in as the backend/frontend land.
+
+### live-check.sh
+Checks the live Meta setup after you add `MODEL_API_KEY` to `.env`. With no arguments it makes one tiny Muse Spark call (a fraction of a cent) to confirm the key, endpoint, and model. With a clip path it runs the whole pipeline live on that clip, without the database or the durable cache, and prints every stage, the drafted ticket, the anomalies, and the dollar cost.
+
+- `make live-check` / `make live-check CLIP=data_tests/ordinary__random-haul.mp4` runs inside the backend container (ffmpeg available, so the clip is resampled before it is sent).
+- `scripts/live-check.sh clip.mp4` runs on the host venv. Without ffmpeg on the host the original clip is sent, which costs more SAM frames.
+- `--truck=FL-DT-3391` treats that truck number as certified at 20 CY, so the clip run shows a capacity match.
+
+Exit codes: 0 ok, 1 the API rejected a call (the error class, status, and code are printed), 2 missing key or clip.
+
+### meta-log.sh
+Every Meta Model API exchange (Spark responses, streamed SAM responses, file uploads and deletes, and failures) is appended to `logs/meta_api.jsonl` by `backend/app/ai/api_log.py`. Each line holds the redacted request (inline media becomes `<inline video/mp4, N bytes>`; the key is never written), status, latency, usage, stream event counts, and the output text (truncated past `MODEL_API_LOG_MAX_CHARS`, default 200,000). In Docker the file is mounted from `./logs`. Read the summary first; open a full line only when you need the raw output. Set `MODEL_API_LOG_PATH=` (empty) to turn recording off.

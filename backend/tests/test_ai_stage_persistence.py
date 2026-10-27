@@ -15,7 +15,14 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.ai.base import ClassifyResult, OCRResult, TrackedObject, TrackResult
+from app.ai.base import (
+    ClassifyResult,
+    ClipMedia,
+    Narration,
+    OCRResult,
+    TrackedObject,
+    TrackResult,
+)
 from app.ai.cached_client import CachingAIClient
 from app.db.base import Base
 from app.tickets.repository import SqlTicketRepository
@@ -23,6 +30,7 @@ from app.tickets.seed import DEMO_TENANT_ID
 
 TENANT = DEMO_TENANT_ID
 HASH = "a" * 64
+CLIP = ClipMedia(content_hash=HASH)
 
 
 class CountingAIClient:
@@ -34,7 +42,7 @@ class CountingAIClient:
         self.classify_calls = 0
         self.narrate_calls = 0
 
-    async def track(self, content_hash: str) -> TrackResult:
+    async def track(self, clip: ClipMedia) -> TrackResult:
         self.track_calls += 1
         return TrackResult(
             objects=[
@@ -44,17 +52,17 @@ class CountingAIClient:
             frame_count=12,
         )
 
-    async def read_placard(self, content_hash: str) -> OCRResult:
+    async def read_placard(self, clip: ClipMedia) -> OCRResult:
         self.ocr_calls += 1
         return OCRResult(truck_id="FL-DT-3391", confidence=0.93, frame_ref="frame-7")
 
-    async def classify_debris(self, content_hash: str) -> ClassifyResult:
+    async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
         self.classify_calls += 1
         return ClassifyResult(debris_class="construction_demolition", confidence=0.88)
 
-    async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> str:
+    async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
         self.narrate_calls += 1
-        return "narrative"
+        return Narration("narrative")
 
 
 @pytest_asyncio.fixture
@@ -76,9 +84,9 @@ async def test_first_run_calls_model_and_persists(session: AsyncSession) -> None
     inner = CountingAIClient()
     client = CachingAIClient(inner, repo, TENANT, model_label="sam-3.1 · muse-spark-1.3")
 
-    track = await client.track(HASH)
-    ocr = await client.read_placard(HASH)
-    classify = await client.classify_debris(HASH)
+    track = await client.track(CLIP)
+    ocr = await client.read_placard(CLIP)
+    classify = await client.classify_debris(CLIP)
 
     # The real model ran exactly once per stage.
     assert (inner.track_calls, inner.ocr_calls, inner.classify_calls) == (1, 1, 1)
@@ -99,22 +107,24 @@ async def test_second_run_replays_from_db_without_model(session: AsyncSession) -
 
     # First run (populates the store).
     first = CachingAIClient(inner, repo, TENANT)
-    t1 = await first.track(HASH)
-    o1 = await first.read_placard(HASH)
-    c1 = await first.classify_debris(HASH)
+    t1 = await first.track(CLIP)
+    o1 = await first.read_placard(CLIP)
+    c1 = await first.classify_debris(CLIP)
 
     # A brand-new client instance (simulating a fresh process/restart) over the
     # same durable store must NOT call the model again.
     second = CachingAIClient(inner, repo, TENANT)
-    t2 = await second.track(HASH)
-    o2 = await second.read_placard(HASH)
-    c2 = await second.classify_debris(HASH)
+    t2 = await second.track(CLIP)
+    o2 = await second.read_placard(CLIP)
+    c2 = await second.classify_debris(CLIP)
 
     assert (inner.track_calls, inner.ocr_calls, inner.classify_calls) == (1, 1, 1)
     # Replayed values round-trip exactly.
     assert t2 == t1
     assert o2 == o1
     assert c2 == c1
+    # A replay is reported to the ledger as a $0 cache hit.
+    assert t2.usage is not None and t2.usage.cached and t2.usage.cost_usd == 0.0
 
 
 @pytest.mark.asyncio
@@ -123,10 +133,10 @@ async def test_results_are_tenant_scoped(session: AsyncSession) -> None:
     inner = CountingAIClient()
     other_tenant = UUID("99999999-9999-9999-9999-999999999999")
 
-    await CachingAIClient(inner, repo, TENANT).track(HASH)
+    await CachingAIClient(inner, repo, TENANT).track(CLIP)
     # A different tenant with the same clip hash sees no cached result, so its
     # own model call runs (no cross-tenant leakage).
-    await CachingAIClient(inner, repo, other_tenant).track(HASH)
+    await CachingAIClient(inner, repo, other_tenant).track(CLIP)
 
     assert inner.track_calls == 2
     assert await repo.get_ai_stage_result(TENANT, HASH, "sam_track") is not None

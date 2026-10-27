@@ -95,6 +95,18 @@ export function useAllReports(eventIds: string[], enabled: boolean) {
   });
 }
 
+/**
+ * Billing roll-up. When `eventId` is given, the single-event invoice; when it
+ * is undefined and `enabled`, the combined all-events invoice.
+ */
+export function useBilling(eventId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ["billing", eventId ?? "all"],
+    enabled,
+    queryFn: () => (eventId ? api.eventBilling(eventId) : api.combinedBilling()),
+  });
+}
+
 /** Record a monitor's fill-% call; invalidates tickets + dashboard. */
 export function useSetMonitorCall() {
   const qc = useQueryClient();
@@ -129,6 +141,7 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
     void qc.invalidateQueries({ queryKey: ["ticket"] });
     void qc.invalidateQueries({ queryKey: ["dashboard"] });
     void qc.invalidateQueries({ queryKey: ["reports-summary"] });
+    void qc.invalidateQueries({ queryKey: ["billing"] });
   };
 }
 

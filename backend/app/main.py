@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth_context import router as auth_context_router
 from app.api.auth_session import router as auth_session_router
+from app.api.billing import router as billing_router
 from app.api.chat import router as chat_router
 from app.api.ingest import router as ingest_router
 from app.api.reports import router as reports_router
@@ -92,5 +93,6 @@ app.include_router(users_router)
 app.include_router(sources_router)
 app.include_router(ingest_router)
 app.include_router(reports_router)
+app.include_router(billing_router)
 app.include_router(chat_router)
 app.include_router(system_router)

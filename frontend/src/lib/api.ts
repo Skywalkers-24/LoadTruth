@@ -117,15 +117,7 @@ export interface TruckInput {
 }
 
 export type SourceKind =
-  | "upload"
-  | "s3"
-  | "gcs"
-  | "azure_blob"
-  | "google_drive"
-  | "dropbox"
-  | "rtsp"
-  | "hls"
-  | "webhook";
+  "upload" | "s3" | "gcs" | "azure_blob" | "google_drive" | "dropbox" | "rtsp" | "hls" | "webhook";
 export type SourceStatus = "active" | "paused" | "error";
 
 export interface Source {
@@ -206,6 +198,35 @@ export interface ReportsSummary {
   accuracy_within_10pct: number | null;
   /** Tickets with a monitor call — the accuracy denominator. */
   benchmarked_count: number;
+}
+
+export interface BillingLine {
+  debris_class: string;
+  rate_per_cy: string;
+  ticket_count: number;
+  cubic_yards: string;
+  amount: string;
+}
+
+export interface BillingPeriod {
+  period: string;
+  ticket_count: number;
+  amount: string;
+}
+
+export interface BillingSummary {
+  scope: string;
+  event_id: string | null;
+  location: string | null;
+  ticket_count: number;
+  billed_count: number;
+  pending_count: number;
+  total_cubic_yards: string;
+  total_amount: string;
+  settled_amount: string;
+  pending_amount: string;
+  lines: BillingLine[];
+  history: BillingPeriod[];
 }
 
 export class ApiError extends Error {
@@ -554,7 +575,9 @@ async function upload<T>(path: string, file: File): Promise<T> {
   if (!res.ok) {
     // Surface the backend's own `detail` (e.g. the 422 no-truck message) so the
     // UI can show a meaningful, status-specific error instead of a generic one.
-    let detail = `upload to ${path} failed (${res.status})`;
+    // With no backend detail (e.g. the proxy dropped the request), leave the
+    // message empty so the page shows its own plain-language fallback.
+    let detail = "";
     try {
       const body = (await res.json()) as { detail?: string };
       if (body?.detail) detail = body.detail;
@@ -575,6 +598,52 @@ function ticketQueryString(q: TicketQuery): string {
   if (q.offset !== undefined) p.set("offset", String(q.offset));
   const s = p.toString();
   return s ? `?${s}` : "";
+}
+
+/**
+ * Open an authenticated export (invoice, audit packet, CSV) in a new tab.
+ *
+ * Exports live behind the bearer token, so a plain `<a href>` to the backend
+ * URL is rejected and the app bounces to sign-in. Instead we fetch the document
+ * with the Authorization header, wrap the response in a blob URL, and open that.
+ * The new tab is opened synchronously (before the await) so the browser treats
+ * it as a user-gesture popup rather than blocking it. For `download`, a CSV is
+ * saved to disk instead of opened.
+ */
+export async function openAuthedExport(
+  path: string,
+  opts: { download?: string } = {},
+): Promise<void> {
+  const tab = opts.download ? null : window.open("", "_blank");
+  try {
+    const res = await fetch(`${baseUrl()}${path}`, {
+      cache: "no-store",
+      headers: authToken ? { authorization: `Bearer ${authToken}` } : undefined,
+    });
+    if (!res.ok) {
+      tab?.close();
+      throw new ApiError(res.status, `export ${path} failed (${res.status})`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    if (opts.download) {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = opts.download;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } else if (tab) {
+      tab.location.href = url;
+    } else {
+      window.open(url, "_blank");
+    }
+    // Revoke after the tab/download has had time to load the blob.
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (err) {
+    tab?.close();
+    throw err;
+  }
 }
 
 export const api = {
@@ -599,9 +668,12 @@ export const api = {
   getPipelineJobs,
   getJobForTicket,
   getTicketPipeline,
-  /** Absolute-via-rewrite URLs for the downloadable exports. */
-  exportCsvUrl: (eventId: string) => `${baseUrl()}/events/${eventId}/export.csv`,
-  auditPacketUrl: (eventId: string) => `${baseUrl()}/events/${eventId}/audit-packet.html`,
+  // Exports (CSV, audit packet, invoice) are downloaded via `openAuthedExport`
+  // so the bearer token travels with the request; see that helper above.
+
+  // Billing — county owes the contractor
+  eventBilling: (eventId: string) => request<BillingSummary>(`/events/${eventId}/billing`),
+  combinedBilling: () => request<BillingSummary>("/billing"),
 
   // Admin — events
   createEvent: (body: EventInput) =>

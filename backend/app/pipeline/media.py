@@ -35,6 +35,24 @@ from enum import StrEnum
 
 from app.config import get_settings
 
+_IMAGE_MIME = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+}
+_VIDEO_MIME = {".mp4": "video/mp4", ".mov": "video/quicktime", ".m4v": "video/mp4"}
+
+
+def guess_mime(filename: str, media_kind: str) -> str:
+    """MIME type for an upload, from its extension (falls back by media kind)."""
+    lower = filename.lower()
+    for ext, mime in {**_IMAGE_MIME, **_VIDEO_MIME}.items():
+        if lower.endswith(ext):
+            return mime
+    return "image/jpeg" if media_kind == "image" else "video/mp4"
+
 
 class SendMethod(StrEnum):
     """How a clip's bytes should reach the API."""

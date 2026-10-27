@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     template: "%s · LoadTruth",
   },
   description:
-    "LoadTruth is a multi-tenant platform for disaster-debris hauling. It measures every truckload from the footage, checks it against the monitor's call, and produces FEMA-ready payment records.",
+    "LoadTruth is a multi-tenant platform for disaster-debris hauling. It measures every truckload from the footage, checks it against the monitor's call, and produces payment records ready for a Federal Emergency Management Agency (FEMA) audit.",
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },

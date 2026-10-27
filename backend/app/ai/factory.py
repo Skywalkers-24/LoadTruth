@@ -6,6 +6,7 @@ Otherwise -> LiveAIClient (real Meta Model API).
 
 from __future__ import annotations
 
+from contextlib import AbstractAsyncContextManager, nullcontext
 from functools import lru_cache
 
 from app.ai.base import AIClient
@@ -17,7 +18,16 @@ from app.config import get_settings
 @lru_cache
 def get_ai_client() -> AIClient:
     """Return the process-wide AI client (mock under MOCK_AI or no key)."""
-    settings = get_settings()
-    if settings.mock_ai or not settings.model_api_configured:
-        return MockAIClient()
-    return LiveAIClient()
+    if get_settings().live_ai_enabled:
+        return LiveAIClient()
+    return MockAIClient()
+
+
+def clip_session(client: AIClient, content_hash: str) -> AbstractAsyncContextManager[None]:
+    """Scope one pipeline run so the live client can clean up the clip's upload.
+
+    A no-op for the mock (and any client without media to release).
+    """
+    if isinstance(client, LiveAIClient):
+        return client.clip_session(content_hash)
+    return nullcontext()

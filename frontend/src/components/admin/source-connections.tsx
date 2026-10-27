@@ -216,7 +216,7 @@ export function SourceConnections({ eventId }: { eventId: string }) {
                 type="button"
                 disabled={disabled}
                 aria-disabled={disabled}
-                title={disabled ? "Coming soon — connector is wired but not enabled yet" : undefined}
+                title={disabled ? "Coming soon" : undefined}
                 onClick={() => !disabled && selectKind(p.kind)}
                 className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                 style={{

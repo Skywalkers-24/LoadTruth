@@ -29,20 +29,24 @@ export default function OverviewPage() {
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-col">
-            <h1 className="truncate text-[20px] font-semibold tracking-tight">
+            <h1 className="lt-page-title truncate">
               {greeting()}
               {member?.full_name ? `, ${member.full_name.split(" ")[0]}` : ""}
             </h1>
             <p className="truncate text-[12px] text-muted-foreground">
               {selected?.name ?? "Overview"}
-              {selected?.location ? ` · ${selected.location}` : ""} · Video-verified load tickets by the cubic yard.
+              {selected?.location ? ` · ${selected.location}` : ""} · Video-verified load tickets by
+              the cubic yard.
             </p>
           </div>
           {eventId && <EventActions eventId={eventId} uploadVariant="secondary" />}
         </div>
 
         {eventsError ? (
-          <ErrorState title="Events unavailable" description="The server did not return any events. Refresh to try again." />
+          <ErrorState
+            title="Events unavailable"
+            description="The server did not return any events. Refresh to try again."
+          />
         ) : (
           <OverviewDashboard
             dashboard={dashboard.data}

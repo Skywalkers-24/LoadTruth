@@ -36,7 +36,9 @@ loadtruth/
 | AI calls (SAM/Spark) | `backend/app/ai/` — `base.py` (protocol), `mock.py` (fixtures), `live.py` (stub), `factory.py` | nothing else calls Meta directly; `get_ai_client` selects by config |
 | AI fixtures (§5b) | `backend/app/ai/fixtures/scenarios.json` | keyed by content hash; `record-fixtures.sh` adds real ones |
 | Ingest / export routes | `backend/app/api/ingest.py`, `backend/app/api/reports.py` | pipeline run; CSV + audit-packet HTML |
-| Report export logic | `backend/app/tickets/export.py` | CSV + printable FEMA/FROC audit packet |
+| Report export logic | `backend/app/tickets/export.py` | CSV + printable FEMA/FROC audit packet + printable invoice (`invoice_html`) |
+| Billing roll-up (county→contractor) | `backend/app/tickets/billing.py` | pure; payable = monitor call else estimate; `build_summary` → totals + line items + month history; reuses `money.py`, no new math |
+| Billing / invoice routes | `backend/app/api/billing.py` (registered in `app/main.py`) | `GET /events/{id}/billing`, `GET /billing` (combined), `GET /events/{id}/invoice.html`, `GET /billing/invoice.html`; read-only, tenant-scoped |
 | Ticket money math (CY, $, delta) | `backend/app/tickets/money.py` | pure/deterministic (PLAN.md §7a); never the model; `Decimal`-exact |
 | Ticket API schemas / enums | `backend/app/tickets/schemas.py` | `TicketOut`/`ValuationOut`/`MonitorCallIn`/`EventOut`/`EventIn`/`EventPatch`/`DashboardOut`/`PaginatedTickets`/`ReportsSummary`/`TruckOut`/`TruckIn`/`TruckPatch`/`SourceOut`/`SourceIn`/`SourcePatch`/`SourceTestResult`, `DebrisClass`/`TicketStatus`/`SourceKind`/`SourceStatus`, serializers |
 | Ticket/event domain records | `backend/app/tickets/domain.py` | `Event`/`Ticket` dataclasses; `apply_monitor_call` recomputes delta |
@@ -57,6 +59,7 @@ loadtruth/
 | A screen / page | `frontend/src/app/<route>/page.tsx` | RSC by default; Server Actions for mutations |
 | Shared UI component | `frontend/src/components/` | responsive, a11y, dark theme tokens (money-frame, review-console, dashboard, ticket-list, badges, evidence-canvas) |
 | Operator console screen | `frontend/src/app/console/page.tsx` | dashboard + queue + review console; single seeded tenant |
+| Billing screen | `frontend/src/app/billing/page.tsx` + `frontend/src/components/billing/billing-panel.tsx` | per-event + combined invoice, KPIs, history chart, line items, invoice export; `useBilling` hook, `api.eventBilling`/`combinedBilling`/`invoiceUrl`/`combinedInvoiceUrl`; nav entry in `app-shell.tsx` |
 | Data fetching / mutations (FE) | `frontend/src/lib/hooks.ts` (TanStack Query) + `frontend/src/lib/query.tsx` (provider) | invalidate tickets+dashboard on write |
 | Display formatting (FE) | `frontend/src/lib/format.ts` | money/percent/CY/debris labels |
 | Backend API client (FE) | `frontend/src/lib/api.ts` | typed; browser uses `/api/*` rewrite, server uses BACKEND_URL |

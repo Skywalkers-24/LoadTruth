@@ -145,10 +145,73 @@ async def list_jobs(
     owned = {str(e.id) for e in await repo.list_events(tenant)}
     if event_id is not None and str(event_id) not in owned:
         return []
-    # Pull a generous window, then filter to owned events and trim to `limit`.
+    # Live window first: the in-memory store has the richest, freshest traces.
     rows = await get_job_store().recent(event_id, limit=max(limit, 100))
     scoped = [(ev, tr) for ev, tr in rows if ev in owned][:limit]
-    return [_job_out(ev, tr) for ev, tr in scoped]
+    jobs = [_job_out(ev, tr) for ev, tr in scoped]
+    seen_tickets: set[str] = {j.ticket_id for j in jobs if j.ticket_id}
+
+    # Durable fallback: the store is process-local and empties on restart, so
+    # also surface every ticket's persisted trace from the database. This keeps
+    # the AI Pipeline populated across restarts, de-duped against the live rows.
+    if len(jobs) < limit:
+        db_jobs = await _persisted_jobs(repo, tenant, event_id, limit - len(jobs), seen_tickets)
+        jobs.extend(db_jobs)
+    jobs.sort(key=lambda j: j.started_at, reverse=True)
+    return jobs[:limit]
+
+
+async def _persisted_jobs(
+    repo: Repository,
+    tenant: UUID,
+    event_id: UUID | None,
+    limit: int,
+    skip_tickets: set[str],
+) -> list[JobOut]:
+    """Reconstruct pipeline jobs from the database: tickets plus saved stages."""
+    # Candidates are newest-first (list_tickets orders by created_at desc). Drop
+    # the ones already shown live, then look up stages and keep only tickets that
+    # have a persisted trace, trimming to `limit` AFTER that filter so a ticket
+    # without stages never costs us a slot.
+    all_tickets = await repo.list_tickets(tenant, event_id)
+    candidates = [t for t in all_tickets if str(t.id) not in skip_tickets]
+    if not candidates:
+        return []
+    stages_by_ticket = await repo.pipeline_stages_for_tickets(tenant, [t.id for t in candidates])
+    out: list[JobOut] = []
+    for t in candidates:
+        stage_rows = stages_by_ticket.get(t.id, [])
+        if not stage_rows:
+            continue  # nothing persisted for this ticket; skip rather than show an empty run
+        out.append(
+            JobOut(
+                content_hash=f"ticket:{t.id}",
+                event_id=str(t.event_id),
+                ticket_id=str(t.id),
+                truck_id=t.truck_id,
+                debris_class=t.debris_class.value,
+                outcome="drafted",
+                cached=False,
+                anomaly_count=t.anomaly_count,
+                dollar_value=float(t.est_dollar_value),
+                started_at=t.created_at.timestamp(),
+                stages=[
+                    StageOut(
+                        key=s.stage_key,
+                        label=s.label,
+                        model=s.model,
+                        status=s.status,
+                        summary=s.summary,
+                        confidence=float(s.confidence) if s.confidence is not None else None,
+                        duration_ms=float(s.duration_ms),
+                    )
+                    for s in stage_rows
+                ],
+            )
+        )
+        if len(out) >= limit:
+            break
+    return out
 
 
 @router.get("/jobs/ticket/{ticket_id}", response_model=JobOut | None)

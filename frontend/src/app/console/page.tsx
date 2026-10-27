@@ -1,30 +1,37 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { SlidersHorizontalIcon } from "lucide-react";
 
 import { AppShell } from "@/components/shell/app-shell";
 import { OPEN_TICKET_EVENT } from "@/components/shell/command-palette";
-import { QueueFilters, type SortKey, type StatusFilter } from "@/components/console/queue-filters";
-import { DecisionCard, ReviewWorkspace } from "@/components/console/review-workspace";
+import {
+  QueueFilters,
+  statusFilterLabel,
+  type SortKey,
+  type StatusFilter,
+} from "@/components/console/queue-filters";
+import { ReviewWorkspace, type TicketNav } from "@/components/console/review-workspace";
 import { TicketQueue } from "@/components/console/ticket-queue";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { ChevronDownIcon, ClipboardIcon } from "@/components/ui/icons";
-import { Kbd } from "@/components/ui/kbd";
 import { EmptyState, ErrorState, Panel, Skeleton } from "@/components/ui/primitives";
 import type { Ticket } from "@/lib/api";
 import { useEventContext } from "@/lib/event-context";
 import { useTicket, useTickets } from "@/lib/hooks";
+import { cn } from "@/lib/utils";
 import { isTypingTarget, useMediaQuery } from "@/lib/use-media-query";
 
-// Show a compact page of tickets that fits on screen without a long scroll;
-// the rest are reachable via pagination below the queue.
-const PAGE_SIZE = 4;
+// A page of compact queue rows that fits the queue column without scrolling at
+// common laptop heights; the rest are reachable via the pager.
+const PAGE_SIZE = 6;
 
 /**
- * Review Console: single-ticket review. A self-scrolling queue on the left and
- * the selected ticket's money frame, evidence, and decision rail on the right.
+ * Review Console: single-ticket review that fits one screen. A narrow queue on
+ * the left; the selected ticket in the center with the decision bar pinned to
+ * its bottom; the AI analysis and anomaly flags in a right rail.
  * Keyboard: J/K or arrow keys move through the queue, C/O/D decide.
  */
 export default function ConsolePage() {
@@ -49,7 +56,7 @@ function ConsoleView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [requestedId, setRequestedId] = useState<string | null>(null);
   const [mobileDetail, setMobileDetail] = useState(false);
-  const workspaceRef = useRef<HTMLDivElement>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const tickets = useTickets({
     eventId,
@@ -85,7 +92,9 @@ function ConsoleView() {
   }, []);
 
   // A requested ticket may not be on the current page; fetch it directly.
-  const pinned = useTicket(requestedId && !rows.some((t) => t.id === requestedId) ? requestedId : null);
+  const pinned = useTicket(
+    requestedId && !rows.some((t) => t.id === requestedId) ? requestedId : null,
+  );
 
   // Once the requested ticket actually appears in the queue (after paging or a
   // filter change), drop the "requested" pin so normal queue navigation resumes.
@@ -95,12 +104,16 @@ function ConsoleView() {
 
   useEffect(() => {
     if (requestedId) return;
+    // Don't override a deep-linked/pinned selection that is still loading or is
+    // being served from the direct fetch rather than the current page.
+    if (pinned.isLoading) return;
+    if (selectedId && pinned.data?.id === selectedId) return;
     if (rows.length === 0) {
       setSelectedId(null);
       return;
     }
     setSelectedId((cur) => (cur && rows.some((t) => t.id === cur) ? cur : (rows[0]?.id ?? null)));
-  }, [rows, requestedId]);
+  }, [rows, requestedId, pinned.isLoading, pinned.data, selectedId]);
 
   // If the list shrinks (e.g. after a decision) and the current page is now
   // beyond the end, snap back to the first page so the user isn't stranded.
@@ -109,14 +122,35 @@ function ConsoleView() {
   }, [offset, total]);
 
   const selected =
-    rows.find((t) => t.id === selectedId) ?? (pinned.data?.id === selectedId ? pinned.data : null) ?? null;
+    (pinned.data?.id === selectedId ? pinned.data : null) ??
+    rows.find((t) => t.id === selectedId) ??
+    null;
 
   const selectTicket = useCallback((id: string) => {
     setRequestedId(null);
     setSelectedId(id);
     setMobileDetail(true);
-    workspaceRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
+
+  // Previous/next through the current page, for the ticket header stepper.
+  const selectedIndex = rows.findIndex((t) => t.id === selectedId);
+  const nav: TicketNav | undefined =
+    selectedIndex >= 0
+      ? {
+          index: selectedIndex,
+          total: rows.length,
+          onPrev: () => {
+            const prev = rows[selectedIndex - 1];
+            if (prev) selectTicket(prev.id);
+          },
+          onNext: () => {
+            const next = rows[selectedIndex + 1];
+            if (next) selectTicket(next.id);
+          },
+        }
+      : undefined;
+
+  const filtersActive = status !== "draft" || sort !== "newest";
 
   // J/K and arrow-key navigation through the queue.
   useEffect(() => {
@@ -140,9 +174,48 @@ function ConsoleView() {
   }, [rows, selectedId, selectTicket]);
 
   const queuePanel = (
-    <div className="flex min-h-0 flex-col">
-      <div className="flex flex-col gap-3 border-b border-border p-3">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-col gap-2 border-b border-border p-2.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-col">
+            <div className="flex items-center gap-1.5">
+              <h2 className="lt-card-title">Review queue</h2>
+              <span
+                className="rounded-full bg-[var(--color-surface-2)] px-1.5 text-[11px] font-semibold leading-[18px] tabular-nums text-muted-foreground"
+                aria-label={`${total} ticket${total === 1 ? "" : "s"}`}
+              >
+                {total}
+              </span>
+            </div>
+            <span className="truncate text-[12px] leading-snug tabular-nums text-muted-foreground">
+              {statusFilterLabel(status)}
+              {search && ` · ${rows.length} match${rows.length === 1 ? "" : "es"}`}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((o) => !o)}
+            aria-expanded={filtersOpen}
+            className={cn(
+              "relative inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] font-medium transition-colors",
+              filtersOpen
+                ? "border-[var(--color-accent)] text-[var(--color-text)]"
+                : "border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:text-[var(--color-text)]",
+            )}
+          >
+            <SlidersHorizontalIcon className="size-3.5" />
+            Filter
+            {filtersActive && (
+              <span
+                className="absolute -right-1 -top-1 size-2 rounded-full bg-[var(--color-accent)]"
+                aria-label="Filters applied"
+              />
+            )}
+          </button>
+        </div>
         <QueueFilters
+          compact
+          showControls={filtersOpen}
           search={search}
           onSearch={setSearch}
           status={status}
@@ -154,27 +227,20 @@ function ConsoleView() {
           sort={sort}
           onSort={setSort}
         />
-        <div className="flex items-center justify-between text-[12px] tabular-nums text-muted-foreground">
-          <span>
-            {total} ticket{total === 1 ? "" : "s"}
-            {search && ` · ${rows.length} match${rows.length === 1 ? "" : "es"}`}
-          </span>
-          <span className="hidden items-center gap-1 lg:flex">
-            <Kbd>J</Kbd>
-            <Kbd>K</Kbd> to move
-          </span>
-        </div>
       </div>
 
-      <div className="min-h-0 p-3">
+      <div className="lt-scroll lt-fab-safe min-h-0 flex-1 overflow-y-auto p-2">
         {tickets.isLoading ? (
-          <div className="flex flex-col gap-2">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-[88px]" />
+          <div className="flex flex-col gap-1.5">
+            {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+              <Skeleton key={i} className="h-[72px]" />
             ))}
           </div>
         ) : tickets.isError ? (
-          <ErrorState description="Could not load the ticket queue." onRetry={() => tickets.refetch()} />
+          <ErrorState
+            description="Could not load the ticket queue."
+            onRetry={() => tickets.refetch()}
+          />
         ) : rows.length === 0 ? (
           <EmptyState
             icon={<ClipboardIcon size={20} />}
@@ -196,7 +262,7 @@ function ConsoleView() {
       </div>
 
       {!tickets.isLoading && !tickets.isError && total > PAGE_SIZE && (
-        <div className="border-t border-border px-3 py-2.5">
+        <div className="border-t border-border px-2.5 py-2">
           <Pagination total={total} limit={PAGE_SIZE} offset={offset} onOffset={setOffset} />
         </div>
       )}
@@ -204,7 +270,7 @@ function ConsoleView() {
   );
 
   const workspacePanel = selected ? (
-    <ReviewWorkspace key={selected.id} ticket={selected} />
+    <ReviewWorkspace key={selected.id} ticket={selected} nav={nav} />
   ) : pinned.isLoading ? (
     <Skeleton className="h-[520px]" />
   ) : (
@@ -220,7 +286,10 @@ function ConsoleView() {
   if (eventsError) {
     return (
       <AppShell section="Review">
-        <ErrorState title="Events unavailable" description="The server did not return any events." />
+        <ErrorState
+          title="Events unavailable"
+          description="The server did not return any events."
+        />
       </AppShell>
     );
   }
@@ -228,16 +297,13 @@ function ConsoleView() {
   return (
     <AppShell section="Review">
       {isDesktop ? (
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(320px,30%)_1fr] items-start gap-4">
-          <div className="lt-scroll flex max-h-full min-h-0 flex-col gap-4 overflow-y-auto pb-4 pr-1">
-            <div className="overflow-hidden rounded-xl border border-border bg-card">
-              {queuePanel}
-            </div>
-            {selected && <DecisionCard ticket={selected} />}
+        // Fixed-height grid: the queue column scrolls its list with the pager
+        // pinned; the workspace lays out its own columns and scroll areas.
+        <div className="grid min-h-0 flex-1 grid-cols-[13rem_minmax(0,1fr)] gap-4 xl:grid-cols-[14rem_minmax(0,1fr)]">
+          <div className="min-h-0 overflow-hidden rounded-xl border border-border bg-card">
+            {queuePanel}
           </div>
-          <div ref={workspaceRef} className="lt-scroll min-h-0 min-w-0 overflow-y-auto pb-20 pr-1">
-            {workspacePanel}
-          </div>
+          <div className="min-h-0 min-w-0">{workspacePanel}</div>
         </div>
       ) : !mobileDetail || !selected ? (
         <div className="lt-card-shadow overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -259,7 +325,6 @@ function ConsoleView() {
             </Button>
           </div>
           {workspacePanel}
-          {selected && <DecisionCard ticket={selected} />}
         </div>
       )}
     </AppShell>
@@ -268,7 +333,9 @@ function ConsoleView() {
 
 function filterAndSort(items: Ticket[], search: string, sort: SortKey): Ticket[] {
   const q = search.trim().toLowerCase();
-  const filtered = q ? items.filter((t) => `${t.truck_id ?? ""} ${t.id}`.toLowerCase().includes(q)) : items;
+  const filtered = q
+    ? items.filter((t) => `${t.truck_id ?? ""} ${t.id}`.toLowerCase().includes(q))
+    : items;
   const sorted = [...filtered];
   if (sort === "delta") {
     sorted.sort(

@@ -364,6 +364,34 @@ class SqlTicketRepository:
         )
         return sorted(rows, key=lambda r: int(r.position))
 
+    async def pipeline_stages_for_tickets(
+        self, tenant_id: UUID, ticket_ids: list[UUID]
+    ) -> dict[UUID, list[models.PipelineStageRow]]:
+        """Persisted stages for many tickets at once, keyed by ticket id.
+
+        One query instead of one per ticket, so the AI Pipeline list reads the
+        durable trace without an N+1. Each ticket's stages are ordered.
+        """
+        if not ticket_ids:
+            return {}
+        rows = list(
+            (
+                await self._s.execute(
+                    select(models.PipelineStageRow)
+                    .where(models.PipelineStageRow.tenant_id == tenant_id)
+                    .where(models.PipelineStageRow.ticket_id.in_(ticket_ids))
+                )
+            )
+            .scalars()
+            .all()
+        )
+        by_ticket: dict[UUID, list[models.PipelineStageRow]] = {}
+        for r in rows:
+            by_ticket.setdefault(r.ticket_id, []).append(r)
+        for stages in by_ticket.values():
+            stages.sort(key=lambda r: int(r.position))
+        return by_ticket
+
     async def get_ai_stage_result(
         self, tenant_id: UUID, content_hash: str, stage_key: str
     ) -> dict[str, object] | None:

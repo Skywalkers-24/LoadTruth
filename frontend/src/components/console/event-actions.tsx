@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { DownloadIcon, FileTextIcon, Loader2Icon, UploadIcon } from "lucide-react";
 
-import { api } from "@/lib/api";
+import { openAuthedExport } from "@/lib/api";
 import { Button } from "@/components/ui/shadcn/button";
 import { useToast } from "@/components/ui/toast";
 import { useIngest } from "@/lib/hooks";
@@ -28,7 +28,8 @@ export function EventActions({
       {
         onSuccess: (t) =>
           toast.push("ok", `New ticket created for ${t.truck_id ?? "an unidentified truck"}.`),
-        onError: () => toast.push("danger", "No truck was detected in that clip. Try another file."),
+        onError: () =>
+          toast.push("danger", "No truck was detected in that clip. Try another file."),
         onSettled: () => {
           if (inputRef.current) inputRef.current.value = "";
         },
@@ -55,17 +56,25 @@ export function EventActions({
         {ingest.isPending ? <Loader2Icon className="animate-spin" /> : <UploadIcon />}
         {ingest.isPending ? "Analyzing clip" : "Upload clip"}
       </Button>
-      <Button asChild variant="outline" size="sm">
-        <a href={api.exportCsvUrl(eventId)}>
-          <DownloadIcon />
-          Export CSV
-        </a>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() =>
+          void openAuthedExport(`/events/${eventId}/export.csv`, {
+            download: `loadtruth-${eventId}.csv`,
+          })
+        }
+      >
+        <DownloadIcon />
+        Export CSV
       </Button>
-      <Button asChild variant="outline" size="sm">
-        <a href={api.auditPacketUrl(eventId)} target="_blank" rel="noreferrer">
-          <FileTextIcon />
-          Audit packet
-        </a>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => void openAuthedExport(`/events/${eventId}/audit-packet.html`)}
+      >
+        <FileTextIcon />
+        Audit packet
       </Button>
     </div>
   );

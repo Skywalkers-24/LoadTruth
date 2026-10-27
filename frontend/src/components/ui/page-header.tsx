@@ -20,11 +20,11 @@ export function PageHeader({
             {eyebrow}
           </span>
         )}
-        <h1 className="line-clamp-2 text-[22px] font-semibold tracking-tight text-[var(--color-text)] sm:truncate">
-          {title}
-        </h1>
+        <h1 className="lt-page-title line-clamp-2 sm:truncate">{title}</h1>
         {description && (
-          <p className="max-w-2xl text-[13px] text-[var(--color-muted-foreground)]">{description}</p>
+          <p className="max-w-2xl text-[13px] text-[var(--color-muted-foreground)]">
+            {description}
+          </p>
         )}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

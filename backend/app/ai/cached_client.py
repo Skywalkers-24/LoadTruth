@@ -9,9 +9,10 @@ ever — then serve every later read from the database." It wraps a real client
   3. on a miss, calls the wrapped client once and persists the raw output.
 
 Because it conforms to the ``AIClient`` protocol, the pipeline orchestrator does
-not change at all — it still calls ``ai.track(h)`` / ``ai.read_placard(h)`` /
-``ai.classify_debris(h)``. The difference is those calls are now backed by a
-durable store that survives restarts, unlike the process-local result cache.
+not change: it calls ``ai.track(clip)`` / ``ai.read_placard(clip)`` /
+``ai.classify_debris(clip)``, and those calls are backed by a durable store that
+survives restarts, unlike the process-local result cache. A replayed result
+carries a ``cached=True`` usage at $0 so the cost ledger counts the hit.
 
 ``narrate_anomaly`` is intentionally **not** cached here: it is keyed by anomaly
 facts, not the clip hash, and its output is already persisted on the ``Anomaly``
@@ -25,11 +26,20 @@ pipeline failure.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Protocol
 from uuid import UUID
 
 from app.ai import serde
-from app.ai.base import AIClient, ClassifyResult, OCRResult, TrackResult
+from app.ai.base import (
+    AIClient,
+    CallUsage,
+    ClassifyResult,
+    ClipMedia,
+    Narration,
+    OCRResult,
+    TrackResult,
+)
 from app.log import get_logger
 
 log = get_logger("ai.cache")
@@ -74,33 +84,37 @@ class CachingAIClient:
         self._tenant = tenant_id
         self._model = model_label
 
-    async def track(self, content_hash: str) -> TrackResult:
-        cached = await self._repo.get_ai_stage_result(self._tenant, content_hash, serde.STAGE_TRACK)
+    def _hit(self) -> CallUsage:
+        return CallUsage(model=self._model, requests=0, cached=True)
+
+    async def track(self, clip: ClipMedia) -> TrackResult:
+        h = clip.content_hash
+        cached = await self._repo.get_ai_stage_result(self._tenant, h, serde.STAGE_TRACK)
         if cached is not None:
-            return serde.track_from_json(cached)
-        result = await self._inner.track(content_hash)
-        await self._persist(content_hash, serde.STAGE_TRACK, serde.track_to_json(result))
+            return replace(serde.track_from_json(cached), usage=self._hit())
+        result = await self._inner.track(clip)
+        await self._persist(h, serde.STAGE_TRACK, serde.track_to_json(result))
         return result
 
-    async def read_placard(self, content_hash: str) -> OCRResult:
-        cached = await self._repo.get_ai_stage_result(self._tenant, content_hash, serde.STAGE_OCR)
+    async def read_placard(self, clip: ClipMedia) -> OCRResult:
+        h = clip.content_hash
+        cached = await self._repo.get_ai_stage_result(self._tenant, h, serde.STAGE_OCR)
         if cached is not None:
-            return serde.ocr_from_json(cached)
-        result = await self._inner.read_placard(content_hash)
-        await self._persist(content_hash, serde.STAGE_OCR, serde.ocr_to_json(result))
+            return replace(serde.ocr_from_json(cached), usage=self._hit())
+        result = await self._inner.read_placard(clip)
+        await self._persist(h, serde.STAGE_OCR, serde.ocr_to_json(result))
         return result
 
-    async def classify_debris(self, content_hash: str) -> ClassifyResult:
-        cached = await self._repo.get_ai_stage_result(
-            self._tenant, content_hash, serde.STAGE_CLASSIFY
-        )
+    async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
+        h = clip.content_hash
+        cached = await self._repo.get_ai_stage_result(self._tenant, h, serde.STAGE_CLASSIFY)
         if cached is not None:
-            return serde.classify_from_json(cached)
-        result = await self._inner.classify_debris(content_hash)
-        await self._persist(content_hash, serde.STAGE_CLASSIFY, serde.classify_to_json(result))
+            return replace(serde.classify_from_json(cached), usage=self._hit())
+        result = await self._inner.classify_debris(clip)
+        await self._persist(h, serde.STAGE_CLASSIFY, serde.classify_to_json(result))
         return result
 
-    async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> str:
+    async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
         # Not clip-keyed — pass through (see module docstring).
         return await self._inner.narrate_anomaly(anomaly_type, facts)
 
@@ -115,4 +129,9 @@ class CachingAIClient:
                 confidence=serde.confidence_of(stage_key, payload),
             )
         except Exception:  # noqa: BLE001 — a storage hiccup must not fail the pipeline
-            log.warning("ai_stage_persist_failed", stage=stage_key, content_hash=content_hash)
+            log.warning(
+                "ai_stage_persist_failed",
+                stage=stage_key,
+                content_hash=content_hash,
+                exc_info=True,
+            )

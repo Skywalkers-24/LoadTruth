@@ -4,7 +4,7 @@ import type { Ticket } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/badge";
 import { AlertIcon, TruckIcon } from "@/components/ui/icons";
 import { FillGauge } from "@/components/console/fill-gauge";
-import { debrisLabel, relativeTime, signedMoney } from "@/lib/format";
+import { relativeTime, signedMoney } from "@/lib/format";
 import { shortId } from "@/components/console/ticket-metadata";
 
 /**
@@ -67,13 +67,20 @@ function TicketRow({
         role="option"
         aria-selected={selected}
         onClick={onSelect}
-        className="relative w-full overflow-hidden rounded-lg border px-3 py-2.5 text-left transition-all hover:border-[var(--color-border-strong)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+        className="relative w-full overflow-hidden rounded-lg border px-2.5 py-2 text-left transition-all hover:border-[var(--color-border-strong)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
         style={{
-          borderColor: selected ? "color-mix(in srgb, var(--color-accent) 60%, var(--color-border))" : "var(--color-border)",
+          borderColor: selected
+            ? "color-mix(in srgb, var(--color-accent) 60%, var(--color-border))"
+            : "var(--color-border)",
           backgroundColor: selected ? "var(--color-accent-soft)" : "var(--color-surface)",
         }}
       >
-        {selected && <span className="absolute inset-y-0 left-0 w-[3px] bg-[var(--color-accent)]" aria-hidden />}
+        {selected && (
+          <span
+            className="absolute inset-y-0 left-0 w-[3px] bg-[var(--color-accent)]"
+            aria-hidden
+          />
+        )}
 
         <div className="flex items-center justify-between gap-2">
           <span className="flex min-w-0 items-center gap-2">
@@ -98,13 +105,15 @@ function TicketRow({
         <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-[var(--color-muted-foreground)]">
           <TruckIcon size={12} className="shrink-0 text-[var(--color-subtle)]" />
           <span className="truncate tabular-nums">{ticket.truck_id ?? "Unidentified"}</span>
-          <span aria-hidden className="text-[var(--color-subtle)]">·</span>
-          <span className="truncate">{debrisLabel(ticket.debris_class)}</span>
-          <span aria-hidden className="text-[var(--color-subtle)]">·</span>
-          <span className="shrink-0 text-[var(--color-subtle)]">{relativeTime(ticket.created_at)}</span>
+          <span aria-hidden className="text-[var(--color-subtle)]">
+            ·
+          </span>
+          <span className="shrink-0 text-[var(--color-subtle)]">
+            {relativeTime(ticket.created_at)}
+          </span>
         </div>
 
-        <div className="mt-2 flex items-center gap-3">
+        <div className="mt-1.5 flex items-center gap-2">
           <FillGauge
             measured={Number.parseFloat(v.est_fill_pct)}
             monitor={v.monitor_fill_pct !== null ? Number.parseFloat(v.monitor_fill_pct) : null}
@@ -114,11 +123,16 @@ function TicketRow({
           {/* Compact numbers without repeating the words "measured"/"called" on
               every row — the gauge + column context already convey them. */}
           <span className="shrink-0 text-[11px] tabular-nums text-[var(--color-subtle)]">
-            <span className="font-semibold text-[var(--color-money)]">{Math.round(Number.parseFloat(v.est_fill_pct))}%</span>
+            <span className="font-semibold text-[var(--color-money)]">
+              {Math.round(Number.parseFloat(v.est_fill_pct))}%
+            </span>
             {v.monitor_fill_pct !== null && (
               <>
                 {" "}
-                / <span className="text-[var(--color-text)]">{Math.round(Number.parseFloat(v.monitor_fill_pct))}%</span>
+                /{" "}
+                <span className="text-[var(--color-text)]">
+                  {Math.round(Number.parseFloat(v.monitor_fill_pct))}%
+                </span>
               </>
             )}
           </span>
