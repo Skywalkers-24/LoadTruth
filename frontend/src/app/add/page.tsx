@@ -38,6 +38,8 @@ function ingestErrorMessage(err: unknown): string {
         return "This event no longer exists. Pick another event and try again.";
       case 422:
         return err.message || "No truck or load was detected, so no ticket was drafted.";
+      case 413:
+        return err.message || "That file is too large. Upload a shorter or smaller clip.";
       case 503:
         return err.message || "The AI models aren't available right now. Please try again shortly.";
       default:

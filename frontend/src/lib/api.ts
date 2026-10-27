@@ -575,7 +575,9 @@ async function upload<T>(path: string, file: File): Promise<T> {
   if (!res.ok) {
     // Surface the backend's own `detail` (e.g. the 422 no-truck message) so the
     // UI can show a meaningful, status-specific error instead of a generic one.
-    let detail = `upload to ${path} failed (${res.status})`;
+    // With no backend detail (e.g. the proxy dropped the request), leave the
+    // message empty so the page shows its own plain-language fallback.
+    let detail = "";
     try {
       const body = (await res.json()) as { detail?: string };
       if (body?.detail) detail = body.detail;
