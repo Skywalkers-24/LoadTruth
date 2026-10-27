@@ -74,7 +74,7 @@ export function ReportsPanel({
     .map((k) => ({ label: statusLabel(k), value: s.counts_by_status[k] ?? 0, color: STATUS_COLOR[k] }));
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           hero
@@ -216,7 +216,7 @@ function Ledger({ tickets }: { tickets: Ticket[] }) {
   }
 
   return (
-    <Card className="min-h-0 flex-1 gap-0 overflow-hidden py-0">
+    <Card className="gap-0 overflow-hidden py-0">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex flex-col">
           <h3 className="text-[14px] font-semibold">Ticket ledger</h3>
@@ -224,7 +224,7 @@ function Ledger({ tickets }: { tickets: Ticket[] }) {
         </div>
         <span className="text-[12px] tabular-nums text-muted-foreground">{tickets.length} tickets</span>
       </header>
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="max-h-[560px] overflow-auto">
         <table className="w-full min-w-[820px] border-collapse text-[13px]">
           <thead className="sticky top-0 z-10 bg-muted text-[11px] text-muted-foreground">
             <tr>

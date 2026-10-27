@@ -30,7 +30,7 @@ export function ReviewWorkspace({ ticket }: { ticket: Ticket }) {
             </h2>
             <StatusBadge status={ticket.status} />
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[var(--color-muted)]">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[var(--color-muted-foreground)]">
             <span className="flex items-center gap-1.5 tabular-nums">
               <TruckIcon size={14} className="text-[var(--color-subtle)]" />
               {ticket.truck_id ?? "Unidentified truck"}
@@ -91,7 +91,7 @@ function Card({
         <span className="text-[var(--color-subtle)]">{icon}</span>
         <h3 className="text-[13px] font-semibold text-[var(--color-text)]">{title}</h3>
         {count !== undefined && count > 0 && (
-          <span className="rounded-full bg-[var(--color-surface-3)] px-1.5 text-[11px] font-semibold tabular-nums text-[var(--color-muted)]">
+          <span className="rounded-full bg-[var(--color-surface-3)] px-1.5 text-[11px] font-semibold tabular-nums text-[var(--color-muted-foreground)]">
             {count}
           </span>
         )}

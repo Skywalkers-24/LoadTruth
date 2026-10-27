@@ -42,7 +42,7 @@ export function Metric({
     >
       <div className="flex items-center justify-between gap-1.5">
         <span className="flex items-center gap-1.5">
-          <span className="text-[12px] font-medium text-[var(--color-muted)]">{label}</span>
+          <span className="text-[12px] font-medium text-[var(--color-muted-foreground)]">{label}</span>
           {hint && (
             <Tooltip content={hint}>
               <span className="text-[var(--color-subtle)] hover:text-[var(--color-text)]" tabIndex={0} aria-label={hint}>

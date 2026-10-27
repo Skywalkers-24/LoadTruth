@@ -30,7 +30,7 @@ export function HealthIndicator() {
 
   return (
     <span
-      className="inline-flex size-8 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)]"
+      className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-card"
       title={label}
       aria-label={label}
       role="status"

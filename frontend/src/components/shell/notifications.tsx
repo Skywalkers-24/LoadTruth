@@ -55,7 +55,7 @@ export function Notifications() {
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={pending > 0 ? `${pending} tickets awaiting review` : "No tickets awaiting review"}
-        className="relative inline-flex size-9 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] sm:size-8"
+        className="relative inline-flex size-9 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] sm:size-8"
       >
         <BellIcon size={16} />
         {pending > 0 && (
@@ -104,7 +104,7 @@ export function Notifications() {
                         {t.truck_id ?? "Unidentified"}{" "}
                         <span className="text-[var(--color-subtle)]">{shortId(t.id)}</span>
                       </span>
-                      <span className="truncate text-[11px] text-[var(--color-muted)]">
+                      <span className="truncate text-[11px] text-[var(--color-muted-foreground)]">
                         {debrisLabel(t.debris_class)} · needs review
                       </span>
                     </span>

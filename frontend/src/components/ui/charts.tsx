@@ -68,7 +68,7 @@ function useTooltipStyle() {
 function ChartEmpty({ height, label }: { height: number; label: string }) {
   return (
     <div
-      className="flex items-center justify-center rounded-md border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)] text-[12px] text-[var(--color-muted)]"
+      className="flex items-center justify-center rounded-md border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)] text-[12px] text-[var(--color-muted-foreground)]"
       style={{ height }}
     >
       {label}
@@ -138,7 +138,7 @@ export function DonutChart({
       <ul className="flex flex-col gap-1.5">
         {data.map((d) => (
           <li key={d.label} className="flex items-center justify-between text-[12px]">
-            <span className="flex items-center gap-2 text-[var(--color-muted)]">
+            <span className="flex items-center gap-2 text-[var(--color-muted-foreground)]">
               <span
                 className="size-2.5 rounded-sm"
                 style={{ backgroundColor: d.color ?? c["--accent"] }}
@@ -235,7 +235,7 @@ export function RankedBars({ data }: { data: ChartDatum[] }) {
       {data.map((d) => (
         <li key={d.label} className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between gap-2 text-[13px]">
-            <span className="text-[var(--color-muted)]">{d.label}</span>
+            <span className="text-[var(--color-muted-foreground)]">{d.label}</span>
             <span className="font-semibold tabular-nums text-[var(--color-text)]">{d.display ?? d.value}</span>
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-surface-3)]">

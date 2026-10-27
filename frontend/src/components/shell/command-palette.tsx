@@ -129,7 +129,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       label: `${shortId(t.id)}  ${t.truck_id ?? "Unidentified"}`,
       hint: `${debrisLabel(t.debris_class)} · ${statusLabel(t.status)}`,
       right: t.valuation.delta_dollar_value ? signedMoney(t.valuation.delta_dollar_value) : undefined,
-      rightColor: t.valuation.is_overbill ? "var(--color-money)" : "var(--color-muted)",
+      rightColor: t.valuation.is_overbill ? "var(--color-money)" : "var(--color-muted-foreground)",
       icon: <TruckIcon size={15} />,
       run: () => {
         onClose();
@@ -194,7 +194,7 @@ function Palette({ onClose }: { onClose: () => void }) {
 
         <div ref={listRef} className="lt-scroll max-h-[380px] overflow-y-auto p-2">
           {items.length === 0 ? (
-            <p className="px-3 py-8 text-center text-[13px] text-[var(--color-muted)]">
+            <p className="px-3 py-8 text-center text-[13px] text-[var(--color-muted-foreground)]">
               No results for &ldquo;{q}&rdquo;.
             </p>
           ) : (
@@ -226,7 +226,7 @@ function Palette({ onClose }: { onClose: () => void }) {
                           <span className="truncate text-[13px] font-medium tabular-nums text-[var(--color-text)]">
                             {it.label}
                           </span>
-                          {it.hint && <span className="truncate text-[12px] text-[var(--color-muted)]">{it.hint}</span>}
+                          {it.hint && <span className="truncate text-[12px] text-[var(--color-muted-foreground)]">{it.hint}</span>}
                         </span>
                         {it.right && (
                           <span className="shrink-0 text-[13px] font-semibold tabular-nums" style={{ color: it.rightColor }}>

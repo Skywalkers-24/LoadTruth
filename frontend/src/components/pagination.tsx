@@ -18,7 +18,7 @@ export function Pagination({
   const canNext = offset + limit < total;
 
   return (
-    <div className="flex items-center justify-between gap-2 text-xs text-[var(--color-muted)]">
+    <div className="flex items-center justify-between gap-2 text-xs text-[var(--color-muted-foreground)]">
       <span className="tabular-nums">
         {start} to {end} of {total}
       </span>

@@ -106,7 +106,7 @@ export default function ReportsPage() {
   return (
     <AppShell section="Reports">
       <div className="flex min-h-0 flex-1 flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-col">
             <h1 className="truncate text-[20px] font-semibold tracking-tight">
               {allMode ? "All events" : (selected?.name ?? "Reports")}
@@ -152,24 +152,26 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {eventsError ? (
-          <ErrorState title="Events unavailable" description="The server did not return any events." />
-        ) : loading ? (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-[104px] rounded-xl" />
-              ))}
+        <div className="lt-scroll min-h-0 flex-1 overflow-y-auto pr-1">
+          {eventsError ? (
+            <ErrorState title="Events unavailable" description="The server did not return any events." />
+          ) : loading ? (
+            <div className="flex flex-col gap-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-[104px] rounded-xl" />
+                ))}
+              </div>
+              <Skeleton className="h-[280px] rounded-xl" />
             </div>
-            <Skeleton className="h-[280px] rounded-xl" />
-          </div>
-        ) : errored ? (
-          <ErrorState description="Could not load the report." onRetry={() => (allMode ? all.refetch() : summary.refetch())} />
-        ) : panelSummary && panelSummary.ticket_count > 0 ? (
-          <ReportsPanel s={panelSummary} tickets={panelTickets} perEvent={allMode ? perEvent : undefined} />
-        ) : (
-          <EmptyState title="No tickets yet" description="Reports appear once tickets are captured." />
-        )}
+          ) : errored ? (
+            <ErrorState description="Could not load the report." onRetry={() => (allMode ? all.refetch() : summary.refetch())} />
+          ) : panelSummary && panelSummary.ticket_count > 0 ? (
+            <ReportsPanel s={panelSummary} tickets={panelTickets} perEvent={allMode ? perEvent : undefined} />
+          ) : (
+            <EmptyState title="No tickets yet" description="Reports appear once tickets are captured." />
+          )}
+        </div>
       </div>
     </AppShell>
   );

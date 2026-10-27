@@ -13,9 +13,15 @@ import { TooltipProvider } from "@/components/ui/shadcn/tooltip";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "LoadTruth · Video-verified load tickets",
+  title: {
+    default: "LoadTruth",
+    template: "%s · LoadTruth",
+  },
   description:
     "Video-verified load tickets for disaster-debris hauling paid by the cubic yard. Measure truck-bed fill from camera evidence and produce auditable payment records.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
 };
 
 export const viewport: Viewport = {

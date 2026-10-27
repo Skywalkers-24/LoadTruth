@@ -114,7 +114,7 @@ export function ReviewActions({ ticket }: { ticket: Ticket }) {
 
   if (!canReview) {
     return (
-      <div className="flex items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-3 text-[12px] text-[var(--color-muted)]">
+      <div className="flex items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-3 text-[12px] text-[var(--color-muted-foreground)]">
         <span className="mt-0.5 text-[var(--color-subtle)]">
           <AlertIcon size={13} />
         </span>
@@ -126,7 +126,7 @@ export function ReviewActions({ ticket }: { ticket: Ticket }) {
   return (
     <div className="flex flex-col gap-4">
       {decided && (
-        <div className="flex items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-[12px] text-[var(--color-muted)]">
+        <div className="flex items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-[12px] text-[var(--color-muted-foreground)]">
           <span className="mt-0.5 text-[var(--color-subtle)]">
             <AlertIcon size={13} />
           </span>
@@ -136,7 +136,7 @@ export function ReviewActions({ ticket }: { ticket: Ticket }) {
 
       {/* Monitor call */}
       <form onSubmit={submitCall} className="flex flex-col gap-1.5">
-        <label htmlFor="monitor-call" className="text-[12px] font-medium text-[var(--color-muted)]">
+        <label htmlFor="monitor-call" className="text-[12px] font-medium text-[var(--color-muted-foreground)]">
           Monitor fill call
         </label>
         <div className="flex gap-2">
@@ -203,7 +203,7 @@ export function ReviewActions({ ticket }: { ticket: Ticket }) {
       >
         {needsReason && (
           <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-medium text-[var(--color-muted)]">
+            <span className="text-[12px] font-medium text-[var(--color-muted-foreground)]">
               Reason <span className="text-[var(--color-danger)]">*</span>
             </span>
             <textarea

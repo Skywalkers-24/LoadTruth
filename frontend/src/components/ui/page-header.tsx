@@ -24,7 +24,7 @@ export function PageHeader({
           {title}
         </h1>
         {description && (
-          <p className="max-w-2xl text-[13px] text-[var(--color-muted)]">{description}</p>
+          <p className="max-w-2xl text-[13px] text-[var(--color-muted-foreground)]">{description}</p>
         )}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

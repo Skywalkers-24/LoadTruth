@@ -108,7 +108,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
               >
                 <SkipBackIcon size={14} />
               </button>
-              <span className="min-w-[88px] text-center text-[12px] tabular-nums text-[var(--color-muted)]">
+              <span className="min-w-[88px] text-center text-[12px] tabular-nums text-[var(--color-muted-foreground)]">
                 Frame {frameIdx + 1} of {frames.length}
               </span>
               <button

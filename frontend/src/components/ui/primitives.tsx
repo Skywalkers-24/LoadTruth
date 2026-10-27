@@ -94,12 +94,12 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface-2)_60%,transparent)] px-6 py-10 text-center">
-      <span className="mb-1 grid size-11 place-items-center rounded-full bg-[var(--color-surface-3)] text-[var(--color-muted)]">
+      <span className="mb-1 grid size-11 place-items-center rounded-full bg-[var(--color-surface-3)] text-[var(--color-muted-foreground)]">
         {icon ?? <InfoIcon size={20} />}
       </span>
       <p className="text-sm font-medium text-[var(--color-text)]">{title}</p>
       {description && (
-        <p className="max-w-sm text-[13px] text-[var(--color-muted)]">{description}</p>
+        <p className="max-w-sm text-[13px] text-[var(--color-muted-foreground)]">{description}</p>
       )}
       {action && <div className="mt-2">{action}</div>}
     </div>
@@ -123,7 +123,7 @@ export function ErrorState({
       </span>
       <p className="text-sm font-medium text-[var(--color-text)]">{title}</p>
       {description && (
-        <p className="max-w-sm text-[13px] text-[var(--color-muted)]">{description}</p>
+        <p className="max-w-sm text-[13px] text-[var(--color-muted-foreground)]">{description}</p>
       )}
       {onRetry && (
         <button

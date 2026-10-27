@@ -34,7 +34,7 @@ export function AnomalyList({ ticket }: { ticket: Ticket }) {
               <span className="text-[13px] font-semibold text-[var(--color-text)]">{a.title}</span>
               <SeverityBadge severity={a.severity} />
             </div>
-            <p className="mt-1 text-[12px] leading-snug text-[var(--color-muted)]">{a.explanation}</p>
+            <p className="mt-1 text-[12px] leading-snug text-[var(--color-muted-foreground)]">{a.explanation}</p>
           </li>
         );
       })}

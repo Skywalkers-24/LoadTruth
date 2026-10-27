@@ -207,7 +207,7 @@ export function SourceConnections({ eventId }: { eventId: string }) {
                 style={{
                   borderColor: active ? "var(--color-accent)" : "var(--color-border)",
                   backgroundColor: active ? "var(--color-accent-soft)" : "var(--color-surface)",
-                  color: active ? "var(--color-text)" : "var(--color-muted)",
+                  color: active ? "var(--color-text)" : "var(--color-muted-foreground)",
                 }}
               >
                 {p.label}
@@ -218,7 +218,7 @@ export function SourceConnections({ eventId }: { eventId: string }) {
         <p className="mb-3 text-[12px] text-[var(--color-subtle)]">{provider.blurb}</p>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted)]">
+          <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]">
             Connection name
             <input
               value={name}
@@ -228,7 +228,7 @@ export function SourceConnections({ eventId }: { eventId: string }) {
             />
           </label>
           {provider.fields.map((f) => (
-            <label key={f.key} className="flex flex-col gap-1 text-[12px] text-[var(--color-muted)]">
+            <label key={f.key} className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]">
               {f.label}
               {f.optional && <span className="text-[var(--color-subtle)]"> (optional)</span>}
               <input
@@ -288,7 +288,7 @@ export function SourceConnections({ eventId }: { eventId: string }) {
                     </span>
                     <Badge tone={SOURCE_STATUS_TONE[s.status]}>{s.status}</Badge>
                   </span>
-                  <span className="text-[12px] text-[var(--color-muted)]">
+                  <span className="text-[12px] text-[var(--color-muted-foreground)]">
                     {sourceKindLabel(s.kind)}
                   </span>
                   {r && (
