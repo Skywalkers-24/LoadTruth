@@ -7,12 +7,12 @@ import { statusLabel } from "@/lib/format";
 type Tone = "neutral" | "accent" | "ok" | "warn" | "danger" | "info";
 
 const TONE: Record<Tone, { fg: string; soft: string }> = {
-  neutral: { fg: "var(--color-muted-foreground)", soft: "var(--color-surface-3)" },
-  accent: { fg: "var(--color-accent)", soft: "var(--color-accent-soft)" },
+  neutral: { fg: "var(--color-muted-foreground)", soft: "var(--color-secondary)" },
+  accent: { fg: "var(--color-brand)", soft: "var(--color-brand-soft)" },
   ok: { fg: "var(--color-ok)", soft: "var(--color-ok-soft)" },
   warn: { fg: "var(--color-warn)", soft: "var(--color-warn-soft)" },
-  danger: { fg: "var(--color-danger)", soft: "var(--color-danger-soft)" },
-  info: { fg: "var(--color-info)", soft: "var(--color-surface-3)" },
+  danger: { fg: "var(--color-destructive)", soft: "var(--color-danger-soft)" },
+  info: { fg: "var(--color-info)", soft: "var(--color-brand-soft)" },
 };
 
 /** Generic pill badge. Status is always reinforced with text (+ optional icon). */

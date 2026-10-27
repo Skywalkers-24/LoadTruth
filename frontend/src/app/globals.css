@@ -185,64 +185,65 @@
   --sidebar-ring: #4f8cff;
 }
 
-/* ── Light theme — quiet white/navy canvas, darker semantic foregrounds ── */
+/* ── Light theme — clean cool-white canvas, soft shadows, crisp borders ── */
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg: #eef2f7;
+  /* A soft, slightly cool off-white canvas (not flat grey); white cards float
+     above it with a gentle shadow. Borders are hairline and low-contrast. */
+  --bg: #f4f7fb;
   --surface: #ffffff;
-  --surface-2: #f5f8fc;
-  --surface-3: #eaf0f7;
-  --border-strong: #b4c1d2;
+  --surface-2: #f7f9fc;
+  --surface-3: #eef3f9;
+  --border-strong: #c3cfde;
 
-  --text: #0b1626;
-  --subtle: #5a6b84;
+  --text: #0f1b2d;
+  --subtle: #64748b;
 
-  --brand: #1f6feb;
-  --brand-strong: #1a5fd0;
-  --brand-soft: #e5efff;
-  --brand-fill: #1f6feb;
+  --brand: #2563eb;
+  --brand-strong: #1d4ed8;
+  --brand-soft: #e7effe;
+  --brand-fill: #2563eb;
   --on-brand: #ffffff;
 
-  /* Money accent — amber (darkened for AA on light surfaces).
-     #b45309 on white is about 5:1, so it keeps AA while reading as amber. */
+  /* Money accent — a warm amber that still clears AA on white (~4.6:1). */
   --money: #b45309;
   --money-strong: #92400e;
-  --money-soft: #fff0d5;
+  --money-soft: #fdf1e3;
 
   --ok: #0f7a3b;
-  --ok-soft: #e2f6e9;
+  --ok-soft: #e6f6ec;
   --warn: #b45309;
-  --warn-soft: #fff0d5;
-  --danger-soft: #fde8e8;
-  --info: #155db5;
+  --warn-soft: #fdf1e3;
+  --danger-soft: #fdeaec;
+  --info: #1d4ed8;
 
   /* ── shadcn/ui tokens (light). ── */
-  --background: #eef2f7;
-  --foreground: #0e1a2b;
+  --background: #f4f7fb;
+  --foreground: #0f1b2d;
   --card: #ffffff;
-  --card-foreground: #0e1a2b;
+  --card-foreground: #0f1b2d;
   --popover: #ffffff;
-  --popover-foreground: #0e1a2b;
-  --primary: #1f6feb;
+  --popover-foreground: #0f1b2d;
+  --primary: #2563eb;
   --primary-foreground: #ffffff;
-  --secondary: #eaf0f7;
-  --secondary-foreground: #0e1a2b;
-  --muted: #f5f8fc;
-  --muted-foreground: #3d4d63;
-  --accent: #eaf0f7;
-  --accent-foreground: #0b1626;
-  --destructive: #b4232c;
+  --secondary: #eef3f9;
+  --secondary-foreground: #0f1b2d;
+  --muted: #f1f5fa;
+  --muted-foreground: #4a5a70;
+  --accent: #eef3f9;
+  --accent-foreground: #0f1b2d;
+  --destructive: #c42a33;
   --destructive-foreground: #ffffff;
-  --border: #cdd7e3;
-  --input: #cdd7e3;
-  --ring: #1f6feb;
+  --border: #e2e8f0;
+  --input: #dbe3ee;
+  --ring: #2563eb;
 
-  --chart-1: #1f6feb;
-  --chart-2: #0f7a3b;
-  --chart-3: #b45309;
+  --chart-1: #2563eb;
+  --chart-2: #0f9d58;
+  --chart-3: #d97706;
   --chart-4: #7c3aed;
-  --chart-5: #b4232c;
+  --chart-5: #dc2626;
 
   /* Keep the rail dark in light mode too, for a consistent premium anchor. */
   --sidebar: #0d1726;
@@ -264,13 +265,19 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Subtle depth on the app canvas: a faint accent glow at the top. */
+/* Subtle depth on the app canvas: two faint, slowly drifting color glows. */
 body {
-  background-image: radial-gradient(
-    1200px 500px at 70% -10%,
-    color-mix(in srgb, var(--color-accent) 7%, transparent),
-    transparent 70%
-  );
+  background-image:
+    radial-gradient(
+      1100px 520px at 78% -12%,
+      color-mix(in srgb, var(--color-brand) 10%, transparent),
+      transparent 68%
+    ),
+    radial-gradient(
+      900px 480px at 8% 108%,
+      color-mix(in srgb, var(--color-money) 7%, transparent),
+      transparent 66%
+    );
   background-attachment: fixed;
 }
 
@@ -283,8 +290,21 @@ body {
   line-height: 1.45;
   /* Smooth theme transition without animating layout. */
   transition:
-    background-color 0.18s ease,
-    color 0.18s ease;
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+/* When switching theme, briefly ease color/border/shadow on every element so
+   the dark/light flip feels like a smooth cross-fade rather than a hard cut. */
+[data-theme-anim] *,
+[data-theme-anim] *::before,
+[data-theme-anim] *::after {
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease,
+    fill 0.3s ease,
+    stroke 0.3s ease !important;
 }
 
 /* Monospace for evidence numerals wherever `.tabular-nums` is applied. */
@@ -375,6 +395,47 @@ textarea,
 }
 [data-theme="light"] .lt-hover:hover {
   box-shadow: 0 6px 20px rgba(14, 26, 43, 0.1);
+}
+
+/* Softer, more premium card elevation for shadcn cards (data-slot="card"),
+   stronger and crisper in light mode where a flat card looks cheap. */
+[data-slot="card"] {
+  box-shadow:
+    0 1px 2px rgba(5, 12, 24, 0.28),
+    0 1px 0 rgba(255, 255, 255, 0.02) inset;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+[data-theme="light"] [data-slot="card"] {
+  box-shadow:
+    0 1px 2px rgba(15, 27, 45, 0.04),
+    0 4px 16px -4px rgba(15, 27, 45, 0.1);
+  border-color: var(--color-border);
+}
+
+/* A soft pulsing dot for live/health indicators (reference dashboards use this). */
+@keyframes lt-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-ok) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-ok) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-ok) 0%, transparent);
+  }
+}
+.lt-pulse {
+  animation: lt-pulse 2.2s ease-out infinite;
+}
+
+/* Sheen sweep for primary buttons/hero numbers on first paint (opt-in). */
+@keyframes lt-sheen {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
 }
 
 /* Dialog / popover entrance. */

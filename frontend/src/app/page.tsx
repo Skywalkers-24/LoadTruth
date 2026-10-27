@@ -4,11 +4,21 @@ import { AppShell } from "@/components/shell/app-shell";
 import { EventActions } from "@/components/console/event-actions";
 import { OverviewDashboard } from "@/components/overview/overview-dashboard";
 import { ErrorState } from "@/components/ui/primitives";
+import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
 import { useDashboard, useReportsSummary, useTickets } from "@/lib/hooks";
 
+/** Time-of-day greeting for the overview header. */
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+
 /** Overview: what needs action now for the active event. Fits one desktop screen. */
 export default function OverviewPage() {
+  const { member } = useAuth();
   const { selected, selectedId: eventId, isError: eventsError } = useEventContext();
   const dashboard = useDashboard(eventId);
   const summary = useReportsSummary(eventId);
@@ -19,11 +29,13 @@ export default function OverviewPage() {
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-col">
-            <h1 className="truncate text-[20px] font-semibold tracking-tight">{selected?.name ?? "Overview"}</h1>
+            <h1 className="truncate text-[20px] font-semibold tracking-tight">
+              {greeting()}
+              {member?.full_name ? `, ${member.full_name.split(" ")[0]}` : ""}
+            </h1>
             <p className="truncate text-[12px] text-muted-foreground">
-              {selected?.location
-                ? `${selected.location} · Video-verified load tickets measured by the cubic yard.`
-                : "Video-verified load tickets measured by the cubic yard."}
+              {selected?.name ?? "Overview"}
+              {selected?.location ? ` · ${selected.location}` : ""} · Video-verified load tickets by the cubic yard.
             </p>
           </div>
           {eventId && <EventActions eventId={eventId} uploadVariant="secondary" />}

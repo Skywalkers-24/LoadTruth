@@ -38,6 +38,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // `.dark` class, so we mirror the theme onto the class list too.
     el.classList.toggle("dark", theme === "dark");
     window.localStorage.setItem(STORAGE_KEY, theme);
+    // Briefly enable the cross-fade transition so the theme flip eases rather
+    // than cutting. Removed after the transition so it never affects interaction.
+    el.setAttribute("data-theme-anim", "");
+    const t = window.setTimeout(() => el.removeAttribute("data-theme-anim"), 350);
+    return () => window.clearTimeout(t);
   }, [theme]);
 
   const setTheme = useCallback((t: Theme) => setThemeState(t), []);

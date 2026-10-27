@@ -83,13 +83,25 @@ export function OverviewDashboard({
         .map((k) => ({ label: statusLabel(k), value: summary.counts_by_status[k] ?? 0, color: STATUS_COLOR[k] }))
     : [];
 
+  const ordered = [...tickets].sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
+
   const trend: TrendPoint[] = (() => {
-    const ordered = [...tickets].sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
     let running = 0;
     return ordered.map((t, i) => {
       if (t.valuation.is_overbill) running += Number.parseFloat(t.valuation.delta_dollar_value ?? "0");
       return { label: `${i + 1}`, value: Math.round(running * 100) / 100, display: money(running) };
     });
+  })();
+
+  // Small sparkline series for the KPI cards, derived from real ticket order.
+  const exposureSpark = trend.map((p) => p.value);
+  const measuredSpark = (() => {
+    let run = 0;
+    return ordered.map((t) => (run += Number.parseFloat(t.valuation.est_dollar_value ?? "0")));
+  })();
+  const reviewedSpark = (() => {
+    let run = 0;
+    return ordered.map((t) => (run += t.status === "draft" ? 0 : 1));
   })();
 
   return (
@@ -150,6 +162,7 @@ export function OverviewDashboard({
             icon={<CircleDollarSignIcon className="size-4" />}
             label="Flagged exposure"
             value={<CountUp value={exposure} format={(n) => money(n)} />}
+            trend={exposureSpark}
             hint="Sum of dollar deltas on tickets where the monitor called the load higher than measured. Estimated, pending review."
             sub={`Across ${d.overbill_ticket_count} over-called ticket${d.overbill_ticket_count === 1 ? "" : "s"}`}
           />
@@ -159,6 +172,7 @@ export function OverviewDashboard({
             icon={<LayersIcon className="size-4" />}
             label="Measured value"
             value={measuredValue === null ? "N/A" : <CountUp value={measuredValue} format={(n) => money(n)} />}
+            trend={measuredSpark}
             hint="Total dollar value of every load as measured by LoadTruth."
             sub={`${d.ticket_count} tickets in this event`}
           />
@@ -175,6 +189,7 @@ export function OverviewDashboard({
               </span>
             }
             progress={reviewPct}
+            trend={reviewedSpark}
             hint="Tickets with a confirmed or overridden decision."
             sub={`${needsReview} awaiting a decision`}
           />
