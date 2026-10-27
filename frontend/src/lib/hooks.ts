@@ -246,6 +246,16 @@ export function useTicketPipeline(ticketId: string | null) {
   });
 }
 
+/** The ticket's processed clip + SAM output (null when it has none). */
+export function useTicketEvidence(ticketId: string | null) {
+  return useQuery({
+    queryKey: ["ticket-evidence", ticketId],
+    queryFn: () => api.getTicketEvidence(ticketId as string),
+    enabled: Boolean(ticketId),
+    staleTime: 5 * 60_000,
+  });
+}
+
 // ── Admin: AI models, reasoning effort & cost mode ──────────────────────────
 export function useAiConfig() {
   return useQuery({ queryKey: ["ai-config"], queryFn: () => api.getAiConfig() });

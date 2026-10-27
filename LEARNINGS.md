@@ -221,6 +221,14 @@ Verified against the docs on 2026-10-27 ([segmenting](https://dev.meta.ai/docs/s
 - **Effort values are** `minimal, low, medium, high, xhigh, max` (`none` returns 400 on Spark). The admin UI's "balanced" is sent as `medium`.
 - **Uploaded files never expire by default.** Uploads set `expires_after` (1 hour) and are deleted with `DELETE /v1/files/{id}` when the run ends.
 
+**First real run (2026-10-27, 15.2 MB 1080p clip of a truck hauling a dumpster; full exchange in `logs/meta_api.jsonl`):**
+- ffmpeg shrank it to 2.2 MB (1024x576, 3 fps, 30 frames), small enough to send inline as a data URL.
+- SAM stream events, in order: `response.created`, `in_progress`, `output_item.added`, `content_part.added`, one `output_text.delta` per frame (30), `output_text.done`, `content_part.done`, `output_item.done`, `completed`. Usage reports `video_frames_processed: 50` (the minimum) and zero tokens.
+- "truck bed" returned one stable track (id 0) on all 30 frames. "debris pile" returned two tracks: the load on top of the bed, and a small object above and behind the truck.
+- Each SAM request took about 5.5 s, and both ran in parallel. Decoding and measuring the masks in Python then took about 15 s.
+- Spark OCR read `FL-DT-3391` (confidence 0.9) in 15 s: 2,731 tokens in, 896 out, of which 855 were reasoning at effort `low`. Classify returned `construction_demolition` (0.95) in 19.5 s: 2,748 in, 440 out.
+- Total about $0.033 for the clip and about 41 s end to end. Reasoning tokens are most of the Spark output cost.
+
 **Geometry calibration (open item).** `app/ai/sam_measure.py` measures the bed track with the largest box area, counts debris pixels inside the bed's horizontal span and above its floor, and takes load height from the top of the debris on the frame with the largest bed area. These are first-pass heuristics. Check them against clips with known fills (the ±10% target) and tune the concept phrases, which are settings.
 
 **Try it:** `make live-check` (key check, one tiny Spark call) and `make live-check CLIP=data_tests/ordinary__random-haul.mp4` (full pipeline live, prints each stage and the cost).

@@ -177,7 +177,9 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
         return AnalystReply(text, used, _follow_ups("anomalies", question))
 
     # Review progress / pending
-    if _mentions(q, "need review", "needs review", "pending", "awaiting", "left to review", "queue"):
+    if _mentions(
+        q, "need review", "needs review", "pending", "awaiting", "left to review", "queue"
+    ):
         s = await tools.event_summary()
         used.append(s)
         pending = int(s.evidence.get("pending_count", 0))  # type: ignore[arg-type]

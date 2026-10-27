@@ -107,7 +107,9 @@ class JobStore:
         async with self._lock:
             self._runs.appendleft((str(event_id), trace))
 
-    async def recent(self, event_id: UUID | None = None, limit: int = 50) -> list[tuple[str, PipelineTrace]]:
+    async def recent(
+        self, event_id: UUID | None = None, limit: int = 50
+    ) -> list[tuple[str, PipelineTrace]]:
         async with self._lock:
             rows = list(self._runs)
         if event_id is not None:

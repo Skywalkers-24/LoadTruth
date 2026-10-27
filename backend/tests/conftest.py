@@ -31,6 +31,16 @@ from app.tickets.seed import DEMO_TENANT_ID, seed_demo
 def _no_meta_api_log(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Tests never append to the real logs/meta_api.jsonl."""
     monkeypatch.setenv("MODEL_API_LOG_PATH", "")
+    yield
+    get_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _isolated_evidence_dir(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[None]:
+    """Tests store evidence media in a temp dir, never the repo's media/."""
+    monkeypatch.setenv("EVIDENCE_DIR", str(tmp_path_factory.mktemp("evidence")))
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

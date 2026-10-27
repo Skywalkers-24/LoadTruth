@@ -180,6 +180,14 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert result.ticket.debris_class.value == "construction_demolition"
     assert result.ticket.est_fill_pct > 0
 
+    # SAM's raw output is kept per concept for the Review overlay, and the
+    # media the models saw is stored for playback.
+    assert set(result.segments) == {"truck bed", "debris pile"}
+    assert result.segments["truck bed"].startswith("<0f>0<|box;")
+    from app.pipeline import evidence_store
+
+    assert await evidence_store.load("f" * 64) is not None
+
     # One upload served every call, and it was deleted when the run ended.
     assert len(fake.uploads) == 1
     assert fake.deleted == ["file-123"]

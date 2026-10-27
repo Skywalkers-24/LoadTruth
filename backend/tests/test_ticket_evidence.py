@@ -1,0 +1,84 @@
+"""Ticket evidence: the stored clip and SAM's raw segmentation, served to Review."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from uuid import UUID
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from app.pipeline import evidence_store
+from app.tickets.repository import SqlTicketRepository
+from app.tickets.seed import DEMO_EVENT_ID, DEMO_TENANT_ID
+
+CLIP = b"evidence-clip-bytes-for-playback"
+
+
+def _ingest(client: TestClient) -> str:
+    resp = client.post(
+        f"/events/{DEMO_EVENT_ID}/ingest",
+        files={"file": ("haul.mp4", CLIP, "video/mp4")},
+    )
+    assert resp.status_code == 201
+    return str(resp.json()["id"])
+
+
+def test_ingest_stores_the_clip_and_serves_it(client: TestClient) -> None:
+    ticket_id = _ingest(client)
+
+    ev = client.get(f"/tickets/{ticket_id}/evidence")
+    assert ev.status_code == 200
+    body = ev.json()
+    assert body["has_media"] is True
+    assert body["media_kind"] == "video" and body["mime"] == "video/mp4"
+    assert body["segments"] == {}  # fixtures carry no raw SAM output
+
+    media = client.get(f"/tickets/{ticket_id}/evidence/media")
+    assert media.status_code == 200
+    assert media.content == CLIP
+    assert media.headers["content-type"] == "video/mp4"
+
+
+def test_seeded_ticket_without_evidence_is_404(client: TestClient) -> None:
+    ticket_id = client.get("/tickets?limit=1").json()["items"][0]["id"]
+    assert client.get(f"/tickets/{ticket_id}/evidence").status_code == 404
+    assert client.get(f"/tickets/{ticket_id}/evidence/media").status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_evidence_is_tenant_scoped(
+    sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    ticket = UUID("44444444-4444-4444-4444-444444444444")
+    async with sessionmaker() as s:
+        repo = SqlTicketRepository(s)
+        await repo.save_ticket_evidence(
+            DEMO_TENANT_ID,
+            ticket,
+            content_hash="a" * 64,
+            media_kind="video",
+            mime="video/mp4",
+            fps=3.0,
+            segments={"truck bed": "<0f>0<|box|>"},
+        )
+        mine = await repo.get_ticket_evidence(DEMO_TENANT_ID, ticket)
+        other = await repo.get_ticket_evidence(UUID("99999999-9999-9999-9999-999999999999"), ticket)
+    assert mine is not None and mine.segments == {"truck bed": "<0f>0<|box|>"}
+    assert other is None
+
+
+@pytest.mark.asyncio
+async def test_store_rejects_unsafe_keys_and_keeps_first_copy() -> None:
+    await evidence_store.save("../escape", b"x", mime="video/mp4")
+    assert await evidence_store.load("../escape") is None
+    await evidence_store.save("b" * 64, b"first", mime="video/mp4", fps=3.0)
+    await evidence_store.save("b" * 64, b"second", mime="video/mp4")
+    stored = await evidence_store.load("b" * 64)
+    assert stored is not None and stored.fps == 3.0
+    assert _read(stored.path) == b"first"
+
+
+def _read(path: Path) -> bytes:
+    return path.read_bytes()

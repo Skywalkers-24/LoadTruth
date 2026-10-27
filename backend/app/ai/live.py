@@ -52,9 +52,17 @@ from app.ai.meta_http import (
 )
 from app.ai.pricing import sam_cost_usd, spark_cost_usd, token_counts
 from app.ai.request_params import params_for
-from app.ai.sam_measure import Detection, frames_covered, measure, parse_segmentation
+from app.ai.sam_measure import (
+    BED_LABEL,
+    LOAD_LABEL,
+    Detection,
+    frames_covered,
+    measure,
+    parse_segmentation,
+)
 from app.config import get_settings
 from app.log import get_logger
+from app.pipeline import evidence_store
 from app.pipeline.media import SendMethod, plan_transport
 from app.pipeline.transcode import prepare_media
 
@@ -134,6 +142,12 @@ class PreparedMedia:
 class _SegmentRun:
     detections: list[Detection]
     usage: CallUsage
+    text: str = ""
+
+
+# Raw SAM text kept per concept for the Review overlay (about 400 chars per
+# object per frame); a very long clip beyond this keeps its measurements only.
+_MAX_SEGMENT_CHARS = 4_000_000
 
 
 def _clamp01(value: object) -> float:
@@ -223,6 +237,14 @@ class LiveAIClient:
         prepared = await prepare_media(
             clip.data, media_kind=clip.media_kind, filename=clip.filename
         )
+        # Keep the exact media the models see, so the Review console can play it
+        # under SAM's per-frame boxes and masks (a resampled video's fps maps
+        # SAM frame indexes to playback time).
+        is_video = clip.media_kind == "video"
+        video_fps = s.frame_sample_fps if prepared.transcoded and is_video else None
+        await evidence_store.save(
+            clip.content_hash, prepared.data, mime=prepared.mime, fps=video_fps
+        )
         plan = plan_transport(len(prepared.data))
         kind = "input_image" if clip.media_kind == "image" else "input_video"
         if plan.send_method is SendMethod.UPLOAD:
@@ -270,7 +292,12 @@ class LiveAIClient:
             frames=result.frame_count,
             cost_usd=bed.usage.cost_usd + load.usage.cost_usd,
         )
-        return replace(result, usage=bed.usage.plus(load.usage))
+        segments = {
+            label: text
+            for label, text in ((BED_LABEL, bed.text), (LOAD_LABEL, load.text))
+            if len(text) <= _MAX_SEGMENT_CHARS
+        }
+        return replace(result, usage=bed.usage.plus(load.usage), segments=segments)
 
     async def _segment(self, media: PreparedMedia, concept: str) -> _SegmentRun:
         model = get_ai_config_store().resolve("sam_track").model
@@ -292,7 +319,7 @@ class LiveAIClient:
         frames = 1 if media.media_kind == "image" else frames_covered(detections)
         cost = sam_cost_usd(streamed.usage, media_kind=media.media_kind, frames_seen=frames)
         usage = CallUsage(model=model, latency_ms=streamed.latency_ms, cost_usd=cost)
-        return _SegmentRun(detections, usage)
+        return _SegmentRun(detections, usage, streamed.text)
 
     # ── Muse Spark ───────────────────────────────────────────────────────────
     async def _spark(

@@ -57,7 +57,9 @@ DEMO_TENANT_ID = UUID(str(_seed_data()["tenant_id"]))
 DEMO_EVENT_ID = UUID(str(_events()[0]["id"]))
 
 
-def _stage_rows(tenant_id: UUID, row: models.Ticket, had_monitor: bool) -> list[models.PipelineStageRow]:
+def _stage_rows(
+    tenant_id: UUID, row: models.Ticket, had_monitor: bool
+) -> list[models.PipelineStageRow]:
     """A plausible AI pipeline trace for a seeded ticket, from its real fields.
 
     Seeded tickets did not run the live pipeline, but the demo should still show
@@ -66,15 +68,26 @@ def _stage_rows(tenant_id: UUID, row: models.Ticket, had_monitor: bool) -> list[
     """
     debris = row.debris_class.replace("_", " ")
     truck = row.truck_id or "unidentified"
-    readable = bool(row.truck_id) and "??" not in (row.truck_id or "") and row.truck_id != "FL-DT-0000"
+    readable = (
+        bool(row.truck_id) and "??" not in (row.truck_id or "") and row.truck_id != "FL-DT-0000"
+    )
     stages = [
-        ("sam_track", "Track and segment", "sam-3.1", "ok", "Tracked truck, bed, and debris across the clip.", 0.0),
+        (
+            "sam_track",
+            "Track and segment",
+            "sam-3.1",
+            "ok",
+            "Tracked truck, bed, and debris across the clip.",
+            0.0,
+        ),
         (
             "spark_ocr",
             "Read placard",
             "muse-spark-1.3",
             "ok" if readable else "flagged",
-            f"Read truck placard {truck}." if readable else "Could not read the placard confidently.",
+            f"Read truck placard {truck}."
+            if readable
+            else "Could not read the placard confidently.",
             0.97 if readable else 0.3,
         ),
         (
@@ -188,7 +201,9 @@ def _build_ticket_rows(
             )
 
         # A reconstructed AI stage trace for this seeded ticket.
-        ticket_stages = _stage_rows(tenant_id, row, had_monitor=spec.get("monitor_fill_pct") is not None)
+        ticket_stages = _stage_rows(
+            tenant_id, row, had_monitor=spec.get("monitor_fill_pct") is not None
+        )
         if flag is not None:
             ticket_stages.append(
                 models.PipelineStageRow(

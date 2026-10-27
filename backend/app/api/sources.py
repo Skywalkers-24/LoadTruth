@@ -36,6 +36,7 @@ def _require_enabled_kind(kind: SourceKind) -> None:
             f"The '{kind.value}' source connector is not enabled yet.",
         )
 
+
 router = APIRouter(tags=["sources"])
 
 # Connecting, editing, testing, or removing evidence sources is supervisor-and-up.

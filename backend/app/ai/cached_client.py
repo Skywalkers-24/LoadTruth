@@ -90,7 +90,7 @@ class CachingAIClient:
     async def track(self, clip: ClipMedia) -> TrackResult:
         h = clip.content_hash
         cached = await self._repo.get_ai_stage_result(self._tenant, h, serde.STAGE_TRACK)
-        if cached is not None:
+        if cached is not None and serde.track_is_current(cached):
             return replace(serde.track_from_json(cached), usage=self._hit())
         result = await self._inner.track(clip)
         await self._persist(h, serde.STAGE_TRACK, serde.track_to_json(result))

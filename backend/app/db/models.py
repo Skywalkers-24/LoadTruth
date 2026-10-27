@@ -200,3 +200,28 @@ class AIStageResult(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base
             unique=True,
         ),
     )
+
+
+class TicketEvidence(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
+    """The processed clip behind a ticket and SAM 3.1's raw segmentation of it.
+
+    ``content_hash`` names the media file in the evidence store (the exact video
+    or image the models saw). ``segments`` maps each SAM concept ("truck bed",
+    "debris pile") to the model's raw output text, so the Review console can
+    draw SAM's boxes and masks over the video frame by frame. ``fps`` is the
+    frame rate of the stored video when known (it maps SAM frame indexes to
+    playback time).
+    """
+
+    __tablename__ = "ticket_evidence"
+
+    ticket_id: Mapped[uuid.UUID] = mapped_column(GUID(), nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    media_kind: Mapped[str] = mapped_column(String(8), nullable=False, default="video")
+    mime: Mapped[str] = mapped_column(String(48), nullable=False, default="video/mp4")
+    fps: Mapped[float | None] = mapped_column(Numeric(6, 3), nullable=True)
+    segments: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+
+    __table_args__ = (
+        Index("ix_ticket_evidence_tenant_ticket", "tenant_id", "ticket_id", unique=True),
+    )

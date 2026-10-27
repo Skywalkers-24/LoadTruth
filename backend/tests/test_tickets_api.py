@@ -122,9 +122,7 @@ def _expected_accuracy(client: TestClient) -> float:
     """Recompute the within-10-points accuracy from the live ticket data, so the
     assertion tracks the seed instead of a hard-coded constant."""
     benchmarked = [
-        t
-        for t in _all_tickets(client)
-        if t["valuation"]["monitor_fill_pct"] is not None
+        t for t in _all_tickets(client) if t["valuation"]["monitor_fill_pct"] is not None
     ]
     within = sum(
         1

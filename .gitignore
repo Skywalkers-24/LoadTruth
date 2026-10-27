@@ -29,6 +29,8 @@
 responses.log
 # Meta API exchange log (may contain evidence details); see backend/app/ai/api_log.py
 logs/
+# Stored evidence clips (customer media); see backend/app/pipeline/evidence_store.py
+media/
 *.local
 
 # Local scratch / experiment scripts and logs (not part of the app)

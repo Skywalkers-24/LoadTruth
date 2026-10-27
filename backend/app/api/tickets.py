@@ -12,11 +12,13 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
 
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_manage_events, can_review_tickets
+from app.pipeline import evidence_store
 from app.tickets.repository import EventNotFoundError, TicketNotFoundError
 from app.tickets.schemas import (
     AnomalyOut,
@@ -175,6 +177,52 @@ async def ticket_pipeline(
     ]
 
 
+class EvidenceOut(BaseModel):
+    """The processed clip behind a ticket and SAM's raw per-frame segmentation."""
+
+    media_kind: str
+    mime: str
+    # Frame rate of the stored video when known; SAM frame N plays at N / fps.
+    fps: float | None = None
+    has_media: bool
+    # Concept label ("truck bed", "debris pile") -> SAM 3.1 output text.
+    segments: dict[str, str] = Field(default_factory=dict)
+
+
+@router.get("/tickets/{ticket_id}/evidence", response_model=EvidenceOut)
+async def ticket_evidence(repo: Repository, tenant: ActiveTenant, ticket_id: UUID) -> EvidenceOut:
+    """What the models saw for this ticket, for the Review console overlay."""
+    row = await repo.get_ticket_evidence(tenant, ticket_id)
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no evidence for this ticket")
+    stored = await evidence_store.load(row.content_hash)
+    raw = row.segments if isinstance(row.segments, dict) else {}
+    return EvidenceOut(
+        media_kind=row.media_kind,
+        mime=stored.mime if stored else row.mime,
+        fps=float(row.fps) if row.fps is not None else (stored.fps if stored else None),
+        has_media=stored is not None,
+        segments={str(k): str(v) for k, v in raw.items()},
+    )
+
+
+@router.get("/tickets/{ticket_id}/evidence/media")
+async def ticket_evidence_media(
+    repo: Repository, tenant: ActiveTenant, ticket_id: UUID
+) -> FileResponse:
+    """The stored clip itself (tenant-checked through the ticket's evidence row)."""
+    row = await repo.get_ticket_evidence(tenant, ticket_id)
+    stored = await evidence_store.load(row.content_hash) if row is not None else None
+    if row is None or stored is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no evidence media for this ticket")
+    return FileResponse(
+        stored.path,
+        media_type=stored.mime,
+        filename=f"evidence-{ticket_id}.{evidence_store.extension(stored.mime)}",
+        content_disposition_type="inline",
+    )
+
+
 @router.patch(
     "/tickets/{ticket_id}/monitor-call", response_model=TicketOut, dependencies=[ReviewTickets]
 )
@@ -189,9 +237,7 @@ async def set_monitor_call(
     return ticket_to_out(t)
 
 
-@router.patch(
-    "/tickets/{ticket_id}/status", response_model=TicketOut, dependencies=[ReviewTickets]
-)
+@router.patch("/tickets/{ticket_id}/status", response_model=TicketOut, dependencies=[ReviewTickets])
 async def set_status(
     repo: Repository, tenant: ActiveTenant, ticket_id: UUID, body: StatusIn
 ) -> TicketOut:

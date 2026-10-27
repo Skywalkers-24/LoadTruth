@@ -347,6 +347,43 @@ class SqlTicketRepository:
             )
         await self._s.flush()
 
+    async def save_ticket_evidence(
+        self,
+        tenant_id: UUID,
+        ticket_id: UUID,
+        *,
+        content_hash: str,
+        media_kind: str,
+        mime: str,
+        fps: float | None,
+        segments: dict[str, str],
+    ) -> None:
+        """Link a ticket to its processed clip and SAM's raw segmentation."""
+        self._s.add(
+            models.TicketEvidence(
+                tenant_id=tenant_id,
+                ticket_id=ticket_id,
+                content_hash=content_hash,
+                media_kind=media_kind,
+                mime=mime,
+                fps=fps,
+                segments=dict(segments),
+            )
+        )
+        await self._s.flush()
+
+    async def get_ticket_evidence(
+        self, tenant_id: UUID, ticket_id: UUID
+    ) -> models.TicketEvidence | None:
+        """The ticket's evidence row (tenant-scoped), or None."""
+        return (
+            await self._s.execute(
+                select(models.TicketEvidence)
+                .where(models.TicketEvidence.tenant_id == tenant_id)
+                .where(models.TicketEvidence.ticket_id == ticket_id)
+            )
+        ).scalar_one_or_none()
+
     async def list_pipeline_stages(
         self, tenant_id: UUID, ticket_id: UUID
     ) -> list[models.PipelineStageRow]:

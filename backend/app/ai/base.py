@@ -83,6 +83,9 @@ class TrackResult:
     objects: list[TrackedObject]
     frame_count: int
     usage: CallUsage | None = field(default=None, compare=False, repr=False)
+    # SAM's raw output text per concept label ("truck bed", "debris pile"):
+    # kept so the Review console can draw the real boxes and masks per frame.
+    segments: dict[str, str] = field(default_factory=dict, compare=False, repr=False)
 
     def by_label(self, label: str) -> TrackedObject | None:
         return next((o for o in self.objects if o.label == label), None)

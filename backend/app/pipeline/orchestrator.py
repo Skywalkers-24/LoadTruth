@@ -43,6 +43,8 @@ class PipelineResult:
     fill_confidence: float = 0.0
     no_truck: bool = False
     trace: PipelineTrace | None = None
+    # SAM's raw output per concept, for the Review console overlay.
+    segments: dict[str, str] = field(default_factory=dict)
 
 
 def _mask_measurement(track_bed_area: float, load_area: float, height: float) -> MaskMeasurement:
@@ -299,6 +301,7 @@ async def _compute_pipeline(
         anomalies=anomalies,
         identity_confidence=ocr.confidence,
         fill_confidence=fill.confidence,
+        segments=dict(tracks.segments),
     )
 
 

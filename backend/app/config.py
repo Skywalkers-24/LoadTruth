@@ -106,6 +106,8 @@ class Settings(BaseSettings):
         default=str(_REPO_ROOT / "logs" / "meta_api.jsonl"), alias="MODEL_API_LOG_PATH"
     )
     model_api_log_max_chars: int = Field(default=200_000)
+    # Processed evidence media (the exact clip the models saw), by content hash.
+    evidence_dir: str = Field(default=str(_REPO_ROOT / "media" / "evidence"), alias="EVIDENCE_DIR")
     # Hard cap on keyframes sampled from any one clip (bounds SAM frame cost and
     # memory for a long video, regardless of fps/duration).
     max_sampled_frames: int = Field(default=120)

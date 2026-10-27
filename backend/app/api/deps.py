@@ -24,6 +24,7 @@ from app.db.tenant import AuthContext, AuthError, tenant_session, verify_token
 
 # ── LoadTruth session login (the build's real auth) ───────────────────────────
 
+
 async def current_member(
     authorization: Annotated[str | None, Header()] = None,
 ) -> Session:
@@ -64,6 +65,7 @@ def require(predicate: Callable[[str], bool], message: str) -> Callable[[Session
 
 
 # ── Supabase-JWT path (kept for /auth-context and future Postgres RLS) ─────────
+
 
 async def current_user(
     authorization: Annotated[str | None, Header()] = None,

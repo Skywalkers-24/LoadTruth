@@ -25,6 +25,7 @@ STAGE_CLASSIFY = "spark_classify"
 def track_to_json(r: TrackResult) -> dict[str, Any]:
     return {
         "frame_count": r.frame_count,
+        "sam_output": dict(r.segments),
         "objects": [
             {
                 "label": o.label,
@@ -47,7 +48,17 @@ def track_from_json(d: dict[str, Any]) -> TrackResult:
         )
         for o in d.get("objects", [])
     ]
-    return TrackResult(objects=objects, frame_count=int(d["frame_count"]))
+    raw = d.get("sam_output")
+    segments = {str(k): str(v) for k, v in raw.items()} if isinstance(raw, dict) else {}
+    return TrackResult(objects=objects, frame_count=int(d["frame_count"]), segments=segments)
+
+
+def track_is_current(d: dict[str, Any]) -> bool:
+    """False for track rows stored before SAM's raw output was kept.
+
+    Those rows can't draw the Review overlay, so the cache recomputes them once.
+    """
+    return "sam_output" in d
 
 
 def ocr_to_json(r: OCRResult) -> dict[str, Any]:
