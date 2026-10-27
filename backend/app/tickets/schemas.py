@@ -71,6 +71,15 @@ class SourceKind(StrEnum):
     WEBHOOK = "webhook"
 
 
+# Source kinds enabled for use right now. The others (cloud storage) stay fully
+# wired — adapter, schema, and config — but are gated off here and in the admin
+# UI, so re-enabling one is a single edit with no other code change. The field
+# and push sources are the ones in use.
+ENABLED_SOURCE_KINDS: frozenset[SourceKind] = frozenset(
+    {SourceKind.UPLOAD, SourceKind.RTSP, SourceKind.HLS, SourceKind.WEBHOOK}
+)
+
+
 class SourceStatus(StrEnum):
     """Operational state of a connected source."""
 

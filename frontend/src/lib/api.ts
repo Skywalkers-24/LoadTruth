@@ -551,7 +551,18 @@ async function upload<T>(path: string, file: File): Promise<T> {
     cache: "no-store",
     headers: authToken ? { authorization: `Bearer ${authToken}` } : undefined,
   });
-  if (!res.ok) throw new ApiError(res.status, `upload to ${path} failed (${res.status})`);
+  if (!res.ok) {
+    // Surface the backend's own `detail` (e.g. the 422 no-truck message) so the
+    // UI can show a meaningful, status-specific error instead of a generic one.
+    let detail = `upload to ${path} failed (${res.status})`;
+    try {
+      const body = (await res.json()) as { detail?: string };
+      if (body?.detail) detail = body.detail;
+    } catch {
+      /* no JSON body */
+    }
+    throw new ApiError(res.status, detail);
+  }
   return (await res.json()) as T;
 }
 

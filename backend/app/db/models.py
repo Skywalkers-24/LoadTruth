@@ -165,3 +165,38 @@ class PipelineStageRow(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, B
     duration_ms: Mapped[float] = mapped_column(Numeric(10, 1), nullable=False, default=0)
 
     __table_args__ = (Index("ix_pipeline_stages_tenant_ticket", "tenant_id", "ticket_id"),)
+
+
+class AIStageResult(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
+    """A raw AI stage output, persisted durably and keyed by the clip's content hash.
+
+    This is the backbone of "run the vision models once, serve everything else
+    from the DB." Each row stores the full structured output of one model stage
+    (SAM track, Spark OCR, Spark classify) for one clip, so a re-ingest of the
+    same bytes — or a later recompute with improved deterministic math — replays
+    the stored result instead of re-calling (and re-paying) the model.
+
+    Keyed by ``(tenant_id, content_hash, stage_key)`` and unique on that triple,
+    so a stage runs at most once per clip per tenant. ``result_json`` holds the
+    serialized dataclass (see ``app.ai.serde``); ``model`` records which model
+    produced it so a config change is visible; ``confidence`` is lifted out for
+    cheap querying/auditing.
+    """
+
+    __tablename__ = "ai_stage_results"
+
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    stage_key: Mapped[str] = mapped_column(String(32), nullable=False)
+    model: Mapped[str] = mapped_column(String(48), nullable=False, default="")
+    result_json: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    confidence: Mapped[float | None] = mapped_column(Numeric(4, 3), nullable=True)
+
+    __table_args__ = (
+        Index(
+            "ix_ai_stage_results_lookup",
+            "tenant_id",
+            "content_hash",
+            "stage_key",
+            unique=True,
+        ),
+    )

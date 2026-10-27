@@ -26,11 +26,18 @@ interface Provider {
   label: string;
   blurb: string;
   fields: ConfigField[];
+  /** When false, the provider is shown but not selectable ("coming soon").
+      The backend adapter + config stay in place, so enabling it is a one-line
+      flip here with no other changes. */
+  enabled?: boolean;
 }
 
-/** Real enterprise evidence providers, each with its own connection settings. */
+/** Real enterprise evidence providers, each with its own connection settings.
+    Cloud-storage connectors (S3/GCS/Azure/Drive/Dropbox) are kept wired but
+    disabled for now — the field/push sources (upload, RTSP, HLS, webhook) are
+    the ones in use. Flip `enabled` to turn any of them back on. */
 const PROVIDERS: Provider[] = [
-  { kind: "upload", label: "File upload", blurb: "Operators upload clips directly.", fields: [] },
+  { kind: "upload", label: "File upload", blurb: "Operators upload clips directly.", fields: [], enabled: true },
   {
     kind: "s3",
     label: "Amazon S3",
@@ -86,12 +93,14 @@ const PROVIDERS: Provider[] = [
     label: "RTSP camera",
     blurb: "Connect a tower camera or NVR stream.",
     fields: [{ key: "url", label: "Stream URL", placeholder: "rtsp://cameras.local/site4/stream" }],
+    enabled: true,
   },
   {
     kind: "hls",
     label: "HLS stream",
     blurb: "Connect an HLS playlist stream.",
     fields: [{ key: "url", label: "Playlist URL", placeholder: "https://cameras.local/site4/index.m3u8" }],
+    enabled: true,
   },
   {
     kind: "webhook",
@@ -101,6 +110,7 @@ const PROVIDERS: Provider[] = [
       { key: "endpoint", label: "Endpoint URL", placeholder: "https://api.county.gov/hooks/clips" },
       { key: "signing_secret", label: "Signing secret", placeholder: "••••••", secret: true, optional: true },
     ],
+    enabled: true,
   },
 ];
 
@@ -115,7 +125,7 @@ export function SourceConnections({ eventId }: { eventId: string }) {
   const sources = useSources(eventId);
   const { create, remove, test } = useSourceMutations(eventId);
   const toast = useToast();
-  const [kind, setKind] = useState<SourceKind>("s3");
+  const [kind, setKind] = useState<SourceKind>("upload");
   const [name, setName] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
   const [result, setResult] = useState<Record<string, { ok: boolean; detail: string; at: string }>>(
@@ -194,16 +204,21 @@ export function SourceConnections({ eventId }: { eventId: string }) {
           Connect a source
         </div>
 
-        {/* Provider picker */}
+        {/* Provider picker. Disabled providers are shown (so the capability is
+            visible) but not selectable, with a "Soon" badge. */}
         <div className="mb-3 flex flex-wrap gap-1.5">
           {PROVIDERS.map((p) => {
             const active = p.kind === kind;
+            const disabled = p.enabled === false;
             return (
               <button
                 key={p.kind}
                 type="button"
-                onClick={() => selectKind(p.kind)}
-                className="rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors"
+                disabled={disabled}
+                aria-disabled={disabled}
+                title={disabled ? "Coming soon — connector is wired but not enabled yet" : undefined}
+                onClick={() => !disabled && selectKind(p.kind)}
+                className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                 style={{
                   borderColor: active ? "var(--color-accent)" : "var(--color-border)",
                   backgroundColor: active ? "var(--color-accent-soft)" : "var(--color-surface)",
@@ -211,6 +226,11 @@ export function SourceConnections({ eventId }: { eventId: string }) {
                 }}
               >
                 {p.label}
+                {disabled && (
+                  <span className="rounded-full bg-[var(--color-surface-3)] px-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-subtle)]">
+                    Soon
+                  </span>
+                )}
               </button>
             );
           })}

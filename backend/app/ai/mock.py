@@ -28,6 +28,18 @@ def _load_fixtures() -> dict[str, dict[str, Any]]:
     return out
 
 
+def fixture_keys() -> frozenset[str]:
+    """The set of known scenario keys (used to validate a filename override)."""
+    return frozenset(_load_fixtures())
+
+
+# Scenarios an arbitrary (unsteered) upload should NOT randomly land on: the
+# empty no-truck case and the anomaly cases are only produced when explicitly
+# requested via a `scenario__…` filename, so a casual upload always drafts a
+# believable, clean ticket.
+_NON_DEFAULT = frozenset({"no-truck", "uncertified-truck"})
+
+
 class MockAIClient:
     """Fixture-backed implementation of the AIClient protocol."""
 
@@ -35,10 +47,12 @@ class MockAIClient:
         fixtures = _load_fixtures()
         if content_hash in fixtures:
             return fixtures[content_hash]
-        # Unknown clip (a real upload): deterministically pick a *positive*
-        # scenario from the content hash so each upload drafts a believable
-        # ticket (varied truck/debris/fill), never the empty no-truck fixture.
-        positives = [k for k in fixtures if k != "no-truck"] or [_DEFAULT_KEY]
+        # Unknown clip (a real upload with no scenario override): deterministically
+        # pick a clean *positive* scenario from the content hash so each upload
+        # drafts a believable ticket (varied truck/debris/fill), never the empty
+        # no-truck or a forced-anomaly fixture.
+        positives = [k for k in fixtures if k not in _NON_DEFAULT] or [_DEFAULT_KEY]
+        positives.sort()  # stable order so the hash→scenario mapping is reproducible
         idx = int(content_hash[:8], 16) % len(positives) if content_hash else 0
         return fixtures[positives[idx]]
 

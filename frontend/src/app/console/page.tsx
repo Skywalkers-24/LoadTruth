@@ -4,10 +4,9 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useSearchParams } from "next/navigation";
 
 import { AppShell } from "@/components/shell/app-shell";
-import { AssistantWidget } from "@/components/ai/assistant-widget";
 import { OPEN_TICKET_EVENT } from "@/components/shell/command-palette";
 import { QueueFilters, type SortKey, type StatusFilter } from "@/components/console/queue-filters";
-import { ReviewWorkspace } from "@/components/console/review-workspace";
+import { DecisionCard, ReviewWorkspace } from "@/components/console/review-workspace";
 import { TicketQueue } from "@/components/console/ticket-queue";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
@@ -19,7 +18,9 @@ import { useEventContext } from "@/lib/event-context";
 import { useTicket, useTickets } from "@/lib/hooks";
 import { isTypingTarget, useMediaQuery } from "@/lib/use-media-query";
 
-const PAGE_SIZE = 12;
+// Show a compact page of tickets that fits on screen without a long scroll;
+// the rest are reachable via pagination below the queue.
+const PAGE_SIZE = 4;
 
 /**
  * Review Console: single-ticket review. A self-scrolling queue on the left and
@@ -43,7 +44,7 @@ function ConsoleView() {
 
   const [status, setStatus] = useState<StatusFilter>("draft");
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortKey>("delta");
+  const [sort, setSort] = useState<SortKey>("newest");
   const [offset, setOffset] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [requestedId, setRequestedId] = useState<string | null>(null);
@@ -139,7 +140,7 @@ function ConsoleView() {
   }, [rows, selectedId, selectTicket]);
 
   const queuePanel = (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 flex-col">
       <div className="flex flex-col gap-3 border-b border-border p-3">
         <QueueFilters
           search={search}
@@ -165,7 +166,7 @@ function ConsoleView() {
         </div>
       </div>
 
-      <div className="lt-scroll min-h-0 flex-1 overflow-y-auto p-3">
+      <div className="min-h-0 p-3">
         {tickets.isLoading ? (
           <div className="flex flex-col gap-2">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -227,11 +228,14 @@ function ConsoleView() {
   return (
     <AppShell section="Review">
       {isDesktop ? (
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(320px,30%)_1fr] gap-4">
-          <div className="min-h-0 overflow-hidden rounded-xl border border-border bg-card">
-            {queuePanel}
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(320px,30%)_1fr] items-start gap-4">
+          <div className="lt-scroll flex max-h-full min-h-0 flex-col gap-4 overflow-y-auto pb-4 pr-1">
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
+              {queuePanel}
+            </div>
+            {selected && <DecisionCard ticket={selected} />}
           </div>
-          <div ref={workspaceRef} className="lt-scroll min-h-0 min-w-0 overflow-y-auto pr-1">
+          <div ref={workspaceRef} className="lt-scroll min-h-0 min-w-0 overflow-y-auto pb-20 pr-1">
             {workspacePanel}
           </div>
         </div>
@@ -255,9 +259,9 @@ function ConsoleView() {
             </Button>
           </div>
           {workspacePanel}
+          {selected && <DecisionCard ticket={selected} />}
         </div>
       )}
-      <AssistantWidget />
     </AppShell>
   );
 }

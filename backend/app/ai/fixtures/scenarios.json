@@ -56,6 +56,20 @@
     "ocr": { "truck_id": "FL-DT-4417", "confidence": 0.93, "frame_ref": "frame_0410.jpg" },
     "classify": { "debris_class": "vegetative", "confidence": 0.88 }
   },
+  "uncertified-truck": {
+    "label": "clear load on a truck that is not in the registry",
+    "track": {
+      "frame_count": 50,
+      "objects": [
+        { "label": "dump truck", "sam_object_id": "obj-1", "mask_areas": [40000], "load_height_ratio": 0.0 },
+        { "label": "truck bed", "sam_object_id": "obj-2", "mask_areas": [26000], "load_height_ratio": 0.0 },
+        { "label": "debris pile", "sam_object_id": "obj-3", "mask_areas": [18000], "load_height_ratio": 0.7 },
+        { "label": "truck placard", "sam_object_id": "obj-4", "mask_areas": [310], "load_height_ratio": 0.0 }
+      ]
+    },
+    "ocr": { "truck_id": "FL-ZZ-0000", "confidence": 0.95, "frame_ref": "frame_0610.jpg" },
+    "classify": { "debris_class": "vegetative", "confidence": 0.9 }
+  },
   "no-truck": {
     "label": "empty street footage, no truck",
     "track": { "frame_count": 30, "objects": [] },

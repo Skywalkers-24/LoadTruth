@@ -13,19 +13,25 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 
 from app.ai import get_ai_client
+from app.ai.cached_client import CachingAIClient
+from app.ai.live import LiveAINotWiredError
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_ingest
+from app.config import get_settings
+from app.log import get_logger
 from app.pipeline.cache import InMemoryResultCache
 from app.pipeline.frames import sample_frames
 from app.pipeline.ingest import ingest_upload
 from app.pipeline.ledger import CostLedger
+from app.pipeline.media import MediaTooLargeError, plan_transport
 from app.pipeline.orchestrator import PipelineResult, run_pipeline
 from app.pipeline.registry import CertifiedTruck, TruckRegistry
 from app.pipeline.trace import get_job_store
 from app.tickets.schemas import TicketOut, ticket_to_out
 
 router = APIRouter(tags=["ingest"])
+log = get_logger("ingest")
 
 # Process-local pipeline cache + cost ledger. In-memory now (per the cache's
 # ResultCache protocol, swap for Redis later); the ledger backs the future cost
@@ -63,10 +69,38 @@ async def ingest_clip(
     try:
         artifact = ingest_upload(filename, data)
     except ValueError as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "empty or invalid upload") from exc
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "The upload was empty. Choose a file."
+        ) from exc
 
-    # Stage 1 — sample keyframes at the cost-safe fps (degrades if PyAV is absent).
-    sample_frames(data, filename=filename, media_kind=artifact.media_kind)
+    # Decide how the clip's bytes reach the models (inline vs upload-once-and-
+    # reuse-file_id). Oversized clips (> 1 GiB) are rejected here, not at the
+    # model. See pipeline/media.py for the Meta-doc-grounded rules.
+    try:
+        plan = plan_transport(len(data))
+    except MediaTooLargeError as exc:
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            "That clip is too large (over 1 GB). Upload a shorter or lower-resolution clip.",
+        ) from exc
+    log.info(
+        "ingest_media_plan",
+        filename=filename,
+        size_bytes=plan.size_bytes,
+        send_method=plan.send_method.value,
+        reuse_across_calls=plan.reuse_across_calls,
+    )
+
+    # Stage 1 — sample keyframes at the cost-safe fps (capped by media.py). A
+    # corrupt/non-video file makes the decoder throw; treat that as a bad
+    # upload (400), never a 500.
+    try:
+        sample_frames(data, filename=filename, media_kind=artifact.media_kind)
+    except Exception as exc:  # noqa: BLE001 — any decode failure is a bad upload
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "That file could not be read as a video or image. Try a different clip.",
+        ) from exc
 
     registry = TruckRegistry(
         [
@@ -75,16 +109,38 @@ async def ingest_clip(
         ]
     )
 
-    result = await run_pipeline(
-        artifact=artifact,
-        tenant_id=tenant,
-        event_id=event_id,
-        registry=registry,
-        rate_table=event.rate_table,
-        ai=get_ai_client(),
-        cache=get_pipeline_cache(),
-        ledger=get_cost_ledger(),
-    )
+    # Wrap the model client in the durable, content-hash-keyed cache so each
+    # vision stage runs at most once per clip, ever. On a re-ingest (or after a
+    # restart) the raw outputs are replayed from the DB with no model call and
+    # no media sent. The process-local result cache below is now just a fast
+    # same-process shortcut layered on top of that durable store.
+    settings = get_settings()
+    model_label = f"{settings.sam_model} · {settings.spark_model}"
+    ai = CachingAIClient(get_ai_client(), repo, tenant, model_label=model_label)
+
+    try:
+        result = await run_pipeline(
+            artifact=artifact,
+            tenant_id=tenant,
+            event_id=event_id,
+            registry=registry,
+            rate_table=event.rate_table,
+            ai=ai,
+            cache=get_pipeline_cache(),
+            ledger=get_cost_ledger(),
+        )
+    except LiveAINotWiredError as exc:
+        # Live AI selected but not configured — a clear 503, not a 500.
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "The AI models are not configured on this server. Set MOCK_AI=1 or a MODEL_API_KEY.",
+        ) from exc
+    except Exception as exc:  # noqa: BLE001 — surface a clean 500, never a stack trace
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "The analysis pipeline failed on that clip. Please try again.",
+        ) from exc
+
     # Record the run in the job store so the Pipeline view and the ticket's AI
     # analysis panel can show exactly how the result was produced.
     if result.trace is not None:
@@ -93,7 +149,7 @@ async def ingest_clip(
     if result.no_truck:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
-            "no truck detected in the footage; no ticket drafted",
+            "No truck or load was detected in that footage, so no ticket was drafted.",
         )
 
     saved = await repo.add_from_pipeline(result.ticket, list(result.anomalies))

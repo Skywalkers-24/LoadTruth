@@ -108,8 +108,20 @@ function TicketRow({
           <FillGauge
             measured={Number.parseFloat(v.est_fill_pct)}
             monitor={v.monitor_fill_pct !== null ? Number.parseFloat(v.monitor_fill_pct) : null}
+            showLabels={false}
             className="flex-1"
           />
+          {/* Compact numbers without repeating the words "measured"/"called" on
+              every row — the gauge + column context already convey them. */}
+          <span className="shrink-0 text-[11px] tabular-nums text-[var(--color-subtle)]">
+            <span className="font-semibold text-[var(--color-money)]">{Math.round(Number.parseFloat(v.est_fill_pct))}%</span>
+            {v.monitor_fill_pct !== null && (
+              <>
+                {" "}
+                / <span className="text-[var(--color-text)]">{Math.round(Number.parseFloat(v.monitor_fill_pct))}%</span>
+              </>
+            )}
+          </span>
           {showStatus && <StatusBadge status={ticket.status} />}
         </div>
       </button>

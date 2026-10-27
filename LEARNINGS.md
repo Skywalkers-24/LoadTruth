@@ -227,3 +227,51 @@ instance 0.
 - App-side soft cap: `BUILD_SPEND_CAP_USD` (warn at `SPEND_WARN_USD`). These are
   enforced by LoadTruth, not by Meta — they don't touch your Meta account
   billing or credits.
+
+---
+
+## 5. Media size, limits & the optimizations we apply
+
+Sourced from the Meta docs (dev.meta.ai/docs/file-handling, media-segmentation,
+pricing) and applied in `backend/app/pipeline/media.py` + `frames.py`. The seven
+pipeline stages are unchanged; only *how* bytes reach the models is optimized.
+
+### The hard limits that shape the design
+| Limit | Value | Where it bites |
+|---|---|---|
+| Inline request (`file_data` / `file_url`) | **50 MB** | a single clip sent inline per call |
+| Files API upload (reusable `file_id`) | **1 GiB** | large clips; upload once, reuse the id |
+| Images per VLM (Spark) request | **50** | frames handed to OCR/classify |
+| Team storage (uploaded files) | **100 GiB** shared | uploaded files don't expire — delete them |
+| SAM video segmentation billing | **$0.20 / 1,000 frames** | the sampled-frame count is the #1 cost lever |
+| Spark billing | **$1.25 / 1M in, $4.25 / 1M out** | frame resolution → input tokens |
+| Video MIME | `video/mp4` only | transcode other containers before ingest |
+
+### Does it compress? How large a clip can we take?
+- We do **not** re-encode the clip; compression is handled upstream (the source
+  camera / uploader). What we control is **frame sampling** and **downscaling**,
+  which is where the cost is.
+- A clip up to **1 GiB** is accepted (via the Files API). Between our soft
+  threshold (`media_inline_max_bytes`, 8 MB) and 1 GiB it is **uploaded once**
+  and referenced by `file_id` across all three per-clip calls (SAM track, Spark
+  OCR, Spark classify) — the bytes travel once, not three times. Under 8 MB it
+  goes inline to skip the upload round-trip. Over 1 GiB is rejected with 413.
+
+### The optimizations (all cost/latency, zero stage changes)
+1. **Sample, don't stream every frame.** Stage 1 samples at 2–4 fps and hard-caps
+   at `max_sampled_frames` (120). A 10-min clip is ~120 frames to SAM, not 18,000.
+2. **Upload once, reuse `file_id`.** One upload serves SAM + both Spark calls.
+3. **Hand Spark a few keyframes, downscaled.** OCR/classify get
+   `spark_frames_per_task` (4) evenly-spaced keyframes, each downscaled to a
+   1024 px longest edge — far under the 50-image budget, and small base64 =
+   fewer input tokens.
+4. **Content-hash cache.** A repeat clip (same bytes) returns the cached result
+   for **zero** model calls — the hash is the key for both the cache and the
+   fixture replay.
+5. **Budget caps.** The cost ledger stops the run at `SPEND_WARN_USD` /
+   `BUILD_SPEND_CAP_USD` so a volume spike can't run away.
+
+### Config knobs (backend/app/config.py)
+`media_inline_max_bytes` · `media_upload_threshold_bytes` ·
+`spark_max_images_per_request` · `spark_frames_per_task` · `max_sampled_frames` ·
+`frame_downscale_longest_edge` — all tunable per deployment.

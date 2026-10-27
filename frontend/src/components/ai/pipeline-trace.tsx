@@ -123,13 +123,13 @@ export function PipelineTrace({ stages, compact = false }: { stages: PipelineSta
                   >
                     {s.summary}
                   </p>
-                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] sm:grid-cols-4">
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[11px]">
                     <Detail label="Status" value={STATUS_LABEL[s.status] ?? s.status} color={color} />
-                    <Detail label="Model" value={s.model} mono />
                     <Detail
                       label="Confidence"
                       value={s.confidence != null ? `${Math.round(s.confidence * 100)}%` : "—"}
                     />
+                    <Detail label="Model" value={s.model} mono />
                     <Detail
                       label="Duration"
                       value={s.duration_ms != null ? `${s.duration_ms.toLocaleString()} ms` : "—"}
@@ -163,11 +163,14 @@ function Detail({
     <div className="flex min-w-0 flex-col gap-0.5">
       <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
       <dd
-        className={cn("flex items-center gap-1 truncate text-[11.5px] font-semibold", mono && "font-mono")}
+        className={cn(
+          "flex items-center gap-1 break-words text-[11.5px] font-semibold",
+          mono && "font-mono",
+        )}
         style={color ? { color } : undefined}
       >
         {icon}
-        {value}
+        <span className="min-w-0 break-words">{value}</span>
       </dd>
     </div>
   );

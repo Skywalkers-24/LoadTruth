@@ -5,7 +5,6 @@ import { DownloadIcon, FileTextIcon } from "lucide-react";
 
 import type { ReportsSummary, Ticket } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
-import { AssistantWidget } from "@/components/ai/assistant-widget";
 import { ReportsPanel, type PerEvent } from "@/components/reports/reports-panel";
 import { Button } from "@/components/ui/shadcn/button";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/primitives";
@@ -178,7 +177,6 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
-      <AssistantWidget />
     </AppShell>
   );
 }

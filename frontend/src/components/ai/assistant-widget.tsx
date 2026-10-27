@@ -10,11 +10,12 @@ import { cn } from "@/lib/utils";
 
 /**
  * Floating AI-analyst chat widget, in the style of a website support chatbot.
- * A launcher pins to the bottom-right; clicking it opens a compact chat panel
- * grounded in the active event. Mounted on data-heavy screens (Review Console,
- * Reports) so the analyst is always a click away without leaving the page.
+ * Mounted once in AppShell so the analyst is one click away on every page. A
+ * launcher pins to the bottom-right; clicking it opens a compact chat panel
+ * grounded in the active event. `page` labels which screen the user is on so
+ * the panel can reference it (e.g. "You're on Reports").
  */
-export function AssistantWidget() {
+export function AssistantWidget({ page }: { page?: string }) {
   const { selected, selectedId: eventId } = useEventContext();
   const chat = useAssistantChat(eventId, selected?.name);
   const [open, setOpen] = useState(false);
@@ -45,7 +46,9 @@ export function AssistantWidget() {
             <div className="flex min-w-0 flex-1 flex-col leading-tight">
               <span className="text-[13px] font-semibold">AI Analyst</span>
               <span className="truncate text-[11px] text-muted-foreground">
-                {selected?.name ? `Grounded in ${selected.name}` : "Read-only · grounded in your data"}
+                {[page ? `On ${page}` : null, selected?.name ? `Grounded in ${selected.name}` : "Read-only"]
+                  .filter(Boolean)
+                  .join(" · ")}
               </span>
             </div>
             {chat.messages.length > 0 && (
@@ -109,13 +112,13 @@ export function AssistantWidget() {
             />
           )}
           {open ? (
-            <XIcon className="size-6" />
+            <XIcon className="size-7" />
           ) : (
             <>
-              <MessageSquareIcon className="size-6" />
+              <MessageSquareIcon className="size-7" />
               {/* Sparkle "AI" badge in the corner. */}
-              <span className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-white text-[var(--color-brand-fill)] shadow ring-2 ring-[var(--color-brand-fill)]">
-                <SparklesIcon className="size-3" />
+              <span className="absolute -right-0.5 -top-0.5 grid size-[22px] place-items-center rounded-full bg-white text-[var(--color-brand-fill)] shadow ring-2 ring-[var(--color-brand-fill)]">
+                <SparklesIcon className="size-3.5" />
               </span>
             </>
           )}

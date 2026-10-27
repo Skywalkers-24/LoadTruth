@@ -18,22 +18,22 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
   const over = hasCall && deltaNum > 0.005;
 
   const tone = !hasCall
-    ? { color: "var(--color-subtle)", label: "Awaiting monitor call" }
+    ? { color: "var(--color-subtle)", label: "Awaiting inspector call" }
     : agree
       ? { color: "var(--color-ok)", label: "In agreement" }
       : over
         ? reviewed
-          ? { color: "var(--color-danger)", label: "Over-call on record" }
-          : { color: "var(--color-money)", label: "Monitor over-called" }
-        : { color: "var(--color-ok)", label: "Monitor under-called" };
+          ? { color: "var(--color-danger)", label: "Over-bill on record" }
+          : { color: "var(--color-money)", label: "Billed over measured" }
+        : { color: "var(--color-ok)", label: "Billed under measured" };
 
   const interpretation = !hasCall
-    ? "Record the monitor's fill call to compute the dollar delta."
+    ? "Enter the inspector's fill call to see the dollar difference."
     : agree
-      ? "The billed value matches the measured load."
+      ? "The bill matches what the load actually measures."
       : over
-        ? `The monitor's call bills ${money(Math.abs(deltaNum))} more than the measured load supports.`
-        : `The measured load is worth ${money(Math.abs(deltaNum))} more than the monitor's call.`;
+        ? `The bill is ${money(Math.abs(deltaNum))} higher than the evidence supports.`
+        : `The load is worth ${money(Math.abs(deltaNum))} more than the bill claims.`;
 
   const fillDelta =
     v.monitor_fill_pct !== null ? Number.parseFloat(v.monitor_fill_pct) - Number.parseFloat(v.est_fill_pct) : null;
@@ -61,7 +61,7 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
   ];
 
   const deltaTip = (
-    <Tooltip content="Delta is the monitor's value minus LoadTruth's measured value. Positive means the monitor called the load higher than measured.">
+    <Tooltip content="The gap in dollars: what the monitor's call bills minus what the load actually measures. A positive number means the bill is higher than the evidence supports.">
       <span className="text-[var(--color-subtle)] hover:text-[var(--color-text)]" tabIndex={0}>
         <InfoIcon size={12} />
       </span>
@@ -79,10 +79,21 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
           <thead>
             <tr className="text-[11px] uppercase tracking-wider text-[var(--color-subtle)]">
               <th className="px-4 pb-2 pt-3.5 text-left font-semibold">Money frame</th>
-              <th className="px-4 pb-2 pt-3.5 text-right font-semibold">Monitor call</th>
-              <th className="px-4 pb-2 pt-3.5 text-right font-semibold text-[var(--color-money)]">Measured</th>
               <th className="px-4 pb-2 pt-3.5 text-right font-semibold">
-                <span className="inline-flex items-center gap-1">Delta {deltaTip}</span>
+                <HeadTip
+                  label="Monitor call"
+                  tip="The fill % the on-site human inspector (the 'monitor') called — the number the contractor is paid on today."
+                />
+              </th>
+              <th className="px-4 pb-2 pt-3.5 text-right font-semibold text-[var(--color-money)]">
+                <HeadTip
+                  label="Measured"
+                  tip="What LoadTruth measured from the footage with Meta's AI — the independent, evidence-backed number."
+                  color="var(--color-money)"
+                />
+              </th>
+              <th className="px-4 pb-2 pt-3.5 text-right font-semibold">
+                <span className="inline-flex items-center gap-1">Difference {deltaTip}</span>
               </th>
             </tr>
           </thead>
@@ -132,8 +143,18 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
           ))}
         </div>
 
-        <div className="border-t border-[var(--color-border)] px-4 py-2 text-[12px] text-[var(--color-subtle)]">
-          Rate {money(v.rate_per_cy)} per CY · Certified capacity {cubicYards(v.certified_cubic_yards)}
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 border-t border-[var(--color-border)] px-4 py-2 text-[12px] text-[var(--color-subtle)]">
+          <Tooltip content="The dollars paid per cubic yard for this type of debris on this event.">
+            <span tabIndex={0} className="cursor-help border-b border-dotted border-[var(--color-border-strong)]">
+              Rate {money(v.rate_per_cy)} per CY
+            </span>
+          </Tooltip>
+          <span aria-hidden>·</span>
+          <Tooltip content="The truck bed's registered volume in cubic yards, from the certified truck registry.">
+            <span tabIndex={0} className="cursor-help border-b border-dotted border-[var(--color-border-strong)]">
+              Certified capacity {cubicYards(v.certified_cubic_yards)}
+            </span>
+          </Tooltip>
         </div>
       </div>
 
@@ -149,12 +170,32 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
           <span className="size-1.5 rounded-full" style={{ backgroundColor: tone.color }} aria-hidden />
           {tone.label}
         </span>
-        <span className="text-[12px] font-medium text-[var(--color-muted-foreground)]">Dollar delta</span>
-        <span className="text-[40px] font-bold leading-none tracking-tight tabular-nums" style={{ color: tone.color }}>
+        <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--color-muted-foreground)]">
+          Dollar difference {deltaTip}
+        </span>
+        <span
+          className="font-bold leading-none tracking-tight tabular-nums text-[clamp(28px,6vw,40px)]"
+          style={{ color: tone.color }}
+        >
           {hasCall ? signedMoney(v.delta_dollar_value) : "No call"}
         </span>
         <p className="mt-1 text-[12px] leading-snug text-[var(--color-muted-foreground)]">{interpretation}</p>
       </div>
     </div>
+  );
+}
+
+/** A column header with a dotted-underline tooltip explaining the term. */
+function HeadTip({ label, tip, color }: { label: string; tip: string; color?: string }) {
+  return (
+    <Tooltip content={tip}>
+      <span
+        tabIndex={0}
+        className="cursor-help border-b border-dotted border-[var(--color-border-strong)]"
+        style={color ? { color } : undefined}
+      >
+        {label}
+      </span>
+    </Tooltip>
   );
 }

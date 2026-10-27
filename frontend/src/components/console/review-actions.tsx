@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 import type { Ticket, TicketStatus } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { AlertIcon, CheckIcon } from "@/components/ui/icons";
+import { AlertIcon, CheckIcon, InfoIcon } from "@/components/ui/icons";
 import { Kbd } from "@/components/ui/kbd";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth";
 import { useSetMonitorCall, useSetStatus } from "@/lib/hooks";
@@ -139,8 +140,16 @@ export function ReviewActions({ ticket }: { ticket: Ticket }) {
 
       {/* Monitor call */}
       <form onSubmit={submitCall} className="flex flex-col gap-1.5">
-        <label htmlFor="monitor-call" className="text-[12px] font-medium text-[var(--color-muted-foreground)]">
-          Monitor fill call
+        <label
+          htmlFor="monitor-call"
+          className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--color-muted-foreground)]"
+        >
+          Inspector&apos;s fill call
+          <Tooltip content="The fill % the on-site human inspector (the 'monitor') called for this load. The contractor is paid on this number — enter it to see how it compares to what the AI measured.">
+            <span tabIndex={0} className="text-[var(--color-subtle)] hover:text-[var(--color-text)]">
+              <InfoIcon size={12} />
+            </span>
+          </Tooltip>
         </label>
         <div className="flex gap-2">
           <div className="relative flex-1">

@@ -45,6 +45,69 @@ def _mentions(q: str, *words: str) -> bool:
     return any(w in q for w in words)
 
 
+# Contextual follow-ups per intent. After an answer we surface the next
+# questions a reviewer most likely wants, instead of recycling the same six
+# starters every turn. Ordered by relevance; we show the top few that aren't a
+# near-duplicate of what was just asked.
+_FOLLOW_UPS: dict[str, list[str]] = {
+    "disputes": [
+        "Which trucks over-called the most?",
+        "Summarize the open disputes for an audit.",
+        "How many tickets still need review?",
+    ],
+    "accuracy": [
+        "Which tickets fell outside the 10% band?",
+        "Which trucks over-called the most?",
+        "Summarize this event for an audit.",
+    ],
+    "overcalls": [
+        "What is the flagged exposure for this event?",
+        "Are there any open disputes?",
+        "How accurate are our fill estimates?",
+    ],
+    "anomalies": [
+        "Which trucks over-called the most?",
+        "What is the flagged exposure for this event?",
+        "How many tickets still need review?",
+    ],
+    "pending": [
+        "What is the flagged exposure for this event?",
+        "Are there any open disputes?",
+        "Which trucks over-called the most?",
+    ],
+    "summary": [
+        "Which trucks over-called the most?",
+        "Are there any open disputes?",
+        "How accurate are our fill estimates?",
+    ],
+    "exposure": [
+        "Which trucks over-called the most?",
+        "How many tickets still need review?",
+        "Are there any open disputes?",
+    ],
+}
+
+
+def _normalize(q: str) -> str:
+    return "".join(ch for ch in q.lower() if ch.isalnum() or ch == " ").strip()
+
+
+def _follow_ups(intent: str, question: str, limit: int = 3) -> list[str]:
+    """Pick contextual next questions for an intent, dropping anything that
+    duplicates the question just asked. Falls back to starters if an intent has
+    no mapping, so the chips are never empty."""
+    asked = _normalize(question)
+    candidates = _FOLLOW_UPS.get(intent) or STARTER_PROMPTS
+    picked = [c for c in candidates if _normalize(c) != asked]
+    # Top up from starters if filtering left us short, preserving order + dedup.
+    for s in STARTER_PROMPTS:
+        if len(picked) >= limit:
+            break
+        if _normalize(s) != asked and s not in picked:
+            picked.append(s)
+    return picked[:limit]
+
+
 async def answer(question: str, tools: AnalystTools, event_name: str) -> AnalystReply:
     """Route the question to tools and compose a grounded answer."""
     q = question.lower().strip()
@@ -65,7 +128,7 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
                 for it in items[:5]
             ]
             text = lead + "\n\n" + "\n".join(lines)
-        return AnalystReply(text, used, STARTER_PROMPTS)
+        return AnalystReply(text, used, _follow_ups("disputes", question))
 
     # Accuracy
     if _mentions(q, "accurate", "accuracy", "benchmark", "confidence"):
@@ -82,7 +145,7 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
                 f"In {event_name}, {pct}% of tickets have a measured fill within 10 percentage points "
                 f"of the monitor's call. {reviewed} of {total} tickets have been reviewed."
             )
-        return AnalystReply(text, used, STARTER_PROMPTS)
+        return AnalystReply(text, used, _follow_ups("accuracy", question))
 
     # Top over-callers / trucks
     if _mentions(q, "over-call", "overcall", "over call", "truck", "worst", "highest", "top"):
@@ -98,7 +161,7 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
                 for it in items
             ]
             text = f"The highest over-calls in {event_name} are:\n\n" + "\n".join(lines)
-        return AnalystReply(text, used, STARTER_PROMPTS)
+        return AnalystReply(text, used, _follow_ups("overcalls", question))
 
     # Anomalies / flags
     if _mentions(q, "anomal", "flag", "risk"):
@@ -111,7 +174,7 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
         else:
             parts = ", ".join(f"{v} {k}" for k, v in by.items())
             text = f"{event_name} has {total} anomaly flag{'' if total == 1 else 's'}: {parts}."
-        return AnalystReply(text, used, STARTER_PROMPTS)
+        return AnalystReply(text, used, _follow_ups("anomalies", question))
 
     # Review progress / pending
     if _mentions(q, "need review", "needs review", "pending", "awaiting", "left to review", "queue"):
@@ -126,7 +189,7 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
             if pending
             else f"Every ticket in {event_name} has a decision. Nothing is awaiting review."
         )
-        return AnalystReply(text, used, STARTER_PROMPTS)
+        return AnalystReply(text, used, _follow_ups("pending", question))
 
     # Audit summary
     if _mentions(q, "summar", "audit", "overview", "report", "brief"):
@@ -146,7 +209,7 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
             f"{e['reviewed_count']} reviewed, {e['pending_count']} pending, {e['disputed']} disputed."  # type: ignore[index]
             + acc_line
         )
-        return AnalystReply(text, used, STARTER_PROMPTS)
+        return AnalystReply(text, used, _follow_ups("summary", question))
 
     # Exposure / money (and default)
     s = await tools.event_summary()
@@ -163,7 +226,7 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
             "I can answer questions about this event's exposure, over-calls, disputes, anomalies, "
             "accuracy, and review progress. Here is where things stand:\n\n" + text
         )
-    return AnalystReply(text, used, STARTER_PROMPTS)
+    return AnalystReply(text, used, _follow_ups("exposure", question))
 
 
 async def stream_answer(reply: AnalystReply) -> AsyncIterator[str]:
