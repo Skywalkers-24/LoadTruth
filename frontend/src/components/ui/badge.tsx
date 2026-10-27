@@ -30,8 +30,12 @@ export function Badge({
   const t = TONE[tone];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold ${className ?? ""}`}
-      style={{ color: t.fg, backgroundColor: t.soft }}
+      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${className ?? ""}`}
+      style={{
+        color: t.fg,
+        backgroundColor: t.soft,
+        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${t.fg} 22%, transparent)`,
+      }}
     >
       {icon && <span className="shrink-0">{icon}</span>}
       {children}

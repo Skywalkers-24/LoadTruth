@@ -1,70 +1,56 @@
 import type { ReactNode } from "react";
 
 import type { Ticket } from "@/lib/api";
-import { CameraIcon, ClipboardIcon, DollarIcon, LayersIcon, TruckIcon } from "@/components/ui/icons";
-import { cubicYards, dateTime, debrisLabel, money } from "@/lib/format";
+import { Tooltip } from "@/components/ui/tooltip";
+import { cubicYards, dateTime, money } from "@/lib/format";
 
 /**
- * Compact truck + ticket metadata as icon-led rows. Distinguishes verified
- * values (returned by the API) from inferred/missing ones. The API does not
- * return placard confidence, a camera/source name, or a measurement-method
- * version, so those are shown as "not reported" rather than fabricated.
+ * Compact truck and ticket details. Debris class and ticket id already sit in
+ * the workspace header, so they are not repeated here.
  */
 export function TicketMetadata({ ticket }: { ticket: Ticket }) {
   const v = ticket.valuation;
   return (
-    <dl className="flex flex-col gap-2.5">
-      <Row
-        icon={<TruckIcon size={15} />}
-        label="Truck"
-        value={
-          ticket.truck_id ? (
-            <>
-              {ticket.truck_id}{" "}
-              <span className="font-normal text-[var(--color-subtle)]">· placard recognized</span>
-            </>
-          ) : (
-            "Unidentified. Needs manual review"
-          )
-        }
+    <div className="@container">
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 @sm:grid-cols-3">
+      <Item label="Truck" value={ticket.truck_id ?? "Unidentified"} warn={!ticket.truck_id} />
+      <Item
+        label="Placard"
+        value={ticket.truck_id ? "Recognized" : "Needs manual ID"}
+        warn={!ticket.truck_id}
       />
-      <Row
-        icon={<LayersIcon size={15} />}
-        label="Debris & capacity"
-        value={`${debrisLabel(ticket.debris_class)} · ${cubicYards(v.certified_cubic_yards)} certified`}
+      <Item
+        label="Certified capacity"
+        value={cubicYards(v.certified_cubic_yards)}
+        tip="The truck's registered bed volume. Fill percent is applied to this to get cubic yards."
       />
-      <Row icon={<DollarIcon size={15} />} label="Rate" value={`${money(v.rate_per_cy)} / CY`} />
-      <Row icon={<ClipboardIcon size={15} />} label="Created" value={dateTime(ticket.created_at)} />
-      <Row
-        icon={<CameraIcon size={15} />}
-        label="Evidence"
-        value={
-          ticket.evidence_frames.length > 0
-            ? `${ticket.evidence_frames.length} frame${ticket.evidence_frames.length === 1 ? "" : "s"}`
-            : "No frames captured"
-        }
-      />
+      <Item label="Rate" value={`${money(v.rate_per_cy)} per CY`} tip="Event rate for this debris class." />
+      <Item label="Captured" value={dateTime(ticket.created_at)} />
+      <Item label="Evidence" value={`${ticket.evidence_frames.length} frame${ticket.evidence_frames.length === 1 ? "" : "s"}`} />
     </dl>
+    </div>
   );
 }
 
-function Row({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
+function Item({ label, value, tip, warn }: { label: string; value: ReactNode; tip?: string; warn?: boolean }) {
+  const term = <dt className="text-[12px] text-[var(--color-subtle)]">{label}</dt>;
   return (
-    <div className="flex items-center gap-2.5">
-      <span
-        className="grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-subtle)]"
-        aria-hidden
+    <div className="flex min-w-0 flex-col gap-0.5">
+      {tip ? (
+        <Tooltip content={tip}>
+          <span tabIndex={0} className="cursor-help border-b border-dotted border-[var(--color-border-strong)]">
+            {term}
+          </span>
+        </Tooltip>
+      ) : (
+        term
+      )}
+      <dd
+        className="truncate text-[13px] font-medium tabular-nums"
+        style={{ color: warn ? "var(--color-warn)" : "var(--color-text)" }}
       >
-        {icon}
-      </span>
-      <div className="flex min-w-0 flex-col leading-tight">
-        <dt className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-subtle)]">
-          {label}
-        </dt>
-        <dd className="truncate text-[13px] font-medium tabular-nums text-[var(--color-text)]">
-          {value}
-        </dd>
-      </div>
+        {value}
+      </dd>
     </div>
   );
 }

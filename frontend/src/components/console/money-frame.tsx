@@ -1,181 +1,160 @@
 import type { Valuation } from "@/lib/api";
 import { InfoIcon } from "@/components/ui/icons";
 import { Tooltip } from "@/components/ui/tooltip";
-import {
-  cubicYards,
-  money,
-  percent,
-  signedCubicYards,
-  signedMoney,
-  signedPoints,
-} from "@/lib/format";
+import { cubicYards, money, percent, signedCubicYards, signedMoney, signedPoints } from "@/lib/format";
 
 /**
- * THE MONEY FRAME — the defining, hero element of a ticket.
+ * The money frame: what the monitor claimed, what LoadTruth measured, and what
+ * the difference is worth. Reconciliation table on the left, the dollar delta
+ * as the hero on the right (stacked on small screens).
  *
- * A reconciliation table comparing the human monitor's call with LoadTruth's
- * measured result across fill, volume, and value, plus the hero dollar delta.
- *
- * Convention (labelled in the UI):
- *     delta = monitor value − LoadTruth measured value
- * Positive  → monitor exceeds measured (possible overbilling).
- * Negative  → measured exceeds monitor (possible underbilling).
- *
- * Colors carry meaning but never alone: amber = needs-review exposure,
- * red = adverse/confirmed discrepancy, green = agreement, muted = awaiting call.
+ * Convention: delta = monitor value minus measured value. Positive means the
+ * monitor called the load higher than measured.
  */
 export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: boolean }) {
   const hasCall = v.monitor_fill_pct !== null && v.delta_dollar_value !== null;
   const deltaNum = v.delta_dollar_value ? Number.parseFloat(v.delta_dollar_value) : 0;
-  const overbill = v.is_overbill;
   const agree = hasCall && Math.abs(deltaNum) < 0.005;
+  const over = hasCall && deltaNum > 0.005;
 
   const tone = !hasCall
     ? { color: "var(--color-subtle)", label: "Awaiting monitor call" }
     : agree
-      ? { color: "var(--color-ok)", label: "Monitor and measurement agree" }
-      : overbill
+      ? { color: "var(--color-ok)", label: "In agreement" }
+      : over
         ? reviewed
-          ? { color: "var(--color-danger)", label: "Confirmed over monitor call" }
-          : { color: "var(--color-money)", label: "Monitor value exceeds measured value" }
-        : { color: "var(--color-ok)", label: "Measured value exceeds monitor value" };
+          ? { color: "var(--color-danger)", label: "Over-call on record" }
+          : { color: "var(--color-money)", label: "Monitor over-called" }
+        : { color: "var(--color-ok)", label: "Monitor under-called" };
 
   const interpretation = !hasCall
-    ? "Enter the monitor’s fill-% call to compute the dollar delta."
+    ? "Record the monitor's fill call to compute the dollar delta."
     : agree
-      ? "The monitor’s billed value matches LoadTruth’s measurement."
-      : overbill
-        ? "The monitor’s call bills more than the measured load supports."
-        : "The measured load exceeds what the monitor’s call would bill.";
+      ? "The billed value matches the measured load."
+      : over
+        ? `The monitor's call bills ${money(Math.abs(deltaNum))} more than the measured load supports.`
+        : `The measured load is worth ${money(Math.abs(deltaNum))} more than the monitor's call.`;
 
-  // Fill-% point delta (monitor − measured), when a call exists.
   const fillDelta =
-    v.monitor_fill_pct !== null
-      ? Number.parseFloat(v.monitor_fill_pct) - Number.parseFloat(v.est_fill_pct)
-      : null;
+    v.monitor_fill_pct !== null ? Number.parseFloat(v.monitor_fill_pct) - Number.parseFloat(v.est_fill_pct) : null;
+
+  const rows = [
+    {
+      label: "Fill",
+      monitor: hasCall ? percent(v.monitor_fill_pct) : "Not called",
+      measured: percent(v.est_fill_pct),
+      delta: fillDelta === null ? "Not called" : signedPoints(fillDelta),
+    },
+    {
+      label: "Volume",
+      monitor: hasCall ? cubicYards(v.monitor_cubic_yards) : "Not called",
+      measured: cubicYards(v.est_cubic_yards),
+      delta: hasCall ? signedCubicYards(v.delta_cubic_yards) : "Not called",
+    },
+    {
+      label: "Value",
+      monitor: hasCall ? money(v.monitor_dollar_value) : "Not called",
+      measured: money(v.est_dollar_value),
+      delta: hasCall ? signedMoney(v.delta_dollar_value) : "Not called",
+      emphasize: true,
+    },
+  ];
+
+  const deltaTip = (
+    <Tooltip content="Delta is the monitor's value minus LoadTruth's measured value. Positive means the monitor called the load higher than measured.">
+      <span className="text-[var(--color-subtle)] hover:text-[var(--color-text)]" tabIndex={0}>
+        <InfoIcon size={12} />
+      </span>
+    </Tooltip>
+  );
 
   return (
     <div
-      className="overflow-hidden rounded-lg border"
-      style={{ borderColor: `color-mix(in srgb, ${tone.color} 45%, var(--color-border))` }}
+      className="lt-card-shadow grid overflow-hidden rounded-xl border bg-[var(--color-surface)] lg:grid-cols-[1fr_280px]"
+      style={{ borderColor: `color-mix(in srgb, ${tone.color} 40%, var(--color-border))` }}
     >
-      {/* Reconciliation table */}
-      <table className="w-full border-collapse text-[13px]">
-        <thead>
-          <tr className="bg-[var(--color-surface-2)] text-[11px] uppercase tracking-wide text-[var(--color-subtle)]">
-            <th className="px-3 py-2 text-left font-semibold">Metric</th>
-            <th className="px-3 py-2 text-right font-semibold">Monitor call</th>
-            <th className="px-3 py-2 text-right font-semibold">
-              <span className="text-[var(--color-money)]">Measured</span>
-            </th>
-            <th className="px-3 py-2 text-right font-semibold">
-              <span className="inline-flex items-center gap-1">
-                Delta
-                <Tooltip content="Delta is the monitor's billed value minus LoadTruth's measured value. A positive delta means the monitor called it higher than measured.">
-                  <span className="text-[var(--color-subtle)] hover:text-[var(--color-text)]" tabIndex={0}>
-                    <InfoIcon size={11} />
-                  </span>
-                </Tooltip>
-              </span>
-            </th>
-          </tr>
-        </thead>
-        <tbody className="tabular-nums">
-          <Row
-            label="Fill"
-            monitor={hasCall ? percent(v.monitor_fill_pct) : "—"}
-            measured={percent(v.est_fill_pct)}
-            delta={fillDelta === null ? "—" : signedPoints(fillDelta)}
-            deltaColor={tone.color}
-            hasCall={hasCall}
-          />
-          <Row
-            label="Volume"
-            monitor={hasCall ? cubicYards(v.monitor_cubic_yards) : "—"}
-            measured={cubicYards(v.est_cubic_yards)}
-            delta={hasCall ? signedCubicYards(v.delta_cubic_yards) : "—"}
-            deltaColor={tone.color}
-            hasCall={hasCall}
-          />
-          <Row
-            label="Value"
-            emphasize
-            monitor={hasCall ? money(v.monitor_dollar_value) : "—"}
-            measured={money(v.est_dollar_value)}
-            delta={hasCall ? signedMoney(v.delta_dollar_value) : "—"}
-            deltaColor={tone.color}
-            hasCall={hasCall}
-          />
-        </tbody>
-      </table>
+      {/* Reconciliation */}
+      <div className="min-w-0">
+        <table className="hidden w-full border-collapse text-[13px] sm:table">
+          <thead>
+            <tr className="text-[11px] uppercase tracking-wider text-[var(--color-subtle)]">
+              <th className="px-4 pb-2 pt-3.5 text-left font-semibold">Money frame</th>
+              <th className="px-4 pb-2 pt-3.5 text-right font-semibold">Monitor call</th>
+              <th className="px-4 pb-2 pt-3.5 text-right font-semibold text-[var(--color-money)]">Measured</th>
+              <th className="px-4 pb-2 pt-3.5 text-right font-semibold">
+                <span className="inline-flex items-center gap-1">Delta {deltaTip}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="tabular-nums">
+            {rows.map((r) => (
+              <tr
+                key={r.label}
+                className="border-t border-[var(--color-border)]"
+                style={r.emphasize ? { backgroundColor: "var(--color-surface-2)" } : undefined}
+              >
+                <td className="px-4 py-2.5 text-[var(--color-muted)]">{r.label}</td>
+                <td className="px-4 py-2.5 text-right text-[var(--color-text)]">{r.monitor}</td>
+                <td className="px-4 py-2.5 text-right font-medium text-[var(--color-money)]">{r.measured}</td>
+                <td
+                  className={`px-4 py-2.5 text-right ${r.emphasize ? "font-bold" : "font-medium"}`}
+                  style={{ color: hasCall ? tone.color : "var(--color-subtle)" }}
+                >
+                  {r.delta}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-      {/* Hero delta band */}
-      <div
-        className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3"
-        style={{
-          borderColor: "var(--color-border)",
-          backgroundColor: `color-mix(in srgb, ${tone.color} 10%, var(--color-surface))`,
-        }}
-      >
-        <div className="flex flex-col">
-          <span
-            className="text-[11px] font-semibold uppercase tracking-wide"
-            style={{ color: tone.color }}
-          >
-            {tone.label}
-          </span>
-          <span className="text-[12px] text-[var(--color-muted)]">
-            Rate {money(v.rate_per_cy)}/CY · capacity {cubicYards(v.certified_cubic_yards)}
-          </span>
+        {/* Stacked rows on small screens */}
+        <div className="flex flex-col divide-y divide-[var(--color-border)] sm:hidden">
+          {rows.map((r) => (
+            <div key={r.label} className="flex flex-col gap-1 px-4 py-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-semibold text-[var(--color-subtle)]">{r.label}</span>
+                <span
+                  className={`tabular-nums ${r.emphasize ? "text-[15px] font-bold" : "text-[13px] font-medium"}`}
+                  style={{ color: hasCall ? tone.color : "var(--color-subtle)" }}
+                >
+                  {r.delta}
+                </span>
+              </div>
+              <div className="flex justify-between text-[12px] tabular-nums text-[var(--color-muted)]">
+                <span>
+                  Monitor <span className="text-[var(--color-text)]">{r.monitor}</span>
+                </span>
+                <span>
+                  Measured <span className="font-medium text-[var(--color-money)]">{r.measured}</span>
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-wide text-[var(--color-subtle)]">
-            Dollar delta
-          </div>
-          <div
-            className="text-[34px] font-bold leading-none tabular-nums sm:text-[38px]"
-            style={{ color: tone.color }}
-          >
-            {hasCall ? signedMoney(v.delta_dollar_value) : "—"}
-          </div>
+
+        <div className="border-t border-[var(--color-border)] px-4 py-2 text-[12px] text-[var(--color-subtle)]">
+          Rate {money(v.rate_per_cy)} per CY · Certified capacity {cubicYards(v.certified_cubic_yards)}
         </div>
       </div>
-      <p className="px-4 pb-2.5 pt-2 text-[12px] text-[var(--color-muted)]">{interpretation}</p>
-    </div>
-  );
-}
 
-function Row({
-  label,
-  monitor,
-  measured,
-  delta,
-  deltaColor,
-  hasCall,
-  emphasize = false,
-}: {
-  label: string;
-  monitor: string;
-  measured: string;
-  delta: string;
-  deltaColor: string;
-  hasCall: boolean;
-  emphasize?: boolean;
-}) {
-  return (
-    <tr
-      className="border-t border-[var(--color-border)]"
-      style={emphasize ? { backgroundColor: "var(--color-surface-2)" } : undefined}
-    >
-      <td className="px-3 py-2 text-left text-[var(--color-muted)]">{label}</td>
-      <td className="px-3 py-2 text-right text-[var(--color-text)]">{monitor}</td>
-      <td className="px-3 py-2 text-right font-medium text-[var(--color-money)]">{measured}</td>
-      <td
-        className={`px-3 py-2 text-right ${emphasize ? "font-bold" : "font-medium"}`}
-        style={{ color: hasCall ? deltaColor : "var(--color-subtle)" }}
+      {/* Hero delta */}
+      <div
+        className="flex flex-col justify-center gap-1.5 border-t px-5 py-5 lg:border-l lg:border-t-0"
+        style={{
+          borderColor: "var(--color-border)",
+          background: `linear-gradient(160deg, color-mix(in srgb, ${tone.color} 16%, var(--color-surface)), color-mix(in srgb, ${tone.color} 4%, var(--color-surface)))`,
+        }}
       >
-        {delta}
-      </td>
-    </tr>
+        <span className="inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: tone.color, backgroundColor: `color-mix(in srgb, ${tone.color} 14%, transparent)` }}>
+          <span className="size-1.5 rounded-full" style={{ backgroundColor: tone.color }} aria-hidden />
+          {tone.label}
+        </span>
+        <span className="text-[12px] font-medium text-[var(--color-muted)]">Dollar delta</span>
+        <span className="text-[40px] font-bold leading-none tracking-tight tabular-nums" style={{ color: tone.color }}>
+          {hasCall ? signedMoney(v.delta_dollar_value) : "No call"}
+        </span>
+        <p className="mt-1 text-[12px] leading-snug text-[var(--color-muted)]">{interpretation}</p>
+      </div>
+    </div>
   );
 }

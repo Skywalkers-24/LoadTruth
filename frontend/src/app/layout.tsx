@@ -1,9 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/lib/query";
 import { ThemeProvider, themeInitScript } from "@/lib/theme";
 import { ToastProvider } from "@/components/ui/toast";
 import { EventProvider } from "@/lib/event-context";
+import { CommandPaletteProvider } from "@/components/shell/command-palette";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
   title: "LoadTruth · Video-verified load tickets",
@@ -19,7 +23,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
         {/* Set the theme before paint to avoid a flash of the wrong theme. */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
@@ -28,7 +32,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ThemeProvider>
           <QueryProvider>
             <EventProvider>
-              <ToastProvider>{children}</ToastProvider>
+              <ToastProvider>
+                <CommandPaletteProvider>{children}</CommandPaletteProvider>
+              </ToastProvider>
             </EventProvider>
           </QueryProvider>
         </ThemeProvider>

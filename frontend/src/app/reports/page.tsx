@@ -4,70 +4,62 @@ import { AppShell } from "@/components/shell/app-shell";
 import { ReportsPanel } from "@/components/reports/reports-panel";
 import { LinkButton } from "@/components/ui/button";
 import { DownloadIcon, FileIcon } from "@/components/ui/icons";
+import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/primitives";
+import { Tooltip } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
 import { useEventContext } from "@/lib/event-context";
-import { useReportsSummary } from "@/lib/hooks";
+import { useReportsSummary, useTickets } from "@/lib/hooks";
 
-/** Event-level reporting workspace: KPIs, breakdowns, and exports. */
+/** Reports: event totals, exposure breakdowns, the ticket ledger, and exports. */
 export default function ReportsPage() {
   const { selected, selectedId: eventId, isError: eventsError } = useEventContext();
   const summary = useReportsSummary(eventId);
+  const tickets = useTickets({ eventId, limit: 100, offset: 0 });
 
   return (
     <AppShell section="Reports">
-      <div className="flex flex-col gap-5">
-        <header className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-col gap-0.5">
-            <h1 className="text-[20px] font-semibold text-[var(--color-text)]">
-              {selected?.name ?? "Reports"}
-            </h1>
-            <p className="text-[13px] text-[var(--color-muted)]">
-              Historical analysis and audit exports for this event.
-            </p>
-          </div>
-          {eventId && (
-            <div className="flex flex-wrap gap-2">
-              <LinkButton href={api.exportCsvUrl(eventId)} icon={<DownloadIcon size={15} />}>
-                Export CSV
-              </LinkButton>
-              <LinkButton
-                href={api.auditPacketUrl(eventId)}
-                icon={<FileIcon size={15} />}
-                external
-              >
-                FEMA-format audit packet
-              </LinkButton>
-            </div>
-          )}
-        </header>
-
-        <p className="text-[11px] text-[var(--color-subtle)]">
-          “FEMA-format audit packet” describes the document layout only. LoadTruth is not affiliated
-          with or endorsed by FEMA.
-        </p>
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          eyebrow="Reports"
+          title={selected?.name ?? "Reports"}
+          description="Event totals, where the exposure comes from, and the full ticket ledger."
+          actions={
+            eventId && (
+              <>
+                <LinkButton href={api.exportCsvUrl(eventId)} icon={<DownloadIcon size={15} />}>
+                  Export CSV
+                </LinkButton>
+                <Tooltip content="Printable packet in the layout FEMA reviewers expect. LoadTruth is not affiliated with or endorsed by FEMA.">
+                  <span>
+                    <LinkButton href={api.auditPacketUrl(eventId)} icon={<FileIcon size={15} />} external>
+                      Audit packet
+                    </LinkButton>
+                  </span>
+                </Tooltip>
+              </>
+            )
+          }
+        />
 
         {eventsError ? (
-          <ErrorState title="Events unavailable" description="The backend didn’t return any events." />
-        ) : summary.isLoading ? (
+          <ErrorState title="Events unavailable" description="The server did not return any events." />
+        ) : summary.isLoading || tickets.isLoading ? (
           <div className="flex flex-col gap-5">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-28" />
+                <Skeleton key={i} className="h-[132px] rounded-xl" />
               ))}
             </div>
-            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-44" />
-              ))}
-            </div>
+            <Skeleton className="h-[300px] rounded-xl" />
+            <Skeleton className="h-[400px] rounded-xl" />
           </div>
         ) : summary.isError ? (
-          <ErrorState description="Couldn’t load the report." onRetry={() => summary.refetch()} />
-        ) : summary.data ? (
-          <ReportsPanel s={summary.data} />
+          <ErrorState description="Could not load the report." onRetry={() => summary.refetch()} />
+        ) : summary.data && summary.data.ticket_count > 0 ? (
+          <ReportsPanel s={summary.data} tickets={tickets.data?.items ?? []} />
         ) : (
-          <EmptyState title="No report data" description="This event has no tickets yet." />
+          <EmptyState title="No tickets yet" description="Reports appear once tickets are captured for this event." />
         )}
       </div>
     </AppShell>

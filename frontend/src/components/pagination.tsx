@@ -20,7 +20,7 @@ export function Pagination({
   return (
     <div className="flex items-center justify-between gap-2 text-xs text-[var(--color-muted)]">
       <span className="tabular-nums">
-        {start}–{end} of {total}
+        {start} to {end} of {total}
       </span>
       <div className="flex gap-1">
         <button

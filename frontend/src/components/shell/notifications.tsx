@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { BellIcon } from "@/components/ui/icons";
 import { EmptyState } from "@/components/ui/primitives";
 import { useEventContext } from "@/lib/event-context";
-import { useDashboard, useTickets } from "@/lib/hooks";
+import { useTickets } from "@/lib/hooks";
 import { shortId } from "@/components/console/ticket-metadata";
 import { debrisLabel, signedMoney } from "@/lib/format";
 
@@ -19,12 +19,11 @@ import { debrisLabel, signedMoney } from "@/lib/format";
 export function Notifications() {
   const router = useRouter();
   const { selectedId } = useEventContext();
-  const { data: dash } = useDashboard(selectedId);
   const tickets = useTickets({ eventId: selectedId, status: "draft", limit: 50, offset: 0 });
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const pending = dash ? dash.ticket_count - dash.reviewed_count : 0;
+  const pending = tickets.data?.total ?? 0;
   const items = (tickets.data?.items ?? [])
     .filter((t) => t.valuation.is_overbill)
     .sort(
@@ -56,7 +55,7 @@ export function Notifications() {
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={pending > 0 ? `${pending} tickets awaiting review` : "No tickets awaiting review"}
-        className="relative inline-flex size-8 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+        className="relative inline-flex size-9 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] sm:size-8"
       >
         <BellIcon size={16} />
         {pending > 0 && (

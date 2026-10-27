@@ -129,7 +129,7 @@ export function TruckRegistry() {
                     {t.truck_number}
                   </span>
                   <span className="text-[11px] text-[var(--color-muted)]">
-                    {t.body_type ?? "—"} · {cubicYards(t.certified_cubic_yards)}
+                    {t.body_type ?? "Body type not set"} · {cubicYards(t.certified_cubic_yards)}
                     {t.registry_source ? ` · ${t.registry_source}` : ""}
                   </span>
                 </span>

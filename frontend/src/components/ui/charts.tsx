@@ -64,6 +64,18 @@ function useTooltipStyle() {
   } as const;
 }
 
+/** Empty-state block shown in place of a chart when there is no data. */
+function ChartEmpty({ height, label }: { height: number; label: string }) {
+  return (
+    <div
+      className="flex items-center justify-center rounded-md border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)] text-[12px] text-[var(--color-muted)]"
+      style={{ height }}
+    >
+      {label}
+    </div>
+  );
+}
+
 /**
  * Donut chart with a centered total. Values are reinforced by a labelled legend
  * (never color-only). Used for ticket-status distribution.
@@ -82,6 +94,10 @@ export function DonutChart({
   const c = useChartColors();
   const tip = useTooltipStyle();
   const total = data.reduce((s, d) => s + d.value, 0);
+
+  if (total <= 0) {
+    return <ChartEmpty height={height} label={`No data for ${centerLabel}.`} />;
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -161,6 +177,10 @@ export function VBarChart({
   const c = useChartColors();
   const tip = useTooltipStyle();
 
+  if (data.length === 0 || data.every((d) => d.value === 0)) {
+    return <ChartEmpty height={height} label="No data to chart yet." />;
+  }
+
   return (
     <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -198,6 +218,35 @@ export function VBarChart({
         </BarChart>
       </ResponsiveContainer>
     </div>
+  );
+}
+
+/**
+ * Ranked horizontal bars with the category label on the left and the formatted
+ * value on the right. Reads better than vertical bars when labels are long.
+ */
+export function RankedBars({ data }: { data: ChartDatum[] }) {
+  const max = Math.max(0, ...data.map((d) => d.value));
+  if (data.length === 0 || max <= 0) {
+    return <ChartEmpty height={180} label="No data to chart yet." />;
+  }
+  return (
+    <ul className="flex flex-col gap-3.5 py-1">
+      {data.map((d) => (
+        <li key={d.label} className="flex flex-col gap-1.5">
+          <div className="flex items-baseline justify-between gap-2 text-[13px]">
+            <span className="text-[var(--color-muted)]">{d.label}</span>
+            <span className="font-semibold tabular-nums text-[var(--color-text)]">{d.display ?? d.value}</span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-surface-3)]">
+            <div
+              className="h-full rounded-full transition-[width] duration-700"
+              style={{ width: `${(d.value / max) * 100}%`, backgroundColor: d.color ?? "var(--color-accent)" }}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 

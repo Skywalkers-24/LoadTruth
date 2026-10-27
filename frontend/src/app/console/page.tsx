@@ -1,36 +1,41 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell } from "@/components/shell/app-shell";
+import { OPEN_TICKET_EVENT } from "@/components/shell/command-palette";
 import { QueueFilters, type SortKey, type StatusFilter } from "@/components/console/queue-filters";
 import { ReviewWorkspace } from "@/components/console/review-workspace";
 import { TicketQueue } from "@/components/console/ticket-queue";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
-import { ChevronDownIcon } from "@/components/ui/icons";
+import { ChevronDownIcon, ClipboardIcon } from "@/components/ui/icons";
+import { Kbd } from "@/components/ui/kbd";
 import { EmptyState, ErrorState, Panel, Skeleton } from "@/components/ui/primitives";
 import type { Ticket } from "@/lib/api";
 import { useEventContext } from "@/lib/event-context";
-import { useTickets } from "@/lib/hooks";
+import { useTicket, useTickets } from "@/lib/hooks";
+import { isTypingTarget, useMediaQuery } from "@/lib/use-media-query";
 
 const PAGE_SIZE = 12;
 
 /**
- * Review Console — detail review of a single ticket. A dense, self-scrolling
- * queue on the left and the selected ticket's evidence/money/review workspace on
- * the right. Event-level KPIs live on Overview; this screen stays focused on the
- * one task and fits a desktop viewport without page scroll.
+ * Review Console: single-ticket review. A self-scrolling queue on the left and
+ * the selected ticket's money frame, evidence, and decision rail on the right.
+ * Keyboard: J/K or arrow keys move through the queue, C/O/D decide.
  */
 export default function ConsolePage() {
   const { selectedId: eventId, isError: eventsError } = useEventContext();
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
-  const [status, setStatus] = useState<StatusFilter>("all");
+  const [status, setStatus] = useState<StatusFilter>("draft");
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortKey>("newest");
+  const [sort, setSort] = useState<SortKey>("delta");
   const [offset, setOffset] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [requestedId, setRequestedId] = useState<string | null>(null);
   const [mobileDetail, setMobileDetail] = useState(false);
+  const workspaceRef = useRef<HTMLDivElement>(null);
 
   const tickets = useTickets({
     eventId,
@@ -43,28 +48,70 @@ export default function ConsolePage() {
   const total = tickets.data?.total ?? 0;
   const rows = useMemo(() => filterAndSort(page, search, sort), [page, search, sort]);
 
+  // Deep link (?ticket=) and command-palette requests.
   useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("ticket");
+    if (fromUrl) {
+      setRequestedId(fromUrl);
+      setSelectedId(fromUrl);
+      setMobileDetail(true);
+    }
+    function onOpen(e: Event) {
+      const id = (e as CustomEvent<string>).detail;
+      setRequestedId(id);
+      setSelectedId(id);
+      setMobileDetail(true);
+    }
+    window.addEventListener(OPEN_TICKET_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_TICKET_EVENT, onOpen);
+  }, []);
+
+  // A requested ticket may not be on the current page; fetch it directly.
+  const pinned = useTicket(requestedId && !rows.some((t) => t.id === requestedId) ? requestedId : null);
+
+  useEffect(() => {
+    if (requestedId) return;
     if (rows.length === 0) {
       setSelectedId(null);
       return;
     }
-    setSelectedId((cur) => {
-      if (cur && rows.some((t) => t.id === cur)) return cur;
-      const hero = rows.find((t) => t.valuation.is_overbill) ?? rows[0];
-      return hero?.id ?? null;
-    });
-  }, [rows]);
+    setSelectedId((cur) => (cur && rows.some((t) => t.id === cur) ? cur : (rows[0]?.id ?? null)));
+  }, [rows, requestedId]);
 
-  const selected = rows.find((t) => t.id === selectedId) ?? null;
+  const selected =
+    rows.find((t) => t.id === selectedId) ?? (pinned.data?.id === selectedId ? pinned.data : null) ?? null;
 
-  function selectTicket(id: string) {
+  const selectTicket = useCallback((id: string) => {
+    setRequestedId(null);
     setSelectedId(id);
     setMobileDetail(true);
-  }
+    workspaceRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  // J/K and arrow-key navigation through the queue.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      const k = e.key;
+      const down = k === "j" || k === "J" || k === "ArrowDown";
+      const up = k === "k" || k === "K" || k === "ArrowUp";
+      if (!down && !up) return;
+      e.preventDefault();
+      const idx = rows.findIndex((t) => t.id === selectedId);
+      const next = rows[Math.min(rows.length - 1, Math.max(0, idx + (down ? 1 : -1)))];
+      if (next) {
+        selectTicket(next.id);
+        document.getElementById(`ticket-${next.id}`)?.scrollIntoView({ block: "nearest" });
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [rows, selectedId, selectTicket]);
 
   const queuePanel = (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="flex flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-col gap-3 border-b border-[var(--color-border)] p-3">
         <QueueFilters
           search={search}
           onSearch={setSearch}
@@ -72,38 +119,54 @@ export default function ConsolePage() {
           onStatus={(s) => {
             setStatus(s);
             setOffset(0);
+            setRequestedId(null);
           }}
           sort={sort}
           onSort={setSort}
         />
-        <div className="text-[11px] tabular-nums text-[var(--color-subtle)]">
-          Showing {rows.length} of {total} ticket{total === 1 ? "" : "s"}
+        <div className="flex items-center justify-between text-[12px] tabular-nums text-[var(--color-subtle)]">
+          <span>
+            {total} ticket{total === 1 ? "" : "s"}
+            {search && ` · ${rows.length} match${rows.length === 1 ? "" : "es"}`}
+          </span>
+          <span className="hidden items-center gap-1 lg:flex">
+            <Kbd>J</Kbd>
+            <Kbd>K</Kbd> to move
+          </span>
         </div>
       </div>
 
-      <div className="lt-scroll min-h-0 flex-1 overflow-y-auto pr-1">
+      <div className="lt-scroll min-h-0 flex-1 overflow-y-auto p-3">
         {tickets.isLoading ? (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-[72px]" />
+              <Skeleton key={i} className="h-[88px]" />
             ))}
           </div>
         ) : tickets.isError ? (
-          <ErrorState description="Couldn’t load the ticket queue." onRetry={() => tickets.refetch()} />
+          <ErrorState description="Could not load the ticket queue." onRetry={() => tickets.refetch()} />
         ) : rows.length === 0 ? (
           <EmptyState
-            title="No tickets match"
+            icon={<ClipboardIcon size={20} />}
+            title={status === "draft" && !search ? "Queue is clear" : "No tickets match"}
             description={
-              search ? "No tickets on this page match your search." : "No tickets for this filter yet."
+              status === "draft" && !search
+                ? "Every ticket in this event has a decision."
+                : "Try a different filter or search term."
             }
           />
         ) : (
-          <TicketQueue tickets={rows} selectedId={selectedId} onSelect={selectTicket} />
+          <TicketQueue
+            tickets={rows}
+            selectedId={selectedId}
+            onSelect={selectTicket}
+            showStatus={status === "all"}
+          />
         )}
       </div>
 
-      {!tickets.isLoading && !tickets.isError && rows.length > 0 && (
-        <div className="border-t border-[var(--color-border)] pt-3">
+      {!tickets.isLoading && !tickets.isError && total > PAGE_SIZE && (
+        <div className="border-t border-[var(--color-border)] px-3 py-2.5">
           <Pagination total={total} limit={PAGE_SIZE} offset={offset} onOffset={setOffset} />
         </div>
       )}
@@ -111,12 +174,15 @@ export default function ConsolePage() {
   );
 
   const workspacePanel = selected ? (
-    <ReviewWorkspace ticket={selected} />
+    <ReviewWorkspace key={selected.id} ticket={selected} />
+  ) : pinned.isLoading ? (
+    <Skeleton className="h-[520px]" />
   ) : (
-    <Panel className="h-full">
+    <Panel className="flex h-full items-center justify-center">
       <EmptyState
+        icon={<ClipboardIcon size={20} />}
         title="Select a ticket"
-        description="Choose a ticket from the queue to review its evidence, money frame, and anomalies."
+        description="Choose a ticket from the queue to review its money frame, evidence, and anomaly flags."
       />
     </Panel>
   );
@@ -124,53 +190,57 @@ export default function ConsolePage() {
   if (eventsError) {
     return (
       <AppShell section="Review Console">
-        <ErrorState title="Events unavailable" description="The backend didn’t return any events." />
+        <ErrorState title="Events unavailable" description="The server did not return any events." />
       </AppShell>
     );
   }
 
   return (
     <AppShell section="Review Console">
-      {/* Desktop: fixed-height two-pane that fills the viewport (no page scroll). */}
-      <div className="hidden h-[calc(100dvh-108px)] gap-5 lg:grid lg:grid-cols-[minmax(300px,32%)_1fr]">
-        <Panel className="min-h-0 overflow-hidden">{queuePanel}</Panel>
-        <div className="lt-scroll min-h-0 min-w-0 overflow-y-auto pr-1">{workspacePanel}</div>
-      </div>
-
-      {/* Mobile/tablet: queue, slide to detail. */}
-      <div className="lg:hidden">
-        {!mobileDetail ? (
-          <Panel>{queuePanel}</Panel>
-        ) : (
-          <div className="flex flex-col gap-3">
+      {isDesktop ? (
+        <div className="grid h-[calc(100dvh-108px)] grid-cols-[minmax(320px,30%)_1fr] gap-5">
+          <div className="lt-card-shadow min-h-0 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+            {queuePanel}
+          </div>
+          <div ref={workspaceRef} className="lt-scroll min-h-0 min-w-0 overflow-y-auto pr-1">
+            {workspacePanel}
+          </div>
+        </div>
+      ) : !mobileDetail || !selected ? (
+        <div className="lt-card-shadow overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+          {queuePanel}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div className="sticky top-14 z-10 -mx-4 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 sm:-mx-6 sm:px-6">
             <Button
               variant="ghost"
               size="sm"
               icon={<ChevronDownIcon size={14} className="rotate-90" />}
-              onClick={() => setMobileDetail(false)}
-              className="w-fit"
+              onClick={() => {
+                setMobileDetail(false);
+                setRequestedId(null);
+              }}
             >
               Back to queue
             </Button>
-            {workspacePanel}
           </div>
-        )}
-      </div>
+          {workspacePanel}
+        </div>
+      )}
     </AppShell>
   );
 }
 
 function filterAndSort(items: Ticket[], search: string, sort: SortKey): Ticket[] {
   const q = search.trim().toLowerCase();
-  const filtered = q
-    ? items.filter((t) => `${t.truck_id ?? ""} ${t.id}`.toLowerCase().includes(q))
-    : items;
+  const filtered = q ? items.filter((t) => `${t.truck_id ?? ""} ${t.id}`.toLowerCase().includes(q)) : items;
   const sorted = [...filtered];
   if (sort === "delta") {
     sorted.sort(
       (a, b) =>
-        Math.abs(Number.parseFloat(b.valuation.delta_dollar_value ?? "0")) -
-        Math.abs(Number.parseFloat(a.valuation.delta_dollar_value ?? "0")),
+        Number.parseFloat(b.valuation.delta_dollar_value ?? "-1e9") -
+        Number.parseFloat(a.valuation.delta_dollar_value ?? "-1e9"),
     );
   } else if (sort === "severity") {
     sorted.sort((a, b) => b.anomaly_count - a.anomaly_count);

@@ -7,10 +7,10 @@ describe("money", () => {
     expect(money("43.20")).toBe("$43.20");
     expect(money("192")).toBe("$192.00");
   });
-  it("renders a dash for null/invalid", () => {
-    expect(money(null)).toBe("—");
-    expect(money(undefined)).toBe("—");
-    expect(money("not-a-number")).toBe("—");
+  it("renders N/A for null/invalid", () => {
+    expect(money(null)).toBe("N/A");
+    expect(money(undefined)).toBe("N/A");
+    expect(money("not-a-number")).toBe("N/A");
   });
 });
 
@@ -19,8 +19,8 @@ describe("percent", () => {
     expect(percent("62.00")).toBe("62%");
     expect(percent("62.5")).toBe("62.5%");
   });
-  it("renders a dash for null", () => {
-    expect(percent(null)).toBe("—");
+  it("renders N/A for null", () => {
+    expect(percent(null)).toBe("N/A");
   });
 });
 

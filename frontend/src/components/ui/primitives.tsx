@@ -93,8 +93,10 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)] px-6 py-10 text-center">
-      <span className="text-[var(--color-subtle)]">{icon ?? <InfoIcon size={22} />}</span>
+    <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface-2)_60%,transparent)] px-6 py-10 text-center">
+      <span className="mb-1 grid size-11 place-items-center rounded-full bg-[var(--color-surface-3)] text-[var(--color-muted)]">
+        {icon ?? <InfoIcon size={20} />}
+      </span>
       <p className="text-sm font-medium text-[var(--color-text)]">{title}</p>
       {description && (
         <p className="max-w-sm text-[13px] text-[var(--color-muted)]">{description}</p>
@@ -139,10 +141,7 @@ export function ErrorState({
 /** Loading skeleton block. */
 export function Skeleton({ className }: { className?: string }) {
   return (
-    <div
-      className={`animate-pulse rounded-md bg-[var(--color-surface-3)] ${className ?? ""}`}
-      aria-hidden
-    />
+    <div className={`lt-shimmer rounded-md ${className ?? ""}`} aria-hidden />
   );
 }
 
@@ -150,8 +149,7 @@ export function Skeleton({ className }: { className?: string }) {
 export function Unavailable({ label }: { label?: string }) {
   return (
     <span className="inline-flex items-center gap-1 text-[var(--color-subtle)]" title={label}>
-      <span aria-hidden>—</span>
-      <span className="sr-only">{label ?? "unavailable"}</span>
+      {label ?? "Not available"}
     </span>
   );
 }

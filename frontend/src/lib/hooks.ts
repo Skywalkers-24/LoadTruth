@@ -48,6 +48,15 @@ export function useTickets(query: TicketQuery) {
   });
 }
 
+/** A single ticket by id (used when the selected ticket is not on the current page). */
+export function useTicket(id: string | null) {
+  return useQuery({
+    queryKey: ["ticket", id],
+    queryFn: () => api.getTicket(id as string),
+    enabled: Boolean(id),
+  });
+}
+
 export function useDashboard(eventId: string | undefined) {
   return useQuery({
     queryKey: ["dashboard", eventId],
@@ -95,6 +104,7 @@ export function useSetStatus() {
 function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   return () => {
     void qc.invalidateQueries({ queryKey: ["tickets"] });
+    void qc.invalidateQueries({ queryKey: ["ticket"] });
     void qc.invalidateQueries({ queryKey: ["dashboard"] });
     void qc.invalidateQueries({ queryKey: ["reports-summary"] });
   };

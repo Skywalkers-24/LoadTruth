@@ -57,7 +57,7 @@ export function EventSwitcher() {
           {initials}
         </span>
         <span className="flex min-w-0 flex-1 flex-col leading-tight">
-          <span className="truncate text-[12px] font-semibold text-[var(--color-text)]">
+          <span className="line-clamp-2 text-[13px] font-semibold text-[var(--color-text)]">
             {isError ? "Events unavailable" : (selected?.name ?? "Select an event")}
           </span>
           <span className="truncate text-[11px] text-[var(--color-muted)]">

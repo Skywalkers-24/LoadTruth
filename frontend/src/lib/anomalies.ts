@@ -28,7 +28,7 @@ export function deriveAnomalies(ticket: Ticket): DerivedAnomaly[] {
       title: "Unreadable placard",
       severity: "warn",
       explanation:
-        "The truck placard could not be read from the evidence; manual identification is needed before this ticket can be certified.",
+        "The truck placard could not be read from the evidence. Identify the truck manually before certifying this ticket.",
       itemized: true,
     });
   }
@@ -66,7 +66,7 @@ export function deriveAnomalies(ticket: Ticket): DerivedAnomaly[] {
       title: `${remainder} additional flag${remainder > 1 ? "s" : ""}`,
       severity: "info",
       explanation:
-        "The pipeline raised additional anomaly flags that the ticket API does not itemize yet (e.g. low confidence, hollow load, cycle time). Open the audit packet for the full narrative.",
+        "Additional checks flagged this load, such as low confidence, a hollow load, or cycle time. The audit packet has the full breakdown.",
       itemized: false,
     });
   }

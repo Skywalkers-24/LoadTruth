@@ -1,36 +1,81 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { Ticket, TicketStatus } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { CheckIcon } from "@/components/ui/icons";
+import { AlertIcon, CheckIcon } from "@/components/ui/icons";
+import { Kbd } from "@/components/ui/kbd";
 import { useToast } from "@/components/ui/toast";
 import { useSetMonitorCall, useSetStatus } from "@/lib/hooks";
 import { percent } from "@/lib/format";
+import { isTypingTarget } from "@/lib/use-media-query";
 
 /**
- * Human review controls: enter the monitor's fill-% call, then confirm /
- * override / dispute. Override and dispute require a reason and an explicit
- * confirmation. The backend status endpoint accepts only the new status, so the
- * reason is surfaced to the operator (and in the toast) rather than claimed to
- * be persisted server-side.
+ * Human review controls: record the monitor's fill call, then confirm, override,
+ * or dispute. Override and dispute require a reason. Keyboard: C confirm,
+ * O override, D dispute (ignored while typing).
  */
-type Pending = Exclude<TicketStatus, "draft"> | null;
+type Decision = Exclude<TicketStatus, "draft">;
+
+const COPY: Record<Decision, { title: string; body: string; cta: string; variant: "ok" | "warn" | "danger"; done: string }> = {
+  confirmed: {
+    title: "Confirm this ticket?",
+    body: "LoadTruth's measurement becomes the ticket of record for this load.",
+    cta: "Confirm",
+    variant: "ok",
+    done: "confirmed",
+  },
+  overridden: {
+    title: "Override this ticket?",
+    body: "The ticket is marked as manually adjusted. Add a reason for the audit trail.",
+    cta: "Override",
+    variant: "warn",
+    done: "overridden",
+  },
+  disputed: {
+    title: "Dispute this ticket?",
+    body: "The ticket is flagged for resolution with the contractor. Add a reason for the audit trail.",
+    cta: "Dispute",
+    variant: "danger",
+    done: "disputed",
+  },
+};
 
 export function ReviewActions({ ticket }: { ticket: Ticket }) {
   const toast = useToast();
   const setMonitorCall = useSetMonitorCall();
   const setStatus = useSetStatus();
 
-  const [call, setCall] = useState(ticket.valuation.monitor_fill_pct ?? "");
-  const [pending, setPending] = useState<Pending>(null);
+  const [call, setCall] = useState(() => {
+    const raw = ticket.valuation.monitor_fill_pct;
+    if (raw === null) return "";
+    const n = Number.parseFloat(raw);
+    return Number.isNaN(n) ? "" : String(Math.round(n * 10) / 10);
+  });
+  const [pending, setPending] = useState<Decision | null>(null);
   const [reason, setReason] = useState("");
 
   const busy = setMonitorCall.isPending || setStatus.isPending;
   const needsReason = pending === "overridden" || pending === "disputed";
   const reasonValid = reason.trim().length >= 4;
+  const decided = ticket.status !== "draft";
+
+  // Keyboard shortcuts for the three decisions.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (pending || busy || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      const k = e.key.toLowerCase();
+      if (k === "c") setPending("confirmed");
+      else if (k === "o") setPending("overridden");
+      else if (k === "d") setPending("disputed");
+      else return;
+      e.preventDefault();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pending, busy]);
 
   function submitCall(e: React.FormEvent) {
     e.preventDefault();
@@ -39,108 +84,100 @@ export function ReviewActions({ ticket }: { ticket: Ticket }) {
     setMonitorCall.mutate(
       { id: ticket.id, pct },
       {
-        onSuccess: () => toast.push("ok", `Recorded monitor call of ${percent(pct)}.`),
-        onError: () => toast.push("danger", "Couldn’t record the monitor call."),
+        onSuccess: () => toast.push("ok", `Monitor call of ${percent(pct)} recorded.`),
+        onError: () => toast.push("danger", "Could not record the monitor call."),
       },
     );
   }
 
   function confirmAction() {
     if (!pending) return;
+    const decision = pending;
     setStatus.mutate(
-      { id: ticket.id, status: pending },
+      { id: ticket.id, status: decision },
       {
         onSuccess: () => {
-          const verb =
-            pending === "confirmed"
-              ? "confirmed"
-              : pending === "overridden"
-                ? "overridden"
-                : "disputed";
-          toast.push(
-            "ok",
-            `Ticket ${verb}${needsReason && reason.trim() ? `. ${reason.trim()}` : ""}.`,
-          );
+          toast.push("ok", `Ticket ${COPY[decision].done}.`);
           setPending(null);
           setReason("");
         },
-        onError: () => toast.push("danger", "The action failed. Please retry."),
+        onError: () => toast.push("danger", "The action failed. Please try again."),
       },
     );
   }
 
+  const copy = pending ? COPY[pending] : null;
+
   return (
-    <div className="flex flex-col gap-3">
-      {/* Monitor call input */}
+    <div className="flex flex-col gap-4">
+      {decided && (
+        <div className="flex items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-[12px] text-[var(--color-muted)]">
+          <span className="mt-0.5 text-[var(--color-subtle)]">
+            <AlertIcon size={13} />
+          </span>
+          This ticket already has a decision. A new decision replaces it.
+        </div>
+      )}
+
+      {/* Monitor call */}
       <form onSubmit={submitCall} className="flex flex-col gap-1.5">
         <label htmlFor="monitor-call" className="text-[12px] font-medium text-[var(--color-muted)]">
-          Monitor’s fill-% call
+          Monitor fill call
         </label>
         <div className="flex gap-2">
-          <input
-            id="monitor-call"
-            type="number"
-            min={0}
-            max={100}
-            step={1}
-            inputMode="numeric"
-            value={call}
-            onChange={(e) => setCall(e.target.value)}
-            className="w-28 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-[13px] tabular-nums text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
-            placeholder="%"
-          />
-          <Button type="submit" variant="primary" disabled={busy || call.trim() === ""}>
-            Compare
+          <div className="relative flex-1">
+            <input
+              id="monitor-call"
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              inputMode="numeric"
+              value={call}
+              onChange={(e) => setCall(e.target.value)}
+              className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] py-2 pl-3 pr-8 text-[13px] tabular-nums text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+              placeholder="0 to 100"
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-[var(--color-subtle)]">
+              %
+            </span>
+          </div>
+          <Button type="submit" variant="secondary" disabled={busy || call.trim() === ""}>
+            Update
           </Button>
         </div>
       </form>
 
-      {/* Decision buttons — Confirm is the dominant primary action */}
+      {/* Decisions */}
       <div className="flex flex-col gap-2">
         <button
           type="button"
           disabled={busy}
           onClick={() => setPending("confirmed")}
-          className="flex w-full items-center justify-center gap-2 rounded-md bg-[var(--color-ok)] px-4 py-2.5 text-[13px] font-semibold text-[var(--color-on-accent)] transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ok)]"
+          className="group flex w-full items-center justify-between gap-2 rounded-md bg-[var(--color-ok)] px-4 py-2.5 text-[13px] font-semibold text-[var(--color-on-accent)] transition-all hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ok)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <CheckIcon size={16} />
-          Confirm assessment
+          <span className="flex items-center gap-2">
+            <CheckIcon size={16} />
+            Confirm assessment
+          </span>
+          <kbd className="hidden rounded bg-black/15 px-1.5 py-0.5 text-[11px] font-medium lg:inline">C</kbd>
         </button>
         <div className="grid grid-cols-2 gap-2">
           <Button variant="warn" disabled={busy} onClick={() => setPending("overridden")}>
-            Override…
+            Override <Kbd className="ml-1 hidden border-current/30 bg-transparent text-current lg:inline-flex">O</Kbd>
           </Button>
           <Button variant="danger" disabled={busy} onClick={() => setPending("disputed")}>
-            Dispute
+            Dispute <Kbd className="ml-1 hidden border-current/30 bg-transparent text-current lg:inline-flex">D</Kbd>
           </Button>
         </div>
       </div>
-      <p className="text-[11px] text-[var(--color-subtle)]">
-        Actions are enforced by the backend. Role permissions apply server-side.
-      </p>
 
       <ConfirmDialog
-        open={pending !== null}
-        title={
-          pending === "confirmed"
-            ? "Confirm this ticket?"
-            : pending === "overridden"
-              ? "Override this ticket?"
-              : "Dispute this ticket?"
-        }
-        description={
-          pending === "confirmed"
-            ? "Confirming accepts LoadTruth’s measurement for this load as the ticket of record."
-            : pending === "overridden"
-              ? "Overriding marks the ticket as manually adjusted. Provide a reason for the audit trail."
-              : "Disputing flags the ticket for resolution. Provide a reason for the audit trail."
-        }
-        confirmLabel={
-          pending === "confirmed" ? "Confirm" : pending === "overridden" ? "Override" : "Dispute"
-        }
-        confirmVariant={
-          pending === "confirmed" ? "ok" : pending === "overridden" ? "warn" : "danger"
-        }
+        open={copy !== null}
+        title={copy?.title ?? ""}
+        description={copy?.body}
+        confirmLabel={copy?.cta}
+        confirmVariant={copy?.variant}
         busy={busy}
         reason={needsReason ? { required: true, valid: reasonValid } : undefined}
         onConfirm={confirmAction}
@@ -158,14 +195,12 @@ export function ReviewActions({ ticket }: { ticket: Ticket }) {
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
-              placeholder="Explain the adjustment or dispute…"
+              placeholder="For example: load visibly heaped above the rail on frame 2."
               className="w-full resize-none rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-[13px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
               autoFocus
             />
             {!reasonValid && (
-              <span className="text-[11px] text-[var(--color-subtle)]">
-                A short reason is required for this action.
-              </span>
+              <span className="text-[12px] text-[var(--color-subtle)]">A short reason is required.</span>
             )}
           </label>
         )}

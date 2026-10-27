@@ -105,13 +105,14 @@
   --on-accent: #ffffff;
 
   /* Money accent — amber (darkened for AA on light surfaces). */
-  --money: #8a4b00;
-  --money-strong: #6f3c00;
+  /* #b45309 on white is about 5:1, so it keeps AA while reading as amber, not brown. */
+  --money: #b45309;
+  --money-strong: #92400e;
   --money-soft: #fff0d5;
 
   --ok: #0f7a3b;
   --ok-soft: #e2f6e9;
-  --warn: #8a4b00;
+  --warn: #b45309;
   --warn-soft: #fff0d5;
   --danger: #b4232c;
   --danger-soft: #fde8e8;
@@ -126,10 +127,21 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Subtle depth on the app canvas: a faint accent glow at the top. */
+body {
+  background-image: radial-gradient(
+    1200px 500px at 70% -10%,
+    color-mix(in srgb, var(--color-accent) 7%, transparent),
+    transparent 70%
+  );
+  background-attachment: fixed;
+}
+
 body {
   font-family:
-    "Inter", "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     system-ui, sans-serif;
+  font-feature-settings: "cv11" 1, "ss01" 1;
   font-size: 14px;
   line-height: 1.45;
   /* Smooth theme transition without animating layout. */
@@ -226,6 +238,41 @@ textarea,
 }
 [data-theme="light"] .lt-hover:hover {
   box-shadow: 0 6px 20px rgba(14, 26, 43, 0.1);
+}
+
+/* Dialog / popover entrance. */
+@keyframes lt-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.lt-pop-in {
+  animation: lt-pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Count-up shimmer for skeletons. */
+@keyframes lt-shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+.lt-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-2) 0%,
+    var(--color-surface-3) 50%,
+    var(--color-surface-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: lt-shimmer 1.4s linear infinite;
 }
 
 /* Subtle page-content entrance. */

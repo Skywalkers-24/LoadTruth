@@ -60,25 +60,41 @@ export function RateTableEditor({ event }: { event: EventSummary }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {CLASSES.map((c) => (
-          <label key={c} className="flex flex-col gap-1 text-[12px] text-[var(--color-muted)]">
-            {debrisLabel(c)}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[var(--color-subtle)]">$</span>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={rates[c] ?? ""}
-                onChange={(e) => setRates((p) => ({ ...p, [c]: e.target.value }))}
-                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-[13px] tabular-nums text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
-              />
-              <span className="text-[11px] text-[var(--color-subtle)]">/CY</span>
-            </div>
-          </label>
-        ))}
+    <div className="flex max-w-xl flex-col gap-4">
+      <p className="text-[13px] leading-relaxed text-[var(--color-muted)]">
+        Each ticket is valued as measured cubic yards times the rate for its debris class. New rates apply to
+        tickets calculated after you save. Existing tickets keep their current values.
+      </p>
+
+      <div className="divide-y divide-[var(--color-border)] rounded-lg border border-[var(--color-border)]">
+        {CLASSES.map((c) => {
+          const changed = String(event.rate_table[c] ?? 0) !== (rates[c] ?? "");
+          return (
+            <label key={c} className="flex items-center justify-between gap-4 px-4 py-2.5">
+              <span className="flex items-center gap-2 text-[13px] font-medium text-[var(--color-text)]">
+                {debrisLabel(c)}
+                {changed && (
+                  <span className="rounded-full bg-[var(--color-surface-3)] px-1.5 text-[11px] font-medium text-[var(--color-warn)]">
+                    Edited
+                  </span>
+                )}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="text-[13px] text-[var(--color-subtle)]">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  aria-label={`${debrisLabel(c)} rate per cubic yard`}
+                  value={rates[c] ?? ""}
+                  onChange={(e) => setRates((p) => ({ ...p, [c]: e.target.value }))}
+                  className="w-28 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-1.5 text-right text-[13px] tabular-nums text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+                />
+                <span className="whitespace-nowrap text-[12px] text-[var(--color-subtle)]">per CY</span>
+              </span>
+            </label>
+          );
+        })}
       </div>
 
       <div className="flex items-center gap-3">
