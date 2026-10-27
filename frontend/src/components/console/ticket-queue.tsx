@@ -95,7 +95,7 @@ function TicketRow({
           </span>
         </div>
 
-        <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-[var(--color-muted)]">
+        <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-[var(--color-muted-foreground)]">
           <TruckIcon size={12} className="shrink-0 text-[var(--color-subtle)]" />
           <span className="truncate tabular-nums">{ticket.truck_id ?? "Unidentified"}</span>
           <span aria-hidden className="text-[var(--color-subtle)]">·</span>

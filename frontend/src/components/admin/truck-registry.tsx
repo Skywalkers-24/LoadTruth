@@ -128,7 +128,7 @@ export function TruckRegistry() {
                   <span className="text-[13px] font-medium tabular-nums text-[var(--color-text)]">
                     {t.truck_number}
                   </span>
-                  <span className="text-[11px] text-[var(--color-muted)]">
+                  <span className="text-[11px] text-[var(--color-muted-foreground)]">
                     {t.body_type ?? "Body type not set"} · {cubicYards(t.certified_cubic_yards)}
                     {t.registry_source ? ` · ${t.registry_source}` : ""}
                   </span>
@@ -179,7 +179,7 @@ function Field({
   type?: string;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted)]">
+    <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]">
       {label}
       <input
         type={type}

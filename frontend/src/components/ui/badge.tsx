@@ -7,7 +7,7 @@ import { statusLabel } from "@/lib/format";
 type Tone = "neutral" | "accent" | "ok" | "warn" | "danger" | "info";
 
 const TONE: Record<Tone, { fg: string; soft: string }> = {
-  neutral: { fg: "var(--color-muted)", soft: "var(--color-surface-3)" },
+  neutral: { fg: "var(--color-muted-foreground)", soft: "var(--color-surface-3)" },
   accent: { fg: "var(--color-accent)", soft: "var(--color-accent-soft)" },
   ok: { fg: "var(--color-ok)", soft: "var(--color-ok-soft)" },
   warn: { fg: "var(--color-warn)", soft: "var(--color-warn-soft)" },

@@ -104,7 +104,7 @@ export function QueueFilters({
               className="shrink-0 rounded-md px-2.5 py-1 text-[12px] font-medium transition-all"
               style={{
                 backgroundColor: active ? "var(--color-surface)" : "transparent",
-                color: active ? "var(--color-text)" : "var(--color-muted)",
+                color: active ? "var(--color-text)" : "var(--color-muted-foreground)",
                 boxShadow: active ? "0 1px 2px rgba(0,0,0,0.25)" : undefined,
               }}
             >

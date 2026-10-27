@@ -136,7 +136,7 @@ export function EventSwitcher() {
                             {e.name}
                           </span>
                           {e.location && (
-                            <span className="truncate text-[11px] text-[var(--color-muted)]">
+                            <span className="truncate text-[11px] text-[var(--color-muted-foreground)]">
                               {e.location}
                             </span>
                           )}

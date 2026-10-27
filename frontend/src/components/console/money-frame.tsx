@@ -93,7 +93,7 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
                 className="border-t border-[var(--color-border)]"
                 style={r.emphasize ? { backgroundColor: "var(--color-surface-2)" } : undefined}
               >
-                <td className="px-4 py-2.5 text-[var(--color-muted)]">{r.label}</td>
+                <td className="px-4 py-2.5 text-[var(--color-muted-foreground)]">{r.label}</td>
                 <td className="px-4 py-2.5 text-right text-[var(--color-text)]">{r.monitor}</td>
                 <td className="px-4 py-2.5 text-right font-medium text-[var(--color-money)]">{r.measured}</td>
                 <td
@@ -120,7 +120,7 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
                   {r.delta}
                 </span>
               </div>
-              <div className="flex justify-between text-[12px] tabular-nums text-[var(--color-muted)]">
+              <div className="flex justify-between text-[12px] tabular-nums text-[var(--color-muted-foreground)]">
                 <span>
                   Monitor <span className="text-[var(--color-text)]">{r.monitor}</span>
                 </span>
@@ -149,11 +149,11 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
           <span className="size-1.5 rounded-full" style={{ backgroundColor: tone.color }} aria-hidden />
           {tone.label}
         </span>
-        <span className="text-[12px] font-medium text-[var(--color-muted)]">Dollar delta</span>
+        <span className="text-[12px] font-medium text-[var(--color-muted-foreground)]">Dollar delta</span>
         <span className="text-[40px] font-bold leading-none tracking-tight tabular-nums" style={{ color: tone.color }}>
           {hasCall ? signedMoney(v.delta_dollar_value) : "No call"}
         </span>
-        <p className="mt-1 text-[12px] leading-snug text-[var(--color-muted)]">{interpretation}</p>
+        <p className="mt-1 text-[12px] leading-snug text-[var(--color-muted-foreground)]">{interpretation}</p>
       </div>
     </div>
   );

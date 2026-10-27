@@ -106,7 +106,7 @@ export function RolesPanel() {
         <div className="grid gap-3 sm:grid-cols-[1fr_1fr_180px_auto] sm:items-end">
           <Field label="Email" value={email} onChange={setEmail} placeholder="name@county.gov" type="email" />
           <Field label="Full name" value={name} onChange={setName} placeholder="Jane Doe" />
-          <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted)]">
+          <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]">
             Role
             <select
               value={role}
@@ -163,7 +163,7 @@ export function RolesPanel() {
                   <span className="truncate text-[13px] font-medium text-[var(--color-text)]">
                     {u.full_name ?? u.email}
                   </span>
-                  <span className="truncate text-[11px] text-[var(--color-muted)]">
+                  <span className="truncate text-[11px] text-[var(--color-muted-foreground)]">
                     {u.email} · added {relativeTime(u.created_at)}
                   </span>
                 </span>
@@ -225,7 +225,7 @@ function Field({
   type?: string;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted)]">
+    <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]">
       {label}
       <input
         type={type}
