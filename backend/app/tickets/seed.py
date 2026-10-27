@@ -24,7 +24,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import models
 from app.tickets.domain import new_ticket
-from app.tickets.repository import set_seed_accuracy
 from app.tickets.schemas import DebrisClass
 
 _SEED_PATH = Path(__file__).resolve().parents[2] / "seed.json"
@@ -235,10 +234,9 @@ async def seed_demo(session: AsyncSession) -> None:
     tenant_id = DEMO_TENANT_ID
     events = _events()
 
-    for ev in events:
-        set_seed_accuracy(
-            UUID(str(ev["id"])), float(ev.get("benchmark_accuracy_within_10pct", 0.0))
-        )
+    # Accuracy is now computed from real monitor calls vs. machine estimates
+    # (see repository._compute_accuracy_within_10pct), so no seeded figure is
+    # registered here anymore.
 
     existing = (
         await session.execute(select(models.Event).where(models.Event.id == DEMO_EVENT_ID))

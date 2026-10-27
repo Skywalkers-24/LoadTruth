@@ -236,3 +236,13 @@ export const MaximizeIcon = (p: IconProps) => (
     <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
   </Icon>
 );
+
+export const PaletteIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 3a9 9 0 0 0 0 18c1.2 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.2 0-1 .8-1.8 1.8-1.8H16a5 5 0 0 0 5-5c0-3.9-4-6.7-9-6.7z" />
+    <circle cx="7.5" cy="12" r="1" />
+    <circle cx="10" cy="7.5" r="1" />
+    <circle cx="14.5" cy="7.5" r="1" />
+    <circle cx="17" cy="11" r="1" />
+  </Icon>
+);

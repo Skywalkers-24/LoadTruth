@@ -16,6 +16,9 @@ router = APIRouter(tags=["reports"])
 @router.get("/events/{event_id}/export.csv", response_class=PlainTextResponse)
 async def export_csv(repo: Repository, tenant: ActiveTenant, event_id: UUID) -> PlainTextResponse:
     """Download the event's tickets as CSV."""
+    # 404 on an unknown/other-tenant event rather than returning an empty 200.
+    if await repo.get_event(tenant, event_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "event not found")
     tickets = await repo.list_tickets(tenant, event_id)
     csv_text = tickets_to_csv(tickets)
     return PlainTextResponse(

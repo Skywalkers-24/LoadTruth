@@ -70,6 +70,9 @@ export function ReviewActions({ ticket }: { ticket: Ticket }) {
     function onKey(e: KeyboardEvent) {
       if (!canReview || pending || busy || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target))
         return;
+      // Don't fire decisions while any dialog/popover is open (notifications,
+      // command palette, confirm dialog) — matches the queue's J/K guard.
+      if (document.querySelector('[role="dialog"]')) return;
       const k = e.key.toLowerCase();
       if (k === "c") setPending("confirmed");
       else if (k === "o") setPending("overridden");

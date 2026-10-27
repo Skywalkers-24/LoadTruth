@@ -223,13 +223,11 @@ async def _compute_pipeline(
         clip_id=None,
         evidence_frames=[f for f in [ocr.frame_ref] if f],
     )
-    if trace:
-        trace.stage(
-            "dollar_math",
-            "Value the load",
-            "deterministic",
-            f"Valued the load at {ticket.est_dollar_value} ({fill.fill_pct}% of {certified} CY at ${rate}/CY).",  # noqa: E501
-        )
+    # Note: the ticket (and its dollar value) is computed here because the
+    # anomaly rules below need the measured facts. The trace stages, however,
+    # are recorded in pipeline order — "Flag anomalies" (Stage 6) before
+    # "Value the load" (Stage 7) — further down, so the visible 7-stage trace
+    # reads in the correct sequence.
 
     # Stage 6 — anomaly rules over the measured facts.
     anomalies = evaluate(
@@ -252,6 +250,7 @@ async def _compute_pipeline(
     await _record(ledger, "anomalies", ai)
     ticket.anomaly_count = len(anomalies)
     if trace:
+        # Stage 6 — Flag anomalies (recorded before the Stage 7 valuation).
         trace.stage(
             "anomalies",
             "Flag anomalies",
@@ -262,6 +261,13 @@ async def _compute_pipeline(
                 else "No anomalies flagged."
             ),
             status="flagged" if anomalies else "ok",
+        )
+        # Stage 7 — Value the load (the §7a dollar math, computed above).
+        trace.stage(
+            "dollar_math",
+            "Value the load",
+            "deterministic",
+            f"Valued the load at {ticket.est_dollar_value} ({fill.fill_pct}% of {certified} CY at ${rate}/CY).",  # noqa: E501
         )
         trace.ticket_id = str(ticket.id)
         trace.truck_id = ocr.truck_id

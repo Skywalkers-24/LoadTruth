@@ -94,6 +94,7 @@ class ReportsSummaryData:
     __slots__ = (
         "accuracy_within_10pct",
         "anomaly_counts_by_severity",
+        "benchmarked_count",
         "counts_by_debris_class",
         "counts_by_status",
         "event_id",
@@ -121,6 +122,7 @@ class ReportsSummaryData:
         reviewed_count: int,
         pending_count: int,
         accuracy_within_10pct: float | None,
+        benchmarked_count: int,
     ) -> None:
         self.event_id = event_id
         self.ticket_count = ticket_count
@@ -134,6 +136,9 @@ class ReportsSummaryData:
         self.reviewed_count = reviewed_count
         self.pending_count = pending_count
         self.accuracy_within_10pct = accuracy_within_10pct
+        # Denominator behind the accuracy fraction — the number of tickets with a
+        # monitor call. Lets the "All events" view weight combined accuracy exactly.
+        self.benchmarked_count = benchmarked_count
 
 
 def _to_event(row: models.Event) -> Event:
@@ -311,7 +316,13 @@ class SqlTicketRepository:
         row = await self._get_row(tenant_id, ticket_id)
         row.status = status.value
         if status in (TicketStatus.CONFIRMED, TicketStatus.OVERRIDDEN):
-            row.confirmed_fill_pct = row.monitor_call_fill_pct or row.est_fill_pct
+            # Use an explicit None check: a legitimate 0% monitor call must not
+            # fall back to the estimate (0 is falsy under `or`).
+            row.confirmed_fill_pct = (
+                row.monitor_call_fill_pct
+                if row.monitor_call_fill_pct is not None
+                else row.est_fill_pct
+            )
         await self._s.flush()
         return await self.get_ticket(tenant_id, ticket_id)
 
@@ -422,7 +433,7 @@ class SqlTicketRepository:
             overbill_ticket_count=sum(1 for t in tickets if t.is_overbill),
             total_delta_cubic_yards=total_delta_cy,
             total_delta_dollar_value=total_delta_usd,
-            accuracy_within_10pct=_accuracy_for_event(event_id),
+            accuracy_within_10pct=_compute_accuracy_within_10pct(tickets),
         )
 
     async def _anomaly_severity_counts(self, tenant_id: UUID, event_id: UUID) -> dict[str, int]:
@@ -460,6 +471,7 @@ class SqlTicketRepository:
             if t.status in (TicketStatus.CONFIRMED, TicketStatus.OVERRIDDEN):
                 reviewed += 1
 
+        within, benchmarked = _accuracy_counts(tickets)
         return ReportsSummaryData(
             event_id=event_id,
             ticket_count=len(tickets),
@@ -472,7 +484,8 @@ class SqlTicketRepository:
             anomaly_counts_by_severity=await self._anomaly_severity_counts(tenant_id, event_id),
             reviewed_count=reviewed,
             pending_count=len(tickets) - reviewed,
-            accuracy_within_10pct=_accuracy_for_event(event_id),
+            accuracy_within_10pct=(within / benchmarked if benchmarked else None),
+            benchmarked_count=benchmarked,
         )
 
     # ── Truck registry CRUD (admin screen) ──────────────────────────────────
@@ -810,14 +823,37 @@ class SqlTicketRepository:
         await self._s.flush()
 
 
-# Benchmark accuracy isn't persisted yet (no benchmark run on SQLite). Surface the
-# seeded demo figure for the demo event so the dashboard renders the signal.
-_SEED_ACCURACY: dict[UUID, float] = {}
+# Fill estimates and calls are on a 0–100 scale; "within 10%" means the machine
+# estimate is within this many percentage points of the human benchmark.
+_ACCURACY_TOLERANCE_PCT = Decimal(10)
 
 
-def set_seed_accuracy(event_id: UUID, fraction: float) -> None:
-    _SEED_ACCURACY[event_id] = fraction
+def _accuracy_counts(tickets: list[Ticket]) -> tuple[int, int]:
+    """(within, benchmarked): how many benchmarked tickets (those with a monitor
+    call) had the machine fill estimate within ±10 points of that call, and how
+    many were benchmarked in total."""
+    within = 0
+    benchmarked = 0
+    for t in tickets:
+        call = t.monitor_call_fill_pct
+        if call is None:
+            continue
+        benchmarked += 1
+        if abs(t.est_fill_pct - call) <= _ACCURACY_TOLERANCE_PCT:
+            within += 1
+    return within, benchmarked
 
 
-def _accuracy_for_event(event_id: UUID) -> float | None:
-    return _SEED_ACCURACY.get(event_id)
+def _compute_accuracy_within_10pct(tickets: list[Ticket]) -> float | None:
+    """Fraction of benchmarked tickets whose machine fill estimate lands within
+    ±10 percentage points of the human monitor's independent call.
+
+    The monitor's call is the ground truth: it's the human's own reading of the
+    same load, recorded at review. Tickets without a call aren't benchmarked, so
+    they're excluded. Returns ``None`` when no ticket has a call yet (the UI then
+    shows "no benchmark" rather than a fabricated number).
+    """
+    within, benchmarked = _accuracy_counts(tickets)
+    if benchmarked == 0:
+        return None
+    return within / benchmarked

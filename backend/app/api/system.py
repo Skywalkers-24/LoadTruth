@@ -21,9 +21,11 @@ from app.ai.config_store import (
 )
 from app.api.deps import CurrentMember, require
 from app.api.ingest import get_cost_ledger
+from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_manage_events
 from app.config import get_settings
 from app.pipeline.trace import PipelineTrace, get_job_store
+from app.tickets.repository import TicketNotFoundError
 
 router = APIRouter(prefix="/system", tags=["system"])
 
@@ -129,18 +131,41 @@ def _job_out(event_id: str, tr: PipelineTrace) -> JobOut:
 
 @router.get("/jobs", response_model=list[JobOut])
 async def list_jobs(
-    _: CurrentMember, event_id: UUID | None = None, limit: int = 50
+    _: CurrentMember,
+    tenant: ActiveTenant,
+    repo: Repository,
+    event_id: UUID | None = None,
+    limit: int = 50,
 ) -> list[JobOut]:
-    """Recent pipeline runs (newest first), optionally scoped to one event."""
-    rows = await get_job_store().recent(event_id, limit)
-    return [_job_out(ev, tr) for ev, tr in rows]
+    """Recent pipeline runs (newest first), scoped to the caller's tenant.
+
+    The shared job store is process-global and holds runs for every tenant, so
+    we filter to the events this tenant actually owns before returning anything.
+    """
+    owned = {str(e.id) for e in await repo.list_events(tenant)}
+    if event_id is not None and str(event_id) not in owned:
+        return []
+    # Pull a generous window, then filter to owned events and trim to `limit`.
+    rows = await get_job_store().recent(event_id, limit=max(limit, 100))
+    scoped = [(ev, tr) for ev, tr in rows if ev in owned][:limit]
+    return [_job_out(ev, tr) for ev, tr in scoped]
 
 
 @router.get("/jobs/ticket/{ticket_id}", response_model=JobOut | None)
-async def job_for_ticket(_: CurrentMember, ticket_id: str) -> JobOut | None:
-    """The pipeline trace that produced a given ticket, if still in the buffer."""
+async def job_for_ticket(
+    _: CurrentMember, tenant: ActiveTenant, repo: Repository, ticket_id: str
+) -> JobOut | None:
+    """The pipeline trace that produced a given ticket, if still in the buffer.
+
+    Verifies the ticket belongs to the caller's tenant before returning any
+    trace, so a job from another tenant can't be read by guessing its id.
+    """
+    try:
+        ticket = await repo.get_ticket(tenant, UUID(ticket_id))
+    except (TicketNotFoundError, ValueError):
+        return None
     tr = await get_job_store().for_ticket(ticket_id)
-    return _job_out("", tr) if tr else None
+    return _job_out(str(ticket.event_id), tr) if tr else None
 
 
 # ── AI model & effort configuration (admin) ──────────────────────────────────

@@ -1,17 +1,18 @@
 @import "tailwindcss";
 
 /* LoadTruth operator-console theme.
-   Dark-first, evidence-forward, high-density. Tokens are driven by the
-   `data-theme` attribute on <html> (set by ThemeProvider before paint).
-   Palette follows the LoadTruth brand pack (Ink Navy / Safety Amber /
-   Verified Green / Anomaly Red). Semantic colors meet WCAG AA for the
-   text/background pairs they are actually used on; status is never conveyed
-   by color alone (always paired with a label and/or icon). */
+   Two axes: a theme identity (`data-theme`) and a mode (`data-mode` + `.dark`),
+   both set by ThemeProvider before paint. Six researched theme pairs, each with
+   a coordinated dark and light palette (Carbon/Fluent/Atlassian role model).
+   Semantic colors meet WCAG 2.2 AA on the text/background pairs they are used
+   on; status is never conveyed by color alone (always paired with a label
+   and/or icon). Financial-exposure accent = Signal Violet, held constant across
+   every theme so the meaning never shifts when the identity changes. */
 
 @theme {
-  /* LoadTruth legacy tokens (surfaces, text ramp, brand blue, money, status).
+  /* LoadTruth legacy tokens (surfaces, text ramp, brand, money, status).
      These coexist with the shadcn tokens registered in the @theme inline block
-     below. The brand blue is --color-brand* so it never collides with shadcn's
+     below. The brand color is --color-brand* so it never collides with shadcn's
      neutral `accent` surface. */
   --color-bg: var(--bg);
   --color-surface: var(--surface);
@@ -28,7 +29,7 @@
   --color-brand-fill: var(--brand-fill);
   --color-on-brand: var(--on-brand);
 
-  /* Money accent — amber, reserved for dollars/variance only. */
+  /* Money accent — Signal Violet, reserved for dollars/variance/flagged only. */
   --color-money: var(--money);
   --color-money-strong: var(--money-strong);
   --color-money-soft: var(--money-soft);
@@ -41,9 +42,7 @@
   --color-info: var(--info);
 
   /* Backward-compatible aliases for the pre-shadcn token names, so screens that
-     have not been migrated yet keep rendering. The brand blue maps to --brand;
-     the old `muted` (a text color) maps to shadcn's muted-foreground; `danger`
-     maps to shadcn's destructive. Removed once every screen is migrated. */
+     have not been migrated yet keep rendering. */
   --color-accent: var(--brand);
   --color-accent-strong: var(--brand-strong);
   --color-accent-soft: var(--brand-soft);
@@ -59,9 +58,9 @@
 /* shadcn/ui token bridge.
    shadcn components reference a fixed set of token names (background,
    foreground, card, primary, border, ring, muted, accent, destructive,
-   chart-1..5, radius). We register them here and point them at our existing
-   LoadTruth palette, so shadcn renders in our blue/amber theme and our custom
-   components keep working unchanged. Values are set per theme further down. */
+   chart-1..5, radius). We register them here and point them at the LoadTruth
+   palette, so shadcn renders in our theme and our custom components keep
+   working unchanged. Values are set per theme/mode further down. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -105,152 +104,716 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* ── Dark theme (default) — Ink Navy canvas ─────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════════════
+   SEMANTIC + SIGNAL-VIOLET LAYER (constant across all six themes)
+   Status meaning never changes with the theme identity — only the mode flips
+   the exact value. Signal Violet is the financial-exposure accent everywhere.
+   These come first so each theme block below can still override on the rare
+   occasion it needs to; in practice themes only set surfaces + brand.
+   ════════════════════════════════════════════════════════════════════════ */
 :root,
-[data-theme="dark"] {
-  color-scheme: dark;
+[data-mode="dark"] {
+  /* Flagged / financial exposure — Signal Violet (dark). */
+  --money: #c4b5fd;
+  --money-strong: #ddd4ff;
+  --money-soft: #302454;
 
-  /* Deep slate canvas with a faint cool tint. Surfaces step up subtly. */
-  --bg: #0a0f1a;
-  --surface: #121829;
-  --surface-2: #1a2236;
-  --surface-3: #232d45;
-  --border-strong: #3a4766;
-
-  --text: #f4f6fb;
-  --subtle: #8e9bb5;
-
-  /* Primary — indigo/violet. Modern, premium, high contrast on the dark canvas. */
-  --brand: #818cf8;
-  --brand-strong: #a5b0ff;
-  --brand-soft: #1e2546;
-  --brand-fill: #6366f1;
-  --on-brand: #ffffff;
-
-  /* Money accent — gold (warm, not orange-brown). Dollars/variance only. */
-  --money: #fbbf24;
-  --money-strong: #fcd34d;
-  --money-soft: #2e2512;
-
+  /* Verified / approved. */
   --ok: #34d399;
   --ok-soft: #0c2e24;
-  --warn: #fbbf24;
-  --warn-soft: #2e2512;
+  /* "warn" is an alias of the flagged/money accent (Signal Violet). */
+  --warn: #c4b5fd;
+  --warn-soft: #302454;
+  /* Rejected / failed validation. */
   --danger-soft: #3a1c22;
-  --info: #818cf8;
-
-  /* ── shadcn/ui tokens (dark). ── */
-  --background: #0a0f1a;
-  --foreground: #f4f6fb;
-  --card: #121829;
-  --card-foreground: #f4f6fb;
-  --popover: #1a2236;
-  --popover-foreground: #f4f6fb;
-  --primary: #6366f1;
-  --primary-foreground: #ffffff;
-  --secondary: #232d45;
-  --secondary-foreground: #f4f6fb;
-  --muted: #1a2236;
-  --muted-foreground: #aab4cc;
-  --accent: #232d45;
-  --accent-foreground: #f4f6fb;
   --destructive: #fb7185;
-  --destructive-foreground: #ffffff;
-  --border: #283350;
-  --input: #283350;
-  --ring: #818cf8;
-  --radius: 0.7rem;
+  --destructive-foreground: #1a0d10;
+  /* Informational / processing. */
+  --info: #7dd3fc;
 
-  /* Chart series: indigo primary, gold money, teal, violet, rose. */
-  --chart-1: #818cf8;
-  --chart-2: #34d399;
-  --chart-3: #fbbf24;
-  --chart-4: #c084fc;
-  --chart-5: #fb7185;
-
-  /* Left rail: a near-black indigo-tinted panel, premium and anchoring. */
-  --sidebar: #0c111f;
-  --sidebar-foreground: #eef1f8;
-  --sidebar-muted: #8a95b0;
-  --sidebar-primary: #6366f1;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1a2238;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #202a44;
-  --sidebar-ring: #818cf8;
+  /* Chart money series = Signal Violet. */
+  --chart-money: #c4b5fd;
 }
 
-/* ── Light theme — clean cool-white canvas, soft shadows, crisp borders ── */
-[data-theme="light"] {
-  color-scheme: light;
+[data-mode="light"] {
+  --money: #6d28d9;
+  --money-strong: #5b21b6;
+  --money-soft: #f0eafe;
 
-  /* A soft, neutral off-white canvas with a hint of indigo. White cards float
-     with a gentle shadow; borders are hairline. */
-  --bg: #f5f6fb;
-  --surface: #ffffff;
-  --surface-2: #f7f8fc;
-  --surface-3: #eef0f8;
-  --border-strong: #c7cde0;
+  --ok: #047857;
+  --ok-soft: #e6f6ee;
+  --warn: #6d28d9;
+  --warn-soft: #f0eafe;
+  --danger-soft: #fdeaec;
+  --destructive: #b91c1c;
+  --destructive-foreground: #ffffff;
+  --info: #0369a1;
 
-  --text: #141a2e;
-  --subtle: #697089;
+  --chart-money: #6d28d9;
+}
 
-  /* Primary — indigo. Vivid and premium, clears AA on white. */
-  --brand: #4f46e5;
-  --brand-strong: #4338ca;
-  --brand-soft: #ecebfd;
-  --brand-fill: #4f46e5;
+/* ════════════════════════════════════════════════════════════════════════
+   THEME IDENTITIES
+   Six researched theme pairs. Each sets surfaces, text ramp, brand, sidebar,
+   and the shadcn surface tokens — for dark (default) and light (via
+   [data-mode="light"]). Semantic/Signal-Violet tokens are inherited from the
+   layer above. `:root` mirrors Command Blue so there is always a sane default.
+
+   Role map (spec → token):
+     background→--bg/--background · surface→--surface/--card ·
+     raised→--surface-2/--popover · (deeper)→--surface-3/--secondary ·
+     border→--border/--input · primary→--brand-fill/--primary ·
+     primary(on-dark text)→--brand · hover→--brand-strong · selected→--brand-soft ·
+     button-text→--on-brand/--primary-foreground · text→--text/--foreground ·
+     secondary text→--subtle · muted text→--muted-foreground.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Command Blue (default) — navy + electric blue ───────────────────── */
+:root,
+[data-theme="command-blue"] {
+  --bg: #0b1220;
+  --surface: #121d30;
+  --surface-2: #1a2940;
+  --surface-3: #20385e;
+  --border-strong: #3a4d6c;
+  --text: #f4f7fc;
+  --subtle: #b8c5d9;
+
+  /* Bright accent for text/icons/links; a clean vibrant royal blue fill for
+     large surfaces (active nav, primary buttons) with light text on it. */
+  --brand: #8ab4ff;
+  --brand-strong: #b3ceff;
+  --brand-soft: #1a2c4a;
+  --brand-fill: #3b6fe6;
   --on-brand: #ffffff;
 
-  /* Money accent — deep gold/amber; warm, legible on white (~4.7:1). */
-  --money: #a16207;
-  --money-strong: #854d0e;
-  --money-soft: #fbf3df;
+  --background: #0b1220;
+  --foreground: #f4f7fc;
+  --card: #121d30;
+  --card-foreground: #f4f7fc;
+  --popover: #1a2940;
+  --popover-foreground: #f4f7fc;
+  --primary: #3b6fe6;
+  --primary-foreground: #ffffff;
+  --secondary: #1f2e47;
+  --secondary-foreground: #f4f7fc;
+  --muted: #1a2940;
+  --muted-foreground: #96a5ba;
+  --accent: #1a2940;
+  --accent-foreground: #f4f7fc;
+  --border: #2d3d56;
+  --input: #2d3d56;
+  --ring: #8ab4ff;
+  --radius: 0.5rem;
 
-  --ok: #0f8a4c;
-  --ok-soft: #e6f6ee;
-  --warn: #a16207;
-  --warn-soft: #fbf3df;
-  --danger-soft: #fdeaec;
+  --chart-1: #8ab4ff;
+  --chart-2: #34d399;
+  --chart-3: var(--chart-money);
+  --chart-4: #7dd3fc;
+  --chart-5: #fb7185;
+
+  --sidebar: #0d1627;
+  --sidebar-foreground: #f4f7fc;
+  --sidebar-muted: #96a5ba;
+  --sidebar-primary: #3b6fe6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a2940;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #223150;
+  --sidebar-ring: #8ab4ff;
+}
+[data-theme="command-blue"][data-mode="light"] {
+  /* Modern, vibrant digital blue: a saturated ocean/indigo (#1D58B9) fill with
+     a brighter #3B82F6 accent for links/icons/focus. */
+  --bg: #f4f7fd;
+  --surface: #ffffff;
+  --surface-2: #f6f9ff;
+  --surface-3: #e3edff;
+  --border-strong: #bccde6;
+  --text: #121a2b;
+  --subtle: #4c5a72;
+
+  --brand: #3b82f6;
+  --brand-strong: #1d58b9;
+  --brand-soft: #e3edff;
+  --brand-fill: #1d58b9;
+  --on-brand: #ffffff;
+
+  --background: #f4f7fd;
+  --foreground: #121a2b;
+  --card: #ffffff;
+  --card-foreground: #121a2b;
+  --popover: #ffffff;
+  --popover-foreground: #121a2b;
+  --primary: #1d58b9;
+  --primary-foreground: #ffffff;
+  --secondary: #e3edff;
+  --secondary-foreground: #121a2b;
+  --muted: #eef3fb;
+  --muted-foreground: #5a6a82;
+  --accent: #e3edff;
+  --accent-foreground: #121a2b;
+  --border: #d6e2f3;
+  --input: #c7d6ee;
+  --ring: #3b82f6;
+
+  --chart-1: #1d58b9;
+  --chart-2: #047857;
+  --chart-3: var(--chart-money);
+  --chart-4: #0369a1;
+  --chart-5: #b91c1c;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #121a2b;
+  --sidebar-muted: #5a6a82;
+  --sidebar-primary: #1d58b9;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e3edff;
+  --sidebar-accent-foreground: #121a2b;
+  --sidebar-border: #d6e2f3;
+  --sidebar-ring: #3b82f6;
+}
+
+/* ── 2. Field Ops Teal — charcoal + teal ────────────────────────────────── */
+[data-theme="field-ops"] {
+  --bg: #0a1416;
+  --surface: #122426;
+  --surface-2: #193033;
+  --surface-3: #16423e;
+  --border-strong: #3a5556;
+  --text: #f2f8f7;
+  --subtle: #b1c6c3;
+
+  /* Bright teal for text/icons; a deep teal fill for large surfaces so the
+     active nav/buttons don't glare. */
+  --brand: #5eead4;
+  --brand-strong: #99f6e4;
+  --brand-soft: #123734;
+  --brand-fill: #0f8c80;
+  --on-brand: #f2f8f7;
+
+  --background: #0a1416;
+  --foreground: #f2f8f7;
+  --card: #122426;
+  --card-foreground: #f2f8f7;
+  --popover: #193033;
+  --popover-foreground: #f2f8f7;
+  --primary: #0f8c80;
+  --primary-foreground: #f2f8f7;
+  --secondary: #163230;
+  --secondary-foreground: #f2f8f7;
+  --muted: #193033;
+  --muted-foreground: #91a9a5;
+  --accent: #193033;
+  --accent-foreground: #f2f8f7;
+  --border: #2f4748;
+  --input: #2f4748;
+  --ring: #5eead4;
+  --radius: 0.55rem;
+
+  --chart-1: #5eead4;
+  --chart-2: #34d399;
+  --chart-3: var(--chart-money);
+  --chart-4: #7dd3fc;
+  --chart-5: #fb7185;
+
+  --sidebar: #0d1b1d;
+  --sidebar-foreground: #f2f8f7;
+  --sidebar-muted: #91a9a5;
+  --sidebar-primary: #0f8c80;
+  --sidebar-primary-foreground: #f2f8f7;
+  --sidebar-accent: #193033;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1d3335;
+  --sidebar-ring: #5eead4;
+}
+[data-theme="field-ops"][data-mode="light"] {
+  --bg: #f2f8f7;
+  --surface: #ffffff;
+  --surface-2: #f7fbfa;
+  --surface-3: #ddf7f2;
+  --border-strong: #bcd4d0;
+  --text: #172625;
+  --subtle: #4d625f;
+
+  --brand: #0f766e;
+  --brand-strong: #115e59;
+  --brand-soft: #ddf7f2;
+  --brand-fill: #0f766e;
+  --on-brand: #ffffff;
+
+  --background: #f2f8f7;
+  --foreground: #172625;
+  --card: #ffffff;
+  --card-foreground: #172625;
+  --popover: #ffffff;
+  --popover-foreground: #172625;
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+  --secondary: #ddf7f2;
+  --secondary-foreground: #172625;
+  --muted: #edf6f4;
+  --muted-foreground: #5b6f6b;
+  --accent: #ddf7f2;
+  --accent-foreground: #172625;
+  --border: #d4e4e1;
+  --input: #c6dbd7;
+  --ring: #0f766e;
+
+  --chart-1: #0f766e;
+  --chart-2: #047857;
+  --chart-3: var(--chart-money);
+  --chart-4: #0369a1;
+  --chart-5: #b91c1c;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #172625;
+  --sidebar-muted: #5b6f6b;
+  --sidebar-primary: #0f766e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ddf7f2;
+  --sidebar-accent-foreground: #172625;
+  --sidebar-border: #d4e4e1;
+  --sidebar-ring: #0f766e;
+}
+
+/* ── 3. Indigo AI — deep indigo + periwinkle ────────────────────────────── */
+[data-theme="indigo-ai"] {
+  --bg: #0d1020;
+  --surface: #171d36;
+  --surface-2: #202849;
+  --surface-3: #2d3565;
+  --border-strong: #434d73;
+  --text: #f5f6ff;
+  --subtle: #bdc4e4;
+
+  /* Bright periwinkle for text/icons; a deep indigo fill for large surfaces. */
+  --brand: #a5b4fc;
+  --brand-strong: #c7d2fe;
+  --brand-soft: #242b50;
+  --brand-fill: #4f46c9;
+  --on-brand: #f5f6ff;
+
+  --background: #0d1020;
+  --foreground: #f5f6ff;
+  --card: #171d36;
+  --card-foreground: #f5f6ff;
+  --popover: #202849;
+  --popover-foreground: #f5f6ff;
+  --primary: #4f46c9;
+  --primary-foreground: #f5f6ff;
+  --secondary: #262e52;
+  --secondary-foreground: #f5f6ff;
+  --muted: #202849;
+  --muted-foreground: #969fc4;
+  --accent: #202849;
+  --accent-foreground: #f5f6ff;
+  --border: #353f65;
+  --input: #353f65;
+  --ring: #a5b4fc;
+  --radius: 0.55rem;
+
+  --chart-1: #a5b4fc;
+  --chart-2: #34d399;
+  --chart-3: var(--chart-money);
+  --chart-4: #7dd3fc;
+  --chart-5: #fb7185;
+
+  --sidebar: #11152a;
+  --sidebar-foreground: #f5f6ff;
+  --sidebar-muted: #969fc4;
+  --sidebar-primary: #4f46c9;
+  --sidebar-primary-foreground: #f5f6ff;
+  --sidebar-accent: #202849;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #262f52;
+  --sidebar-ring: #a5b4fc;
+}
+[data-theme="indigo-ai"][data-mode="light"] {
+  --bg: #f7f7fc;
+  --surface: #ffffff;
+  --surface-2: #fbfaff;
+  --surface-3: #ecebff;
+  --border-strong: #c9cae0;
+  --text: #1c1b31;
+  --subtle: #555572;
+
+  --brand: #4338ca;
+  --brand-strong: #3730a3;
+  --brand-soft: #ecebff;
+  --brand-fill: #4338ca;
+  --on-brand: #ffffff;
+
+  --background: #f7f7fc;
+  --foreground: #1c1b31;
+  --card: #ffffff;
+  --card-foreground: #1c1b31;
+  --popover: #ffffff;
+  --popover-foreground: #1c1b31;
+  --primary: #4338ca;
+  --primary-foreground: #ffffff;
+  --secondary: #ecebff;
+  --secondary-foreground: #1c1b31;
+  --muted: #f1f0fa;
+  --muted-foreground: #696783;
+  --accent: #ecebff;
+  --accent-foreground: #1c1b31;
+  --border: #e0e1f1;
+  --input: #d2d3ea;
+  --ring: #4338ca;
+
+  --chart-1: #4338ca;
+  --chart-2: #047857;
+  --chart-3: var(--chart-money);
+  --chart-4: #0369a1;
+  --chart-5: #b91c1c;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1c1b31;
+  --sidebar-muted: #696783;
+  --sidebar-primary: #4338ca;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ecebff;
+  --sidebar-accent-foreground: #1c1b31;
+  --sidebar-border: #e0e1f1;
+  --sidebar-ring: #4338ca;
+}
+
+/* ── 4. Civic Evergreen — forest + mint ─────────────────────────────────── */
+[data-theme="civic-evergreen"] {
+  --bg: #0b1510;
+  --surface: #14251b;
+  --surface-2: #1c3024;
+  --surface-3: #1d4830;
+  --border-strong: #3c5544;
+  --text: #f2f8f3;
+  --subtle: #b7cabb;
+
+  /* Bright mint for text/icons; a deep forest-green fill for large surfaces. */
+  --brand: #86efac;
+  --brand-strong: #bbf7d0;
+  --brand-soft: #173a26;
+  --brand-fill: #1f8a4c;
+  --on-brand: #f2f8f3;
+
+  --background: #0b1510;
+  --foreground: #f2f8f3;
+  --card: #14251b;
+  --card-foreground: #f2f8f3;
+  --popover: #1c3024;
+  --popover-foreground: #f2f8f3;
+  --primary: #1f8a4c;
+  --primary-foreground: #f2f8f3;
+  --secondary: #1b3d29;
+  --secondary-foreground: #f2f8f3;
+  --muted: #1c3024;
+  --muted-foreground: #91a995;
+  --accent: #1c3024;
+  --accent-foreground: #f2f8f3;
+  --border: #304638;
+  --input: #304638;
+  --ring: #86efac;
+  --radius: 0.55rem;
+
+  /* Primary is green here, so the "verified" status shifts to a distinct cyan
+     to avoid colliding with the brand (semantic layer sets --ok; override it). */
+  --ok: #7dd3fc;
+  --ok-soft: #10303b;
+
+  --chart-1: #86efac;
+  --chart-2: #7dd3fc;
+  --chart-3: var(--chart-money);
+  --chart-4: #a5b4fc;
+  --chart-5: #fb7185;
+
+  --sidebar: #0e1d14;
+  --sidebar-foreground: #f2f8f3;
+  --sidebar-muted: #91a995;
+  --sidebar-primary: #1f8a4c;
+  --sidebar-primary-foreground: #f2f8f3;
+  --sidebar-accent: #1c3024;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1f3527;
+  --sidebar-ring: #86efac;
+}
+[data-theme="civic-evergreen"][data-mode="light"] {
+  --bg: #f4f8f4;
+  --surface: #ffffff;
+  --surface-2: #f9fcf8;
+  --surface-3: #e4f5e9;
+  --border-strong: #bed0bf;
+  --text: #17241a;
+  --subtle: #506253;
+
+  --brand: #166534;
+  --brand-strong: #14532d;
+  --brand-soft: #e4f5e9;
+  --brand-fill: #166534;
+  --on-brand: #ffffff;
+
+  --background: #f4f8f4;
+  --foreground: #17241a;
+  --card: #ffffff;
+  --card-foreground: #17241a;
+  --popover: #ffffff;
+  --popover-foreground: #17241a;
+  --primary: #166534;
+  --primary-foreground: #ffffff;
+  --secondary: #e4f5e9;
+  --secondary-foreground: #17241a;
+  --muted: #eef6ef;
+  --muted-foreground: #5f7163;
+  --accent: #e4f5e9;
+  --accent-foreground: #17241a;
+  --border: #d7e4d8;
+  --input: #c9dacb;
+  --ring: #166534;
+
+  /* Verified shifts to blue in light too (primary is green). */
+  --ok: #0369a1;
+  --ok-soft: #e0f2fe;
+
+  --chart-1: #166534;
+  --chart-2: #0369a1;
+  --chart-3: var(--chart-money);
+  --chart-4: #4338ca;
+  --chart-5: #b91c1c;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #17241a;
+  --sidebar-muted: #5f7163;
+  --sidebar-primary: #166534;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e4f5e9;
+  --sidebar-accent-foreground: #17241a;
+  --sidebar-border: #d7e4d8;
+  --sidebar-ring: #166534;
+}
+
+/* ── 5. Arctic Cyan — blue charcoal + sky cyan ──────────────────────────── */
+[data-theme="arctic-cyan"] {
+  --bg: #0b131a;
+  --surface: #132431;
+  --surface-2: #1a3242;
+  --surface-3: #164056;
+  --border-strong: #38586b;
+  --text: #f1f8fc;
+  --subtle: #b4cbd8;
+
+  /* Bright sky-cyan for text/icons; a deep ocean fill for large surfaces. */
+  --brand: #7dd3fc;
+  --brand-strong: #bae6fd;
+  --brand-soft: #123749;
+  --brand-fill: #1a7aa8;
+  --on-brand: #f1f8fc;
+
+  --background: #0b131a;
+  --foreground: #f1f8fc;
+  --card: #132431;
+  --card-foreground: #f1f8fc;
+  --popover: #1a3242;
+  --popover-foreground: #f1f8fc;
+  --primary: #1a7aa8;
+  --primary-foreground: #f1f8fc;
+  --secondary: #163a4d;
+  --secondary-foreground: #f1f8fc;
+  --muted: #1a3242;
+  --muted-foreground: #91aaba;
+  --accent: #1a3242;
+  --accent-foreground: #f1f8fc;
+  --border: #2d4b5c;
+  --input: #2d4b5c;
+  --ring: #7dd3fc;
+  --radius: 0.5rem;
+
+  /* Primary is cyan; "informational" shifts to indigo so it stays distinct. */
+  --info: #a5b4fc;
+
+  --chart-1: #7dd3fc;
+  --chart-2: #34d399;
+  --chart-3: var(--chart-money);
+  --chart-4: #a5b4fc;
+  --chart-5: #fb7185;
+
+  --sidebar: #0d1b25;
+  --sidebar-foreground: #f1f8fc;
+  --sidebar-muted: #91aaba;
+  --sidebar-primary: #1a7aa8;
+  --sidebar-primary-foreground: #f1f8fc;
+  --sidebar-accent: #1a3242;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1d3040;
+  --sidebar-ring: #7dd3fc;
+}
+[data-theme="arctic-cyan"][data-mode="light"] {
+  --bg: #f3f8fb;
+  --surface: #ffffff;
+  --surface-2: #f8fbfd;
+  --surface-3: #e0f2fe;
+  --border-strong: #bcced9;
+  --text: #15232d;
+  --subtle: #4d6371;
+
+  --brand: #0369a1;
+  --brand-strong: #075985;
+  --brand-soft: #e0f2fe;
+  --brand-fill: #0369a1;
+  --on-brand: #ffffff;
+
+  --background: #f3f8fb;
+  --foreground: #15232d;
+  --card: #ffffff;
+  --card-foreground: #15232d;
+  --popover: #ffffff;
+  --popover-foreground: #15232d;
+  --primary: #0369a1;
+  --primary-foreground: #ffffff;
+  --secondary: #e0f2fe;
+  --secondary-foreground: #15232d;
+  --muted: #eef5f9;
+  --muted-foreground: #5a7080;
+  --accent: #e0f2fe;
+  --accent-foreground: #15232d;
+  --border: #d5e3eb;
+  --input: #c6d8e2;
+  --ring: #0369a1;
+
   --info: #4338ca;
 
-  /* ── shadcn/ui tokens (light). ── */
-  --background: #f5f6fb;
-  --foreground: #141a2e;
-  --card: #ffffff;
-  --card-foreground: #141a2e;
-  --popover: #ffffff;
-  --popover-foreground: #141a2e;
-  --primary: #4f46e5;
-  --primary-foreground: #ffffff;
-  --secondary: #eef0f8;
-  --secondary-foreground: #141a2e;
-  --muted: #f1f3fa;
-  --muted-foreground: #525b73;
-  --accent: #ecebfd;
-  --accent-foreground: #141a2e;
-  --destructive: #d33140;
-  --destructive-foreground: #ffffff;
-  --border: #e4e7f0;
-  --input: #dde1ec;
-  --ring: #4f46e5;
+  --chart-1: #0369a1;
+  --chart-2: #047857;
+  --chart-3: var(--chart-money);
+  --chart-4: #4338ca;
+  --chart-5: #b91c1c;
 
-  --chart-1: #4f46e5;
-  --chart-2: #0f8a4c;
-  --chart-3: #b7791f;
-  --chart-4: #9333ea;
-  --chart-5: #dc2626;
-
-  /* Keep the rail dark in light mode too, for a consistent premium anchor. */
-  --sidebar: #0c111f;
-  --sidebar-foreground: #eef1f8;
-  --sidebar-muted: #8a95b0;
-  --sidebar-primary: #6366f1;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #15232d;
+  --sidebar-muted: #5a7080;
+  --sidebar-primary: #0369a1;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1a2238;
+  --sidebar-accent: #e0f2fe;
+  --sidebar-accent-foreground: #15232d;
+  --sidebar-border: #d5e3eb;
+  --sidebar-ring: #0369a1;
+}
+
+/* ── 6. Plum Signal — plum charcoal + magenta ───────────────────────────── */
+[data-theme="plum-signal"] {
+  --bg: #160e1d;
+  --surface: #25182f;
+  --surface-2: #31203d;
+  --surface-3: #4a2855;
+  --border-strong: #5c4269;
+  --text: #fbf5fc;
+  --subtle: #d2bdd9;
+
+  --brand: #f0abfc;
+  /* Bright magenta for text/icons; a deep magenta fill for large surfaces. */
+  --brand-strong: #f5d0fe;
+  --brand-soft: #3a2246;
+  --brand-fill: #a838b8;
+  --on-brand: #fbf5fc;
+
+  --background: #160e1d;
+  --foreground: #fbf5fc;
+  --card: #25182f;
+  --card-foreground: #fbf5fc;
+  --popover: #31203d;
+  --popover-foreground: #fbf5fc;
+  --primary: #a838b8;
+  --primary-foreground: #fbf5fc;
+  --secondary: #3c2547;
+  --secondary-foreground: #fbf5fc;
+  --muted: #31203d;
+  --muted-foreground: #b29bbe;
+  --accent: #31203d;
+  --accent-foreground: #fbf5fc;
+  --border: #4d365b;
+  --input: #4d365b;
+  --ring: #f0abfc;
+  --radius: 0.65rem;
+
+  /* Primary (magenta) is close to Signal Violet, so flagged exposure shifts to
+     a cooler indigo-violet here to stay visually distinct from the brand. */
+  --money: #a5b4fc;
+  --money-strong: #c7d2fe;
+  --money-soft: #1f2545;
+  --warn: #a5b4fc;
+  --warn-soft: #1f2545;
+  --chart-money: #a5b4fc;
+
+  --chart-1: #f0abfc;
+  --chart-2: #34d399;
+  --chart-3: var(--chart-money);
+  --chart-4: #7dd3fc;
+  --chart-5: #fb7185;
+
+  --sidebar: #1c1224;
+  --sidebar-foreground: #fbf5fc;
+  --sidebar-muted: #b29bbe;
+  --sidebar-primary: #a838b8;
+  --sidebar-primary-foreground: #fbf5fc;
+  --sidebar-accent: #31203d;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #202a44;
-  --sidebar-ring: #818cf8;
+  --sidebar-border: #2b1b35;
+  --sidebar-ring: #f0abfc;
+}
+[data-theme="plum-signal"][data-mode="light"] {
+  --bg: #fbf6fc;
+  --surface: #ffffff;
+  --surface-2: #fefaff;
+  --surface-3: #fce7ff;
+  --border-strong: #d7c3db;
+  --text: #28172c;
+  --subtle: #684e6e;
+
+  --brand: #a21caf;
+  --brand-strong: #86198f;
+  --brand-soft: #fce7ff;
+  --brand-fill: #a21caf;
+  --on-brand: #ffffff;
+
+  --background: #fbf6fc;
+  --foreground: #28172c;
+  --card: #ffffff;
+  --card-foreground: #28172c;
+  --popover: #ffffff;
+  --popover-foreground: #28172c;
+  --primary: #a21caf;
+  --primary-foreground: #ffffff;
+  --secondary: #fce7ff;
+  --secondary-foreground: #28172c;
+  --muted: #f6edf7;
+  --muted-foreground: #7c627f;
+  --accent: #fce7ff;
+  --accent-foreground: #28172c;
+  --border: #e8d8ec;
+  --input: #ddc9e2;
+  --ring: #a21caf;
+
+  /* Flagged exposure stays a distinct indigo-violet (primary is magenta). */
+  --money: #4338ca;
+  --money-strong: #3730a3;
+  --money-soft: #ecebff;
+  --warn: #4338ca;
+  --warn-soft: #ecebff;
+  --chart-money: #4338ca;
+
+  --chart-1: #a21caf;
+  --chart-2: #047857;
+  --chart-3: var(--chart-money);
+  --chart-4: #0369a1;
+  --chart-5: #b91c1c;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #28172c;
+  --sidebar-muted: #7c627f;
+  --sidebar-primary: #a21caf;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #fce7ff;
+  --sidebar-accent-foreground: #28172c;
+  --sidebar-border: #e8d8ec;
+  --sidebar-ring: #a21caf;
 }
 
 html,
@@ -291,7 +854,7 @@ body {
 }
 
 /* When switching theme, briefly ease color/border/shadow on every element so
-   the dark/light flip feels like a smooth cross-fade rather than a hard cut. */
+   the mode/identity flip feels like a smooth cross-fade rather than a hard cut. */
 [data-theme-anim] *,
 [data-theme-anim] *::before,
 [data-theme-anim] *::after {
@@ -311,22 +874,22 @@ body {
 
 /* ── Shared primitives ──────────────────────────────────────────────────── */
 
-/* Cards get depth in both themes — stronger in light, a faint lift in dark. */
+/* Cards get a faint lift against the canvas; a touch stronger in light mode. */
 .lt-card-shadow {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
 }
-[data-theme="light"] .lt-card-shadow {
+[data-mode="light"] .lt-card-shadow {
   box-shadow:
-    0 1px 2px rgba(14, 26, 43, 0.05),
-    0 2px 10px rgba(14, 26, 43, 0.06);
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 2px 10px rgba(15, 23, 42, 0.06);
 }
 
 /* Sidebar/panel edge shadow (used on the left rail). */
 .lt-rail-shadow {
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.28);
 }
-[data-theme="light"] .lt-rail-shadow {
-  box-shadow: 2px 0 16px rgba(14, 26, 43, 0.06);
+[data-mode="light"] .lt-rail-shadow {
+  box-shadow: 2px 0 16px rgba(15, 23, 42, 0.06);
 }
 
 /* Visible, consistent keyboard focus everywhere. */
@@ -346,7 +909,7 @@ body {
   opacity: 0.35;
 }
 
-/* Custom scrollbars tuned for the dense dark console. */
+/* Custom scrollbars tuned for the dense console. */
 .lt-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--color-border-strong) transparent;
@@ -389,22 +952,21 @@ textarea,
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
   border-color: var(--color-border-strong);
 }
-[data-theme="light"] .lt-hover:hover {
-  box-shadow: 0 6px 20px rgba(14, 26, 43, 0.1);
+[data-mode="light"] .lt-hover:hover {
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.1);
 }
 
-/* Softer, more premium card elevation for shadcn cards (data-slot="card"),
-   stronger and crisper in light mode where a flat card looks cheap. */
+/* Soft card elevation for shadcn cards (data-slot="card"). */
 [data-slot="card"] {
   box-shadow:
     0 1px 2px rgba(5, 12, 24, 0.28),
     0 1px 0 rgba(255, 255, 255, 0.02) inset;
   transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
 }
-[data-theme="light"] [data-slot="card"] {
+[data-mode="light"] [data-slot="card"] {
   box-shadow:
-    0 1px 2px rgba(15, 27, 45, 0.04),
-    0 4px 16px -4px rgba(15, 27, 45, 0.1);
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 4px 16px -4px rgba(15, 23, 42, 0.1);
   border-color: var(--color-border);
 }
 

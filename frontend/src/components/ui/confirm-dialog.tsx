@@ -32,6 +32,7 @@ export function ConfirmDialog({
   onCancel: () => void;
 }) {
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const confirmDisabled = busy || (reason?.required ? !reason.valid : false);
 
   useEffect(() => {
@@ -42,6 +43,24 @@ export function ConfirmDialog({
       if (e.key === "Enter" && !confirmDisabled && (!reason?.required || e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         onConfirm();
+      }
+      // Focus trap: keep Tab/Shift+Tab inside the dialog so focus can't drift
+      // to the page behind the modal.
+      if (e.key === "Tab" && dialogRef.current) {
+        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0]!;
+        const last = focusable[focusable.length - 1]!;
+        const activeEl = document.activeElement;
+        if (e.shiftKey && activeEl === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && activeEl === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     document.addEventListener("keydown", onKey);
@@ -70,6 +89,7 @@ export function ConfirmDialog({
       }}
     >
       <div
+        ref={dialogRef}
         className="lt-pop-in w-full max-w-md overflow-hidden rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-surface)] shadow-[0_24px_60px_rgba(0,0,0,0.45)]"
       >
         <div className="h-1 w-full" style={{ backgroundColor: accent }} aria-hidden />
