@@ -112,13 +112,13 @@ export function AssistantWidget({ page }: { page?: string }) {
             />
           )}
           {open ? (
-            <XIcon className="size-6" />
+            <XIcon className="size-7" />
           ) : (
             <>
-              <MessageSquareIcon className="size-6" />
+              <MessageSquareIcon className="size-7" />
               {/* Sparkle "AI" badge in the corner. */}
-              <span className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-white text-[var(--color-brand-fill)] shadow ring-2 ring-[var(--color-brand-fill)]">
-                <SparklesIcon className="size-3" />
+              <span className="absolute -right-0.5 -top-0.5 grid size-[22px] place-items-center rounded-full bg-white text-[var(--color-brand-fill)] shadow ring-2 ring-[var(--color-brand-fill)]">
+                <SparklesIcon className="size-3.5" />
               </span>
             </>
           )}

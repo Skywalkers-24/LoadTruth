@@ -1046,6 +1046,79 @@ textarea,
   animation: lt-fade-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Animated moving border around the brand mark (logo). A conic gradient is
+   rotated behind a transparent-centre mask so only a thin ring shows, giving a
+   "light tracing the border" effect. The glyph sits on a transparent surface —
+   no background fill — so it reads as a floating mark inside the ring. */
+@property --lt-logo-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes lt-logo-spin {
+  to {
+    --lt-logo-angle: 360deg;
+  }
+}
+.lt-logo-ring {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 9999px;
+  padding: 3px;
+  background: transparent;
+  isolation: isolate;
+}
+.lt-logo-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--lt-logo-angle),
+    transparent 0deg,
+    var(--color-brand) 70deg,
+    var(--color-money) 150deg,
+    var(--color-brand-strong) 230deg,
+    transparent 320deg
+  );
+  /* Mask out the centre so the gradient only paints the ring. */
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: lt-logo-spin 3.2s linear infinite;
+  z-index: -1;
+}
+/* A soft halo that breathes with the ring (adds depth without a solid fill). */
+.lt-logo-ring::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at center,
+    color-mix(in srgb, var(--color-brand) 28%, transparent),
+    transparent 70%
+  );
+  z-index: -2;
+  animation: lt-logo-halo 3.2s ease-in-out infinite;
+}
+@keyframes lt-logo-halo {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

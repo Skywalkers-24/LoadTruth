@@ -146,9 +146,7 @@ export function AppShell({ children, section }: { children: ReactNode; section: 
 function Brand({ collapsed }: { collapsed: boolean }) {
   return (
     <Link href="/" className="flex items-center gap-2.5 rounded-md" aria-label="LoadTruth home">
-      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[linear-gradient(140deg,var(--color-brand-strong),var(--color-brand-fill))] text-white ring-1 ring-white/10">
-        <LogoMark size={20} className="text-white" />
-      </span>
+      <LogoMark size={collapsed ? 26 : 28} animated className="shrink-0" />
       {!collapsed && (
         <span className="text-[16px] font-bold tracking-tight text-sidebar-foreground">LoadTruth</span>
       )}

@@ -78,10 +78,8 @@ export function LoginScreen() {
               "radial-gradient(900px 500px at 15% 0%, color-mix(in srgb, var(--color-brand) 22%, transparent), transparent 70%), radial-gradient(700px 500px at 100% 100%, color-mix(in srgb, var(--color-money) 14%, transparent), transparent 70%)",
           }}
         />
-        <div className="relative flex items-center gap-2.5">
-          <span className="grid size-10 place-items-center rounded-xl bg-[linear-gradient(140deg,var(--color-brand-strong),var(--color-brand-fill))] text-white ring-1 ring-white/10">
-            <LogoMark size={22} className="text-white" />
-          </span>
+        <div className="relative flex items-center gap-3">
+          <LogoMark size={34} animated />
           <span className="text-[18px] font-bold tracking-tight">LoadTruth</span>
         </div>
 
@@ -152,10 +150,8 @@ export function LoginScreen() {
           <ThemeToggle />
         </div>
         <div className="w-full max-w-md">
-          <div className="mb-6 flex items-center gap-2.5 lg:hidden">
-            <span className="grid size-9 place-items-center rounded-xl bg-[var(--color-brand-fill)] text-white">
-              <LogoMark size={20} className="text-white" />
-            </span>
+          <div className="mb-6 flex items-center gap-3 lg:hidden">
+            <LogoMark size={30} animated />
             <span className="text-[16px] font-bold tracking-tight">LoadTruth</span>
           </div>
 

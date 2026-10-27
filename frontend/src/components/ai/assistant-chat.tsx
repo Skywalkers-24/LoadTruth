@@ -57,14 +57,7 @@ export function AssistantChat({
       <div ref={scrollRef} className={cn("lt-scroll min-h-0 flex-1 overflow-y-auto", compact ? "p-3" : "p-4")}>
         {empty ? (
           <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-            <span
-              className={cn(
-                "grid place-items-center rounded-2xl bg-[var(--color-brand-soft)] text-[var(--color-brand)]",
-                compact ? "size-11" : "size-14",
-              )}
-            >
-              <LogoMark size={compact ? 22 : 28} className="text-[var(--color-brand)]" />
-            </span>
+            <LogoMark size={compact ? 34 : 44} animated />
             <div className="flex flex-col gap-1">
               <p className={cn("font-semibold", compact ? "text-[14px]" : "text-[15px]")}>
                 Ask about {eventName ?? "this event"}
