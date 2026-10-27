@@ -179,13 +179,13 @@
   --text: #f4f7fc;
   --subtle: #b8c5d9;
 
-  /* Bright accent for text/icons/links; a deeper, non-glaring fill for large
-     surfaces (active nav, primary buttons) with light text on it. */
+  /* Bright accent for text/icons/links; a clean vibrant royal blue fill for
+     large surfaces (active nav, primary buttons) with light text on it. */
   --brand: #8ab4ff;
   --brand-strong: #b3ceff;
   --brand-soft: #1a2c4a;
-  --brand-fill: #2f5fd0;
-  --on-brand: #f4f7fc;
+  --brand-fill: #3b6fe6;
+  --on-brand: #ffffff;
 
   --background: #0b1220;
   --foreground: #f4f7fc;
@@ -193,8 +193,8 @@
   --card-foreground: #f4f7fc;
   --popover: #1a2940;
   --popover-foreground: #f4f7fc;
-  --primary: #2f5fd0;
-  --primary-foreground: #f4f7fc;
+  --primary: #3b6fe6;
+  --primary-foreground: #ffffff;
   --secondary: #1f2e47;
   --secondary-foreground: #f4f7fc;
   --muted: #1a2940;
@@ -215,8 +215,8 @@
   --sidebar: #0d1627;
   --sidebar-foreground: #f4f7fc;
   --sidebar-muted: #96a5ba;
-  --sidebar-primary: #2f5fd0;
-  --sidebar-primary-foreground: #f4f7fc;
+  --sidebar-primary: #3b6fe6;
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #1a2940;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #223150;

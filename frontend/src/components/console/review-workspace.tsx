@@ -58,20 +58,22 @@ export function ReviewWorkspace({ ticket }: { ticket: Ticket }) {
         <AiAnalysisCard ticketId={ticket.id} />
       </div>
 
-      {/* Row 2 — truck + ticket facts, and the decision (confirm/override/dispute). */}
-      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] xl:items-start">
-        <Card title="Truck and ticket" icon={<TruckIcon size={15} />}>
-          <TicketMetadata ticket={ticket} />
-        </Card>
+      {/* Row 2 — left column stacks the ticket facts and anomaly flags; the
+          Decision rail sits on the right. Stacking two cards on the left keeps
+          the columns balanced so there's no big empty gap under a short card. */}
+      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] xl:items-stretch">
+        <div className="flex min-w-0 flex-col gap-4">
+          <Card title="Truck and ticket" icon={<TruckIcon size={15} />}>
+            <TicketMetadata ticket={ticket} />
+          </Card>
+          <Card title="Anomaly flags" icon={<AlertIcon size={15} />} count={ticket.anomaly_count}>
+            <AnomalyList ticket={ticket} />
+          </Card>
+        </div>
         <Card title="Decision" icon={<ClipboardIcon size={15} />}>
           <ReviewActions ticket={ticket} />
         </Card>
       </div>
-
-      {/* Row 3 — remaining detail: anomaly flags. */}
-      <Card title="Anomaly flags" icon={<AlertIcon size={15} />} count={ticket.anomaly_count}>
-        <AnomalyList ticket={ticket} />
-      </Card>
     </div>
   );
 }

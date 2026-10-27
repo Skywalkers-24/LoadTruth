@@ -218,14 +218,14 @@ function ConsoleView() {
 
   if (eventsError) {
     return (
-      <AppShell section="Review Console">
+      <AppShell section="Review">
         <ErrorState title="Events unavailable" description="The server did not return any events." />
       </AppShell>
     );
   }
 
   return (
-    <AppShell section="Review Console">
+    <AppShell section="Review">
       {isDesktop ? (
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(320px,30%)_1fr] gap-4">
           <div className="min-h-0 overflow-hidden rounded-xl border border-border bg-card">

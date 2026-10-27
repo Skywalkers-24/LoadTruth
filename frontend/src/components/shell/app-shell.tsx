@@ -46,7 +46,7 @@ type NavItem = {
 // Order: Overview, Review, Add, Reports, Admin, then Guide last (reference docs).
 const NAV: NavItem[] = [
   { href: "/", label: "Overview", short: "Overview", icon: GaugeIcon },
-  { href: "/console", label: "Review Console", short: "Review", icon: ClipboardIcon, badge: true },
+  { href: "/console", label: "Review", short: "Review", icon: ClipboardIcon, badge: true },
   { href: "/add", label: "New Ticket", short: "New", icon: PlusIcon, cap: "ingest" },
   { href: "/assistant", label: "AI Analyst", short: "Analyst", icon: SparklesIcon },
   { href: "/pipeline", label: "AI Pipeline", short: "Pipeline", icon: ActivityIcon },
@@ -217,7 +217,7 @@ function RailContent({
                   "group relative flex items-center rounded-lg text-[13.5px] font-medium transition-colors duration-150",
                   collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2",
                   active
-                    ? "bg-[linear-gradient(180deg,var(--color-brand-strong),var(--color-brand-fill))] text-white shadow-[0_4px_12px_-4px_color-mix(in_srgb,var(--color-brand)_60%,transparent)]"
+                    ? "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-sidebar-primary)_88%,white),var(--color-sidebar-primary))] text-[var(--color-sidebar-primary-foreground)] shadow-[0_4px_12px_-4px_color-mix(in_srgb,var(--color-sidebar-primary)_55%,transparent)]"
                     : "text-[color-mix(in_srgb,var(--color-sidebar-foreground)_72%,transparent)] hover:bg-white/[0.06] hover:text-sidebar-foreground",
                 )}
               >

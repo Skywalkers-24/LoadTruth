@@ -36,7 +36,7 @@ export function AssistantWidget() {
         <div
           role="dialog"
           aria-label="AI Analyst"
-          className="lt-pop-in fixed bottom-20 right-4 z-50 flex h-[min(560px,calc(100dvh-7rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl sm:bottom-24 sm:right-6"
+          className="lt-pop-in fixed bottom-20 right-4 z-[100] flex h-[min(560px,calc(100dvh-7rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl sm:bottom-24 sm:right-6"
         >
           <header className="flex items-center gap-2.5 border-b border-border bg-[var(--color-surface-2)] px-4 py-3">
             <span className="grid size-8 place-items-center rounded-lg bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
@@ -83,7 +83,7 @@ export function AssistantWidget() {
 
       {/* Launcher — reads as an AI chat: a chat bubble with a sparkle "AI"
           badge and a hover label, so it's obvious this is the AI Analyst. */}
-      <div className="group/ai fixed bottom-16 right-4 z-50 flex items-center gap-2 sm:bottom-6 sm:right-6">
+      <div className="group/ai fixed bottom-20 right-5 z-[100] flex items-center gap-2 sm:bottom-6 sm:right-6">
         {!open && (
           <span className="pointer-events-none hidden items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text)] opacity-0 shadow-md transition-opacity duration-200 group-hover/ai:opacity-100 sm:inline-flex">
             Ask AI Analyst

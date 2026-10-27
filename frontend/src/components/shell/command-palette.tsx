@@ -93,7 +93,7 @@ function Palette({ onClose }: { onClose: () => void }) {
   const items = useMemo<Item[]>(() => {
     const nav: Item[] = [
       { id: "nav-overview", group: "Navigate", label: "Overview", icon: <GaugeIcon size={15} />, run: () => go("/") },
-      { id: "nav-console", group: "Navigate", label: "Review Console", icon: <ClipboardIcon size={15} />, run: () => go("/console") },
+      { id: "nav-console", group: "Navigate", label: "Review", icon: <ClipboardIcon size={15} />, run: () => go("/console") },
       { id: "nav-reports", group: "Navigate", label: "Reports", icon: <ChartIcon size={15} />, run: () => go("/reports") },
       { id: "nav-admin", group: "Navigate", label: "Admin", icon: <SettingsIcon size={15} />, run: () => go("/admin") },
     ];
