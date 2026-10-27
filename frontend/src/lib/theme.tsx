@@ -14,12 +14,12 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const STORAGE_KEY = "loadtruth-theme";
 
-/** Reads the persisted theme or the OS preference. Safe on the server (returns dark). */
+/** Reads the persisted theme, else defaults to the dark operator theme. */
 function initialTheme(): Theme {
   if (typeof window === "undefined") return "dark";
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored === "dark" || stored === "light") return stored;
-  return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  return "dark"; // dark-first operator console; users can opt into light
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -32,7 +32,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
+    const el = document.documentElement;
+    el.setAttribute("data-theme", theme);
+    // shadcn components (and their chart color styles) key dark mode off a
+    // `.dark` class, so we mirror the theme onto the class list too.
+    el.classList.toggle("dark", theme === "dark");
     window.localStorage.setItem(STORAGE_KEY, theme);
   }, [theme]);
 
@@ -54,7 +58,9 @@ export function useTheme(): ThemeContextValue {
 export const themeInitScript = `
 (function(){try{
   var k='${STORAGE_KEY}';var s=localStorage.getItem(k);
-  var t=(s==='dark'||s==='light')?s:(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');
-  document.documentElement.setAttribute('data-theme',t);
-}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();
+  var t=(s==='dark'||s==='light')?s:'dark';
+  var e=document.documentElement;
+  e.setAttribute('data-theme',t);
+  if(t==='dark'){e.classList.add('dark');}
+}catch(e){document.documentElement.setAttribute('data-theme','dark');document.documentElement.classList.add('dark');}})();
 `;

@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 def test_list_trucks_returns_seed(client: TestClient) -> None:
     trucks = client.get("/trucks").json()
-    assert len(trucks) == 5  # five seeded trucks
+    assert len(trucks) == 14  # seeded trucks
     assert all("certified_cubic_yards" in t for t in trucks)
     numbers = {t["truck_number"] for t in trucks}
     assert "FL-DT-3391" in numbers
@@ -32,7 +32,7 @@ def test_create_truck(client: TestClient) -> None:
     body = resp.json()
     assert body["truck_number"] == "FL-NEW-0001"
     assert body["certified_cubic_yards"] == "22.5"
-    assert len(client.get("/trucks").json()) == 6
+    assert len(client.get("/trucks").json()) == 15
 
 
 def test_create_truck_duplicate_number_409(client: TestClient) -> None:

@@ -11,9 +11,11 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
+from app.auth.roles import can_manage_events, can_review_tickets
 from app.tickets.repository import EventNotFoundError, TicketNotFoundError
 from app.tickets.schemas import (
     DashboardOut,
@@ -33,6 +35,13 @@ from app.tickets.schemas import (
 
 router = APIRouter(tags=["tickets"])
 
+# Managing events and their rate tables is a county-admin-and-up action;
+# reviewing tickets (monitor call, confirm/override/dispute) needs review rights.
+_NO_EVENTS = "You do not have permission to manage events."
+_NO_REVIEW = "You do not have permission to review tickets."
+ManageEvents = Depends(require(can_manage_events, _NO_EVENTS))
+ReviewTickets = Depends(require(can_review_tickets, _NO_REVIEW))
+
 
 @router.get("/events", response_model=list[EventOut])
 async def list_events(repo: Repository, tenant: ActiveTenant) -> list[EventOut]:
@@ -41,7 +50,12 @@ async def list_events(repo: Repository, tenant: ActiveTenant) -> list[EventOut]:
     return [event_to_out(e) for e in events]
 
 
-@router.post("/events", response_model=EventOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/events",
+    response_model=EventOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[ManageEvents],
+)
 async def create_event(repo: Repository, tenant: ActiveTenant, body: EventIn) -> EventOut:
     """Create a disaster event in the active tenant (admin screen)."""
     event = await repo.create_event(
@@ -54,7 +68,7 @@ async def create_event(repo: Repository, tenant: ActiveTenant, body: EventIn) ->
     return event_to_out(event)
 
 
-@router.patch("/events/{event_id}", response_model=EventOut)
+@router.patch("/events/{event_id}", response_model=EventOut, dependencies=[ManageEvents])
 async def update_event(
     repo: Repository, tenant: ActiveTenant, event_id: UUID, body: EventPatch
 ) -> EventOut:
@@ -115,7 +129,9 @@ async def get_ticket(repo: Repository, tenant: ActiveTenant, ticket_id: UUID) ->
         raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
 
 
-@router.patch("/tickets/{ticket_id}/monitor-call", response_model=TicketOut)
+@router.patch(
+    "/tickets/{ticket_id}/monitor-call", response_model=TicketOut, dependencies=[ReviewTickets]
+)
 async def set_monitor_call(
     repo: Repository, tenant: ActiveTenant, ticket_id: UUID, body: MonitorCallIn
 ) -> TicketOut:
@@ -127,7 +143,9 @@ async def set_monitor_call(
     return ticket_to_out(t)
 
 
-@router.patch("/tickets/{ticket_id}/status", response_model=TicketOut)
+@router.patch(
+    "/tickets/{ticket_id}/status", response_model=TicketOut, dependencies=[ReviewTickets]
+)
 async def set_status(
     repo: Repository, tenant: ActiveTenant, ticket_id: UUID, body: StatusIn
 ) -> TicketOut:

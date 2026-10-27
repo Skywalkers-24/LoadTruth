@@ -26,7 +26,7 @@ def test_list_sources_returns_seed(client: TestClient) -> None:
     kinds = {s["kind"] for s in sources}
     assert "upload" in kinds
     assert "rtsp" in kinds
-    assert len(sources) == 2
+    assert len(sources) == 5
 
 
 def test_create_source(client: TestClient) -> None:
@@ -42,7 +42,7 @@ def test_create_source(client: TestClient) -> None:
     body = resp.json()
     assert body["kind"] == "hls"
     assert body["status"] == "active"  # default
-    assert len(client.get(f"/events/{DEMO_EVENT_ID}/sources").json()) == 3
+    assert len(client.get(f"/events/{DEMO_EVENT_ID}/sources").json()) == 6
 
 
 def test_create_source_unknown_event_404(client: TestClient) -> None:
@@ -88,7 +88,7 @@ def test_delete_source(client: TestClient) -> None:
         json={"kind": "upload", "name": "temp"},
     ).json()
     assert client.delete(f"/sources/{created['id']}").status_code == 204
-    assert len(client.get(f"/events/{DEMO_EVENT_ID}/sources").json()) == 2
+    assert len(client.get(f"/events/{DEMO_EVENT_ID}/sources").json()) == 5
 
 
 def test_delete_source_404(client: TestClient) -> None:
@@ -142,7 +142,7 @@ def test_create_event(client: TestClient) -> None:
     body = resp.json()
     assert body["name"] == "Tornado 2027 — Travis County"
     assert body["status"] == "active"
-    assert len(client.get("/events").json()) == 2
+    assert len(client.get("/events").json()) == 4  # 3 seeded events + the new one
 
 
 def test_patch_event_partial(client: TestClient) -> None:
@@ -173,7 +173,7 @@ async def test_sources_are_tenant_scoped(
         # The demo tenant sees its seeded sources; another tenant sees none.
         ours = await repo.list_sources(DEMO_TENANT_ID, DEMO_EVENT_ID)
         theirs = await repo.list_sources(_OTHER_TENANT, DEMO_EVENT_ID)
-        assert len(ours) == 2
+        assert len(ours) == 5
         assert theirs == []
         # And another tenant cannot fetch our source by id.
         with pytest.raises(SourceNotFoundError):
@@ -188,5 +188,5 @@ async def test_trucks_are_tenant_scoped(
         repo = SqlTicketRepository(session)
         ours = await repo.list_trucks(DEMO_TENANT_ID)
         theirs = await repo.list_trucks(_OTHER_TENANT)
-        assert len(ours) == 5
+        assert len(ours) == 14
         assert theirs == []

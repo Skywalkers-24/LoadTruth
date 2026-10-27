@@ -39,6 +39,14 @@ class SourceNotFoundError(Exception):
     """Raised when a source id is absent (or belongs to another tenant)."""
 
 
+class UserNotFoundError(Exception):
+    """Raised when a user id is absent (or belongs to another tenant)."""
+
+
+class DuplicateUserError(Exception):
+    """Raised when an email already exists for the tenant."""
+
+
 class DashboardSummary:
     """Event-level roll-up for the dashboard (PLAN.md §3.4, §7a roll-up)."""
 
@@ -498,6 +506,113 @@ class SqlTicketRepository:
     async def delete_truck(self, tenant_id: UUID, truck_id: UUID) -> None:
         """Remove a truck; raises ``TruckNotFoundError`` if absent."""
         row = await self._truck_row(tenant_id, truck_id)
+        await self._s.delete(row)
+        await self._s.flush()
+
+    # ── User / member management (admin Users screen) ────────────────────────
+    async def list_users(self, tenant_id: UUID) -> list[models.User]:
+        """All members for the tenant, ordered by email."""
+        rows = await self._s.execute(
+            select(models.User)
+            .where(models.User.tenant_id == tenant_id)
+            .order_by(models.User.email)
+        )
+        return list(rows.scalars().all())
+
+    async def get_user_by_email(self, tenant_id: UUID, email: str) -> models.User | None:
+        """Look up a member by email within the tenant (used for login)."""
+        return (
+            await self._s.execute(
+                select(models.User)
+                .where(models.User.tenant_id == tenant_id)
+                .where(func.lower(models.User.email) == email.strip().lower())
+            )
+        ).scalar_one_or_none()
+
+    async def get_user(self, tenant_id: UUID, user_id: UUID) -> models.User | None:
+        """Fetch a member by id within the tenant (used to refresh identity)."""
+        return (
+            await self._s.execute(
+                select(models.User)
+                .where(models.User.tenant_id == tenant_id)
+                .where(models.User.id == user_id)
+            )
+        ).scalar_one_or_none()
+
+    async def _user_email_taken(self, tenant_id: UUID, email: str) -> bool:
+        row = (
+            await self._s.execute(
+                select(models.User.id)
+                .where(models.User.tenant_id == tenant_id)
+                .where(models.User.email == email)
+            )
+        ).first()
+        return row is not None
+
+    async def _user_row(self, tenant_id: UUID, user_id: UUID) -> models.User:
+        row = (
+            await self._s.execute(
+                select(models.User)
+                .where(models.User.tenant_id == tenant_id)
+                .where(models.User.id == user_id)
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            raise UserNotFoundError(str(user_id))
+        return row
+
+    async def create_user(
+        self,
+        tenant_id: UUID,
+        *,
+        email: str,
+        full_name: str | None,
+        role: str,
+        status: str,
+    ) -> models.User:
+        """Add a member; raises ``DuplicateUserError`` on a used email."""
+        if await self._user_email_taken(tenant_id, email):
+            raise DuplicateUserError(email)
+        row = models.User(
+            tenant_id=tenant_id,
+            email=email,
+            full_name=full_name,
+            role=role,
+            status=status,
+        )
+        self._s.add(row)
+        await self._s.flush()
+        return row
+
+    async def update_user(
+        self,
+        tenant_id: UUID,
+        user_id: UUID,
+        *,
+        email: str | None,
+        full_name: str | None,
+        role: str | None,
+        status: str | None,
+        fields_set: set[str],
+    ) -> models.User:
+        """Update a member; only supplied fields change."""
+        row = await self._user_row(tenant_id, user_id)
+        if "email" in fields_set and email is not None and email != row.email:
+            if await self._user_email_taken(tenant_id, email):
+                raise DuplicateUserError(email)
+            row.email = email
+        if "full_name" in fields_set:
+            row.full_name = full_name
+        if "role" in fields_set and role is not None:
+            row.role = role
+        if "status" in fields_set and status is not None:
+            row.status = status
+        await self._s.flush()
+        return row
+
+    async def delete_user(self, tenant_id: UUID, user_id: UUID) -> None:
+        """Remove a member; raises ``UserNotFoundError`` if absent."""
+        row = await self._user_row(tenant_id, user_id)
         await self._s.delete(row)
         await self._s.flush()
 

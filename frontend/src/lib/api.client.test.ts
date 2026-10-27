@@ -41,9 +41,10 @@ describe("api client", () => {
     expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({ monitor_fill_pct: "80" });
   });
 
-  it("throws ApiError on a non-ok response", async () => {
+  it("throws ApiError surfacing the backend detail on a non-ok response", async () => {
     stubFetch({ detail: "nope" }, 404);
-    await expect(api.getTicket("missing")).rejects.toThrow(/failed \(404\)/);
+    // request() now surfaces the backend's `detail` message instead of a generic one.
+    await expect(api.getTicket("missing")).rejects.toThrow(/nope/);
   });
 
   it("creates a truck via POST with a JSON body", async () => {

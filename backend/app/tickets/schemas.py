@@ -41,17 +41,34 @@ class TicketStatus(StrEnum):
     DISPUTED = "disputed"
 
 
+class Role(StrEnum):
+    """The product's RBAC role vocabulary (PLAN.md §10)."""
+
+    MONITOR = "monitor"
+    SUPERVISOR = "supervisor"
+    COUNTY_ADMIN = "county_admin"
+    AUDITOR = "auditor"
+    SUPER_ADMIN = "super_admin"
+
+
+class UserStatus(StrEnum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+
+
 class SourceKind(StrEnum):
-    """How evidence reaches an event. ``upload`` is implemented; the rest are
-    config-validated connectors whose fetch path is not yet wired."""
+    """Where evidence for an event comes from. Each kind validates its own
+    connection configuration before it is saved or tested."""
 
     UPLOAD = "upload"
+    S3 = "s3"
+    GCS = "gcs"
+    AZURE_BLOB = "azure_blob"
+    GOOGLE_DRIVE = "google_drive"
+    DROPBOX = "dropbox"
     RTSP = "rtsp"
     HLS = "hls"
-    IP_CAMERA = "ip_camera"
-    CLOUD_BUCKET = "cloud_bucket"
     WEBHOOK = "webhook"
-    MOBILE = "mobile"
 
 
 class SourceStatus(StrEnum):
@@ -186,6 +203,38 @@ class TruckPatch(BaseModel):
     body_type: str | None = Field(default=None, max_length=64)
     certified_cubic_yards: Decimal | None = Field(default=None, gt=0)
     registry_source: str | None = Field(default=None, max_length=64)
+
+
+class UserOut(BaseModel):
+    """A tenant member as returned by the API."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    tenant_id: UUID
+    email: str
+    full_name: str | None = None
+    role: Role
+    status: UserStatus
+    created_at: datetime
+
+
+class UserIn(BaseModel):
+    """Invite/add a member (email unique per tenant)."""
+
+    email: str = Field(min_length=3, max_length=200)
+    full_name: str | None = Field(default=None, max_length=120)
+    role: Role = Role.MONITOR
+    status: UserStatus = UserStatus.ACTIVE
+
+
+class UserPatch(BaseModel):
+    """Partial update of a member; only supplied fields change."""
+
+    email: str | None = Field(default=None, min_length=3, max_length=200)
+    full_name: str | None = Field(default=None, max_length=120)
+    role: Role | None = None
+    status: UserStatus | None = None
 
 
 class SourceOut(BaseModel):

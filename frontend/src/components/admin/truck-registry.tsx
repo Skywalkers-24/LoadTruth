@@ -3,17 +3,24 @@
 import { useState } from "react";
 
 import { ApiError, type Truck } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { TruckIcon } from "@/components/ui/icons";
+import { EmptyState, Skeleton } from "@/components/ui/primitives";
+import { useToast } from "@/components/ui/toast";
 import { useTruckMutations, useTrucks } from "@/lib/hooks";
 import { cubicYards } from "@/lib/format";
 
-/** Certified-truck registry admin: list + add + delete. */
+/** Certified-truck registry admin: list + add + remove (with confirmation). */
 export function TruckRegistry() {
   const trucks = useTrucks();
   const { create, remove } = useTruckMutations();
+  const toast = useToast();
   const [number, setNumber] = useState("");
   const [body, setBody] = useState("");
   const [cap, setCap] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<Truck | null>(null);
 
   function add(e: React.FormEvent) {
     e.preventDefault();
@@ -29,68 +36,132 @@ export function TruckRegistry() {
           setNumber("");
           setBody("");
           setCap("");
+          toast.push("ok", `Registered truck ${number.trim()}.`);
         },
         onError: (err) =>
           setError(
             err instanceof ApiError && err.status === 409
               ? "A truck with that number already exists."
-              : "Could not add truck — check the fields.",
+              : "Could not add truck. Check the fields and try again.",
           ),
       },
     );
   }
 
-  return (
-    <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-      <h2 className="mb-4 text-sm font-semibold">Certified-truck registry</h2>
+  function confirmRemove() {
+    if (!removing) return;
+    const t = removing;
+    remove.mutate(t.id, {
+      onSuccess: () => {
+        toast.push("ok", `Removed truck ${t.truck_number}.`);
+        setRemoving(null);
+      },
+      onError: () => {
+        toast.push("danger", "Couldn’t remove the truck.");
+        setRemoving(null);
+      },
+    });
+  }
 
-      <form onSubmit={add} className="mb-4 flex flex-wrap items-end gap-2">
-        <Field label="Truck number" value={number} onChange={setNumber} placeholder="FL-DT-0001" />
-        <Field
-          label="Body type"
-          value={body}
-          onChange={setBody}
-          placeholder="tandem"
-          required={false}
-        />
-        <Field label="Capacity (CY)" value={cap} onChange={setCap} placeholder="20" type="number" />
-        <button
-          type="submit"
-          disabled={create.isPending || !number.trim() || !cap.trim()}
-          className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-black disabled:opacity-40"
-        >
-          Add truck
-        </button>
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Add form — bordered card with labeled grid inputs */}
+      <form
+        onSubmit={add}
+        className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4"
+      >
+        <div className="mb-3 text-[12px] font-semibold text-[var(--color-text)]">
+          Register a certified truck
+        </div>
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_120px_auto] sm:items-end">
+          <Field label="Truck number" value={number} onChange={setNumber} placeholder="FL-DT-0001" />
+          <Field label="Body type" value={body} onChange={setBody} placeholder="tandem" />
+          <Field label="Capacity (CY)" value={cap} onChange={setCap} placeholder="20" type="number" />
+          <Button
+            type="submit"
+            variant="primary"
+            icon={<TruckIcon size={15} />}
+            disabled={create.isPending || !number.trim() || !cap.trim()}
+          >
+            Add truck
+          </Button>
+        </div>
+        {error && <p className="mt-2 text-[12px] text-[var(--color-danger)]">{error}</p>}
       </form>
-      {error && <p className="mb-3 text-xs text-[var(--color-danger)]">{error}</p>}
+
+      <div className="flex items-center justify-between">
+        <span className="text-[12px] font-semibold text-[var(--color-text)]">
+          Certified fleet
+        </span>
+        <span className="text-[11px] tabular-nums text-[var(--color-subtle)]">
+          {trucks.data?.length ?? 0} trucks
+        </span>
+      </div>
 
       {trucks.isLoading ? (
-        <p className="text-sm text-[var(--color-muted)]">Loading…</p>
+        <div className="flex flex-col gap-1.5">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-12" />
+          ))}
+        </div>
       ) : (trucks.data?.length ?? 0) === 0 ? (
-        <p className="text-sm text-[var(--color-muted)]">No trucks registered.</p>
+        <EmptyState
+          icon={<TruckIcon size={20} />}
+          title="No trucks registered"
+          description="Tickets referencing an unregistered truck are flagged as uncertified."
+        />
       ) : (
-        <ul className="divide-y divide-[var(--color-border)]">
+        <ul className="lt-scroll max-h-[420px] divide-y divide-[var(--color-border)] overflow-y-auto rounded-lg border border-[var(--color-border)]">
           {trucks.data?.map((t: Truck) => (
-            <li key={t.id} className="flex items-center justify-between py-2.5 text-sm">
-              <span className="flex flex-col">
-                <span className="font-medium tabular-nums">{t.truck_number}</span>
-                <span className="text-xs text-[var(--color-muted)]">
-                  {t.body_type ?? "—"} · {cubicYards(t.certified_cubic_yards)}
+            <li
+              key={t.id}
+              className="flex items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-[var(--color-surface-2)]"
+            >
+              <span className="flex items-center gap-2.5">
+                <span
+                  className="grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-subtle)]"
+                  aria-hidden
+                >
+                  <TruckIcon size={15} />
+                </span>
+                <span className="flex flex-col">
+                  <span className="text-[13px] font-medium tabular-nums text-[var(--color-text)]">
+                    {t.truck_number}
+                  </span>
+                  <span className="text-[11px] text-[var(--color-muted)]">
+                    {t.body_type ?? "Body type not set"} · {cubicYards(t.certified_cubic_yards)}
+                    {t.registry_source ? ` · ${t.registry_source}` : ""}
+                  </span>
                 </span>
               </span>
-              <button
-                type="button"
-                onClick={() => remove.mutate(t.id)}
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => setRemoving(t)}
                 disabled={remove.isPending}
-                className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-xs text-[var(--color-danger)] hover:border-[var(--color-danger)] disabled:opacity-40"
               >
                 Remove
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
       )}
-    </section>
+
+      <ConfirmDialog
+        open={removing !== null}
+        title="Remove this truck?"
+        description={
+          removing
+            ? `Truck ${removing.truck_number} will be removed from the certified registry. Tickets referencing it will read as uncertified.`
+            : ""
+        }
+        confirmLabel="Remove"
+        confirmVariant="danger"
+        busy={remove.isPending}
+        onConfirm={confirmRemove}
+        onCancel={() => setRemoving(null)}
+      />
+    </div>
   );
 }
 
@@ -100,25 +171,22 @@ function Field({
   onChange,
   placeholder,
   type = "text",
-  required = true,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   type?: string;
-  required?: boolean;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
+    <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted)]">
       {label}
-      {!required && <span className="sr-only">(optional)</span>}
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-36 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+        className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
       />
     </label>
   );

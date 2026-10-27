@@ -10,10 +10,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 
 from app.ai import get_ai_client
+from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
+from app.auth.roles import can_ingest
 from app.pipeline.cache import InMemoryResultCache
 from app.pipeline.frames import sample_frames
 from app.pipeline.ingest import ingest_upload
@@ -45,6 +47,7 @@ def get_cost_ledger() -> CostLedger:
     "/events/{event_id}/ingest",
     response_model=TicketOut,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require(can_ingest, "You do not have permission to upload clips."))],
 )
 async def ingest_clip(
     repo: Repository, tenant: ActiveTenant, event_id: UUID, file: UploadFile

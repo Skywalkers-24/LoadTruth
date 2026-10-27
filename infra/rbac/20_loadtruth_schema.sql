@@ -37,8 +37,9 @@ CREATE TABLE public.sources (
     tenant_id  uuid        NOT NULL REFERENCES rbac.groups(id) ON DELETE CASCADE,
     event_id   uuid        NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
     kind       text        NOT NULL
-                           CHECK (kind IN ('upload','rtsp','hls','ip_camera',
-                                           'cloud_bucket','webhook','mobile')),
+                           CHECK (kind IN ('upload','s3','gcs','azure_blob',
+                                           'google_drive','dropbox','rtsp','hls',
+                                           'webhook')),
     name       text        NOT NULL,
     config     jsonb       NOT NULL DEFAULT '{}'::jsonb,   -- url/creds-ref/options per kind
     status     text        NOT NULL DEFAULT 'active'

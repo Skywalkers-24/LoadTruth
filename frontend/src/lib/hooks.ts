@@ -4,15 +4,38 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import {
   api,
+  getAuthContext,
+  getHealth,
   type EventInput,
   type SourceInput,
   type TicketQuery,
   type TicketStatus,
   type TruckInput,
+  type UserInput,
 } from "@/lib/api";
 
 export function useEvents() {
   return useQuery({ queryKey: ["events"], queryFn: () => api.listEvents() });
+}
+
+/** Signed-in user's tenants + roles. Null when no session is wired. */
+export function useAuthContext() {
+  return useQuery({
+    queryKey: ["auth-context"],
+    queryFn: () => getAuthContext(),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+/** Live backend health, polled. Used by the top-bar status indicator. */
+export function useHealth() {
+  return useQuery({
+    queryKey: ["health"],
+    queryFn: () => getHealth(),
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
 }
 
 /** Paginated/filtered ticket list. Keeps the previous page visible while fetching. */
@@ -22,6 +45,15 @@ export function useTickets(query: TicketQuery) {
     queryFn: () => api.listTickets(query),
     enabled: Boolean(query.eventId),
     placeholderData: keepPreviousData,
+  });
+}
+
+/** A single ticket by id (used when the selected ticket is not on the current page). */
+export function useTicket(id: string | null) {
+  return useQuery({
+    queryKey: ["ticket", id],
+    queryFn: () => api.getTicket(id as string),
+    enabled: Boolean(id),
   });
 }
 
@@ -38,6 +70,27 @@ export function useReportsSummary(eventId: string | undefined) {
     queryKey: ["reports-summary", eventId],
     queryFn: () => api.reportsSummary(eventId as string),
     enabled: Boolean(eventId),
+  });
+}
+
+/**
+ * Reports for every event the member can see, fetched in parallel. Used by the
+ * admin "All events" view in Reports to combine totals across events.
+ */
+export function useAllReports(eventIds: string[], enabled: boolean) {
+  return useQuery({
+    queryKey: ["reports-all", [...eventIds].sort()],
+    enabled: enabled && eventIds.length > 0,
+    queryFn: async () => {
+      const results = await Promise.all(
+        eventIds.map(async (id) => ({
+          eventId: id,
+          summary: await api.reportsSummary(id),
+          tickets: (await api.listTickets({ eventId: id, limit: 100, offset: 0 })).items,
+        })),
+      );
+      return results;
+    },
   });
 }
 
@@ -72,6 +125,7 @@ export function useSetStatus() {
 function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   return () => {
     void qc.invalidateQueries({ queryKey: ["tickets"] });
+    void qc.invalidateQueries({ queryKey: ["ticket"] });
     void qc.invalidateQueries({ queryKey: ["dashboard"] });
     void qc.invalidateQueries({ queryKey: ["reports-summary"] });
   };
@@ -92,6 +146,24 @@ export function useTruckMutations() {
     onSuccess: done,
   });
   const remove = useMutation({ mutationFn: (id: string) => api.deleteTruck(id), onSuccess: done });
+  return { create, update, remove };
+}
+
+// ── Admin: users (tenant members) ────────────────────────────────────────────
+export function useUsers() {
+  return useQuery({ queryKey: ["users"], queryFn: () => api.listUsers() });
+}
+
+export function useUserMutations() {
+  const qc = useQueryClient();
+  const done = () => void qc.invalidateQueries({ queryKey: ["users"] });
+  const create = useMutation({ mutationFn: api.createUser, onSuccess: done });
+  const update = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Partial<UserInput> }) =>
+      api.updateUser(id, body),
+    onSuccess: done,
+  });
+  const remove = useMutation({ mutationFn: (id: string) => api.deleteUser(id), onSuccess: done });
   return { create, update, remove };
 }
 

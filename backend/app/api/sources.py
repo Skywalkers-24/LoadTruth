@@ -11,14 +11,20 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
+from app.auth.roles import can_manage_sources
 from app.pipeline.sources import get_adapter
 from app.tickets.repository import EventNotFoundError, SourceNotFoundError
 from app.tickets.schemas import SourceIn, SourceOut, SourcePatch, SourceTestResult
 
 router = APIRouter(tags=["sources"])
+
+# Connecting, editing, testing, or removing evidence sources is supervisor-and-up.
+_NO_SOURCES = "You do not have permission to manage sources."
+ManageSources = Depends(require(can_manage_sources, _NO_SOURCES))
 
 
 @router.get("/events/{event_id}/sources", response_model=list[SourceOut])
@@ -31,6 +37,7 @@ async def list_sources(repo: Repository, tenant: ActiveTenant, event_id: UUID) -
     "/events/{event_id}/sources",
     response_model=SourceOut,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[ManageSources],
 )
 async def create_source(
     repo: Repository, tenant: ActiveTenant, event_id: UUID, body: SourceIn
@@ -50,7 +57,7 @@ async def create_source(
     return SourceOut.model_validate(row)
 
 
-@router.patch("/sources/{source_id}", response_model=SourceOut)
+@router.patch("/sources/{source_id}", response_model=SourceOut, dependencies=[ManageSources])
 async def update_source(
     repo: Repository, tenant: ActiveTenant, source_id: UUID, body: SourcePatch
 ) -> SourceOut:
@@ -70,7 +77,11 @@ async def update_source(
     return SourceOut.model_validate(row)
 
 
-@router.delete("/sources/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/sources/{source_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[ManageSources],
+)
 async def delete_source(repo: Repository, tenant: ActiveTenant, source_id: UUID) -> None:
     """Disconnect a source from its event."""
     try:
@@ -79,7 +90,9 @@ async def delete_source(repo: Repository, tenant: ActiveTenant, source_id: UUID)
         raise HTTPException(status.HTTP_404_NOT_FOUND, "source not found") from exc
 
 
-@router.post("/sources/{source_id}/test", response_model=SourceTestResult)
+@router.post(
+    "/sources/{source_id}/test", response_model=SourceTestResult, dependencies=[ManageSources]
+)
 async def test_source(repo: Repository, tenant: ActiveTenant, source_id: UUID) -> SourceTestResult:
     """Validate a source's config via its adapter. No network I/O is performed."""
     try:

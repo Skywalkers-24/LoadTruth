@@ -1,132 +1,251 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { AppNav } from "@/components/app-nav";
-import { ClipUploader } from "@/components/clip-uploader";
-import { DashboardPanel } from "@/components/dashboard";
+import { AppShell } from "@/components/shell/app-shell";
+import { OPEN_TICKET_EVENT } from "@/components/shell/command-palette";
+import { QueueFilters, type SortKey, type StatusFilter } from "@/components/console/queue-filters";
+import { ReviewWorkspace } from "@/components/console/review-workspace";
+import { TicketQueue } from "@/components/console/ticket-queue";
 import { Pagination } from "@/components/pagination";
-import { ReviewConsole } from "@/components/review-console";
-import { TicketList } from "@/components/ticket-list";
-import type { TicketStatus } from "@/lib/api";
-import { useDashboard, useEvents, useTickets } from "@/lib/hooks";
+import { Button } from "@/components/ui/button";
+import { ChevronDownIcon, ClipboardIcon } from "@/components/ui/icons";
+import { Kbd } from "@/components/ui/kbd";
+import { EmptyState, ErrorState, Panel, Skeleton } from "@/components/ui/primitives";
+import type { Ticket } from "@/lib/api";
+import { useEventContext } from "@/lib/event-context";
+import { useTicket, useTickets } from "@/lib/hooks";
+import { isTypingTarget, useMediaQuery } from "@/lib/use-media-query";
 
-const PAGE_SIZE = 10;
-
-const STATUS_FILTERS: { value: TicketStatus | "all"; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "draft", label: "Needs review" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "disputed", label: "Disputed" },
-];
+const PAGE_SIZE = 12;
 
 /**
- * Operator console: event header + dashboard roll-up, a paginated/filterable
- * review queue, and the review console for the selected ticket (PLAN.md §3).
- * Single seeded tenant in this build (§1a).
+ * Review Console: single-ticket review. A self-scrolling queue on the left and
+ * the selected ticket's money frame, evidence, and decision rail on the right.
+ * Keyboard: J/K or arrow keys move through the queue, C/O/D decide.
  */
 export default function ConsolePage() {
-  const events = useEvents();
-  const eventId = events.data?.[0]?.id;
+  const { selectedId: eventId, isError: eventsError } = useEventContext();
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
-  const [statusFilter, setStatusFilter] = useState<TicketStatus | "all">("all");
+  const [status, setStatus] = useState<StatusFilter>("draft");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<SortKey>("delta");
   const [offset, setOffset] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [requestedId, setRequestedId] = useState<string | null>(null);
+  const [mobileDetail, setMobileDetail] = useState(false);
+  const workspaceRef = useRef<HTMLDivElement>(null);
 
   const tickets = useTickets({
     eventId,
-    status: statusFilter === "all" ? undefined : statusFilter,
+    status: status === "all" ? undefined : status,
     limit: PAGE_SIZE,
     offset,
   });
-  const dashboard = useDashboard(eventId);
 
-  const rows = useMemo(() => tickets.data?.items ?? [], [tickets.data]);
+  const page = useMemo(() => tickets.data?.items ?? [], [tickets.data]);
   const total = tickets.data?.total ?? 0;
+  const rows = useMemo(() => filterAndSort(page, search, sort), [page, search, sort]);
 
-  // Default-select the first over-called ticket (the money frame) on first load.
+  // Deep link (?ticket=) and command-palette requests.
   useEffect(() => {
-    if (selectedId || rows.length === 0) return;
-    const hero = rows.find((t) => t.valuation.is_overbill) ?? rows[0];
-    if (hero) setSelectedId(hero.id);
-  }, [rows, selectedId]);
+    const fromUrl = new URLSearchParams(window.location.search).get("ticket");
+    if (fromUrl) {
+      setRequestedId(fromUrl);
+      setSelectedId(fromUrl);
+      setMobileDetail(true);
+    }
+    function onOpen(e: Event) {
+      const id = (e as CustomEvent<string>).detail;
+      setRequestedId(id);
+      setSelectedId(id);
+      setMobileDetail(true);
+    }
+    window.addEventListener(OPEN_TICKET_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_TICKET_EVENT, onOpen);
+  }, []);
 
-  const selected = rows.find((t) => t.id === selectedId) ?? null;
+  // A requested ticket may not be on the current page; fetch it directly.
+  const pinned = useTicket(requestedId && !rows.some((t) => t.id === requestedId) ? requestedId : null);
 
-  function changeFilter(next: TicketStatus | "all") {
-    setStatusFilter(next);
-    setOffset(0);
-    setSelectedId(null);
+  useEffect(() => {
+    if (requestedId) return;
+    if (rows.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+    setSelectedId((cur) => (cur && rows.some((t) => t.id === cur) ? cur : (rows[0]?.id ?? null)));
+  }, [rows, requestedId]);
+
+  const selected =
+    rows.find((t) => t.id === selectedId) ?? (pinned.data?.id === selectedId ? pinned.data : null) ?? null;
+
+  const selectTicket = useCallback((id: string) => {
+    setRequestedId(null);
+    setSelectedId(id);
+    setMobileDetail(true);
+    workspaceRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  // J/K and arrow-key navigation through the queue.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      const k = e.key;
+      const down = k === "j" || k === "J" || k === "ArrowDown";
+      const up = k === "k" || k === "K" || k === "ArrowUp";
+      if (!down && !up) return;
+      e.preventDefault();
+      const idx = rows.findIndex((t) => t.id === selectedId);
+      const next = rows[Math.min(rows.length - 1, Math.max(0, idx + (down ? 1 : -1)))];
+      if (next) {
+        selectTicket(next.id);
+        document.getElementById(`ticket-${next.id}`)?.scrollIntoView({ block: "nearest" });
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [rows, selectedId, selectTicket]);
+
+  const queuePanel = (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-col gap-3 border-b border-border p-3">
+        <QueueFilters
+          search={search}
+          onSearch={setSearch}
+          status={status}
+          onStatus={(s) => {
+            setStatus(s);
+            setOffset(0);
+            setRequestedId(null);
+          }}
+          sort={sort}
+          onSort={setSort}
+        />
+        <div className="flex items-center justify-between text-[12px] tabular-nums text-muted-foreground">
+          <span>
+            {total} ticket{total === 1 ? "" : "s"}
+            {search && ` · ${rows.length} match${rows.length === 1 ? "" : "es"}`}
+          </span>
+          <span className="hidden items-center gap-1 lg:flex">
+            <Kbd>J</Kbd>
+            <Kbd>K</Kbd> to move
+          </span>
+        </div>
+      </div>
+
+      <div className="lt-scroll min-h-0 flex-1 overflow-y-auto p-3">
+        {tickets.isLoading ? (
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-[88px]" />
+            ))}
+          </div>
+        ) : tickets.isError ? (
+          <ErrorState description="Could not load the ticket queue." onRetry={() => tickets.refetch()} />
+        ) : rows.length === 0 ? (
+          <EmptyState
+            icon={<ClipboardIcon size={20} />}
+            title={status === "draft" && !search ? "Queue is clear" : "No tickets match"}
+            description={
+              status === "draft" && !search
+                ? "Every ticket in this event has a decision."
+                : "Try a different filter or search term."
+            }
+          />
+        ) : (
+          <TicketQueue
+            tickets={rows}
+            selectedId={selectedId}
+            onSelect={selectTicket}
+            showStatus={status === "all"}
+          />
+        )}
+      </div>
+
+      {!tickets.isLoading && !tickets.isError && total > PAGE_SIZE && (
+        <div className="border-t border-border px-3 py-2.5">
+          <Pagination total={total} limit={PAGE_SIZE} offset={offset} onOffset={setOffset} />
+        </div>
+      )}
+    </div>
+  );
+
+  const workspacePanel = selected ? (
+    <ReviewWorkspace key={selected.id} ticket={selected} />
+  ) : pinned.isLoading ? (
+    <Skeleton className="h-[520px]" />
+  ) : (
+    <Panel className="flex h-full items-center justify-center">
+      <EmptyState
+        icon={<ClipboardIcon size={20} />}
+        title="Select a ticket"
+        description="Choose a ticket from the queue to review its money frame, evidence, and anomaly flags."
+      />
+    </Panel>
+  );
+
+  if (eventsError) {
+    return (
+      <AppShell section="Review Console">
+        <ErrorState title="Events unavailable" description="The server did not return any events." />
+      </AppShell>
+    );
   }
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-2">
-          <span className="text-xs font-medium uppercase tracking-widest text-[var(--color-muted)]">
-            LoadTruth · Operator console
-          </span>
-          <h1 className="text-xl font-semibold sm:text-2xl">
-            {events.data?.[0]?.name ?? "Loading event…"}
-          </h1>
-          {events.data?.[0]?.location && (
-            <p className="text-sm text-[var(--color-muted)]">{events.data[0].location}</p>
-          )}
-          {eventId && <ClipUploader eventId={eventId} />}
-        </header>
-
-        {dashboard.data && <DashboardPanel d={dashboard.data} />}
-
-        <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
-          <section className="flex flex-col gap-3">
-            <div className="flex flex-wrap gap-1.5">
-              {STATUS_FILTERS.map((f) => {
-                const active = statusFilter === f.value;
-                return (
-                  <button
-                    key={f.value}
-                    type="button"
-                    onClick={() => changeFilter(f.value)}
-                    className="rounded-full px-3 py-1 text-xs transition-colors"
-                    style={{
-                      color: active ? "var(--color-text)" : "var(--color-muted)",
-                      backgroundColor: active
-                        ? "color-mix(in srgb, var(--color-accent) 14%, transparent)"
-                        : "var(--color-surface)",
-                      borderWidth: 1,
-                      borderColor: active ? "var(--color-accent)" : "var(--color-border)",
-                    }}
-                  >
-                    {f.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {tickets.isLoading ? (
-              <p className="text-sm text-[var(--color-muted)]">Loading tickets…</p>
-            ) : rows.length === 0 ? (
-              <p className="text-sm text-[var(--color-muted)]">No tickets match this filter.</p>
-            ) : (
-              <>
-                <TicketList tickets={rows} selectedId={selectedId} onSelect={setSelectedId} />
-                <Pagination total={total} limit={PAGE_SIZE} offset={offset} onOffset={setOffset} />
-              </>
-            )}
-          </section>
-
-          <section>
-            {selected ? (
-              <ReviewConsole key={selected.id} ticket={selected} />
-            ) : (
-              <p className="text-sm text-[var(--color-muted)]">
-                Select a ticket from the queue to review.
-              </p>
-            )}
-          </section>
+    <AppShell section="Review Console">
+      {isDesktop ? (
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(320px,30%)_1fr] gap-4">
+          <div className="min-h-0 overflow-hidden rounded-xl border border-border bg-card">
+            {queuePanel}
+          </div>
+          <div ref={workspaceRef} className="lt-scroll min-h-0 min-w-0 overflow-y-auto pr-1">
+            {workspacePanel}
+          </div>
         </div>
-      </main>
-    </>
+      ) : !mobileDetail || !selected ? (
+        <div className="lt-card-shadow overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+          {queuePanel}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div className="sticky top-14 z-10 -mx-4 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 sm:-mx-6 sm:px-6">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<ChevronDownIcon size={14} className="rotate-90" />}
+              onClick={() => {
+                setMobileDetail(false);
+                setRequestedId(null);
+              }}
+            >
+              Back to queue
+            </Button>
+          </div>
+          {workspacePanel}
+        </div>
+      )}
+    </AppShell>
   );
+}
+
+function filterAndSort(items: Ticket[], search: string, sort: SortKey): Ticket[] {
+  const q = search.trim().toLowerCase();
+  const filtered = q ? items.filter((t) => `${t.truck_id ?? ""} ${t.id}`.toLowerCase().includes(q)) : items;
+  const sorted = [...filtered];
+  if (sort === "delta") {
+    sorted.sort(
+      (a, b) =>
+        Number.parseFloat(b.valuation.delta_dollar_value ?? "-1e9") -
+        Number.parseFloat(a.valuation.delta_dollar_value ?? "-1e9"),
+    );
+  } else if (sort === "severity") {
+    sorted.sort((a, b) => b.anomaly_count - a.anomaly_count);
+  } else {
+    sorted.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+  }
+  return sorted;
 }

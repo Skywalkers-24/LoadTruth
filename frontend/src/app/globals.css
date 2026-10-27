@@ -1,52 +1,259 @@
 @import "tailwindcss";
 
-/* LoadTruth operator-console theme (PLAN.md §9).
-   Dark-first, evidence-forward, with a full light theme. Tokens are driven by
-   the `data-theme` attribute on <html> (set by ThemeProvider). Every surface
-   works 360px -> wide desktop. Colors meet WCAG AA contrast in both themes. */
+/* LoadTruth operator-console theme.
+   Dark-first, evidence-forward, high-density. Tokens are driven by the
+   `data-theme` attribute on <html> (set by ThemeProvider before paint).
+   Palette follows the LoadTruth brand pack (Ink Navy / Safety Amber /
+   Verified Green / Anomaly Red). Semantic colors meet WCAG AA for the
+   text/background pairs they are actually used on; status is never conveyed
+   by color alone (always paired with a label and/or icon). */
 
 @theme {
+  /* LoadTruth legacy tokens (surfaces, text ramp, brand blue, money, status).
+     These coexist with the shadcn tokens registered in the @theme inline block
+     below. The brand blue is --color-brand* so it never collides with shadcn's
+     neutral `accent` surface. */
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
-  --color-border: var(--border);
+  --color-surface-3: var(--surface-3);
+  --color-border-strong: var(--border-strong);
+
   --color-text: var(--text);
-  --color-muted: var(--muted);
-  --color-accent: var(--accent);
+  --color-subtle: var(--subtle);
+
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-fill: var(--brand-fill);
+  --color-on-brand: var(--on-brand);
+
+  /* Money accent — amber, reserved for dollars/variance only. */
+  --color-money: var(--money);
+  --color-money-strong: var(--money-strong);
+  --color-money-soft: var(--money-soft);
+
   --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);
-  --color-danger: var(--danger);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+
+  /* Backward-compatible aliases for the pre-shadcn token names, so screens that
+     have not been migrated yet keep rendering. The brand blue maps to --brand;
+     the old `muted` (a text color) maps to shadcn's muted-foreground; `danger`
+     maps to shadcn's destructive. Removed once every screen is migrated. */
+  --color-accent: var(--brand);
+  --color-accent-strong: var(--brand-strong);
+  --color-accent-soft: var(--brand-soft);
+  --color-accent-fill: var(--brand-fill);
+  --color-on-accent: var(--on-brand);
+  --color-muted: var(--muted-foreground);
+  --color-danger: var(--destructive);
+
+  --font-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, "Menlo", "Consolas", monospace;
 }
 
-/* Dark theme (default) */
+/* shadcn/ui token bridge.
+   shadcn components reference a fixed set of token names (background,
+   foreground, card, primary, border, ring, muted, accent, destructive,
+   chart-1..5, radius). We register them here and point them at our existing
+   LoadTruth palette, so shadcn renders in our blue/amber theme and our custom
+   components keep working unchanged. Values are set per theme further down. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ── Dark theme (default) — Ink Navy canvas ─────────────────────────────── */
 :root,
 [data-theme="dark"] {
-  --bg: #0a0b0d;
-  --surface: #14161a;
-  --surface-2: #1b1e24;
-  --border: #262a30;
-  --text: #e6e8eb;
-  --muted: #9aa3ad;
-  --accent: #4f8cff; /* "needs review" */
-  --ok: #35c28b;
-  --warn: #f2b24c;
-  --danger: #ff5c5c;
   color-scheme: dark;
+
+  /* Legacy surface/text ramp (kept; our components read these via arbitrary
+     values like text-[var(--color-subtle)]). */
+  --bg: #0b1220;
+  --surface: #111c2d;
+  --surface-2: #172438;
+  --surface-3: #1d2c42;
+  --border-strong: #3a4c66;
+
+  --text: #f3f6fc;
+  --subtle: #94a3bd;
+
+  /* Brand blue. Our components use --color-brand* for the blue accent so the
+     name does not collide with shadcn's neutral `accent` surface. */
+  --brand: #4f8cff;
+  --brand-strong: #6ea0ff;
+  --brand-soft: #15233f;
+  --brand-fill: #2f6fe0;
+  --on-brand: #ffffff;
+
+  /* Money accent — amber. Dollars, variance, the money frame only. */
+  --money: #f5a623;
+  --money-strong: #ffc15a;
+  --money-soft: #332819;
+
+  --ok: #35d08a;
+  --ok-soft: #10311f;
+  --warn: #f5a623;
+  --warn-soft: #332819;
+  --danger-soft: #3a1d22;
+  --info: #63a7ff;
+
+  /* ── shadcn/ui tokens (dark). These are the source of truth for both the
+     shadcn components and our rebuilt components. ── */
+  --background: #0b1220;
+  --foreground: #f1f5fb;
+  --card: #111c2d;
+  --card-foreground: #f1f5fb;
+  --popover: #172438;
+  --popover-foreground: #f1f5fb;
+  --primary: #2f6fe0;
+  --primary-foreground: #ffffff;
+  --secondary: #1d2c42;
+  --secondary-foreground: #f1f5fb;
+  --muted: #172438;
+  --muted-foreground: #c0cbdc;
+  --accent: #1d2c42;
+  --accent-foreground: #f3f6fc;
+  --destructive: #ff6b6f;
+  --destructive-foreground: #ffffff;
+  --border: #2b3a50;
+  --input: #2b3a50;
+  --ring: #4f8cff;
+  --radius: 0.65rem;
+
+  /* Chart series: blue is the brand; amber is money; the rest are distinct,
+     legible categorical hues on the dark canvas. */
+  --chart-1: #4f8cff;
+  --chart-2: #35d08a;
+  --chart-3: #f5a623;
+  --chart-4: #c084fc;
+  --chart-5: #ff6b6f;
+
+  /* The left rail is always a deep navy in both themes (Creative Tim style):
+     premium, high-contrast, and visually anchors the app. */
+  --sidebar: #0d1726;
+  --sidebar-foreground: #e9eef7;
+  --sidebar-muted: #8d9bb3;
+  --sidebar-primary: #2f6fe0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #18263c;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #203049;
+  --sidebar-ring: #4f8cff;
 }
 
-/* Light theme */
+/* ── Light theme — quiet white/navy canvas, darker semantic foregrounds ── */
 [data-theme="light"] {
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --surface-2: #eef1f5;
-  --border: #d9dee4;
-  --text: #0d1117;
-  --muted: #5b6672;
-  --accent: #1f6feb;
-  --ok: #1a7f5a;
-  --warn: #b5771a;
-  --danger: #c93c3c;
   color-scheme: light;
+
+  --bg: #eef2f7;
+  --surface: #ffffff;
+  --surface-2: #f5f8fc;
+  --surface-3: #eaf0f7;
+  --border-strong: #b4c1d2;
+
+  --text: #0b1626;
+  --subtle: #5a6b84;
+
+  --brand: #1f6feb;
+  --brand-strong: #1a5fd0;
+  --brand-soft: #e5efff;
+  --brand-fill: #1f6feb;
+  --on-brand: #ffffff;
+
+  /* Money accent — amber (darkened for AA on light surfaces).
+     #b45309 on white is about 5:1, so it keeps AA while reading as amber. */
+  --money: #b45309;
+  --money-strong: #92400e;
+  --money-soft: #fff0d5;
+
+  --ok: #0f7a3b;
+  --ok-soft: #e2f6e9;
+  --warn: #b45309;
+  --warn-soft: #fff0d5;
+  --danger-soft: #fde8e8;
+  --info: #155db5;
+
+  /* ── shadcn/ui tokens (light). ── */
+  --background: #eef2f7;
+  --foreground: #0e1a2b;
+  --card: #ffffff;
+  --card-foreground: #0e1a2b;
+  --popover: #ffffff;
+  --popover-foreground: #0e1a2b;
+  --primary: #1f6feb;
+  --primary-foreground: #ffffff;
+  --secondary: #eaf0f7;
+  --secondary-foreground: #0e1a2b;
+  --muted: #f5f8fc;
+  --muted-foreground: #3d4d63;
+  --accent: #eaf0f7;
+  --accent-foreground: #0b1626;
+  --destructive: #b4232c;
+  --destructive-foreground: #ffffff;
+  --border: #cdd7e3;
+  --input: #cdd7e3;
+  --ring: #1f6feb;
+
+  --chart-1: #1f6feb;
+  --chart-2: #0f7a3b;
+  --chart-3: #b45309;
+  --chart-4: #7c3aed;
+  --chart-5: #b4232c;
+
+  /* Keep the rail dark in light mode too, for a consistent premium anchor. */
+  --sidebar: #0d1726;
+  --sidebar-foreground: #e9eef7;
+  --sidebar-muted: #8d9bb3;
+  --sidebar-primary: #2f6fe0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #18263c;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #203049;
+  --sidebar-ring: #4f8cff;
 }
 
 html,
@@ -54,11 +261,177 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Smooth theme transition without animating layout. */
+/* Subtle depth on the app canvas: a faint accent glow at the top. */
 body {
+  background-image: radial-gradient(
+    1200px 500px at 70% -10%,
+    color-mix(in srgb, var(--color-accent) 7%, transparent),
+    transparent 70%
+  );
+  background-attachment: fixed;
+}
+
+body {
+  font-family:
+    var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    system-ui, sans-serif;
+  font-feature-settings: "cv11" 1, "ss01" 1;
+  font-size: 14px;
+  line-height: 1.45;
+  /* Smooth theme transition without animating layout. */
   transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+/* Monospace for evidence numerals wherever `.tabular-nums` is applied. */
+.tabular-nums {
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Shared primitives ──────────────────────────────────────────────────── */
+
+/* Cards get depth in both themes — stronger in light, a faint lift in dark. */
+.lt-card-shadow {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+[data-theme="light"] .lt-card-shadow {
+  box-shadow:
+    0 1px 2px rgba(14, 26, 43, 0.05),
+    0 2px 10px rgba(14, 26, 43, 0.06);
+}
+
+/* Sidebar/panel edge shadow (used on the left rail). */
+.lt-rail-shadow {
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.28);
+}
+[data-theme="light"] .lt-rail-shadow {
+  box-shadow: 2px 0 16px rgba(14, 26, 43, 0.06);
+}
+
+/* Visible, consistent keyboard focus everywhere. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Thin technical grid texture for the evidence canvas backdrop. */
+.lt-grid-bg {
+  background-image:
+    linear-gradient(var(--color-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: center;
+  opacity: 0.35;
+}
+
+/* Custom scrollbars tuned for the dense dark console. */
+.lt-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+.lt-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.lt-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.lt-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Smooth, consistent interaction transitions across the console. */
+a,
+button,
+[role="button"],
+[role="option"],
+[role="tab"],
+input,
+select,
+textarea,
+.lt-card-shadow {
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+/* Gentle lift on hoverable cards (opt-in via .lt-hover). */
+.lt-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  border-color: var(--color-border-strong);
+}
+[data-theme="light"] .lt-hover:hover {
+  box-shadow: 0 6px 20px rgba(14, 26, 43, 0.1);
+}
+
+/* Dialog / popover entrance. */
+@keyframes lt-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.lt-pop-in {
+  animation: lt-pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Count-up shimmer for skeletons. */
+@keyframes lt-shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+.lt-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-2) 0%,
+    var(--color-surface-3) 50%,
+    var(--color-surface-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: lt-shimmer 1.4s linear infinite;
+}
+
+/* Subtle page-content entrance. */
+@keyframes lt-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.lt-fade-in {
+  animation: lt-fade-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }

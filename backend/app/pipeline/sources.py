@@ -61,9 +61,9 @@ class SourceAdapter(ABC):
         if missing:
             return ConfigValidation(
                 ok=False,
-                detail=f"{self.kind.value}: missing required config: {', '.join(missing)}",
+                detail=f"Missing required settings: {', '.join(missing)}.",
             )
-        return ConfigValidation(ok=True, detail=f"{self.kind.value}: config looks valid")
+        return ConfigValidation(ok=True, detail="Connection settings are valid.")
 
     @abstractmethod
     def fetch(self, *args: object, **kwargs: object) -> IngestedArtifact:
@@ -97,32 +97,53 @@ class _UnwiredAdapter(SourceAdapter):
         raise SourceFetchNotImplementedError(msg)
 
 
+class S3Adapter(_UnwiredAdapter):
+    """Amazon S3 bucket. Needs a ``bucket`` and a ``region``; ``prefix`` optional."""
+
+    kind = SourceKind.S3
+    required_keys = ("bucket", "region")
+
+
+class GcsAdapter(_UnwiredAdapter):
+    """Google Cloud Storage bucket. Needs a ``bucket``; ``prefix`` optional."""
+
+    kind = SourceKind.GCS
+    required_keys = ("bucket",)
+
+
+class AzureBlobAdapter(_UnwiredAdapter):
+    """Azure Blob Storage. Needs an ``account`` and a ``container``."""
+
+    kind = SourceKind.AZURE_BLOB
+    required_keys = ("account", "container")
+
+
+class GoogleDriveAdapter(_UnwiredAdapter):
+    """Google Drive folder. Needs a ``folder_id``."""
+
+    kind = SourceKind.GOOGLE_DRIVE
+    required_keys = ("folder_id",)
+
+
+class DropboxAdapter(_UnwiredAdapter):
+    """Dropbox folder. Needs a ``path`` to the shared folder."""
+
+    kind = SourceKind.DROPBOX
+    required_keys = ("path",)
+
+
 class RtspAdapter(_UnwiredAdapter):
-    """RTSP stream (IP camera / NVR). Needs a stream ``url``."""
+    """RTSP camera or NVR stream. Needs a stream ``url``."""
 
     kind = SourceKind.RTSP
     required_keys = ("url",)
 
 
 class HlsAdapter(_UnwiredAdapter):
-    """HLS stream. Needs a playlist ``url``."""
+    """HLS playlist stream. Needs a playlist ``url``."""
 
     kind = SourceKind.HLS
     required_keys = ("url",)
-
-
-class IpCameraAdapter(_UnwiredAdapter):
-    """Generic IP camera. Needs a ``url`` (and optionally credentials-ref)."""
-
-    kind = SourceKind.IP_CAMERA
-    required_keys = ("url",)
-
-
-class CloudBucketAdapter(_UnwiredAdapter):
-    """Object-storage bucket polling. Needs a ``bucket`` and a ``prefix``."""
-
-    kind = SourceKind.CLOUD_BUCKET
-    required_keys = ("bucket", "prefix")
 
 
 class WebhookAdapter(_UnwiredAdapter):
@@ -132,21 +153,16 @@ class WebhookAdapter(_UnwiredAdapter):
     required_keys = ("endpoint",)
 
 
-class MobileAdapter(_UnwiredAdapter):
-    """Mobile field-capture app. Needs a ``device_id`` to bind uploads to."""
-
-    kind = SourceKind.MOBILE
-    required_keys = ("device_id",)
-
-
 _ADAPTERS: dict[SourceKind, type[SourceAdapter]] = {
     SourceKind.UPLOAD: UploadAdapter,
+    SourceKind.S3: S3Adapter,
+    SourceKind.GCS: GcsAdapter,
+    SourceKind.AZURE_BLOB: AzureBlobAdapter,
+    SourceKind.GOOGLE_DRIVE: GoogleDriveAdapter,
+    SourceKind.DROPBOX: DropboxAdapter,
     SourceKind.RTSP: RtspAdapter,
     SourceKind.HLS: HlsAdapter,
-    SourceKind.IP_CAMERA: IpCameraAdapter,
-    SourceKind.CLOUD_BUCKET: CloudBucketAdapter,
     SourceKind.WEBHOOK: WebhookAdapter,
-    SourceKind.MOBILE: MobileAdapter,
 }
 
 

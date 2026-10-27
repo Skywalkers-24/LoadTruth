@@ -15,9 +15,9 @@ from uuid import UUID
 
 from fastapi import Depends
 
+from app.api.deps import CurrentMember
 from app.db.engine import get_sessionmaker
 from app.tickets.repository import SqlTicketRepository
-from app.tickets.seed import DEMO_TENANT_ID
 
 
 async def get_repository() -> AsyncIterator[SqlTicketRepository]:
@@ -31,9 +31,9 @@ async def get_repository() -> AsyncIterator[SqlTicketRepository]:
             raise
 
 
-def get_active_tenant_id() -> UUID:
-    """The tenant the request operates on (the single seeded demo tenant)."""
-    return DEMO_TENANT_ID
+def get_active_tenant_id(member: CurrentMember) -> UUID:
+    """The tenant the request operates on, taken from the signed-in member."""
+    return UUID(member.tenant_id)
 
 
 Repository = Annotated[SqlTicketRepository, Depends(get_repository)]

@@ -109,6 +109,27 @@ class Ticket(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
     )
 
 
+class User(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
+    """A tenant member and their role (PLAN.md §10 role vocabulary).
+
+    In the full Supabase deployment, membership + roles live in the vendored
+    ``rbac.members``/``rbac.groups`` tables governed by RLS. In this interim
+    SQLite build (single seeded tenant, no auth), we persist members in a
+    tenant-scoped table so the admin Users screen is real CRUD, not a mock.
+    ``role`` is one of the product roles, validated by the ``Role`` enum at the
+    Python layer. ``email`` is unique per tenant.
+    """
+
+    __tablename__ = "users"
+
+    email: Mapped[str] = mapped_column(String(200), nullable=False)
+    full_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    role: Mapped[str] = mapped_column(String(24), nullable=False, default="monitor")
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+
+    __table_args__ = (Index("ix_users_tenant_email", "tenant_id", "email", unique=True),)
+
+
 class Anomaly(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
     """A deterministic flag raised against a ticket (Stage 6)."""
 

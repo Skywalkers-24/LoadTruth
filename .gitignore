@@ -28,3 +28,6 @@
 # Logs / local artifacts
 responses.log
 *.local
+
+# Local scratch / experiment scripts and logs (not part of the app)
+scratch/

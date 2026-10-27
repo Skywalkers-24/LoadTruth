@@ -14,11 +14,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth_context import router as auth_context_router
+from app.api.auth_session import router as auth_session_router
 from app.api.ingest import router as ingest_router
 from app.api.reports import router as reports_router
 from app.api.sources import router as sources_router
 from app.api.tickets import router as tickets_router
 from app.api.trucks import router as trucks_router
+from app.api.users import router as users_router
 from app.config import get_settings
 from app.log import configure_logging, get_logger
 
@@ -40,14 +42,16 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # Interim SQLite: create tables from ORM metadata and seed the demo tenant.
     # Tests provide their own isolated DB via a dependency override, so they set
     # LOADTRUTH_SKIP_STARTUP_DB=1 to skip touching the on-disk file DB.
+    # Create tables (SQLite and local Docker Postgres) and seed the demo tenant.
+    # Tests provide their own isolated DB via a dependency override, so they set
+    # LOADTRUTH_SKIP_STARTUP_DB=1 to skip touching the real DB.
     if os.environ.get("LOADTRUTH_SKIP_STARTUP_DB") != "1":
         from app.db.engine import get_sessionmaker, init_db
         from app.tickets.seed import seed_demo
 
         await init_db()
-        if settings.is_sqlite:
-            async with get_sessionmaker()() as session:
-                await seed_demo(session)
+        async with get_sessionmaker()() as session:
+            await seed_demo(session)
     yield
     log.info("shutdown")
 
@@ -78,9 +82,11 @@ async def health() -> dict[str, object]:
     }
 
 
+app.include_router(auth_session_router)
 app.include_router(auth_context_router)
 app.include_router(tickets_router)
 app.include_router(trucks_router)
+app.include_router(users_router)
 app.include_router(sources_router)
 app.include_router(ingest_router)
 app.include_router(reports_router)

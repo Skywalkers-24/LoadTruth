@@ -56,19 +56,17 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 
 
 async def init_db() -> None:
-    """Create tables from the ORM metadata.
+    """Create the app's tables from the ORM metadata (idempotent).
 
-    Used on the interim SQLite database where there is no Alembic/Postgres SQL
-    migration to run. A no-op-safe `create_all` (only creates missing tables).
-    On Postgres the schema comes from infra/rbac/*.sql instead, so this is
-    skipped there.
+    Runs on both the interim SQLite DB and the local Docker Postgres so the app
+    is runnable end-to-end without a migration step — `create_all` only creates
+    missing tables. (The production Supabase deploy applies the richer
+    `infra/rbac/*.sql` with RLS + pgvector instead; this is the pragmatic local
+    path and is safe to run on top of an already-provisioned schema.)
     """
-    from app.config import get_settings
     from app.db import models  # noqa: F401  (register models on the metadata)
     from app.db.base import Base
 
-    if not get_settings().is_sqlite:
-        return
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

@@ -1,43 +1,125 @@
 "use client";
 
-import { AppNav } from "@/components/app-nav";
+import { useState, type ReactNode } from "react";
+
+import { AppShell } from "@/components/shell/app-shell";
 import { RateTableEditor } from "@/components/admin/rate-table";
+import { RolesPanel } from "@/components/admin/roles-panel";
 import { SourceConnections } from "@/components/admin/source-connections";
 import { TruckRegistry } from "@/components/admin/truck-registry";
-import { useEvents } from "@/lib/hooks";
+import { CameraIcon, DollarIcon, TruckIcon, UsersIcon } from "@/components/ui/icons";
+import { Card } from "@/components/ui/shadcn/card";
+import { ErrorState, Skeleton } from "@/components/ui/primitives";
+import { useAuth } from "@/lib/auth";
+import { useEventContext } from "@/lib/event-context";
+import { useSources, useTrucks, useUsers } from "@/lib/hooks";
+import { cn } from "@/lib/utils";
 
-/**
- * Admin surface (previously deferred, §1a): event rate table, certified-truck
- * registry, and source connections. Single seeded tenant in this build — the
- * multi-tenant RBAC data layer exists (infra/rbac) but role/invite screens stay
- * on the roadmap.
- */
+type Tab = "rates" | "trucks" | "sources" | "users";
+
+const SECTIONS: { id: Tab; label: string; blurb: string; icon: ReactNode; usersOnly?: boolean }[] = [
+  { id: "rates", label: "Rates", blurb: "Price per cubic yard by debris class", icon: <DollarIcon size={16} /> },
+  { id: "trucks", label: "Truck registry", blurb: "Certified trucks and bed capacity", icon: <TruckIcon size={16} /> },
+  { id: "sources", label: "Evidence sources", blurb: "Storage, cameras, and webhooks", icon: <CameraIcon size={16} /> },
+  { id: "users", label: "Users and roles", blurb: "Who can review and approve", icon: <UsersIcon size={16} />, usersOnly: true },
+];
+
+/** Admin: settings-style layout with a section list and a focused content pane. */
 export default function AdminPage() {
-  const events = useEvents();
-  const event = events.data?.[0];
+  const { selected: event, isLoading, isError } = useEventContext();
+  const { can } = useAuth();
+  const sections = SECTIONS.filter((s) => !s.usersOnly || can("manage_users"));
+  const [tab, setTab] = useState<Tab>("rates");
+  const trucks = useTrucks();
+  const users = useUsers();
+  const sources = useSources(event?.id);
+
+  const counts: Partial<Record<Tab, number | undefined>> = {
+    trucks: trucks.data?.length,
+    users: can("manage_users") ? users.data?.length : undefined,
+    sources: sources.data?.length,
+  };
+  const active = sections.find((s) => s.id === tab) ?? sections[0]!;
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-1">
-          <span className="text-xs font-medium uppercase tracking-widest text-[var(--color-muted)]">
-            LoadTruth · Admin
-          </span>
-          <h1 className="text-xl font-semibold sm:text-2xl">{event?.name ?? "Loading…"}</h1>
-          {event?.location && <p className="text-sm text-[var(--color-muted)]">{event.location}</p>}
-        </header>
+    <AppShell section="Admin">
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        <div className="flex flex-col">
+          <h1 className="text-[20px] font-semibold tracking-tight">Workspace settings</h1>
+          <p className="text-[12px] text-muted-foreground">
+            {event ? `Configuration for ${event.name}.` : "Configuration for the active event."}
+          </p>
+        </div>
 
-        {event ? (
-          <div className="flex flex-col gap-6">
-            <RateTableEditor event={event} />
-            <TruckRegistry />
-            <SourceConnections eventId={event.id} />
-          </div>
+        {isError ? (
+          <ErrorState title="Events unavailable" description="The server did not return any events." />
+        ) : isLoading || !event ? (
+          <Skeleton className="h-80 rounded-xl" />
         ) : (
-          <p className="text-sm text-[var(--color-muted)]">Loading admin data…</p>
+          <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[260px_1fr]">
+            <nav
+              aria-label="Settings sections"
+              className="-mx-1 flex gap-1 overflow-x-auto px-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0"
+            >
+              {sections.map((s) => {
+                const isActive = s.id === active.id;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setTab(s.id)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex shrink-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors lg:w-full",
+                      isActive
+                        ? "border-[var(--color-brand)]/40 bg-[var(--color-brand-soft)]"
+                        : "border-transparent hover:bg-accent",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "grid size-8 shrink-0 place-items-center rounded-lg",
+                        isActive
+                          ? "bg-[var(--color-brand-fill)] text-white"
+                          : "bg-secondary text-muted-foreground",
+                      )}
+                    >
+                      {s.icon}
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                      <span className="text-[13px] font-semibold text-foreground">{s.label}</span>
+                      <span className="mt-0.5 hidden text-[12px] text-muted-foreground lg:block">
+                        <span className="line-clamp-2">{s.blurb}</span>
+                      </span>
+                    </span>
+                    {counts[s.id] !== undefined && (
+                      <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+                        {counts[s.id]}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+
+            <Card className="min-h-0 gap-0 overflow-hidden py-0">
+              <header className="flex items-center gap-3 border-b border-border px-5 py-4">
+                <span className="text-[var(--color-brand)]">{active.icon}</span>
+                <div className="flex flex-col">
+                  <h2 className="text-[15px] font-semibold text-foreground">{active.label}</h2>
+                  <span className="text-[12px] text-muted-foreground">{active.blurb}</span>
+                </div>
+              </header>
+              <div key={active.id} className="lt-fade-in min-h-0 flex-1 overflow-y-auto p-5">
+                {active.id === "rates" && <RateTableEditor event={event} />}
+                {active.id === "trucks" && <TruckRegistry />}
+                {active.id === "sources" && <SourceConnections eventId={event.id} />}
+                {active.id === "users" && <RolesPanel />}
+              </div>
+            </Card>
+          </div>
         )}
-      </main>
-    </>
+      </div>
+    </AppShell>
   );
 }
