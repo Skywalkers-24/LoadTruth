@@ -35,6 +35,10 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/loadtruth
       REDIS_URL: redis://redis:6379/0
+      # This build runs on recorded fixtures (zero credits). The AI seam and the
+      # whole pipeline behave identically to live; swap to a real MODEL_API_KEY
+      # and MOCK_AI=0 to call Meta.
+      MOCK_AI: "1"
     ports:
       - "8000:8000"
     depends_on:

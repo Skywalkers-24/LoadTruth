@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { SparklesIcon } from "lucide-react";
 
 import type { Ticket } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/badge";
@@ -10,6 +11,9 @@ import { EvidenceCanvas } from "@/components/console/evidence-canvas";
 import { MoneyFrame } from "@/components/console/money-frame";
 import { ReviewActions } from "@/components/console/review-actions";
 import { TicketMetadata, shortId } from "@/components/console/ticket-metadata";
+import { PipelineTrace } from "@/components/ai/pipeline-trace";
+import { Skeleton } from "@/components/ui/shadcn/skeleton";
+import { useJobForTicket } from "@/lib/hooks";
 import { debrisLabel, relativeTime } from "@/lib/format";
 
 /**
@@ -55,6 +59,11 @@ export function ReviewWorkspace({ ticket }: { ticket: Ticket }) {
               <TicketMetadata ticket={ticket} />
             </Card>
           </div>
+          <div className="order-5 xl:order-none">
+            <Card title="AI analysis" icon={<SparklesIcon size={15} />}>
+              <AiAnalysis ticketId={ticket.id} />
+            </Card>
+          </div>
         </div>
 
         <div className="contents xl:sticky xl:top-0 xl:flex xl:min-w-0 xl:flex-col xl:gap-4">
@@ -72,6 +81,20 @@ export function ReviewWorkspace({ ticket }: { ticket: Ticket }) {
       </div>
     </div>
   );
+}
+
+function AiAnalysis({ ticketId }: { ticketId: string }) {
+  const job = useJobForTicket(ticketId);
+  if (job.isLoading) return <Skeleton className="h-28" />;
+  if (!job.data) {
+    return (
+      <p className="text-[12px] text-muted-foreground">
+        The stage trace for this ticket is no longer in the pipeline buffer. Newly captured tickets show their
+        full analysis here.
+      </p>
+    );
+  }
+  return <PipelineTrace stages={job.data.stages} compact />;
 }
 
 function Card({

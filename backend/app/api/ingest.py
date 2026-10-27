@@ -22,6 +22,7 @@ from app.pipeline.ingest import ingest_upload
 from app.pipeline.ledger import CostLedger
 from app.pipeline.orchestrator import PipelineResult, run_pipeline
 from app.pipeline.registry import CertifiedTruck, TruckRegistry
+from app.pipeline.trace import get_job_store
 from app.tickets.schemas import TicketOut, ticket_to_out
 
 router = APIRouter(tags=["ingest"])
@@ -84,6 +85,11 @@ async def ingest_clip(
         cache=get_pipeline_cache(),
         ledger=get_cost_ledger(),
     )
+    # Record the run in the job store so the Pipeline view and the ticket's AI
+    # analysis panel can show exactly how the result was produced.
+    if result.trace is not None:
+        await get_job_store().add(event_id, result.trace)
+
     if result.no_truck:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,

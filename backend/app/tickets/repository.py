@@ -257,6 +257,24 @@ class SqlTicketRepository:
         counts = await self._anomaly_counts(tenant_id, [r.id for r in rows])
         return [_to_ticket(r, counts.get(r.id, 0)) for r in rows], total
 
+    async def list_anomalies_for_ticket(
+        self, tenant_id: UUID, ticket_id: UUID
+    ) -> list[models.Anomaly]:
+        """All anomaly flags for one ticket (tenant-scoped), ordered by severity."""
+        order = {"high": 0, "warn": 1, "info": 2}
+        rows = list(
+            (
+                await self._s.execute(
+                    select(models.Anomaly)
+                    .where(models.Anomaly.tenant_id == tenant_id)
+                    .where(models.Anomaly.ticket_id == ticket_id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return sorted(rows, key=lambda a: order.get(a.severity, 3))
+
     async def _get_row(self, tenant_id: UUID, ticket_id: UUID) -> models.Ticket:
         row = (
             await self._s.execute(

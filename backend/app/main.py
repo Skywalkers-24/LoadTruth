@@ -15,9 +15,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth_context import router as auth_context_router
 from app.api.auth_session import router as auth_session_router
+from app.api.chat import router as chat_router
 from app.api.ingest import router as ingest_router
 from app.api.reports import router as reports_router
 from app.api.sources import router as sources_router
+from app.api.system import router as system_router
 from app.api.tickets import router as tickets_router
 from app.api.trucks import router as trucks_router
 from app.api.users import router as users_router
@@ -90,3 +92,5 @@ app.include_router(users_router)
 app.include_router(sources_router)
 app.include_router(ingest_router)
 app.include_router(reports_router)
+app.include_router(chat_router)
+app.include_router(system_router)

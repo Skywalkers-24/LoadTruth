@@ -18,7 +18,7 @@ import {
   SettingsIcon,
   XIcon,
 } from "@/components/ui/icons";
-import { BookOpenIcon, LogOutIcon, PanelLeftIcon, PlusIcon } from "lucide-react";
+import { ActivityIcon, BookOpenIcon, LogOutIcon, PanelLeftIcon, PlusIcon, SparklesIcon } from "lucide-react";
 
 import type { Capabilities } from "@/lib/api";
 import { Kbd } from "@/components/ui/kbd";
@@ -48,6 +48,8 @@ const NAV: NavItem[] = [
   { href: "/", label: "Overview", short: "Overview", icon: GaugeIcon },
   { href: "/console", label: "Review Console", short: "Review", icon: ClipboardIcon, badge: true },
   { href: "/add", label: "New Ticket", short: "New", icon: PlusIcon, cap: "ingest" },
+  { href: "/assistant", label: "AI Analyst", short: "Analyst", icon: SparklesIcon },
+  { href: "/pipeline", label: "AI Pipeline", short: "Pipeline", icon: ActivityIcon },
   { href: "/reports", label: "Reports", short: "Reports", icon: ChartIcon },
   { href: "/admin", label: "Admin", short: "Admin", icon: SettingsIcon, cap: "manage_events" },
   { href: "/guide", label: "Guide", short: "Guide", icon: BookOpenIcon },

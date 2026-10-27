@@ -8,6 +8,7 @@ import {
   getHealth,
   type EventInput,
   type SourceInput,
+  type TaskConfigUpdate,
   type TicketQuery,
   type TicketStatus,
   type TruckInput,
@@ -204,4 +205,44 @@ export function useUpdateEvent() {
       void qc.invalidateQueries({ queryKey: ["reports-summary"] });
     },
   });
+}
+
+// ── AI pipeline jobs (live) ──────────────────────────────────────────────────
+export function usePipelineJobs(eventId: string | undefined) {
+  return useQuery({
+    queryKey: ["pipeline-jobs", eventId],
+    queryFn: () => api.getPipelineJobs(eventId),
+    refetchInterval: 4000,
+  });
+}
+
+export function useJobForTicket(ticketId: string | null) {
+  return useQuery({
+    queryKey: ["pipeline-job", ticketId],
+    queryFn: () => api.getJobForTicket(ticketId as string),
+    enabled: Boolean(ticketId),
+  });
+}
+
+// ── Admin: AI models, reasoning effort & cost mode ──────────────────────────
+export function useAiConfig() {
+  return useQuery({ queryKey: ["ai-config"], queryFn: () => api.getAiConfig() });
+}
+
+export function useUpdateAiConfig() {
+  const qc = useQueryClient();
+  const done = () => {
+    void qc.invalidateQueries({ queryKey: ["ai-config"] });
+    void qc.invalidateQueries({ queryKey: ["pipeline"] });
+  };
+  const update = useMutation({
+    mutationFn: ({ taskId, body }: { taskId: string; body: TaskConfigUpdate }) =>
+      api.updateAiConfig(taskId, body),
+    onSuccess: done,
+  });
+  const reset = useMutation({
+    mutationFn: (taskId: string) => api.resetAiConfig(taskId),
+    onSuccess: done,
+  });
+  return { update, reset };
 }

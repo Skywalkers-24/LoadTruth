@@ -18,6 +18,7 @@ from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_manage_events, can_review_tickets
 from app.tickets.repository import EventNotFoundError, TicketNotFoundError
 from app.tickets.schemas import (
+    AnomalyOut,
     DashboardOut,
     DebrisClass,
     EventIn,
@@ -122,11 +123,23 @@ async def list_tickets(
 
 @router.get("/tickets/{ticket_id}", response_model=TicketOut)
 async def get_ticket(repo: Repository, tenant: ActiveTenant, ticket_id: UUID) -> TicketOut:
-    """Fetch a single ticket with its valuation and evidence frames."""
+    """Fetch a single ticket with its valuation, evidence, and itemized flags."""
     try:
-        return ticket_to_out(await repo.get_ticket(tenant, ticket_id))
+        ticket = await repo.get_ticket(tenant, ticket_id)
     except TicketNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
+    out = ticket_to_out(ticket)
+    rows = await repo.list_anomalies_for_ticket(tenant, ticket_id)
+    out.anomalies = [
+        AnomalyOut(
+            type=r.type,
+            severity=r.severity,
+            explanation=r.explanation or "",
+            evidence_frame=r.evidence_frame,
+        )
+        for r in rows
+    ]
+    return out
 
 
 @router.patch(

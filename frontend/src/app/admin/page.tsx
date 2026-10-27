@@ -3,6 +3,10 @@
 import { useState, type ReactNode } from "react";
 
 import { AppShell } from "@/components/shell/app-shell";
+import { SlidersHorizontalIcon, SparklesIcon } from "lucide-react";
+
+import { AiModelsPanel } from "@/components/admin/ai-models";
+import { PipelineStats } from "@/components/admin/pipeline-stats";
 import { RateTableEditor } from "@/components/admin/rate-table";
 import { RolesPanel } from "@/components/admin/roles-panel";
 import { SourceConnections } from "@/components/admin/source-connections";
@@ -15,13 +19,15 @@ import { useEventContext } from "@/lib/event-context";
 import { useSources, useTrucks, useUsers } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 
-type Tab = "rates" | "trucks" | "sources" | "users";
+type Tab = "rates" | "trucks" | "sources" | "users" | "models" | "pipeline";
 
 const SECTIONS: { id: Tab; label: string; blurb: string; icon: ReactNode; usersOnly?: boolean }[] = [
   { id: "rates", label: "Rates", blurb: "Price per cubic yard by debris class", icon: <DollarIcon size={16} /> },
   { id: "trucks", label: "Truck registry", blurb: "Certified trucks and bed capacity", icon: <TruckIcon size={16} /> },
   { id: "sources", label: "Evidence sources", blurb: "Storage, cameras, and webhooks", icon: <CameraIcon size={16} /> },
   { id: "users", label: "Users and roles", blurb: "Who can review and approve", icon: <UsersIcon size={16} />, usersOnly: true },
+  { id: "models", label: "AI models", blurb: "Model, effort, and cost per task", icon: <SlidersHorizontalIcon size={16} />, usersOnly: true },
+  { id: "pipeline", label: "AI pipeline", blurb: "Models, cache, and spend", icon: <SparklesIcon size={16} /> },
 ];
 
 /** Admin: settings-style layout with a section list and a focused content pane. */
@@ -115,6 +121,8 @@ export default function AdminPage() {
                 {active.id === "trucks" && <TruckRegistry />}
                 {active.id === "sources" && <SourceConnections eventId={event.id} />}
                 {active.id === "users" && <RolesPanel />}
+                {active.id === "models" && <AiModelsPanel />}
+                {active.id === "pipeline" && <PipelineStats />}
               </div>
             </Card>
           </div>
