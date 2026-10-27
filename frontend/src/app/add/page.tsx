@@ -7,12 +7,14 @@ import { ArrowRightIcon, CheckCircle2Icon, Loader2Icon, UploadCloudIcon } from "
 import type { Ticket } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
 import { shortId } from "@/components/console/ticket-metadata";
+import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/shadcn/button";
 import { Card } from "@/components/ui/shadcn/card";
+import { Skeleton } from "@/components/ui/shadcn/skeleton";
 import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
-import { useIngest } from "@/lib/hooks";
-import { money, signedMoney } from "@/lib/format";
+import { useIngest, useTickets } from "@/lib/hooks";
+import { debrisLabel, money, relativeTime, signedMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,6 +31,10 @@ export default function AddTicketPage() {
   const [dragging, setDragging] = useState(false);
   const [result, setResult] = useState<Ticket | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const tickets = useTickets({ eventId, limit: 100, offset: 0 });
+  const recent = (tickets.data?.items ?? [])
+    .slice()
+    .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
 
   const allowed = can("ingest");
 
@@ -145,6 +151,51 @@ export default function AddTicketPage() {
             </Button>
           </Card>
         )}
+
+        {/* Tickets already captured for this event */}
+        <Card className="gap-0 overflow-hidden py-0">
+          <header className="flex items-center justify-between border-b border-border px-4 py-3">
+            <h2 className="text-[14px] font-semibold">Tickets in this event</h2>
+            <span className="text-[12px] tabular-nums text-muted-foreground">
+              {tickets.data?.total ?? recent.length} tickets
+            </span>
+          </header>
+          {tickets.isLoading ? (
+            <div className="flex flex-col gap-2 p-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-12" />
+              ))}
+            </div>
+          ) : recent.length === 0 ? (
+            <p className="px-4 py-8 text-center text-[13px] text-muted-foreground">
+              No tickets yet. Upload a clip above to create the first one.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {recent.map((t) => (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/console?ticket=${t.id}`)}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-accent"
+                  >
+                    <span className="w-24 shrink-0 text-[13px] font-semibold tabular-nums">{shortId(t.id)}</span>
+                    <span className="flex min-w-0 flex-1 items-center gap-2 text-[12px] text-muted-foreground">
+                      <span className="tabular-nums">{t.truck_id ?? "Unidentified"}</span>
+                      <span className="opacity-60">·</span>
+                      <span>{debrisLabel(t.debris_class)}</span>
+                      <span className="hidden opacity-60 sm:inline">· {relativeTime(t.created_at)}</span>
+                    </span>
+                    <StatusBadge status={t.status} />
+                    <span className="w-20 shrink-0 text-right text-[13px] font-semibold tabular-nums text-[var(--color-money)]">
+                      {t.valuation.delta_dollar_value ? signedMoney(t.valuation.delta_dollar_value) : "N/A"}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
     </AppShell>
   );
