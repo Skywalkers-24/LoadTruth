@@ -9,13 +9,18 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
+from app.auth.roles import can_manage_trucks
 from app.tickets.repository import DuplicateTruckError, TruckNotFoundError
 from app.tickets.schemas import TruckIn, TruckOut, TruckPatch
 
 router = APIRouter(tags=["trucks"])
+
+# Managing the truck registry is a supervisor-and-up action.
+ManageTrucks = Depends(require(can_manage_trucks, "You do not have permission to manage trucks."))
 
 
 @router.get("/trucks", response_model=list[TruckOut])
@@ -24,7 +29,12 @@ async def list_trucks(repo: Repository, tenant: ActiveTenant) -> list[TruckOut]:
     return [TruckOut.model_validate(t) for t in await repo.list_trucks(tenant)]
 
 
-@router.post("/trucks", response_model=TruckOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/trucks",
+    response_model=TruckOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[ManageTrucks],
+)
 async def create_truck(repo: Repository, tenant: ActiveTenant, body: TruckIn) -> TruckOut:
     """Register a certified truck (truck_number unique per tenant)."""
     try:
@@ -40,7 +50,7 @@ async def create_truck(repo: Repository, tenant: ActiveTenant, body: TruckIn) ->
     return TruckOut.model_validate(row)
 
 
-@router.patch("/trucks/{truck_id}", response_model=TruckOut)
+@router.patch("/trucks/{truck_id}", response_model=TruckOut, dependencies=[ManageTrucks])
 async def update_truck(
     repo: Repository, tenant: ActiveTenant, truck_id: UUID, body: TruckPatch
 ) -> TruckOut:
@@ -62,7 +72,11 @@ async def update_truck(
     return TruckOut.model_validate(row)
 
 
-@router.delete("/trucks/{truck_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/trucks/{truck_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[ManageTrucks],
+)
 async def delete_truck(repo: Repository, tenant: ActiveTenant, truck_id: UUID) -> None:
     """Remove a truck from the registry."""
     try:

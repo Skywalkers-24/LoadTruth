@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth_context import router as auth_context_router
+from app.api.auth_session import router as auth_session_router
 from app.api.ingest import router as ingest_router
 from app.api.reports import router as reports_router
 from app.api.sources import router as sources_router
@@ -81,6 +82,7 @@ async def health() -> dict[str, object]:
     }
 
 
+app.include_router(auth_session_router)
 app.include_router(auth_context_router)
 app.include_router(tickets_router)
 app.include_router(trucks_router)

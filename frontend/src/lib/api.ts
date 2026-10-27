@@ -197,7 +197,7 @@ export interface ReportsSummary {
   accuracy_within_10pct: number | null;
 }
 
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
@@ -207,14 +207,54 @@ class ApiError extends Error {
   }
 }
 
+// ── Session token. Held in memory and mirrored to localStorage so a reload
+// keeps the session. The provider calls setAuthToken on login/logout. ──
+const TOKEN_KEY = "loadtruth-token";
+
+/** Read the stored token defensively (some test envs lack localStorage). */
+function readStoredToken(): string | null {
+  try {
+    return globalThis.localStorage?.getItem(TOKEN_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+let authToken: string | null = readStoredToken();
+
+export function setAuthToken(token: string | null): void {
+  authToken = token;
+  try {
+    if (token) globalThis.localStorage?.setItem(TOKEN_KEY, token);
+    else globalThis.localStorage?.removeItem(TOKEN_KEY);
+  } catch {
+    /* no storage in this environment */
+  }
+}
+
+export function getAuthToken(): string | null {
+  return authToken;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${baseUrl()}${path}`, {
     cache: "no-store",
-    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+    headers: {
+      "content-type": "application/json",
+      ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
+      ...(init?.headers ?? {}),
+    },
     ...init,
   });
   if (!res.ok) {
-    throw new ApiError(res.status, `request to ${path} failed (${res.status})`);
+    let detail = `request to ${path} failed (${res.status})`;
+    try {
+      const body = (await res.json()) as { detail?: string };
+      if (body?.detail) detail = body.detail;
+    } catch {
+      /* no JSON body */
+    }
+    throw new ApiError(res.status, detail);
   }
   // 204 No Content (e.g. DELETE) has no body to parse.
   if (res.status === 204 || res.headers.get("content-length") === "0") {
@@ -245,6 +285,59 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   }
 }
 
+// ── Session login (the app's own auth) ──
+export interface Capabilities {
+  review_tickets: boolean;
+  manage_trucks: boolean;
+  manage_sources: boolean;
+  manage_events: boolean;
+  ingest: boolean;
+  manage_users: boolean;
+}
+
+export interface Member {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: Role;
+  tenant_id: string;
+  capabilities: Capabilities;
+}
+
+export interface DirectoryMember {
+  email: string;
+  full_name: string | null;
+  role: Role;
+}
+
+export interface LoginResult {
+  token: string;
+  member: Member;
+}
+
+/** The members offered as sign-in options on the login screen. */
+export async function getDirectory(): Promise<DirectoryMember[]> {
+  return request<DirectoryMember[]>("/auth/directory");
+}
+
+/** Sign in by email; returns a token and the member (with capabilities). */
+export async function login(email: string): Promise<LoginResult> {
+  return request<LoginResult>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+/** The current signed-in member, refreshed from the server. */
+export async function getMe(): Promise<Member> {
+  return request<Member>("/auth/me");
+}
+
+/** Log out (stateless token; the client also discards it). */
+export async function logout(): Promise<void> {
+  await request<void>("/auth/logout", { method: "POST" });
+}
+
 async function upload<T>(path: string, file: File): Promise<T> {
   const form = new FormData();
   form.append("file", file);
@@ -252,6 +345,7 @@ async function upload<T>(path: string, file: File): Promise<T> {
     method: "POST",
     body: form,
     cache: "no-store",
+    headers: authToken ? { authorization: `Bearer ${authToken}` } : undefined,
   });
   if (!res.ok) throw new ApiError(res.status, `upload to ${path} failed (${res.status})`);
   return (await res.json()) as T;
@@ -325,5 +419,3 @@ export const api = {
   deleteSource: (id: string) => request<void>(`/sources/${id}`, { method: "DELETE" }),
   testSource: (id: string) => request<SourceTestResult>(`/sources/${id}/test`, { method: "POST" }),
 };
-
-export { ApiError };

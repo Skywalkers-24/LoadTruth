@@ -1,65 +1,174 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { DownloadIcon, FileTextIcon } from "lucide-react";
+
+import type { ReportsSummary, Ticket } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
-import { ReportsPanel } from "@/components/reports/reports-panel";
-import { LinkButton } from "@/components/ui/button";
-import { DownloadIcon, FileIcon } from "@/components/ui/icons";
-import { PageHeader } from "@/components/ui/page-header";
+import { ReportsPanel, type PerEvent } from "@/components/reports/reports-panel";
+import { Button } from "@/components/ui/shadcn/button";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/primitives";
-import { Tooltip } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
-import { useReportsSummary, useTickets } from "@/lib/hooks";
+import { useAllReports, useReportsSummary, useTickets } from "@/lib/hooks";
+import { cn } from "@/lib/utils";
+
+type Scope = "event" | "all";
+
+/** Sum per-event summaries into one combined summary for the "All events" view. */
+function aggregate(parts: { eventId: string; summary: ReportsSummary; tickets: Ticket[] }[]): {
+  summary: ReportsSummary;
+  tickets: Ticket[];
+} {
+  const addMap = (acc: Record<string, number>, m: Record<string, number>) => {
+    for (const [k, v] of Object.entries(m)) acc[k] = (acc[k] ?? 0) + v;
+    return acc;
+  };
+  const num = (s: string) => Number.parseFloat(s) || 0;
+  const summary: ReportsSummary = {
+    event_id: "all",
+    ticket_count: 0,
+    counts_by_status: {},
+    counts_by_debris_class: {},
+    total_est_dollar_value: "0",
+    total_delta_dollar_value: "0",
+    overbill_ticket_count: 0,
+    overbill_dollar_value: "0",
+    anomaly_counts_by_severity: {},
+    reviewed_count: 0,
+    pending_count: 0,
+    accuracy_within_10pct: null,
+  };
+  let est = 0;
+  let delta = 0;
+  let overbill = 0;
+  let accNum = 0;
+  let accDen = 0;
+  for (const p of parts) {
+    const s = p.summary;
+    summary.ticket_count += s.ticket_count;
+    addMap(summary.counts_by_status, s.counts_by_status);
+    addMap(summary.counts_by_debris_class, s.counts_by_debris_class);
+    addMap(summary.anomaly_counts_by_severity, s.anomaly_counts_by_severity);
+    summary.reviewed_count += s.reviewed_count;
+    summary.pending_count += s.pending_count;
+    summary.overbill_ticket_count += s.overbill_ticket_count;
+    est += num(s.total_est_dollar_value);
+    delta += num(s.total_delta_dollar_value);
+    overbill += num(s.overbill_dollar_value);
+    if (s.accuracy_within_10pct !== null) {
+      accNum += s.accuracy_within_10pct * s.ticket_count;
+      accDen += s.ticket_count;
+    }
+  }
+  summary.total_est_dollar_value = est.toFixed(2);
+  summary.total_delta_dollar_value = delta.toFixed(2);
+  summary.overbill_dollar_value = overbill.toFixed(2);
+  summary.accuracy_within_10pct = accDen > 0 ? accNum / accDen : null;
+  const tickets = parts.flatMap((p) => p.tickets);
+  return { summary, tickets };
+}
 
 /** Reports: event totals, exposure breakdowns, the ticket ledger, and exports. */
 export default function ReportsPage() {
-  const { selected, selectedId: eventId, isError: eventsError } = useEventContext();
-  const summary = useReportsSummary(eventId);
-  const tickets = useTickets({ eventId, limit: 100, offset: 0 });
+  const { selected, selectedId: eventId, events, isError: eventsError } = useEventContext();
+  const { can } = useAuth();
+  const canAll = can("manage_events");
+  const [scope, setScope] = useState<Scope>("event");
+  const allMode = canAll && scope === "all";
+
+  const summary = useReportsSummary(allMode ? undefined : eventId);
+  const tickets = useTickets({ eventId: allMode ? undefined : eventId, limit: 100, offset: 0 });
+  const all = useAllReports(
+    events.map((e) => e.id),
+    allMode,
+  );
+
+  const combined = useMemo(() => (all.data ? aggregate(all.data) : null), [all.data]);
+  const perEvent: PerEvent[] | undefined = useMemo(() => {
+    if (!all.data) return undefined;
+    const byId = new Map(events.map((e) => [e.id, e.name] as const));
+    return all.data.map((p) => ({
+      id: p.eventId,
+      name: byId.get(p.eventId) ?? "Event",
+      ticketCount: p.summary.ticket_count,
+      measured: p.summary.total_est_dollar_value,
+      flagged: p.summary.overbill_dollar_value,
+    }));
+  }, [all.data, events]);
+
+  const loading = allMode ? all.isLoading : summary.isLoading || tickets.isLoading;
+  const errored = allMode ? all.isError : summary.isError;
+  const panelSummary = allMode ? combined?.summary : summary.data;
+  const panelTickets = allMode ? (combined?.tickets ?? []) : (tickets.data?.items ?? []);
 
   return (
     <AppShell section="Reports">
-      <div className="flex flex-col gap-6">
-        <PageHeader
-          eyebrow="Reports"
-          title={selected?.name ?? "Reports"}
-          description="Event totals, where the exposure comes from, and the full ticket ledger."
-          actions={
-            eventId && (
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-col">
+            <h1 className="truncate text-[20px] font-semibold tracking-tight">
+              {allMode ? "All events" : (selected?.name ?? "Reports")}
+            </h1>
+            <p className="truncate text-[12px] text-muted-foreground">
+              Totals, where the exposure comes from, and the full ticket ledger.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {canAll && (
+              <div className="flex rounded-lg border border-border p-0.5">
+                {(["event", "all"] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setScope(s)}
+                    className={cn(
+                      "rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors",
+                      scope === s ? "bg-[var(--color-brand-fill)] text-white" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {s === "event" ? "This event" : "All events"}
+                  </button>
+                ))}
+              </div>
+            )}
+            {eventId && !allMode && (
               <>
-                <LinkButton href={api.exportCsvUrl(eventId)} icon={<DownloadIcon size={15} />}>
-                  Export CSV
-                </LinkButton>
-                <Tooltip content="Printable packet in the layout FEMA reviewers expect. LoadTruth is not affiliated with or endorsed by FEMA.">
-                  <span>
-                    <LinkButton href={api.auditPacketUrl(eventId)} icon={<FileIcon size={15} />} external>
-                      Audit packet
-                    </LinkButton>
-                  </span>
-                </Tooltip>
+                <Button asChild variant="outline" size="sm">
+                  <a href={api.exportCsvUrl(eventId)}>
+                    <DownloadIcon />
+                    Export CSV
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <a href={api.auditPacketUrl(eventId)} target="_blank" rel="noreferrer">
+                    <FileTextIcon />
+                    Audit packet
+                  </a>
+                </Button>
               </>
-            )
-          }
-        />
+            )}
+          </div>
+        </div>
 
         {eventsError ? (
           <ErrorState title="Events unavailable" description="The server did not return any events." />
-        ) : summary.isLoading || tickets.isLoading ? (
-          <div className="flex flex-col gap-5">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        ) : loading ? (
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-[132px] rounded-xl" />
+                <Skeleton key={i} className="h-[104px] rounded-xl" />
               ))}
             </div>
-            <Skeleton className="h-[300px] rounded-xl" />
-            <Skeleton className="h-[400px] rounded-xl" />
+            <Skeleton className="h-[280px] rounded-xl" />
           </div>
-        ) : summary.isError ? (
-          <ErrorState description="Could not load the report." onRetry={() => summary.refetch()} />
-        ) : summary.data && summary.data.ticket_count > 0 ? (
-          <ReportsPanel s={summary.data} tickets={tickets.data?.items ?? []} />
+        ) : errored ? (
+          <ErrorState description="Could not load the report." onRetry={() => (allMode ? all.refetch() : summary.refetch())} />
+        ) : panelSummary && panelSummary.ticket_count > 0 ? (
+          <ReportsPanel s={panelSummary} tickets={panelTickets} perEvent={allMode ? perEvent : undefined} />
         ) : (
-          <EmptyState title="No tickets yet" description="Reports appear once tickets are captured for this event." />
+          <EmptyState title="No tickets yet" description="Reports appear once tickets are captured." />
         )}
       </div>
     </AppShell>

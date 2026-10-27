@@ -111,7 +111,7 @@ export default function ConsolePage() {
 
   const queuePanel = (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-col gap-3 border-b border-[var(--color-border)] p-3">
+      <div className="flex flex-col gap-3 border-b border-border p-3">
         <QueueFilters
           search={search}
           onSearch={setSearch}
@@ -124,7 +124,7 @@ export default function ConsolePage() {
           sort={sort}
           onSort={setSort}
         />
-        <div className="flex items-center justify-between text-[12px] tabular-nums text-[var(--color-subtle)]">
+        <div className="flex items-center justify-between text-[12px] tabular-nums text-muted-foreground">
           <span>
             {total} ticket{total === 1 ? "" : "s"}
             {search && ` · ${rows.length} match${rows.length === 1 ? "" : "es"}`}
@@ -166,7 +166,7 @@ export default function ConsolePage() {
       </div>
 
       {!tickets.isLoading && !tickets.isError && total > PAGE_SIZE && (
-        <div className="border-t border-[var(--color-border)] px-3 py-2.5">
+        <div className="border-t border-border px-3 py-2.5">
           <Pagination total={total} limit={PAGE_SIZE} offset={offset} onOffset={setOffset} />
         </div>
       )}
@@ -198,8 +198,8 @@ export default function ConsolePage() {
   return (
     <AppShell section="Review Console">
       {isDesktop ? (
-        <div className="grid h-[calc(100dvh-108px)] grid-cols-[minmax(320px,30%)_1fr] gap-5">
-          <div className="lt-card-shadow min-h-0 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(320px,30%)_1fr] gap-4">
+          <div className="min-h-0 overflow-hidden rounded-xl border border-border bg-card">
             {queuePanel}
           </div>
           <div ref={workspaceRef} className="lt-scroll min-h-0 min-w-0 overflow-y-auto pr-1">

@@ -1,20 +1,20 @@
 "use client";
 
 import { useRef } from "react";
+import { DownloadIcon, FileTextIcon, Loader2Icon, UploadIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
-import { Button, LinkButton } from "@/components/ui/button";
-import { DownloadIcon, FileIcon, UploadIcon } from "@/components/ui/icons";
+import { Button } from "@/components/ui/shadcn/button";
 import { useToast } from "@/components/ui/toast";
 import { useIngest } from "@/lib/hooks";
 
 /** Event-level actions: upload clips, export CSV, generate audit packet. */
 export function EventActions({
   eventId,
-  uploadVariant = "primary",
+  uploadVariant = "default",
 }: {
   eventId: string;
-  uploadVariant?: "primary" | "secondary";
+  uploadVariant?: "default" | "secondary";
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const ingest = useIngest();
@@ -48,18 +48,25 @@ export function EventActions({
       />
       <Button
         variant={uploadVariant}
-        icon={<UploadIcon size={15} />}
+        size="sm"
         onClick={() => inputRef.current?.click()}
         disabled={ingest.isPending}
       >
-        {ingest.isPending ? "Analyzing clip…" : "Upload clip"}
+        {ingest.isPending ? <Loader2Icon className="animate-spin" /> : <UploadIcon />}
+        {ingest.isPending ? "Analyzing clip" : "Upload clip"}
       </Button>
-      <LinkButton href={api.exportCsvUrl(eventId)} icon={<DownloadIcon size={15} />}>
-        Export CSV
-      </LinkButton>
-      <LinkButton href={api.auditPacketUrl(eventId)} icon={<FileIcon size={15} />} external>
-        Audit packet
-      </LinkButton>
+      <Button asChild variant="outline" size="sm">
+        <a href={api.exportCsvUrl(eventId)}>
+          <DownloadIcon />
+          Export CSV
+        </a>
+      </Button>
+      <Button asChild variant="outline" size="sm">
+        <a href={api.auditPacketUrl(eventId)} target="_blank" rel="noreferrer">
+          <FileTextIcon />
+          Audit packet
+        </a>
+      </Button>
     </div>
   );
 }

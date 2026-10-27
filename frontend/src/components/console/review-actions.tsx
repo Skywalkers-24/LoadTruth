@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AlertIcon, CheckIcon } from "@/components/ui/icons";
 import { Kbd } from "@/components/ui/kbd";
 import { useToast } from "@/components/ui/toast";
+import { useAuth } from "@/lib/auth";
 import { useSetMonitorCall, useSetStatus } from "@/lib/hooks";
 import { percent } from "@/lib/format";
 import { isTypingTarget } from "@/lib/use-media-query";
@@ -45,6 +46,8 @@ const COPY: Record<Decision, { title: string; body: string; cta: string; variant
 
 export function ReviewActions({ ticket }: { ticket: Ticket }) {
   const toast = useToast();
+  const { can } = useAuth();
+  const canReview = can("review_tickets");
   const setMonitorCall = useSetMonitorCall();
   const setStatus = useSetStatus();
 
@@ -65,7 +68,8 @@ export function ReviewActions({ ticket }: { ticket: Ticket }) {
   // Keyboard shortcuts for the three decisions.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (pending || busy || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      if (!canReview || pending || busy || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target))
+        return;
       const k = e.key.toLowerCase();
       if (k === "c") setPending("confirmed");
       else if (k === "o") setPending("overridden");
@@ -75,7 +79,7 @@ export function ReviewActions({ ticket }: { ticket: Ticket }) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [pending, busy]);
+  }, [pending, busy, canReview]);
 
   function submitCall(e: React.FormEvent) {
     e.preventDefault();
@@ -107,6 +111,17 @@ export function ReviewActions({ ticket }: { ticket: Ticket }) {
   }
 
   const copy = pending ? COPY[pending] : null;
+
+  if (!canReview) {
+    return (
+      <div className="flex items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-3 text-[12px] text-[var(--color-muted)]">
+        <span className="mt-0.5 text-[var(--color-subtle)]">
+          <AlertIcon size={13} />
+        </span>
+        Your role has read-only access. Reviewing tickets requires monitor access or higher.
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">

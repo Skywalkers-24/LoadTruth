@@ -1,497 +1,962 @@
 {
-  "_comment": "Single declarative seed for the LoadTruth demo tenant. Loaded by app/tickets/seed.py on startup (idempotent). Exercises every surface: dashboard money-frame, review-console states (clean/low-confidence/anomaly/overbill), reports breakdowns, truck registry, and source connections. Clearly-labeled sample data, not real haul records. Every figure the UI shows is computed by the real pipeline from these inputs — nothing is hardcoded in the frontend.",
-
+  "_comment": "Single declarative seed for the LoadTruth demo tenant. Loaded by app/tickets/seed.py on startup (idempotent). Exercises every surface: dashboard money-frame, review-console states (clean/low-confidence/anomaly/overbill), reports breakdowns, truck registry, and source connections. Clearly-labeled sample data, not real haul records. Every figure the UI shows is computed by the real pipeline from these inputs \u2014 nothing is hardcoded in the frontend.",
   "tenant_id": "11111111-1111-1111-1111-111111111111",
-
-  "event": {
-    "id": "22222222-2222-2222-2222-222222222222",
-    "name": "Hurricane Season 2026",
-    "location": "Pinellas County, FL",
-    "status": "active",
-    "rate_table": {
-      "vegetative": 8.0,
-      "construction_demolition": 12.0,
-      "white_goods": 20.0,
-      "hazardous": 45.0,
-      "other": 6.0
-    }
-  },
-
-  "benchmark_accuracy_within_10pct": 0.9,
-
   "trucks": [
-    { "truck_number": "FL-DT-3391", "body_type": "tandem", "certified_cubic_yards": 20 },
-    { "truck_number": "FL-DT-1182", "body_type": "tandem", "certified_cubic_yards": 30 },
-    { "truck_number": "FL-DT-2204", "body_type": "tandem", "certified_cubic_yards": 25 },
-    { "truck_number": "FL-DT-4417", "body_type": "walking-floor", "certified_cubic_yards": 30 },
-    { "truck_number": "FL-DT-5590", "body_type": "roll-off", "certified_cubic_yards": 15 },
-    { "truck_number": "FL-DT-6612", "body_type": "tandem", "certified_cubic_yards": 22 },
-    { "truck_number": "FL-DT-6845", "body_type": "roll-off", "certified_cubic_yards": 18 },
-    { "truck_number": "FL-DT-7120", "body_type": "walking-floor", "certified_cubic_yards": 35 },
-    { "truck_number": "FL-DT-7788", "body_type": "tandem", "certified_cubic_yards": 20 },
-    { "truck_number": "FL-DT-8043", "body_type": "roll-off", "certified_cubic_yards": 16 },
-    { "truck_number": "FL-DT-8290", "body_type": "tandem", "certified_cubic_yards": 24 },
-    { "truck_number": "FL-DT-9014", "body_type": "walking-floor", "certified_cubic_yards": 32 },
-    { "truck_number": "FL-DT-9356", "body_type": "tandem", "certified_cubic_yards": 20 },
-    { "truck_number": "FL-DT-9601", "body_type": "roll-off", "certified_cubic_yards": 15 }
-  ],
-
-  "users": [
-    { "email": "operator@gulfresponse.org", "full_name": "Operator", "role": "supervisor", "status": "active" },
-    { "email": "monitor1@gulfresponse.org", "full_name": "Field Monitor", "role": "monitor", "status": "active" },
-    { "email": "admin@pinellas.gov", "full_name": "County Admin", "role": "county_admin", "status": "active" },
-    { "email": "auditor@state.fl.us", "full_name": "State Auditor", "role": "auditor", "status": "active" },
-    { "email": "root@loadtruth.io", "full_name": "System Owner", "role": "super_admin", "status": "active" }
-  ],
-
-  "sources": [
-    { "kind": "upload", "name": "Monitor uploads", "status": "active", "config": {} },
     {
-      "kind": "s3",
-      "name": "County clip archive (S3)",
-      "status": "active",
-      "config": { "bucket": "pinellas-debris-clips", "region": "us-east-1", "prefix": "2026/" }
+      "truck_number": "FL-DT-3391",
+      "body_type": "tandem",
+      "certified_cubic_yards": 20
     },
     {
-      "kind": "google_drive",
-      "name": "Field uploads (Drive)",
-      "status": "active",
-      "config": { "folder_id": "1AbCdEfGhIjKlMnOpQrStUvWxYz" }
+      "truck_number": "FL-DT-1182",
+      "body_type": "tandem",
+      "certified_cubic_yards": 30
     },
     {
-      "kind": "rtsp",
-      "name": "Tower camera, Site 4",
-      "status": "paused",
-      "config": { "url": "rtsp://cameras.local/site4/stream" }
+      "truck_number": "FL-DT-2204",
+      "body_type": "tandem",
+      "certified_cubic_yards": 25
     },
     {
-      "kind": "dropbox",
-      "name": "Contractor dropbox",
-      "status": "error",
-      "config": { "path": "/debris-clips/pinellas" }
+      "truck_number": "FL-DT-4417",
+      "body_type": "walking-floor",
+      "certified_cubic_yards": 30
+    },
+    {
+      "truck_number": "FL-DT-5590",
+      "body_type": "roll-off",
+      "certified_cubic_yards": 15
+    },
+    {
+      "truck_number": "FL-DT-6612",
+      "body_type": "tandem",
+      "certified_cubic_yards": 22
+    },
+    {
+      "truck_number": "FL-DT-6845",
+      "body_type": "roll-off",
+      "certified_cubic_yards": 18
+    },
+    {
+      "truck_number": "FL-DT-7120",
+      "body_type": "walking-floor",
+      "certified_cubic_yards": 35
+    },
+    {
+      "truck_number": "FL-DT-7788",
+      "body_type": "tandem",
+      "certified_cubic_yards": 20
+    },
+    {
+      "truck_number": "FL-DT-8043",
+      "body_type": "roll-off",
+      "certified_cubic_yards": 16
+    },
+    {
+      "truck_number": "FL-DT-8290",
+      "body_type": "tandem",
+      "certified_cubic_yards": 24
+    },
+    {
+      "truck_number": "FL-DT-9014",
+      "body_type": "walking-floor",
+      "certified_cubic_yards": 32
+    },
+    {
+      "truck_number": "FL-DT-9356",
+      "body_type": "tandem",
+      "certified_cubic_yards": 20
+    },
+    {
+      "truck_number": "FL-DT-9601",
+      "body_type": "roll-off",
+      "certified_cubic_yards": 15
     }
   ],
-
-  "tickets": [
+  "users": [
     {
-      "label": "money frame: monitor over-called 80% vs LoadTruth 62% -> $43.20",
-      "debris_class": "construction_demolition",
-      "certified_cubic_yards": 20,
-      "rate_per_cy": 12,
-      "est_fill_pct": 62,
-      "monitor_fill_pct": 80,
-      "truck_id": "FL-DT-3391",
-      "status": "draft",
-      "evidence_frames": ["frame_0042.jpg", "frame_0051.jpg"],
-      "anomaly": {
-        "type": "capacity_exceeded",
-        "severity": "high",
-        "explanation": "Monitor call implies volume above certified capacity."
-      }
+      "email": "operator@gulfresponse.org",
+      "full_name": "Operator",
+      "role": "supervisor",
+      "status": "active"
     },
     {
-      "label": "clean full load, monitor agrees",
-      "debris_class": "vegetative",
-      "certified_cubic_yards": 30,
-      "rate_per_cy": 8,
-      "est_fill_pct": 90,
-      "monitor_fill_pct": 90,
-      "truck_id": "FL-DT-1182",
-      "status": "confirmed",
-      "evidence_frames": ["frame_0110.jpg"]
+      "email": "monitor1@gulfresponse.org",
+      "full_name": "Field Monitor",
+      "role": "monitor",
+      "status": "active"
     },
     {
-      "label": "clean partial load, monitor agrees",
-      "debris_class": "vegetative",
-      "certified_cubic_yards": 25,
-      "rate_per_cy": 8,
-      "est_fill_pct": 40,
-      "monitor_fill_pct": 40,
-      "truck_id": "FL-DT-2204",
-      "status": "confirmed",
-      "evidence_frames": ["frame_0205.jpg"]
+      "email": "admin@pinellas.gov",
+      "full_name": "County Admin",
+      "role": "county_admin",
+      "status": "active"
     },
     {
-      "label": "low-confidence placard, draft, no monitor call",
-      "debris_class": "construction_demolition",
-      "certified_cubic_yards": 18,
-      "rate_per_cy": 12,
-      "est_fill_pct": 55,
-      "monitor_fill_pct": null,
-      "truck_id": "FL-DT-07??",
-      "status": "draft",
-      "evidence_frames": ["frame_0303.jpg"],
-      "anomaly": {
-        "type": "identity_unreadable",
-        "severity": "warn",
-        "explanation": "Placard could not be read confidently."
-      }
+      "email": "auditor@state.fl.us",
+      "full_name": "State Auditor",
+      "role": "auditor",
+      "status": "active"
     },
     {
-      "label": "hollow/fluffed load",
-      "debris_class": "vegetative",
-      "certified_cubic_yards": 30,
-      "rate_per_cy": 8,
-      "est_fill_pct": 35,
-      "monitor_fill_pct": 75,
-      "truck_id": "FL-DT-4417",
-      "status": "draft",
-      "evidence_frames": ["frame_0410.jpg", "frame_0418.jpg"],
-      "anomaly": {
-        "type": "hollow_load",
-        "severity": "warn",
-        "explanation": "High bed coverage with low credited fill — possible fluffed load."
-      }
+      "email": "root@loadtruth.io",
+      "full_name": "System Owner",
+      "role": "super_admin",
+      "status": "active"
+    }
+  ],
+  "events": [
+    {
+      "id": "22222222-2222-2222-2222-222222222222",
+      "name": "Hurricane Season 2026",
+      "location": "Pinellas County, FL",
+      "status": "active",
+      "benchmark_accuracy_within_10pct": 0.9,
+      "rate_table": {
+        "vegetative": 8.0,
+        "construction_demolition": 12.0,
+        "white_goods": 20.0,
+        "hazardous": 45.0,
+        "other": 6.0
+      },
+      "sources": [
+        {
+          "kind": "upload",
+          "name": "Monitor uploads",
+          "status": "active",
+          "config": {}
+        },
+        {
+          "kind": "s3",
+          "name": "County clip archive (S3)",
+          "status": "active",
+          "config": {
+            "bucket": "pinellas-debris-clips",
+            "region": "us-east-1",
+            "prefix": "2026/"
+          }
+        },
+        {
+          "kind": "google_drive",
+          "name": "Field uploads (Drive)",
+          "status": "active",
+          "config": {
+            "folder_id": "1AbCdEfGhIjKlMnOpQrStUvWxYz"
+          }
+        },
+        {
+          "kind": "rtsp",
+          "name": "Tower camera, Site 4",
+          "status": "paused",
+          "config": {
+            "url": "rtsp://cameras.local/site4/stream"
+          }
+        },
+        {
+          "kind": "dropbox",
+          "name": "Contractor dropbox",
+          "status": "error",
+          "config": {
+            "path": "/debris-clips/pinellas"
+          }
+        }
+      ],
+      "tickets": [
+        {
+          "label": "money frame: monitor over-called 80% vs LoadTruth 62% -> $43.20",
+          "debris_class": "construction_demolition",
+          "certified_cubic_yards": 20,
+          "rate_per_cy": 12,
+          "est_fill_pct": 62,
+          "monitor_fill_pct": 80,
+          "truck_id": "FL-DT-3391",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_0042.jpg",
+            "frame_0051.jpg"
+          ],
+          "anomaly": {
+            "type": "capacity_exceeded",
+            "severity": "high",
+            "explanation": "Monitor call implies volume above certified capacity."
+          }
+        },
+        {
+          "label": "clean full load, monitor agrees",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 30,
+          "rate_per_cy": 8,
+          "est_fill_pct": 90,
+          "monitor_fill_pct": 90,
+          "truck_id": "FL-DT-1182",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_0110.jpg"
+          ]
+        },
+        {
+          "label": "clean partial load, monitor agrees",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 25,
+          "rate_per_cy": 8,
+          "est_fill_pct": 40,
+          "monitor_fill_pct": 40,
+          "truck_id": "FL-DT-2204",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_0205.jpg"
+          ]
+        },
+        {
+          "label": "low-confidence placard, draft, no monitor call",
+          "debris_class": "construction_demolition",
+          "certified_cubic_yards": 18,
+          "rate_per_cy": 12,
+          "est_fill_pct": 55,
+          "monitor_fill_pct": null,
+          "truck_id": "FL-DT-07??",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_0303.jpg"
+          ],
+          "anomaly": {
+            "type": "identity_unreadable",
+            "severity": "warn",
+            "explanation": "Placard could not be read confidently."
+          }
+        },
+        {
+          "label": "hollow/fluffed load",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 30,
+          "rate_per_cy": 8,
+          "est_fill_pct": 35,
+          "monitor_fill_pct": 75,
+          "truck_id": "FL-DT-4417",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_0410.jpg",
+            "frame_0418.jpg"
+          ],
+          "anomaly": {
+            "type": "hollow_load",
+            "severity": "warn",
+            "explanation": "High bed coverage with low credited fill \u2014 possible fluffed load."
+          }
+        },
+        {
+          "label": "white goods, capacity mismatch, monitor over-called",
+          "debris_class": "white_goods",
+          "certified_cubic_yards": 15,
+          "rate_per_cy": 20,
+          "est_fill_pct": 70,
+          "monitor_fill_pct": 100,
+          "truck_id": "FL-DT-5590",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_0512.jpg"
+          ],
+          "anomaly": {
+            "type": "capacity_exceeded",
+            "severity": "high",
+            "explanation": "Measured load approaches/exceeds certified capacity."
+          }
+        },
+        {
+          "label": "veg over-call, mid delta",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 22,
+          "rate_per_cy": 8,
+          "est_fill_pct": 58,
+          "monitor_fill_pct": 85,
+          "truck_id": "FL-DT-6612",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_0601.jpg"
+          ]
+        },
+        {
+          "label": "C&D over-call, confirmed after review",
+          "debris_class": "construction_demolition",
+          "certified_cubic_yards": 18,
+          "rate_per_cy": 12,
+          "est_fill_pct": 66,
+          "monitor_fill_pct": 78,
+          "truck_id": "FL-DT-6845",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_0620.jpg",
+            "frame_0629.jpg"
+          ]
+        },
+        {
+          "label": "walking-floor veg, agreement",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 35,
+          "rate_per_cy": 8,
+          "est_fill_pct": 80,
+          "monitor_fill_pct": 82,
+          "truck_id": "FL-DT-7120",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_0701.jpg"
+          ]
+        },
+        {
+          "label": "hazardous load, high rate, over-call",
+          "debris_class": "hazardous",
+          "certified_cubic_yards": 20,
+          "rate_per_cy": 45,
+          "est_fill_pct": 48,
+          "monitor_fill_pct": 70,
+          "truck_id": "FL-DT-7788",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_0742.jpg"
+          ],
+          "anomaly": {
+            "type": "low_confidence",
+            "severity": "info",
+            "explanation": "Occlusion reduced fill-estimate confidence; confirm manually."
+          }
+        },
+        {
+          "label": "roll-off white goods, under-call (measured > monitor)",
+          "debris_class": "white_goods",
+          "certified_cubic_yards": 16,
+          "rate_per_cy": 20,
+          "est_fill_pct": 72,
+          "monitor_fill_pct": 60,
+          "truck_id": "FL-DT-8043",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_0803.jpg"
+          ]
+        },
+        {
+          "label": "other debris, small delta",
+          "debris_class": "other",
+          "certified_cubic_yards": 24,
+          "rate_per_cy": 6,
+          "est_fill_pct": 50,
+          "monitor_fill_pct": 55,
+          "truck_id": "FL-DT-8290",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_0830.jpg"
+          ]
+        },
+        {
+          "label": "walking-floor veg, big over-call, disputed",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 32,
+          "rate_per_cy": 8,
+          "est_fill_pct": 45,
+          "monitor_fill_pct": 90,
+          "truck_id": "FL-DT-9014",
+          "status": "disputed",
+          "evidence_frames": [
+            "frame_0901.jpg",
+            "frame_0912.jpg"
+          ],
+          "anomaly": {
+            "type": "hollow_load",
+            "severity": "warn",
+            "explanation": "High bed coverage with low credited fill \u2014 possible fluffed load."
+          }
+        },
+        {
+          "label": "C&D, uncertified truck not in registry",
+          "debris_class": "construction_demolition",
+          "certified_cubic_yards": 20,
+          "rate_per_cy": 12,
+          "est_fill_pct": 60,
+          "monitor_fill_pct": 72,
+          "truck_id": "FL-DT-0000",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_0950.jpg"
+          ],
+          "anomaly": {
+            "type": "uncertified_truck",
+            "severity": "high",
+            "explanation": "Truck has no active certification in the registry."
+          }
+        },
+        {
+          "label": "veg agreement, overridden",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 20,
+          "rate_per_cy": 8,
+          "est_fill_pct": 65,
+          "monitor_fill_pct": 68,
+          "truck_id": "FL-DT-9356",
+          "status": "overridden",
+          "evidence_frames": [
+            "frame_0960.jpg"
+          ]
+        },
+        {
+          "label": "roll-off white goods, agreement confirmed",
+          "debris_class": "white_goods",
+          "certified_cubic_yards": 15,
+          "rate_per_cy": 20,
+          "est_fill_pct": 85,
+          "monitor_fill_pct": 85,
+          "truck_id": "FL-DT-9601",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_0970.jpg"
+          ]
+        },
+        {
+          "label": "veg over-call draft",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 30,
+          "rate_per_cy": 8,
+          "est_fill_pct": 52,
+          "monitor_fill_pct": 70,
+          "truck_id": "FL-DT-1182",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_1001.jpg"
+          ]
+        },
+        {
+          "label": "C&D agreement confirmed",
+          "debris_class": "construction_demolition",
+          "certified_cubic_yards": 22,
+          "rate_per_cy": 12,
+          "est_fill_pct": 74,
+          "monitor_fill_pct": 76,
+          "truck_id": "FL-DT-6612",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_1010.jpg"
+          ]
+        },
+        {
+          "label": "hazardous, agreement, high value",
+          "debris_class": "hazardous",
+          "certified_cubic_yards": 18,
+          "rate_per_cy": 45,
+          "est_fill_pct": 55,
+          "monitor_fill_pct": 58,
+          "truck_id": "FL-DT-6845",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_1020.jpg"
+          ]
+        },
+        {
+          "label": "veg over-call draft, mid",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 35,
+          "rate_per_cy": 8,
+          "est_fill_pct": 60,
+          "monitor_fill_pct": 78,
+          "truck_id": "FL-DT-7120",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_1030.jpg"
+          ]
+        },
+        {
+          "label": "white goods over-call draft",
+          "debris_class": "white_goods",
+          "certified_cubic_yards": 20,
+          "rate_per_cy": 20,
+          "est_fill_pct": 50,
+          "monitor_fill_pct": 68,
+          "truck_id": "FL-DT-7788",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_1040.jpg"
+          ]
+        },
+        {
+          "label": "other, agreement, overridden",
+          "debris_class": "other",
+          "certified_cubic_yards": 16,
+          "rate_per_cy": 6,
+          "est_fill_pct": 44,
+          "monitor_fill_pct": 46,
+          "truck_id": "FL-DT-8043",
+          "status": "overridden",
+          "evidence_frames": [
+            "frame_1050.jpg"
+          ]
+        },
+        {
+          "label": "C&D big over-call, high severity, draft",
+          "debris_class": "construction_demolition",
+          "certified_cubic_yards": 24,
+          "rate_per_cy": 12,
+          "est_fill_pct": 50,
+          "monitor_fill_pct": 95,
+          "truck_id": "FL-DT-8290",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_1060.jpg",
+            "frame_1067.jpg"
+          ],
+          "anomaly": {
+            "type": "capacity_exceeded",
+            "severity": "high",
+            "explanation": "Monitor call implies volume above certified capacity."
+          }
+        },
+        {
+          "label": "veg clean confirmed",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 32,
+          "rate_per_cy": 8,
+          "est_fill_pct": 78,
+          "monitor_fill_pct": 80,
+          "truck_id": "FL-DT-9014",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_1070.jpg"
+          ]
+        },
+        {
+          "label": "white goods, no monitor call yet",
+          "debris_class": "white_goods",
+          "certified_cubic_yards": 15,
+          "rate_per_cy": 20,
+          "est_fill_pct": 66,
+          "monitor_fill_pct": null,
+          "truck_id": "FL-DT-9601",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_1080.jpg"
+          ]
+        },
+        {
+          "label": "veg over-call, disputed",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 20,
+          "rate_per_cy": 8,
+          "est_fill_pct": 48,
+          "monitor_fill_pct": 82,
+          "truck_id": "FL-DT-9356",
+          "status": "disputed",
+          "evidence_frames": [
+            "frame_1090.jpg"
+          ]
+        },
+        {
+          "label": "C&D partial, no call",
+          "debris_class": "construction_demolition",
+          "certified_cubic_yards": 18,
+          "rate_per_cy": 12,
+          "est_fill_pct": 38,
+          "monitor_fill_pct": null,
+          "truck_id": "FL-DT-6845",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_1100.jpg"
+          ]
+        },
+        {
+          "label": "hazardous over-call, draft, high value delta",
+          "debris_class": "hazardous",
+          "certified_cubic_yards": 20,
+          "rate_per_cy": 45,
+          "est_fill_pct": 40,
+          "monitor_fill_pct": 62,
+          "truck_id": "FL-DT-7120",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_1110.jpg"
+          ]
+        },
+        {
+          "label": "veg agreement confirmed",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 25,
+          "rate_per_cy": 8,
+          "est_fill_pct": 70,
+          "monitor_fill_pct": 72,
+          "truck_id": "FL-DT-2204",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_1120.jpg"
+          ]
+        },
+        {
+          "label": "white goods agreement overridden",
+          "debris_class": "white_goods",
+          "certified_cubic_yards": 16,
+          "rate_per_cy": 20,
+          "est_fill_pct": 60,
+          "monitor_fill_pct": 63,
+          "truck_id": "FL-DT-8043",
+          "status": "overridden",
+          "evidence_frames": [
+            "frame_1130.jpg"
+          ]
+        },
+        {
+          "label": "other over-call draft",
+          "debris_class": "other",
+          "certified_cubic_yards": 24,
+          "rate_per_cy": 6,
+          "est_fill_pct": 42,
+          "monitor_fill_pct": 60,
+          "truck_id": "FL-DT-8290",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_1140.jpg"
+          ]
+        },
+        {
+          "label": "C&D clean confirmed",
+          "debris_class": "construction_demolition",
+          "certified_cubic_yards": 20,
+          "rate_per_cy": 12,
+          "est_fill_pct": 68,
+          "monitor_fill_pct": 70,
+          "truck_id": "FL-DT-3391",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_1150.jpg"
+          ]
+        },
+        {
+          "label": "veg big over-call draft with low confidence",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 30,
+          "rate_per_cy": 8,
+          "est_fill_pct": 44,
+          "monitor_fill_pct": 88,
+          "truck_id": "FL-DT-4417",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_1160.jpg"
+          ],
+          "anomaly": {
+            "type": "low_confidence",
+            "severity": "info",
+            "explanation": "Extreme fill gradient reduced estimate confidence."
+          }
+        },
+        {
+          "label": "white goods confirmed agreement",
+          "debris_class": "white_goods",
+          "certified_cubic_yards": 15,
+          "rate_per_cy": 20,
+          "est_fill_pct": 82,
+          "monitor_fill_pct": 84,
+          "truck_id": "FL-DT-5590",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_1170.jpg"
+          ]
+        }
+      ]
     },
     {
-      "label": "white goods, capacity mismatch, monitor over-called",
-      "debris_class": "white_goods",
-      "certified_cubic_yards": 15,
-      "rate_per_cy": 20,
-      "est_fill_pct": 70,
-      "monitor_fill_pct": 100,
-      "truck_id": "FL-DT-5590",
-      "status": "draft",
-      "evidence_frames": ["frame_0512.jpg"],
-      "anomaly": {
-        "type": "capacity_exceeded",
-        "severity": "high",
-        "explanation": "Measured load approaches/exceeds certified capacity."
-      }
-    },
-
-    {
-      "label": "veg over-call, mid delta",
-      "debris_class": "vegetative",
-      "certified_cubic_yards": 22,
-      "rate_per_cy": 8,
-      "est_fill_pct": 58,
-      "monitor_fill_pct": 85,
-      "truck_id": "FL-DT-6612",
-      "status": "draft",
-      "evidence_frames": ["frame_0601.jpg"]
-    },
-    {
-      "label": "C&D over-call, confirmed after review",
-      "debris_class": "construction_demolition",
-      "certified_cubic_yards": 18,
-      "rate_per_cy": 12,
-      "est_fill_pct": 66,
-      "monitor_fill_pct": 78,
-      "truck_id": "FL-DT-6845",
-      "status": "confirmed",
-      "evidence_frames": ["frame_0620.jpg", "frame_0629.jpg"]
-    },
-    {
-      "label": "walking-floor veg, agreement",
-      "debris_class": "vegetative",
-      "certified_cubic_yards": 35,
-      "rate_per_cy": 8,
-      "est_fill_pct": 80,
-      "monitor_fill_pct": 82,
-      "truck_id": "FL-DT-7120",
-      "status": "confirmed",
-      "evidence_frames": ["frame_0701.jpg"]
-    },
-    {
-      "label": "hazardous load, high rate, over-call",
-      "debris_class": "hazardous",
-      "certified_cubic_yards": 20,
-      "rate_per_cy": 45,
-      "est_fill_pct": 48,
-      "monitor_fill_pct": 70,
-      "truck_id": "FL-DT-7788",
-      "status": "draft",
-      "evidence_frames": ["frame_0742.jpg"],
-      "anomaly": {
-        "type": "low_confidence",
-        "severity": "info",
-        "explanation": "Occlusion reduced fill-estimate confidence; confirm manually."
-      }
-    },
-    {
-      "label": "roll-off white goods, under-call (measured > monitor)",
-      "debris_class": "white_goods",
-      "certified_cubic_yards": 16,
-      "rate_per_cy": 20,
-      "est_fill_pct": 72,
-      "monitor_fill_pct": 60,
-      "truck_id": "FL-DT-8043",
-      "status": "draft",
-      "evidence_frames": ["frame_0803.jpg"]
-    },
-    {
-      "label": "other debris, small delta",
-      "debris_class": "other",
-      "certified_cubic_yards": 24,
-      "rate_per_cy": 6,
-      "est_fill_pct": 50,
-      "monitor_fill_pct": 55,
-      "truck_id": "FL-DT-8290",
-      "status": "draft",
-      "evidence_frames": ["frame_0830.jpg"]
-    },
-    {
-      "label": "walking-floor veg, big over-call, disputed",
-      "debris_class": "vegetative",
-      "certified_cubic_yards": 32,
-      "rate_per_cy": 8,
-      "est_fill_pct": 45,
-      "monitor_fill_pct": 90,
-      "truck_id": "FL-DT-9014",
-      "status": "disputed",
-      "evidence_frames": ["frame_0901.jpg", "frame_0912.jpg"],
-      "anomaly": {
-        "type": "hollow_load",
-        "severity": "warn",
-        "explanation": "High bed coverage with low credited fill — possible fluffed load."
-      }
-    },
-    {
-      "label": "C&D, uncertified truck not in registry",
-      "debris_class": "construction_demolition",
-      "certified_cubic_yards": 20,
-      "rate_per_cy": 12,
-      "est_fill_pct": 60,
-      "monitor_fill_pct": 72,
-      "truck_id": "FL-DT-0000",
-      "status": "draft",
-      "evidence_frames": ["frame_0950.jpg"],
-      "anomaly": {
-        "type": "uncertified_truck",
-        "severity": "high",
-        "explanation": "Truck has no active certification in the registry."
-      }
-    },
-    {
-      "label": "veg agreement, overridden",
-      "debris_class": "vegetative",
-      "certified_cubic_yards": 20,
-      "rate_per_cy": 8,
-      "est_fill_pct": 65,
-      "monitor_fill_pct": 68,
-      "truck_id": "FL-DT-9356",
-      "status": "overridden",
-      "evidence_frames": ["frame_0960.jpg"]
-    },
-    {
-      "label": "roll-off white goods, agreement confirmed",
-      "debris_class": "white_goods",
-      "certified_cubic_yards": 15,
-      "rate_per_cy": 20,
-      "est_fill_pct": 85,
-      "monitor_fill_pct": 85,
-      "truck_id": "FL-DT-9601",
-      "status": "confirmed",
-      "evidence_frames": ["frame_0970.jpg"]
-    },
-    {
-      "label": "veg over-call draft",
-      "debris_class": "vegetative",
-      "certified_cubic_yards": 30,
-      "rate_per_cy": 8,
-      "est_fill_pct": 52,
-      "monitor_fill_pct": 70,
-      "truck_id": "FL-DT-1182",
-      "status": "draft",
-      "evidence_frames": ["frame_1001.jpg"]
-    },
-    {
-      "label": "C&D agreement confirmed",
-      "debris_class": "construction_demolition",
-      "certified_cubic_yards": 22,
-      "rate_per_cy": 12,
-      "est_fill_pct": 74,
-      "monitor_fill_pct": 76,
-      "truck_id": "FL-DT-6612",
-      "status": "confirmed",
-      "evidence_frames": ["frame_1010.jpg"]
+      "id": "33333333-3333-3333-3333-333333333333",
+      "name": "Camp Fire Recovery 2026",
+      "location": "Butte County, CA",
+      "status": "active",
+      "benchmark_accuracy_within_10pct": 0.87,
+      "rate_table": {
+        "vegetative": 9.5,
+        "construction_demolition": 14.0,
+        "white_goods": 22.0,
+        "hazardous": 52.0,
+        "other": 7.0
+      },
+      "sources": [
+        {
+          "kind": "upload",
+          "name": "Monitor uploads",
+          "status": "active",
+          "config": {}
+        },
+        {
+          "kind": "s3",
+          "name": "CalRecycle archive (S3)",
+          "status": "active",
+          "config": {
+            "bucket": "butte-debris-clips",
+            "region": "us-west-2",
+            "prefix": "2026/"
+          }
+        },
+        {
+          "kind": "hls",
+          "name": "Staging yard camera",
+          "status": "active",
+          "config": {
+            "url": "https://cams.butte.ca/yard1/index.m3u8"
+          }
+        }
+      ],
+      "tickets": [
+        {
+          "label": "ash + C&D over-call",
+          "debris_class": "construction_demolition",
+          "certified_cubic_yards": 25,
+          "rate_per_cy": 14,
+          "est_fill_pct": 58,
+          "monitor_fill_pct": 82,
+          "truck_id": "FL-DT-9014",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_2001.jpg"
+          ],
+          "anomaly": {
+            "type": "capacity_exceeded",
+            "severity": "high",
+            "explanation": "Monitor call implies volume above certified capacity."
+          }
+        },
+        {
+          "label": "veg clean confirmed",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 35,
+          "rate_per_cy": 9.5,
+          "est_fill_pct": 84,
+          "monitor_fill_pct": 86,
+          "truck_id": "FL-DT-7120",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_2010.jpg"
+          ]
+        },
+        {
+          "label": "hazardous ash over-call, high value",
+          "debris_class": "hazardous",
+          "certified_cubic_yards": 20,
+          "rate_per_cy": 52,
+          "est_fill_pct": 46,
+          "monitor_fill_pct": 74,
+          "truck_id": "FL-DT-7788",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_2020.jpg"
+          ],
+          "anomaly": {
+            "type": "low_confidence",
+            "severity": "info",
+            "explanation": "Smoke haze reduced fill-estimate confidence."
+          }
+        },
+        {
+          "label": "white goods agreement",
+          "debris_class": "white_goods",
+          "certified_cubic_yards": 16,
+          "rate_per_cy": 22,
+          "est_fill_pct": 70,
+          "monitor_fill_pct": 72,
+          "truck_id": "FL-DT-8043",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_2030.jpg"
+          ]
+        },
+        {
+          "label": "veg big over-call disputed",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 30,
+          "rate_per_cy": 9.5,
+          "est_fill_pct": 42,
+          "monitor_fill_pct": 88,
+          "truck_id": "FL-DT-4417",
+          "status": "disputed",
+          "evidence_frames": [
+            "frame_2040.jpg"
+          ],
+          "anomaly": {
+            "type": "hollow_load",
+            "severity": "warn",
+            "explanation": "High bed coverage with low credited fill."
+          }
+        },
+        {
+          "label": "C&D no monitor call",
+          "debris_class": "construction_demolition",
+          "certified_cubic_yards": 18,
+          "rate_per_cy": 14,
+          "est_fill_pct": 54,
+          "monitor_fill_pct": null,
+          "truck_id": "FL-DT-6845",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_2050.jpg"
+          ]
+        },
+        {
+          "label": "other mid over-call",
+          "debris_class": "other",
+          "certified_cubic_yards": 24,
+          "rate_per_cy": 7,
+          "est_fill_pct": 50,
+          "monitor_fill_pct": 64,
+          "truck_id": "FL-DT-8290",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_2060.jpg"
+          ]
+        },
+        {
+          "label": "veg agreement overridden",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 22,
+          "rate_per_cy": 9.5,
+          "est_fill_pct": 66,
+          "monitor_fill_pct": 69,
+          "truck_id": "FL-DT-6612",
+          "status": "overridden",
+          "evidence_frames": [
+            "frame_2070.jpg"
+          ]
+        }
+      ]
     },
     {
-      "label": "hazardous, agreement, high value",
-      "debris_class": "hazardous",
-      "certified_cubic_yards": 18,
-      "rate_per_cy": 45,
-      "est_fill_pct": 55,
-      "monitor_fill_pct": 58,
-      "truck_id": "FL-DT-6845",
-      "status": "confirmed",
-      "evidence_frames": ["frame_1020.jpg"]
-    },
-    {
-      "label": "veg over-call draft, mid",
-      "debris_class": "vegetative",
-      "certified_cubic_yards": 35,
-      "rate_per_cy": 8,
-      "est_fill_pct": 60,
-      "monitor_fill_pct": 78,
-      "truck_id": "FL-DT-7120",
-      "status": "draft",
-      "evidence_frames": ["frame_1030.jpg"]
-    },
-    {
-      "label": "white goods over-call draft",
-      "debris_class": "white_goods",
-      "certified_cubic_yards": 20,
-      "rate_per_cy": 20,
-      "est_fill_pct": 50,
-      "monitor_fill_pct": 68,
-      "truck_id": "FL-DT-7788",
-      "status": "draft",
-      "evidence_frames": ["frame_1040.jpg"]
-    },
-    {
-      "label": "other, agreement, overridden",
-      "debris_class": "other",
-      "certified_cubic_yards": 16,
-      "rate_per_cy": 6,
-      "est_fill_pct": 44,
-      "monitor_fill_pct": 46,
-      "truck_id": "FL-DT-8043",
-      "status": "overridden",
-      "evidence_frames": ["frame_1050.jpg"]
-    },
-    {
-      "label": "C&D big over-call, high severity, draft",
-      "debris_class": "construction_demolition",
-      "certified_cubic_yards": 24,
-      "rate_per_cy": 12,
-      "est_fill_pct": 50,
-      "monitor_fill_pct": 95,
-      "truck_id": "FL-DT-8290",
-      "status": "draft",
-      "evidence_frames": ["frame_1060.jpg", "frame_1067.jpg"],
-      "anomaly": {
-        "type": "capacity_exceeded",
-        "severity": "high",
-        "explanation": "Monitor call implies volume above certified capacity."
-      }
-    },
-    {
-      "label": "veg clean confirmed",
-      "debris_class": "vegetative",
-      "certified_cubic_yards": 32,
-      "rate_per_cy": 8,
-      "est_fill_pct": 78,
-      "monitor_fill_pct": 80,
-      "truck_id": "FL-DT-9014",
-      "status": "confirmed",
-      "evidence_frames": ["frame_1070.jpg"]
-    },
-    {
-      "label": "white goods, no monitor call yet",
-      "debris_class": "white_goods",
-      "certified_cubic_yards": 15,
-      "rate_per_cy": 20,
-      "est_fill_pct": 66,
-      "monitor_fill_pct": null,
-      "truck_id": "FL-DT-9601",
-      "status": "draft",
-      "evidence_frames": ["frame_1080.jpg"]
-    },
-    {
-      "label": "veg over-call, disputed",
-      "debris_class": "vegetative",
-      "certified_cubic_yards": 20,
-      "rate_per_cy": 8,
-      "est_fill_pct": 48,
-      "monitor_fill_pct": 82,
-      "truck_id": "FL-DT-9356",
-      "status": "disputed",
-      "evidence_frames": ["frame_1090.jpg"]
-    },
-    {
-      "label": "C&D partial, no call",
-      "debris_class": "construction_demolition",
-      "certified_cubic_yards": 18,
-      "rate_per_cy": 12,
-      "est_fill_pct": 38,
-      "monitor_fill_pct": null,
-      "truck_id": "FL-DT-6845",
-      "status": "draft",
-      "evidence_frames": ["frame_1100.jpg"]
-    },
-    {
-      "label": "hazardous over-call, draft, high value delta",
-      "debris_class": "hazardous",
-      "certified_cubic_yards": 20,
-      "rate_per_cy": 45,
-      "est_fill_pct": 40,
-      "monitor_fill_pct": 62,
-      "truck_id": "FL-DT-7120",
-      "status": "draft",
-      "evidence_frames": ["frame_1110.jpg"]
-    },
-    {
-      "label": "veg agreement confirmed",
-      "debris_class": "vegetative",
-      "certified_cubic_yards": 25,
-      "rate_per_cy": 8,
-      "est_fill_pct": 70,
-      "monitor_fill_pct": 72,
-      "truck_id": "FL-DT-2204",
-      "status": "confirmed",
-      "evidence_frames": ["frame_1120.jpg"]
-    },
-    {
-      "label": "white goods agreement overridden",
-      "debris_class": "white_goods",
-      "certified_cubic_yards": 16,
-      "rate_per_cy": 20,
-      "est_fill_pct": 60,
-      "monitor_fill_pct": 63,
-      "truck_id": "FL-DT-8043",
-      "status": "overridden",
-      "evidence_frames": ["frame_1130.jpg"]
-    },
-    {
-      "label": "other over-call draft",
-      "debris_class": "other",
-      "certified_cubic_yards": 24,
-      "rate_per_cy": 6,
-      "est_fill_pct": 42,
-      "monitor_fill_pct": 60,
-      "truck_id": "FL-DT-8290",
-      "status": "draft",
-      "evidence_frames": ["frame_1140.jpg"]
-    },
-    {
-      "label": "C&D clean confirmed",
-      "debris_class": "construction_demolition",
-      "certified_cubic_yards": 20,
-      "rate_per_cy": 12,
-      "est_fill_pct": 68,
-      "monitor_fill_pct": 70,
-      "truck_id": "FL-DT-3391",
-      "status": "confirmed",
-      "evidence_frames": ["frame_1150.jpg"]
-    },
-    {
-      "label": "veg big over-call draft with low confidence",
-      "debris_class": "vegetative",
-      "certified_cubic_yards": 30,
-      "rate_per_cy": 8,
-      "est_fill_pct": 44,
-      "monitor_fill_pct": 88,
-      "truck_id": "FL-DT-4417",
-      "status": "draft",
-      "evidence_frames": ["frame_1160.jpg"],
-      "anomaly": {
-        "type": "low_confidence",
-        "severity": "info",
-        "explanation": "Extreme fill gradient reduced estimate confidence."
-      }
-    },
-    {
-      "label": "white goods confirmed agreement",
-      "debris_class": "white_goods",
-      "certified_cubic_yards": 15,
-      "rate_per_cy": 20,
-      "est_fill_pct": 82,
-      "monitor_fill_pct": 84,
-      "truck_id": "FL-DT-5590",
-      "status": "confirmed",
-      "evidence_frames": ["frame_1170.jpg"]
+      "id": "44444444-4444-4444-4444-444444444444",
+      "name": "Winter Storm Uri Cleanup 2026",
+      "location": "Travis County, TX",
+      "status": "active",
+      "benchmark_accuracy_within_10pct": 0.91,
+      "rate_table": {
+        "vegetative": 8.5,
+        "construction_demolition": 11.0,
+        "white_goods": 19.0,
+        "hazardous": 40.0,
+        "other": 6.5
+      },
+      "sources": [
+        {
+          "kind": "upload",
+          "name": "Monitor uploads",
+          "status": "active",
+          "config": {}
+        },
+        {
+          "kind": "google_drive",
+          "name": "Contractor Drive",
+          "status": "active",
+          "config": {
+            "folder_id": "1TxUriDebris2026"
+          }
+        },
+        {
+          "kind": "rtsp",
+          "name": "Landfill gate camera",
+          "status": "paused",
+          "config": {
+            "url": "rtsp://cams.travis.tx/gate/stream"
+          }
+        }
+      ],
+      "tickets": [
+        {
+          "label": "veg over-call, mid delta",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 30,
+          "rate_per_cy": 8.5,
+          "est_fill_pct": 60,
+          "monitor_fill_pct": 80,
+          "truck_id": "FL-DT-1182",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_3001.jpg"
+          ]
+        },
+        {
+          "label": "C&D agreement confirmed",
+          "debris_class": "construction_demolition",
+          "certified_cubic_yards": 20,
+          "rate_per_cy": 11,
+          "est_fill_pct": 72,
+          "monitor_fill_pct": 74,
+          "truck_id": "FL-DT-3391",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_3010.jpg"
+          ]
+        },
+        {
+          "label": "fallen-limb veg big over-call",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 25,
+          "rate_per_cy": 8.5,
+          "est_fill_pct": 48,
+          "monitor_fill_pct": 90,
+          "truck_id": "FL-DT-2204",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_3020.jpg"
+          ],
+          "anomaly": {
+            "type": "capacity_exceeded",
+            "severity": "high",
+            "explanation": "Monitor call implies volume above certified capacity."
+          }
+        },
+        {
+          "label": "white goods under-call",
+          "debris_class": "white_goods",
+          "certified_cubic_yards": 15,
+          "rate_per_cy": 19,
+          "est_fill_pct": 74,
+          "monitor_fill_pct": 62,
+          "truck_id": "FL-DT-5590",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_3030.jpg"
+          ]
+        },
+        {
+          "label": "hazardous agreement",
+          "debris_class": "hazardous",
+          "certified_cubic_yards": 18,
+          "rate_per_cy": 40,
+          "est_fill_pct": 56,
+          "monitor_fill_pct": 58,
+          "truck_id": "FL-DT-6845",
+          "status": "confirmed",
+          "evidence_frames": [
+            "frame_3040.jpg"
+          ]
+        },
+        {
+          "label": "veg unreadable placard",
+          "debris_class": "vegetative",
+          "certified_cubic_yards": 32,
+          "rate_per_cy": 8.5,
+          "est_fill_pct": 50,
+          "monitor_fill_pct": null,
+          "truck_id": "FL-DT-09??",
+          "status": "draft",
+          "evidence_frames": [
+            "frame_3050.jpg"
+          ],
+          "anomaly": {
+            "type": "identity_unreadable",
+            "severity": "warn",
+            "explanation": "Placard could not be read confidently."
+          }
+        },
+        {
+          "label": "C&D agreement overridden",
+          "debris_class": "construction_demolition",
+          "certified_cubic_yards": 24,
+          "rate_per_cy": 11,
+          "est_fill_pct": 64,
+          "monitor_fill_pct": 67,
+          "truck_id": "FL-DT-8290",
+          "status": "overridden",
+          "evidence_frames": [
+            "frame_3060.jpg"
+          ]
+        }
+      ]
     }
   ]
 }

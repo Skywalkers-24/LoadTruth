@@ -17,12 +17,25 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.ai import get_ai_client
+from app.api.deps import current_member
 from app.api.repo import get_repository
+from app.auth.session import Session
 from app.config import get_settings
 from app.db.base import Base
 from app.main import app
 from app.tickets.repository import SqlTicketRepository
-from app.tickets.seed import seed_demo
+from app.tickets.seed import DEMO_TENANT_ID, seed_demo
+
+
+def make_session(role: str = "super_admin", email: str = "test@loadtruth.io") -> Session:
+    """A test session identity for the demo tenant with the given role."""
+    return Session(
+        user_id="00000000-0000-0000-0000-0000000000aa",
+        tenant_id=str(DEMO_TENANT_ID),
+        email=email,
+        role=role,
+        full_name="Test User",
+    )
 
 
 @pytest_asyncio.fixture
@@ -56,6 +69,19 @@ def client(sessionmaker: async_sessionmaker[AsyncSession]) -> Iterator[TestClien
     get_settings.cache_clear()
     get_ai_client.cache_clear()
     app.dependency_overrides[get_repository] = _override
+    # Default to an authenticated super_admin so existing API tests pass; tests
+    # that assert RBAC override current_member with as_role(...) below.
+    app.dependency_overrides[current_member] = lambda: make_session()
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def as_role(client: TestClient):
+    """Return a callable that re-binds the signed-in role for RBAC tests."""
+
+    def _set(role: str) -> None:
+        app.dependency_overrides[current_member] = lambda: make_session(role=role)
+
+    return _set

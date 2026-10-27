@@ -519,6 +519,26 @@ class SqlTicketRepository:
         )
         return list(rows.scalars().all())
 
+    async def get_user_by_email(self, tenant_id: UUID, email: str) -> models.User | None:
+        """Look up a member by email within the tenant (used for login)."""
+        return (
+            await self._s.execute(
+                select(models.User)
+                .where(models.User.tenant_id == tenant_id)
+                .where(func.lower(models.User.email) == email.strip().lower())
+            )
+        ).scalar_one_or_none()
+
+    async def get_user(self, tenant_id: UUID, user_id: UUID) -> models.User | None:
+        """Fetch a member by id within the tenant (used to refresh identity)."""
+        return (
+            await self._s.execute(
+                select(models.User)
+                .where(models.User.tenant_id == tenant_id)
+                .where(models.User.id == user_id)
+            )
+        ).scalar_one_or_none()
+
     async def _user_email_taken(self, tenant_id: UUID, email: str) -> bool:
         row = (
             await self._s.execute(

@@ -5,7 +5,10 @@ import { QueryProvider } from "@/lib/query";
 import { ThemeProvider, themeInitScript } from "@/lib/theme";
 import { ToastProvider } from "@/components/ui/toast";
 import { EventProvider } from "@/lib/event-context";
+import { AuthProvider } from "@/lib/auth";
+import { AuthGate } from "@/components/auth/auth-gate";
 import { CommandPaletteProvider } from "@/components/shell/command-palette";
+import { TooltipProvider } from "@/components/ui/shadcn/tooltip";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
@@ -31,11 +34,17 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <ThemeProvider>
           <QueryProvider>
-            <EventProvider>
-              <ToastProvider>
-                <CommandPaletteProvider>{children}</CommandPaletteProvider>
-              </ToastProvider>
-            </EventProvider>
+            <TooltipProvider delayDuration={200}>
+              <AuthProvider>
+                <AuthGate>
+                  <EventProvider>
+                    <ToastProvider>
+                      <CommandPaletteProvider>{children}</CommandPaletteProvider>
+                    </ToastProvider>
+                  </EventProvider>
+                </AuthGate>
+              </AuthProvider>
+            </TooltipProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>

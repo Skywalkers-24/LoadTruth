@@ -32,7 +32,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
+    const el = document.documentElement;
+    el.setAttribute("data-theme", theme);
+    // shadcn components (and their chart color styles) key dark mode off a
+    // `.dark` class, so we mirror the theme onto the class list too.
+    el.classList.toggle("dark", theme === "dark");
     window.localStorage.setItem(STORAGE_KEY, theme);
   }, [theme]);
 
@@ -55,6 +59,8 @@ export const themeInitScript = `
 (function(){try{
   var k='${STORAGE_KEY}';var s=localStorage.getItem(k);
   var t=(s==='dark'||s==='light')?s:'dark';
-  document.documentElement.setAttribute('data-theme',t);
-}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();
+  var e=document.documentElement;
+  e.setAttribute('data-theme',t);
+  if(t==='dark'){e.classList.add('dark');}
+}catch(e){document.documentElement.setAttribute('data-theme','dark');document.documentElement.classList.add('dark');}})();
 `;

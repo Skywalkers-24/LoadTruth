@@ -73,6 +73,27 @@ export function useReportsSummary(eventId: string | undefined) {
   });
 }
 
+/**
+ * Reports for every event the member can see, fetched in parallel. Used by the
+ * admin "All events" view in Reports to combine totals across events.
+ */
+export function useAllReports(eventIds: string[], enabled: boolean) {
+  return useQuery({
+    queryKey: ["reports-all", [...eventIds].sort()],
+    enabled: enabled && eventIds.length > 0,
+    queryFn: async () => {
+      const results = await Promise.all(
+        eventIds.map(async (id) => ({
+          eventId: id,
+          summary: await api.reportsSummary(id),
+          tickets: (await api.listTickets({ eventId: id, limit: 100, offset: 0 })).items,
+        })),
+      );
+      return results;
+    },
+  });
+}
+
 /** Record a monitor's fill-% call; invalidates tickets + dashboard. */
 export function useSetMonitorCall() {
   const qc = useQueryClient();

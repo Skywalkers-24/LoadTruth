@@ -14,8 +14,8 @@ from app.tickets.seed import DEMO_EVENT_ID
 
 
 def _all_tickets(client: TestClient) -> list[dict[str, Any]]:
-    """Every seeded ticket via the paginated list (one page big enough for all)."""
-    body = client.get("/tickets", params={"limit": 100}).json()
+    """Every seeded ticket for the demo event (one page big enough for all)."""
+    body = client.get("/tickets", params={"limit": 100, "event_id": str(DEMO_EVENT_ID)}).json()
     return list(body["items"])
 
 
@@ -30,13 +30,15 @@ def _draft_without_call_id(client: TestClient) -> str:
 
 def test_list_events(client: TestClient) -> None:
     events = client.get("/events").json()
-    assert len(events) == 1
-    assert events[0]["id"] == str(DEMO_EVENT_ID)
-    assert events[0]["rate_table"]["construction_demolition"] == 12.0
+    assert len(events) == 3  # Hurricane, Camp Fire, Winter Storm Uri
+    ids = {e["id"] for e in events}
+    assert str(DEMO_EVENT_ID) in ids
+    demo = next(e for e in events if e["id"] == str(DEMO_EVENT_ID))
+    assert demo["rate_table"]["construction_demolition"] == 12.0
 
 
 def test_list_tickets_returns_seed(client: TestClient) -> None:
-    body = client.get("/tickets", params={"limit": 100}).json()
+    body = client.get("/tickets", params={"limit": 100, "event_id": str(DEMO_EVENT_ID)}).json()
     assert body["total"] == 34
     assert len(body["items"]) == 34
     # Every ticket carries a valuation with an estimate.
@@ -114,7 +116,7 @@ def test_dashboard_rollup(client: TestClient) -> None:
 
 
 def test_list_tickets_default_envelope(client: TestClient) -> None:
-    body = client.get("/tickets").json()
+    body = client.get("/tickets", params={"event_id": str(DEMO_EVENT_ID)}).json()
     assert set(body) == {"items", "total", "limit", "offset"}
     assert body["total"] == 34
     assert body["limit"] == 20  # default
@@ -129,23 +131,24 @@ def test_list_tickets_newest_first(client: TestClient) -> None:
 
 
 def test_list_tickets_limit_caps_page_not_total(client: TestClient) -> None:
-    body = client.get("/tickets", params={"limit": 2}).json()
+    body = client.get("/tickets", params={"limit": 2, "event_id": str(DEMO_EVENT_ID)}).json()
     assert len(body["items"]) == 2
     assert body["total"] == 34  # total reflects the full match, not the page
     assert body["limit"] == 2
 
 
 def test_list_tickets_offset_paginates(client: TestClient) -> None:
-    all_items = client.get("/tickets", params={"limit": 100}).json()["items"]
-    page1 = client.get("/tickets", params={"limit": 2, "offset": 0}).json()
-    page2 = client.get("/tickets", params={"limit": 2, "offset": 2}).json()
+    ev = {"event_id": str(DEMO_EVENT_ID)}
+    all_items = client.get("/tickets", params={"limit": 100, **ev}).json()["items"]
+    page1 = client.get("/tickets", params={"limit": 2, "offset": 0, **ev}).json()
+    page2 = client.get("/tickets", params={"limit": 2, "offset": 2, **ev}).json()
     assert [t["id"] for t in page1["items"]] == [t["id"] for t in all_items[0:2]]
     assert [t["id"] for t in page2["items"]] == [t["id"] for t in all_items[2:4]]
     assert page1["total"] == page2["total"] == 34
 
 
 def test_list_tickets_offset_past_end_is_empty(client: TestClient) -> None:
-    body = client.get("/tickets", params={"offset": 100}).json()
+    body = client.get("/tickets", params={"offset": 100, "event_id": str(DEMO_EVENT_ID)}).json()
     assert body["items"] == []
     assert body["total"] == 34
 
@@ -157,15 +160,20 @@ def test_list_tickets_limit_out_of_range_rejected(client: TestClient) -> None:
 
 
 def test_list_tickets_filter_by_status(client: TestClient) -> None:
-    body = client.get("/tickets", params={"status": "confirmed", "limit": 100}).json()
-    assert body["total"] == 11  # seeded confirmed tickets
+    body = client.get(
+        "/tickets", params={"status": "confirmed", "limit": 100, "event_id": str(DEMO_EVENT_ID)}
+    ).json()
+    assert body["total"] == 11  # seeded confirmed tickets in the demo event
     assert len(body["items"]) == 11
     assert all(t["status"] == "confirmed" for t in body["items"])
 
 
 def test_list_tickets_filter_by_debris_class(client: TestClient) -> None:
-    body = client.get("/tickets", params={"debris_class": "vegetative", "limit": 100}).json()
-    assert body["total"] == 13  # seeded vegetative tickets
+    body = client.get(
+        "/tickets",
+        params={"debris_class": "vegetative", "limit": 100, "event_id": str(DEMO_EVENT_ID)},
+    ).json()
+    assert body["total"] == 13  # seeded vegetative tickets in the demo event
     assert all(t["debris_class"] == "vegetative" for t in body["items"])
 
 

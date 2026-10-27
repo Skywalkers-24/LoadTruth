@@ -35,18 +35,35 @@ def _seed_data() -> dict[str, Any]:
     return {k: v for k, v in raw.items() if not k.startswith("_")}
 
 
+def _events() -> list[dict[str, Any]]:
+    """The seeded events. Supports both an `events` list and a legacy single `event`."""
+    data = _seed_data()
+    if "events" in data:
+        return list(data["events"])
+    if "event" in data:
+        # Legacy shape: a single top-level event plus top-level tickets.
+        ev = dict(data["event"])
+        ev.setdefault("tickets", data.get("tickets", []))
+        ev.setdefault("sources", data.get("sources", []))
+        ev.setdefault(
+            "benchmark_accuracy_within_10pct", data.get("benchmark_accuracy_within_10pct", 0.0)
+        )
+        return [ev]
+    return []
+
+
 # Stable ids the frontend and tests reference directly (single seeded tenant).
 DEMO_TENANT_ID = UUID(str(_seed_data()["tenant_id"]))
-DEMO_EVENT_ID = UUID(str(_seed_data()["event"]["id"]))
+DEMO_EVENT_ID = UUID(str(_events()[0]["id"]))
 
 
 def _build_ticket_rows(
-    tenant_id: UUID, event_id: UUID
+    tenant_id: UUID, event_id: UUID, specs: list[dict[str, Any]]
 ) -> tuple[list[models.Ticket], list[models.Anomaly]]:
-    """Materialize ticket + anomaly ORM rows from the JSON ticket specs."""
+    """Materialize ticket + anomaly ORM rows from an event's JSON ticket specs."""
     tickets: list[models.Ticket] = []
     anomalies: list[models.Anomaly] = []
-    for spec in _seed_data()["tickets"]:
+    for spec in specs:
         dom = new_ticket(
             tenant_id=tenant_id,
             event_id=event_id,
@@ -98,30 +115,28 @@ def _build_ticket_rows(
 
 
 async def seed_demo(session: AsyncSession) -> None:
-    """Idempotently seed the demo tenant from `seed.json`. Safe on every startup."""
-    data = _seed_data()
-    event_id = DEMO_EVENT_ID
-    tenant_id = DEMO_TENANT_ID
+    """Idempotently seed the demo tenant from `seed.json`. Safe on every startup.
 
-    set_seed_accuracy(event_id, float(data.get("benchmark_accuracy_within_10pct", 0.0)))
+    Seeds the tenant-level truck registry and members once, then every event
+    (with its own rate table, sources, and tickets). No-ops if the first event
+    already exists.
+    """
+    data = _seed_data()
+    tenant_id = DEMO_TENANT_ID
+    events = _events()
+
+    for ev in events:
+        set_seed_accuracy(
+            UUID(str(ev["id"])), float(ev.get("benchmark_accuracy_within_10pct", 0.0))
+        )
 
     existing = (
-        await session.execute(select(models.Event).where(models.Event.id == event_id))
+        await session.execute(select(models.Event).where(models.Event.id == DEMO_EVENT_ID))
     ).scalar_one_or_none()
     if existing is not None:
         return
 
-    ev = data["event"]
-    session.add(
-        models.Event(
-            id=event_id,
-            tenant_id=tenant_id,
-            name=ev["name"],
-            location=ev.get("location"),
-            status=ev.get("status", "active"),
-            rate_table=dict(ev.get("rate_table", {})),
-        )
-    )
+    # Tenant-level registry + members (shared across events).
     for t in data.get("trucks", []):
         session.add(
             models.Truck(
@@ -142,18 +157,33 @@ async def seed_demo(session: AsyncSession) -> None:
                 status=u.get("status", "active"),
             )
         )
-    for s in data.get("sources", []):
+
+    # Per-event: the event row, its sources, and its tickets/anomalies.
+    for ev in events:
+        event_id = UUID(str(ev["id"]))
         session.add(
-            models.Source(
+            models.Event(
+                id=event_id,
                 tenant_id=tenant_id,
-                event_id=event_id,
-                kind=s["kind"],
-                name=s["name"],
-                config=dict(s.get("config", {})),
-                status=s.get("status", "active"),
+                name=ev["name"],
+                location=ev.get("location"),
+                status=ev.get("status", "active"),
+                rate_table=dict(ev.get("rate_table", {})),
             )
         )
-    tickets, anomalies = _build_ticket_rows(tenant_id, event_id)
-    session.add_all(tickets)
-    session.add_all(anomalies)
+        for s in ev.get("sources", []):
+            session.add(
+                models.Source(
+                    tenant_id=tenant_id,
+                    event_id=event_id,
+                    kind=s["kind"],
+                    name=s["name"],
+                    config=dict(s.get("config", {})),
+                    status=s.get("status", "active"),
+                )
+            )
+        tickets, anomalies = _build_ticket_rows(tenant_id, event_id, list(ev.get("tickets", [])))
+        session.add_all(tickets)
+        session.add_all(anomalies)
+
     await session.commit()

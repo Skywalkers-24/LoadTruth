@@ -47,26 +47,26 @@ export function EventSwitcher() {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="flex w-full items-center gap-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2.5 py-2 text-left transition-colors hover:border-[var(--color-accent)]"
+        className="flex w-full items-center gap-2.5 rounded-xl border border-sidebar-border bg-sidebar-accent/60 px-2.5 py-2 text-left transition-colors hover:border-[var(--color-brand)]"
       >
         <span
-          className="grid size-8 shrink-0 place-items-center rounded-md text-[12px] font-bold"
-          style={{ backgroundColor: "var(--color-accent-fill)", color: "var(--color-on-accent)" }}
+          className="grid size-8 shrink-0 place-items-center rounded-lg text-[12px] font-bold text-white"
+          style={{ backgroundColor: "var(--color-brand-fill)" }}
           aria-hidden
         >
           {initials}
         </span>
         <span className="flex min-w-0 flex-1 flex-col leading-tight">
-          <span className="line-clamp-2 text-[13px] font-semibold text-[var(--color-text)]">
+          <span className="line-clamp-2 text-[13px] font-semibold text-sidebar-foreground">
             {isError ? "Events unavailable" : (selected?.name ?? "Select an event")}
           </span>
-          <span className="truncate text-[11px] text-[var(--color-muted)]">
+          <span className="truncate text-[11px] text-sidebar-muted">
             {selected?.location ?? org}
           </span>
         </span>
         <ChevronDownIcon
           size={16}
-          className="shrink-0 text-[var(--color-subtle)] transition-transform"
+          className="shrink-0 text-sidebar-muted transition-transform"
           style={open ? { transform: "rotate(180deg)" } : undefined}
         />
       </button>
