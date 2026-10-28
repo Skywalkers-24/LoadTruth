@@ -135,19 +135,39 @@ export function BillingPanel({ b }: { b: BillingSummary }) {
   );
 }
 
-/** Billing started this period, so there is a single month to show. One bar
- * reads clearly where an area trend cannot draw a line from a single point. */
+/**
+ * Billing started this period, so there is only one month to show. An area trend
+ * cannot draw a line from a single point and a lone floating bar reads as a
+ * glitch, so show a clean single-period panel: the month, the amount, and a
+ * baseline track that reads as "the first bar of a chart to come."
+ */
 function SingleMonth({ point }: { point: TrendPoint }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-2">
-      <div className="text-[13px] text-muted-foreground">{point.label}</div>
-      <div className="h-24 w-16 rounded-t-md bg-[var(--chart-2)]" aria-hidden />
-      <div className="text-[22px] font-bold tabular-nums text-[var(--color-money)]">
-        {point.display ?? money(point.value)}
+    <div className="flex h-full flex-col justify-center gap-4 px-4">
+      <div className="flex items-end justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {point.label}
+          </span>
+          <span className="text-[28px] font-bold leading-none tabular-nums text-[var(--color-money)]">
+            {point.display ?? money(point.value)}
+          </span>
+          <span className="text-[12px] text-muted-foreground">County payable, this period</span>
+        </div>
+        <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+          First invoiced month
+        </span>
       </div>
-      <div className="text-[12px] text-muted-foreground">
-        Billing started this period. A trend appears as more months are invoiced.
+      {/* A full-width baseline track with the single period filled, so it reads
+          as the start of a bar chart rather than a lone rectangle. */}
+      <div className="flex items-end gap-2">
+        <div className="flex h-10 flex-1 items-end overflow-hidden rounded-md bg-[var(--color-surface-2)]">
+          <div className="h-full w-16 rounded-md bg-[var(--chart-2)]" aria-hidden />
+        </div>
       </div>
+      <p className="text-[12px] text-muted-foreground">
+        A month-over-month trend appears here as more periods are invoiced.
+      </p>
     </div>
   );
 }

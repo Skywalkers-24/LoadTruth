@@ -148,9 +148,9 @@ export function OverviewDashboard({
         </Card>
       </FadeIn>
 
-      {/* KPIs — compact */}
-      <Stagger className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StaggerItem>
+      {/* KPIs — compact. items-stretch + h-full so all four cards match height. */}
+      <Stagger className="grid grid-rows-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StaggerItem className="h-full">
           <StatCard
             hero
             tone="money"
@@ -162,7 +162,7 @@ export function OverviewDashboard({
             sub={`Across ${d.overbill_ticket_count} over-called ticket${d.overbill_ticket_count === 1 ? "" : "s"}`}
           />
         </StaggerItem>
-        <StaggerItem>
+        <StaggerItem className="h-full">
           <StatCard
             icon={<LayersIcon className="size-4" />}
             label="Measured value"
@@ -178,7 +178,7 @@ export function OverviewDashboard({
             sub={`${d.ticket_count} tickets in this event`}
           />
         </StaggerItem>
-        <StaggerItem>
+        <StaggerItem className="h-full">
           <StatCard
             tone="ok"
             icon={<CircleCheckIcon className="size-4" />}
@@ -198,7 +198,7 @@ export function OverviewDashboard({
             sub={`${needsReview} awaiting a decision`}
           />
         </StaggerItem>
-        <StaggerItem>
+        <StaggerItem className="h-full">
           <StatCard
             tone="primary"
             icon={<GaugeIcon className="size-4" />}
