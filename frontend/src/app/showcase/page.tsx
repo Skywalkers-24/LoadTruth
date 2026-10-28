@@ -13,6 +13,8 @@ import {
   TruckIcon,
 } from "lucide-react";
 
+import { ThemeToggle } from "@/components/theme-toggle";
+
 export const metadata: Metadata = {
   title: "LoadTruth — a load ticket anyone can reproduce",
   description:
@@ -54,12 +56,15 @@ function Nav() {
           </span>
           LoadTruth
         </span>
-        <Link
-          href="/console"
-          className="rounded-md bg-[var(--color-brand)] px-3 py-1.5 text-[13px] font-medium text-white hover:opacity-90"
-        >
-          Open the console
-        </Link>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Link
+            href="/console"
+            className="rounded-md bg-[var(--color-brand)] px-3 py-1.5 text-[13px] font-medium text-white hover:opacity-90"
+          >
+            Open the console
+          </Link>
+        </div>
       </div>
     </header>
   );

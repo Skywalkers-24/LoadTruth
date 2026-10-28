@@ -13,61 +13,13 @@ import {
   SparklesIcon,
 } from "lucide-react";
 
-import {
-  CircleUserRoundIcon,
-  ContactRoundIcon,
-  SmileIcon,
-  UserRoundIcon,
-  UserStarIcon,
-} from "lucide-react";
-
 import { getDirectory, type DirectoryMember, type Role } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { LogoMark } from "@/components/ui/logo";
+import { MemberAvatar } from "@/components/ui/member-avatar";
 import { Button } from "@/components/ui/shadcn/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
-
-// A small set of friendly, non-gendered person glyphs and a colorful palette.
-// Each member gets a deterministic glyph + color from a hash of their email, so
-// the list looks varied and human without labeling anyone by gender.
-const AVATAR_GLYPHS = [
-  UserRoundIcon,
-  CircleUserRoundIcon,
-  ContactRoundIcon,
-  SmileIcon,
-  UserStarIcon,
-];
-const AVATAR_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-  "var(--color-brand)",
-];
-
-function avatarIndex(key: string, mod: number): number {
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-  return h % mod;
-}
-
-function MemberAvatar({ seed, size = 18 }: { seed: string; size?: number }) {
-  const Glyph = AVATAR_GLYPHS[avatarIndex(seed, AVATAR_GLYPHS.length)]!;
-  const color = AVATAR_COLORS[avatarIndex(`${seed}c`, AVATAR_COLORS.length)]!;
-  return (
-    <span
-      className="grid size-9 shrink-0 place-items-center rounded-full"
-      style={{
-        backgroundColor: `color-mix(in srgb, ${color} 20%, transparent)`,
-        color,
-      }}
-      aria-hidden
-    >
-      <Glyph size={size} />
-    </span>
-  );
-}
 
 const ROLE_LABEL: Record<Role, string> = {
   monitor: "Field Monitor",
@@ -276,16 +228,20 @@ export function LoginScreen() {
             {submitting ? "Signing in" : "Continue"}
           </Button>
 
-          <p className="mt-4 text-center text-[12px] text-muted-foreground">
-            New here?{" "}
-            <a
-              href="/showcase"
-              className="inline-flex items-center gap-1 font-medium text-[var(--color-brand)] underline-offset-4 hover:underline"
-            >
-              See the public showcase
-              <ArrowRightIcon className="size-3.5" />
-            </a>
-          </p>
+          <div className="mt-5 flex items-center gap-3">
+            <span className="h-px flex-1 bg-[var(--color-border)]" aria-hidden />
+            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              New here?
+            </span>
+            <span className="h-px flex-1 bg-[var(--color-border)]" aria-hidden />
+          </div>
+          <a
+            href="/showcase"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--color-brand)]/40 bg-[var(--color-brand-soft)] px-4 py-2.5 text-[14px] font-semibold text-[var(--color-brand)] transition-colors hover:bg-[var(--color-brand)]/15"
+          >
+            See the public showcase
+            <ArrowRightIcon className="size-4" />
+          </a>
         </div>
       </div>
     </div>

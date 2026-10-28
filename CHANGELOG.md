@@ -6,6 +6,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Add an entry i
 ## [Unreleased]
 
 ### Fixed
+- **Member avatars everywhere.** The friendly, non-gendered person glyphs were only on the login screen; the app-shell user block still showed two-letter initials. Extracted a shared `MemberAvatar` (`components/ui/member-avatar.tsx`) and used it in both the login screen and the sidebar user block, so the signed-in member shows the same colorful persona icon as the login list.
+- **Showcase theme toggle.** The public `/showcase` page rendered with no way to switch theme. Added the shared `ThemeToggle` to its top nav (it only needs the ThemeProvider, which already wraps the page).
+- **Login showcase link is now a real button.** The tiny "See the public showcase" text link is replaced with a full-width outlined button under a "New here?" divider, so it is discoverable.
+
+### Fixed
 - **Equal-height KPI cards.** `StatCard` is now a full-height flex column with the sub-line pinned to the bottom (`mt-auto`), and the Overview KPI grid stretches its items, so all four tiles match height whether or not they carry a progress bar. The Billing KPI row equalizes the same way.
 - **Overview "Highest value to review" no longer leaves a gap.** The panel listed only over-called drafts (often just 2-3 rows) while stretching to the full column height. It now ranks every draft ticket by dollar delta (over-calls first, then no-exposure drafts shown in muted text), so the panel fills its space and is the real review queue.
 - **Billing "Billed amount by month" single-period view.** The lone floating bar (which read as a glitch when only one month is invoiced) is replaced with a clean single-period panel: the month, the amount, a "First invoiced month" chip, and a full-width baseline track, with a note that a trend appears as more periods are invoiced.
