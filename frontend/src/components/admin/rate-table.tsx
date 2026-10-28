@@ -6,6 +6,7 @@ import type { EventSummary } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { useAuth } from "@/lib/auth";
 import { useUpdateEvent } from "@/lib/hooks";
 import { debrisLabel } from "@/lib/format";
 
@@ -19,6 +20,8 @@ const CLASSES = ["vegetative", "construction_demolition", "white_goods", "hazard
 export function RateTableEditor({ event }: { event: EventSummary }) {
   const update = useUpdateEvent();
   const toast = useToast();
+  const { can } = useAuth();
+  const canEdit = can("manage_events");
   const [rates, setRates] = useState<Record<string, string>>({});
   const [confirming, setConfirming] = useState(false);
 
@@ -62,8 +65,8 @@ export function RateTableEditor({ event }: { event: EventSummary }) {
   return (
     <div className="flex max-w-2xl flex-col gap-4">
       <p className="text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
-        Each ticket is valued as measured cubic yards times the rate for its debris class. New rates apply to
-        tickets calculated after you save. Existing tickets keep their current values.
+        Each ticket is valued as measured cubic yards times the rate for its debris class. New rates
+        apply to tickets calculated after you save. Existing tickets keep their current values.
       </p>
 
       <div className="divide-y divide-[var(--color-border)] rounded-lg border border-[var(--color-border)]">
@@ -87,27 +90,40 @@ export function RateTableEditor({ event }: { event: EventSummary }) {
                   min="0"
                   aria-label={`${debrisLabel(c)} rate per cubic yard`}
                   value={rates[c] ?? ""}
+                  readOnly={!canEdit}
                   onChange={(e) => setRates((p) => ({ ...p, [c]: e.target.value }))}
-                  className="w-28 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-1.5 text-right text-[13px] tabular-nums text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+                  className="w-28 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-1.5 text-right text-[13px] tabular-nums text-[var(--color-text)] read-only:opacity-70 focus:border-[var(--color-accent)] focus:outline-none"
                 />
-                <span className="whitespace-nowrap text-[12px] text-[var(--color-subtle)]">per CY</span>
+                <span className="whitespace-nowrap text-[12px] text-[var(--color-subtle)]">
+                  per CY
+                </span>
               </span>
             </label>
           );
         })}
       </div>
 
-      <div className="flex items-center gap-3">
-        <Button variant="primary" disabled={!dirty || invalid} onClick={() => setConfirming(true)}>
-          Save rates
-        </Button>
-        {dirty && <span className="text-[12px] text-[var(--color-warn)]">Unsaved changes</span>}
-        {invalid && (
-          <span className="text-[12px] text-[var(--color-danger)]">
-            Rates must be non-negative numbers.
-          </span>
-        )}
-      </div>
+      {canEdit ? (
+        <div className="flex items-center gap-3">
+          <Button
+            variant="primary"
+            disabled={!dirty || invalid}
+            onClick={() => setConfirming(true)}
+          >
+            Save rates
+          </Button>
+          {dirty && <span className="text-[12px] text-[var(--color-warn)]">Unsaved changes</span>}
+          {invalid && (
+            <span className="text-[12px] text-[var(--color-danger)]">
+              Rates must be non-negative numbers.
+            </span>
+          )}
+        </div>
+      ) : (
+        <p className="text-[12px] text-[var(--color-subtle)]">
+          You have read-only access to rates. Editing requires county admin access.
+        </p>
+      )}
 
       <ConfirmDialog
         open={confirming}

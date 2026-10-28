@@ -193,12 +193,22 @@ function detail(stage: PipelineStage, keyPart: string): string | undefined {
 }
 
 /**
- * A detailed, human-readable analysis of what one phase did, composed from the
- * stage's status, confidence, and the model's own facts. This turns the terse
- * one-line summary into a few sentences an operator or auditor can read, without
- * inventing anything: every clause is backed by a field the stage reported.
+ * The "AI analysis" paragraph for one stage. Meta AI (Muse Spark) authors this
+ * per run and the backend returns it on `stage.analysis`, so we show the model's
+ * own words whenever they are present. The composed fallback below is used only
+ * for older traces persisted before authored analysis existed (and for the
+ * deterministic `cache` replay), so the panel is never blank.
  */
 function analysisText(stage: PipelineStage): string {
+  if (stage.analysis && stage.analysis.trim()) return stage.analysis.trim();
+  return composedAnalysis(stage);
+}
+
+/**
+ * Fallback, human-readable analysis composed client-side from the stage's own
+ * facts. Only used when the model did not author one for this stage.
+ */
+function composedAnalysis(stage: PipelineStage): string {
   const conf =
     stage.confidence != null ? `${Math.round(stage.confidence * 100)}% confidence` : null;
   const parts: string[] = [];

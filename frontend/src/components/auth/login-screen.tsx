@@ -73,87 +73,66 @@ export function LoginScreen() {
       {/* Mode-aware video background behind everything (lazy, muted, looped). */}
       <LoginVideoBg />
 
-      {/* Brand panel. Semi-transparent so the video shows through; the gradient
-          and a blur keep the headline and stats readable over the footage. */}
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-sidebar/70 p-10 text-sidebar-foreground backdrop-blur-sm lg:flex">
+      {/* Brand panel. Transparent with no panel-wide blur so the truck footage
+          stays crisp; legibility comes from a soft left-edge gradient and a
+          text-shadow on the copy instead. The z-10 lifts it above the video. */}
+      <div className="relative z-10 hidden flex-col justify-start overflow-hidden p-10 text-sidebar-foreground lg:flex">
+        {/* Legibility scrim concentrated at the TOP-LEFT, where the logo + copy
+            now sit (the clear studio area above/left of the truck). A radial
+            wash anchored top-left plus a gentle top-edge wash fade fully to
+            transparent, so there is no visible box and the truck stays crisp in
+            the center/lower-right. Mode independent so white text reads in light
+            mode too. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-80"
+          className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(900px 500px at 15% 0%, color-mix(in srgb, var(--color-brand) 22%, transparent), transparent 70%), radial-gradient(700px 500px at 100% 100%, color-mix(in srgb, var(--color-money) 14%, transparent), transparent 70%)",
+              "radial-gradient(120% 90% at 0% 0%, rgba(4,8,20,0.82) 0%, rgba(4,8,20,0.45) 32%, rgba(4,8,20,0.12) 52%, transparent 70%), linear-gradient(180deg, rgba(4,8,20,0.45) 0%, transparent 28%), linear-gradient(0deg, rgba(4,8,20,0.6) 0%, transparent 18%)",
           }}
         />
-        <div className="relative flex items-center gap-3">
-          <LogoMark size={34} />
-          <span className="text-[18px] font-bold tracking-tight">LoadTruth</span>
-        </div>
-
+        {/* Logo + the copy both live in the top-left, which is the clear studio
+            background in the footage (the truck sits center/lower-right), so the
+            text never fights the wireframe. A flex spacer then pushes the footer
+            to the bottom. */}
         <div className="relative flex flex-col gap-6">
-          <div className="flex flex-col gap-3">
-            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--color-brand-strong)]">
+          <div className="flex items-center gap-3 [text-shadow:0_1px_12px_rgba(0,0,0,0.55)]">
+            <LogoMark size={48} />
+            <span className="text-[26px] font-bold tracking-tight">LoadTruth</span>
+          </div>
+
+          {/* The copy sits directly on the gradient scrim with a strong
+              text-shadow for crispness, so there is no visible blurred box. */}
+          <div className="relative flex max-w-md flex-col gap-3.5 [text-shadow:0_2px_18px_rgba(0,0,0,0.85),0_1px_3px_rgba(0,0,0,0.9)]">
+            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-sm [text-shadow:none]">
+              <span className="size-1.5 rounded-full bg-[var(--color-brand)]" aria-hidden />
               Disaster-debris billing, verified
             </span>
-            <h1 className="max-w-md text-[30px] font-semibold leading-tight tracking-tight">
-              Every debris haul, measured and paid on the evidence.
+            {/* Highlighted headline: brighter, heavier, with a glow so it pops
+                over the footage. */}
+            <h1 className="text-[32px] font-extrabold leading-[1.12] tracking-tight text-white">
+              Every debris haul, <span className="text-[#7dd3fc]">measured and paid</span> on the
+              evidence.
             </h1>
-            <p className="max-w-md text-[14px] leading-relaxed text-sidebar-muted">
+            <p className="text-[14px] font-medium leading-relaxed text-white/90">
               Counties pay contractors by the cubic yard to clear debris. LoadTruth measures each
               truckload from the footage, checks it against the monitor&apos;s call, and produces a
               payment record ready for a Federal Emergency Management Agency (FEMA) audit.
             </p>
           </div>
-
-          {/* The numbers that make the case */}
-          <div className="grid max-w-lg grid-cols-3 gap-3">
-            <Stat value="$1,402" label="Over-calls caught per event" />
-            <Stat value="7 stages" label="AI pipeline per clip" />
-            <Stat value="100%" label="Decisions traced to evidence" />
-          </div>
-
-          {/* Capabilities, one tight line each */}
-          <ul className="grid max-w-xl grid-cols-2 gap-x-6 gap-y-4">
-            <Feature
-              icon={<ScanEyeIcon className="size-4" />}
-              title="Measured from footage"
-              body="SAM 3.1 segments the load; Muse reads the placard and classifies the debris."
-            />
-            <Feature
-              icon={<DollarSignIcon className="size-4" />}
-              title="The money frame"
-              body="Measured value against the monitor's call, with the exact dollar delta."
-            />
-            <Feature
-              icon={<ShieldAlertIcon className="size-4" />}
-              title="Anomaly detection"
-              body="Over-calls, surface-versus-depth gaps, and unreadable placards flagged automatically."
-            />
-            <Feature
-              icon={<SparklesIcon className="size-4" />}
-              title="Grounded AI analyst"
-              body="Ask about exposure or disputes and get answers from your own data."
-            />
-            <Feature
-              icon={<FileCheck2Icon className="size-4" />}
-              title="Audit-ready exports"
-              body="Signed tickets, anomaly logs, CSV, and FEMA-style packets."
-            />
-            <Feature
-              icon={<BuildingIcon className="size-4" />}
-              title="Multi-tenant"
-              body="Each agency runs its own events, trucks, rates, and team."
-            />
-          </ul>
         </div>
 
-        <div className="relative flex items-center justify-between gap-3 text-[12px] text-sidebar-muted">
+        {/* Spacer so the footer stays pinned to the bottom. */}
+        <div className="flex-1" aria-hidden />
+
+        <div className="relative flex items-center justify-between gap-3 text-[12px] font-medium text-white [text-shadow:0_1px_10px_rgba(0,0,0,0.9),0_1px_2px_rgba(0,0,0,0.9)]">
           <span className="flex items-center gap-2">
-            <span className="size-1.5 rounded-full bg-[var(--color-brand-strong)]" aria-hidden />
+            <span className="size-1.5 rounded-full bg-[#7dd3fc]" aria-hidden />
             Powered by Meta SAM 3.1 and Muse Spark
           </span>
           <a
             href="/showcase"
-            className="inline-flex items-center gap-1 font-medium text-[var(--color-brand-strong)] underline-offset-4 hover:underline"
+            className="inline-flex items-center gap-1 font-semibold text-white underline-offset-4 hover:underline"
           >
             View the public showcase
             <ArrowRightIcon className="size-3.5" />
@@ -161,118 +140,180 @@ export function LoginScreen() {
         </div>
       </div>
 
-      {/* Sign-in panel. Semi-transparent over the video; the sign-in card itself
-          sits on a solid surface so every control stays fully legible. */}
-      <div className="relative flex items-center justify-center bg-background/55 p-6 backdrop-blur-md">
+      {/* Sign-in panel. The left edge fades in from the video (no hard seam at
+          the column split); the rest sits on the themed background so the card
+          and capability strip stay fully legible. z-10 lifts it above the video
+          layer. Scrolls when the content exceeds the viewport. */}
+      <div className="relative z-10 flex flex-col items-center justify-start gap-5 overflow-y-auto bg-gradient-to-r from-transparent via-background/80 to-background px-6 pb-6 pt-16 backdrop-blur-md lg:pt-24">
         {/* Theme picker — reachable before sign-in so users land in their preferred look. */}
         <div className="absolute right-5 top-5 z-10">
           <ThemeToggle />
         </div>
-        <div className="w-full max-w-md rounded-2xl border border-border bg-[var(--color-surface)]/90 p-6 shadow-xl backdrop-blur-xl sm:p-8">
-          <div className="mb-6 flex items-center gap-3 lg:hidden">
-            <LogoMark size={30} />
-            <span className="text-[16px] font-bold tracking-tight">LoadTruth</span>
-          </div>
+        <div className="flex w-full max-w-md flex-col gap-4">
+          <div className="w-full rounded-2xl border border-border bg-[var(--color-surface)]/90 p-6 shadow-xl backdrop-blur-xl sm:p-8">
+            <div className="mb-6 flex items-center gap-3 lg:hidden">
+              <LogoMark size={40} />
+              <span className="text-[22px] font-bold tracking-tight">LoadTruth</span>
+            </div>
 
-          <h2 className="text-[22px] font-semibold tracking-tight">Sign in</h2>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Choose a member to sign in as. Each role sees a different set of actions.
-          </p>
+            <h2 className="text-[22px] font-semibold tracking-tight">Sign in</h2>
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              Choose a member to sign in as. Each role sees a different set of actions.
+            </p>
 
-          <div className="mt-5 flex flex-col gap-2">
-            {directory.isLoading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />
-              ))
-            ) : directory.isError ? (
-              <p className="rounded-lg border border-[var(--color-danger)]/40 bg-[var(--color-danger-soft)] px-4 py-3 text-[13px] text-[var(--color-danger)]">
-                Could not reach the backend. Make sure the API is running, then refresh.
-              </p>
-            ) : (
-              members.map((m: DirectoryMember) => {
-                const active = selected === m.email;
-                return (
-                  <button
-                    key={m.email}
-                    type="button"
-                    onClick={() => setSelected(m.email)}
-                    className={cn(
-                      "flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
-                      active
-                        ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)] ring-1 ring-[var(--color-brand)]"
-                        : "border-border hover:border-[var(--color-border-strong)] hover:bg-accent",
-                    )}
-                  >
-                    <MemberAvatar seed={m.email} />
+            <div className="mt-5 flex flex-col gap-2">
+              {directory.isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />
+                ))
+              ) : directory.isError ? (
+                <p className="rounded-lg border border-[var(--color-danger)]/40 bg-[var(--color-danger-soft)] px-4 py-3 text-[13px] text-[var(--color-danger)]">
+                  Could not reach the backend. Make sure the API is running, then refresh.
+                </p>
+              ) : (
+                members.map((m: DirectoryMember) => {
+                  const active = selected === m.email;
+                  return (
+                    <button
+                      key={m.email}
+                      type="button"
+                      onClick={() => setSelected(m.email)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
+                        active
+                          ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)] ring-1 ring-[var(--color-brand)]"
+                          : "border-border hover:border-[var(--color-border-strong)] hover:bg-accent",
+                      )}
+                    >
+                      <MemberAvatar seed={m.email} />
 
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-[14px] font-semibold">
-                        {m.full_name ?? m.email}
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-[14px] font-semibold">
+                          {m.full_name ?? m.email}
+                        </span>
+                        <span className="truncate text-[12px] text-muted-foreground">
+                          {ROLE_LABEL[m.role]} · {ROLE_BLURB[m.role]}
+                        </span>
                       </span>
-                      <span className="truncate text-[12px] text-muted-foreground">
-                        {ROLE_LABEL[m.role]} · {ROLE_BLURB[m.role]}
-                      </span>
-                    </span>
-                    {active && (
-                      <ArrowRightIcon className="size-4 shrink-0 text-[var(--color-brand)]" />
-                    )}
-                  </button>
-                );
-              })
-            )}
+                      {active && (
+                        <ArrowRightIcon className="size-4 shrink-0 text-[var(--color-brand)]" />
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {error && <p className="mt-3 text-[13px] text-[var(--color-danger)]">{error}</p>}
+
+            <Button
+              className="mt-5 w-full"
+              size="lg"
+              disabled={!selected || submitting}
+              onClick={submit}
+            >
+              {submitting ? <Loader2Icon className="animate-spin" /> : null}
+              {submitting ? "Signing in" : "Continue"}
+            </Button>
+
+            <div className="mt-5 flex items-center gap-3">
+              <span className="h-px flex-1 bg-[var(--color-border)]" aria-hidden />
+              <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                New here?
+              </span>
+              <span className="h-px flex-1 bg-[var(--color-border)]" aria-hidden />
+            </div>
+            <a
+              href="/showcase"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--color-brand)]/40 bg-[var(--color-brand-soft)] px-4 py-2.5 text-[14px] font-semibold text-[var(--color-brand)] transition-colors hover:bg-[var(--color-brand)]/15"
+            >
+              See the public showcase
+              <ArrowRightIcon className="size-4" />
+            </a>
           </div>
+        </div>
 
-          {error && <p className="mt-3 text-[13px] text-[var(--color-danger)]">{error}</p>}
-
-          <Button
-            className="mt-5 w-full"
-            size="lg"
-            disabled={!selected || submitting}
-            onClick={submit}
-          >
-            {submitting ? <Loader2Icon className="animate-spin" /> : null}
-            {submitting ? "Signing in" : "Continue"}
-          </Button>
-
-          <div className="mt-5 flex items-center gap-3">
-            <span className="h-px flex-1 bg-[var(--color-border)]" aria-hidden />
-            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-              New here?
-            </span>
-            <span className="h-px flex-1 bg-[var(--color-border)]" aria-hidden />
+        {/* Condensed proof strip below the card. It spans the full right-side
+            width (not the card's max-w) so the three numbers and the six
+            capabilities each read in a single row on desktop. */}
+        <div className="flex w-full max-w-3xl flex-col gap-2.5">
+          <div className="grid grid-cols-3 gap-2">
+            <MiniStat value="$1,402" label="Over-calls / event" />
+            <MiniStat value="7" label="AI stages / clip" />
+            <MiniStat value="100%" label="Traced to evidence" />
           </div>
-          <a
-            href="/showcase"
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--color-brand)]/40 bg-[var(--color-brand-soft)] px-4 py-2.5 text-[14px] font-semibold text-[var(--color-brand)] transition-colors hover:bg-[var(--color-brand)]/15"
-          >
-            See the public showcase
-            <ArrowRightIcon className="size-4" />
-          </a>
+          {/* Six compact capabilities in one horizontal row on desktop. They
+            wrap to a 3-up then 2-up grid only on narrow screens where a single
+            row can't fit, keeping each card equal width. */}
+          <ul className="grid grid-cols-2 gap-1.5 min-[480px]:grid-cols-3 lg:grid-cols-6">
+            <MiniFeature
+              icon={<ScanEyeIcon className="size-3.5" />}
+              title="Measured"
+              subtitle="SAM 3.1"
+            />
+            <MiniFeature
+              icon={<DollarSignIcon className="size-3.5" />}
+              title="Money frame"
+              subtitle="Visual evidence"
+            />
+            <MiniFeature
+              icon={<ShieldAlertIcon className="size-3.5" />}
+              title="Anomaly"
+              subtitle="Risk checks"
+            />
+            <MiniFeature
+              icon={<SparklesIcon className="size-3.5" />}
+              title="AI analyst"
+              subtitle="Muse Spark"
+            />
+            <MiniFeature
+              icon={<FileCheck2Icon className="size-3.5" />}
+              title="Audit exports"
+              subtitle="Evidence trail"
+            />
+            <MiniFeature
+              icon={<BuildingIcon className="size-3.5" />}
+              title="Multi-tenant"
+              subtitle="Role isolation"
+            />
+          </ul>
         </div>
       </div>
     </div>
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+/** Compact stat chip shown under the sign-in card (short label, no sentence). */
+function MiniStat({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5">
-      <div className="text-[18px] font-bold tabular-nums text-sidebar-foreground">{value}</div>
-      <div className="mt-0.5 text-[11px] leading-tight text-sidebar-muted">{label}</div>
+    <div className="rounded-lg border border-border bg-[var(--color-surface)]/70 px-2.5 py-2 text-center backdrop-blur-sm">
+      <div className="text-[15px] font-bold tabular-nums text-foreground">{value}</div>
+      <div className="mt-0.5 text-[10.5px] leading-tight text-muted-foreground">{label}</div>
     </div>
   );
 }
 
-function Feature({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+/**
+ * Compact capability card: small icon above a short title and a one-word
+ * subtitle naming the model or evidence behind it. Sized to sit six across in
+ * one row under the sign-in card; wraps to a 3-up/2-up grid on narrow screens.
+ */
+function MiniFeature({
+  icon,
+  title,
+  subtitle,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+}) {
   return (
-    <li className="flex gap-3">
-      <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-white/[0.06] text-[var(--color-brand-strong)] ring-1 ring-white/[0.06]">
+    <li className="flex flex-col items-center gap-1 rounded-lg border border-border bg-[var(--color-surface)]/70 px-2 py-2 text-center backdrop-blur-sm">
+      <span className="grid size-6 shrink-0 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
         {icon}
       </span>
-      <span className="flex flex-col">
-        <span className="text-[13.5px] font-semibold text-sidebar-foreground">{title}</span>
-        <span className="text-[12.5px] leading-relaxed text-sidebar-muted">{body}</span>
-      </span>
+      <span className="text-[11px] font-semibold leading-tight text-foreground">{title}</span>
+      <span className="text-[10.5px] leading-tight text-muted-foreground">{subtitle}</span>
     </li>
   );
 }

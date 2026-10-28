@@ -17,6 +17,7 @@ Conventions: bash scripts start with `set -euo pipefail`, are idempotent, print 
 | `pipeline.sh <clip>` | Run the full video-to-ticket pipeline on one clip (cached) | planned |
 | `benchmark.sh` | Run the known-volume fill-% benchmark over `data_bench/`, write `results.json` | **present** |
 | `precache-demo.sh` | Ingest the demo clips once so the demo arc replays from the durable cache | **present** |
+| `sam-probe.sh <hash> <phrase…> [--measure]` | Try SAM concept phrases on a stored evidence clip (~$0.01 per phrase); `--measure` runs the fill measurement offline (bed=1st phrase, rim=2nd, loads=rest) | **present** |
 
 As each script is implemented, flip its status to **present** and add usage notes below.
 

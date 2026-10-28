@@ -5,7 +5,7 @@ import { ShieldCheckIcon, PlayIcon } from "lucide-react";
 
 import { api, ApiError, fetchEvidenceMediaUrl, type Reverify, type Ticket } from "@/lib/api";
 import { isJudgeMode } from "@/lib/app-mode";
-import { SectionCard } from "@/components/console/section-card";
+import { CollapsibleSectionCard } from "@/components/console/section-card";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { CheckCircleIcon, AlertIcon } from "@/components/ui/icons";
@@ -23,12 +23,18 @@ import { useQueryClient } from "@tanstack/react-query";
 export function ReproducibilityCard({ ticket }: { ticket: Ticket }) {
   const judge = isJudgeMode();
   return (
-    <SectionCard title="Reproducibility" icon={<ShieldCheckIcon size={15} />}>
+    <CollapsibleSectionCard
+      id="reproducibility"
+      title="Reproducibility"
+      icon={<ShieldCheckIcon size={15} />}
+      summary="Re-derive the fill % from the stored evidence"
+      defaultOpen={false}
+    >
       <div className="flex flex-col gap-3">
         <ReverifyPanel ticket={ticket} />
         {judge && <RunLivePanel ticket={ticket} />}
       </div>
-    </SectionCard>
+    </CollapsibleSectionCard>
   );
 }
 

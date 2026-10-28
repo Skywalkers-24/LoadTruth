@@ -166,6 +166,10 @@ class PipelineStageRow(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, B
     # Ordered [label, value] facts from the model's response (raw answer,
     # tokens, cost, objects found, measurement inputs).
     details: Mapped[list[list[str]] | None] = mapped_column(JSON, nullable=True)
+    # Model-authored "AI analysis" paragraph for the Pipeline screen (nullable:
+    # older rows and deterministic-only runs have none, the UI falls back to the
+    # summary). Added additively by _add_missing_columns on existing DBs.
+    analysis: Mapped[str | None] = mapped_column(String(2048), nullable=True)
 
     __table_args__ = (Index("ix_pipeline_stages_tenant_ticket", "tenant_id", "ticket_id"),)
 

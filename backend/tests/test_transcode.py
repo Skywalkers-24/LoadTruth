@@ -7,7 +7,20 @@ from pathlib import Path
 
 import pytest
 
-from app.pipeline.transcode import ffmpeg_args, prepare_media
+from app.pipeline.transcode import _fps_for_target, ffmpeg_args, prepare_media
+
+
+def test_fps_targets_a_fixed_frame_count_regardless_of_duration() -> None:
+    # ~60 frames whatever the clip length: short clips sample faster, long slower.
+    assert _fps_for_target(10.0, 60) == 6.0
+    assert _fps_for_target(30.0, 60) == 2.0
+    assert round(_fps_for_target(40.0, 60), 3) == 1.5
+    # Clamped so a very short or very long clip stays in a sane fps band.
+    assert _fps_for_target(1.0, 60) == 30.0
+    assert _fps_for_target(600.0, 60) == 1.0
+    # Unknown duration falls back to a mid rate, never 0.
+    assert _fps_for_target(None, 60) == 6.0
+    assert _fps_for_target(0.0, 60) == 6.0
 
 
 def test_video_args_resample_drop_audio_and_faststart() -> None:

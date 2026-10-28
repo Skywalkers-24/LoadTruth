@@ -11,6 +11,7 @@ import { TruckIcon } from "@/components/ui/icons";
 import { EmptyState, Skeleton } from "@/components/ui/primitives";
 import { Pagination } from "@/components/pagination";
 import { useToast } from "@/components/ui/toast";
+import { useAuth } from "@/lib/auth";
 import { useTruckMutations, useTrucks } from "@/lib/hooks";
 import { cubicYards } from "@/lib/format";
 
@@ -25,6 +26,8 @@ export function TruckRegistry() {
   const trucks = useTrucks();
   const { create, update, remove } = useTruckMutations();
   const toast = useToast();
+  const { can } = useAuth();
+  const canManage = can("manage_trucks");
   // `editing` null = closed; a Truck = edit that truck; "new" = add a truck.
   const [editing, setEditing] = useState<Truck | "new" | null>(null);
   const [number, setNumber] = useState("");
@@ -134,9 +137,11 @@ export function TruckRegistry() {
           <span className="whitespace-nowrap text-[11px] tabular-nums text-[var(--color-subtle)]">
             {trucks.data?.length ?? 0} trucks
           </span>
-          <Button variant="primary" size="sm" icon={<TruckIcon size={15} />} onClick={openAdd}>
-            Add truck
-          </Button>
+          {canManage && (
+            <Button variant="primary" size="sm" icon={<TruckIcon size={15} />} onClick={openAdd}>
+              Add truck
+            </Button>
+          )}
         </div>
       </div>
 
@@ -176,24 +181,26 @@ export function TruckRegistry() {
                   </span>
                 </span>
               </span>
-              <span className="flex shrink-0 items-center gap-1.5">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={<PencilIcon size={14} />}
-                  onClick={() => openEdit(t)}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => setRemoving(t)}
-                  disabled={remove.isPending}
-                >
-                  Remove
-                </Button>
-              </span>
+              {canManage && (
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<PencilIcon size={14} />}
+                    onClick={() => openEdit(t)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => setRemoving(t)}
+                    disabled={remove.isPending}
+                  >
+                    Remove
+                  </Button>
+                </span>
+              )}
             </li>
           ))}
         </ul>

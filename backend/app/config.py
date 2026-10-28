@@ -79,6 +79,7 @@ class Settings(BaseSettings):
     spark_perception_max_output_tokens: int = Field(default=4000)  # OCR / classify
     spark_narrate_max_output_tokens: int = Field(default=2000)  # one-line flag narrative
     analyst_max_output_tokens: int = Field(default=4000)  # grounded analyst answer
+    spark_explain_max_output_tokens: int = Field(default=4000)  # batched per-stage analysis
 
     # ── Live Meta client (app/ai/live.py) ──
     model_api_timeout_s: float = Field(default=300.0)
@@ -86,8 +87,26 @@ class Settings(BaseSettings):
     model_api_max_retries: int = Field(default=2)
     # SAM takes one short noun phrase per request (dev.meta.ai/docs/sam/segmenting),
     # so the clip is segmented once per concept. Tune these on real footage.
-    sam_bed_concept: str = Field(default="truck bed")
-    sam_load_concept: str = Field(default="debris pile")
+    # Every phrase below is one SAM request, all sent in parallel per clip (one
+    # SAM video request has a 50-frame minimum, about $0.01). Tuned on gate
+    # footage on 2026-10-29 (see LESSONS.md):
+    #   bed:  "truck bed" first; "dump truck" (whole truck, coarser) is used only
+    #         when no bed phrase matched, e.g. a tall-walled trailer.
+    #   rim:  "tailgate"; its top edge bounds the bed opening.
+    sam_bed_concepts: list[str] = Field(default_factory=lambda: ["truck bed", "dump truck"])
+    sam_rim_concept: str = Field(default="tailgate")
+    #   load: merged across "debris pile" (C&D), "pile" (vegetative brush/fronds),
+    #         and "barrels and containers" (hazardous drums/cans/batteries, which
+    #         are not a "pile"; tuned on FL-DT-7788, 2026-10-29).
+    # Muse Spark names the load's shape per clip (app/ai/live.py::track), so the
+    # list below is only a safety-net fallback appended after the AI-named
+    # phrases. It covers the common loads if the naming call fails or returns
+    # nothing. `sam_load_max_concepts` caps how many load phrases SAM segments
+    # per clip (each is one SAM request), counting the AI phrases first.
+    sam_load_concepts: list[str] = Field(
+        default_factory=lambda: ["debris pile", "pile", "barrels and containers"]
+    )
+    sam_load_max_concepts: int = Field(default=3, ge=1, le=6)
     # SAM pricing (dev.meta.ai/docs/pricing-rate-limits): images per 1k, video per
     # 1k frames with a 50-frame minimum per request.
     sam_image_price_per_1k: float = Field(default=2.50)
@@ -108,9 +127,13 @@ class Settings(BaseSettings):
     model_api_log_max_chars: int = Field(default=200_000)
     # Processed evidence media (the exact clip the models saw), by content hash.
     evidence_dir: str = Field(default=str(_REPO_ROOT / "media" / "evidence"), alias="EVIDENCE_DIR")
-    # Hard cap on keyframes sampled from any one clip (bounds SAM frame cost and
-    # memory for a long video, regardless of fps/duration).
-    max_sampled_frames: int = Field(default=120)
+    # Target number of frames sampled from any clip, whatever its length. The
+    # transcode step picks the fps per clip (target / duration) so a 10s clip and
+    # a 40s clip both yield ~60 evenly spaced frames. `max_sampled_frames` is the
+    # hard ceiling SAM's output is downsampled to; kept equal to the target so the
+    # Review overlay always steps through the same count and scrubs smoothly.
+    target_sampled_frames: int = Field(default=60)
+    max_sampled_frames: int = Field(default=60)
     # Longest edge (px) to downscale a frame to before sending to a VLM. Keeps
     # the base64 payload small and the per-call token cost down (LEARNINGS §1).
     frame_downscale_longest_edge: int = Field(default=1024)

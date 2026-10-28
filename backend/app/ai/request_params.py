@@ -26,7 +26,7 @@ from app.config import get_settings
 # Per-task fallback output caps (used when the admin hasn't set an explicit one).
 # Perception tasks return a word or two; narration one line; the analyst a short
 # paragraph. None of them should ever use the 4000-token global default.
-_PERCEPTION_TASKS = frozenset({"spark_ocr", "spark_classify"})
+_PERCEPTION_TASKS = frozenset({"spark_ocr", "spark_classify", "name_load"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +65,8 @@ def _default_output_cap(task_id: str) -> int:
         return s.spark_narrate_max_output_tokens
     if task_id == "analyst_chat":
         return s.analyst_max_output_tokens
+    if task_id == "explain_pipeline":
+        return s.spark_explain_max_output_tokens
     return s.spark_max_output_tokens
 
 

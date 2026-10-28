@@ -381,7 +381,7 @@ function ConsoleView() {
       {isDesktop ? (
         // Fixed-height grid: the queue column scrolls its list with the pager
         // pinned; the workspace lays out its own columns and scroll areas.
-        <div className="grid min-h-0 flex-1 grid-cols-[13rem_minmax(0,1fr)] gap-3 xl:grid-cols-[14rem_minmax(0,1fr)] xl:gap-4 2xl:grid-cols-[16rem_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-[15rem_minmax(0,1fr)] gap-3 xl:grid-cols-[17rem_minmax(0,1fr)] xl:gap-4 2xl:grid-cols-[19rem_minmax(0,1fr)]">
           <div className="min-h-0 overflow-hidden rounded-xl border border-border bg-card">
             {queuePanel}
           </div>

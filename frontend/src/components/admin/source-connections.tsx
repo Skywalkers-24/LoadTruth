@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CameraIcon } from "@/components/ui/icons";
 import { EmptyState, Skeleton } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
+import { useAuth } from "@/lib/auth";
 import { useSourceMutations, useSources } from "@/lib/hooks";
 import { relativeTime, sourceKindLabel } from "@/lib/format";
 
@@ -169,6 +170,8 @@ export function SourceConnections({ eventId }: { eventId: string }) {
   const sources = useSources(eventId);
   const { create, update, remove, test } = useSourceMutations(eventId);
   const toast = useToast();
+  const { can } = useAuth();
+  const canManage = can("manage_sources");
   const [kind, setKind] = useState<SourceKind>("upload");
   const [name, setName] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
@@ -258,85 +261,87 @@ export function SourceConnections({ eventId }: { eventId: string }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Connect a source */}
-      <form
-        onSubmit={connect}
-        className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4"
-      >
-        <div className="mb-3 text-[12px] font-semibold text-[var(--color-text)]">
-          Connect a source
-        </div>
+      {canManage && (
+        <form
+          onSubmit={connect}
+          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4"
+        >
+          <div className="mb-3 text-[12px] font-semibold text-[var(--color-text)]">
+            Connect a source
+          </div>
 
-        {/* Provider picker. Disabled providers are shown (so the capability is
+          {/* Provider picker. Disabled providers are shown (so the capability is
             visible) but not selectable, with a "Soon" badge. */}
-        <div className="mb-3 flex flex-wrap gap-1.5">
-          {PROVIDERS.map((p) => {
-            const active = p.kind === kind;
-            const disabled = p.enabled === false;
-            return (
-              <button
-                key={p.kind}
-                type="button"
-                disabled={disabled}
-                aria-disabled={disabled}
-                title={disabled ? "Coming soon" : undefined}
-                onClick={() => !disabled && selectKind(p.kind)}
-                className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                style={{
-                  borderColor: active ? "var(--color-accent)" : "var(--color-border)",
-                  backgroundColor: active ? "var(--color-accent-soft)" : "var(--color-surface)",
-                  color: active ? "var(--color-text)" : "var(--color-muted-foreground)",
-                }}
-              >
-                {p.label}
-                {disabled && (
-                  <span className="rounded-full bg-[var(--color-surface-3)] px-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-subtle)]">
-                    Soon
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <p className="mb-3 text-[12px] text-[var(--color-subtle)]">{provider.blurb}</p>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {PROVIDERS.map((p) => {
+              const active = p.kind === kind;
+              const disabled = p.enabled === false;
+              return (
+                <button
+                  key={p.kind}
+                  type="button"
+                  disabled={disabled}
+                  aria-disabled={disabled}
+                  title={disabled ? "Coming soon" : undefined}
+                  onClick={() => !disabled && selectKind(p.kind)}
+                  className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{
+                    borderColor: active ? "var(--color-accent)" : "var(--color-border)",
+                    backgroundColor: active ? "var(--color-accent-soft)" : "var(--color-surface)",
+                    color: active ? "var(--color-text)" : "var(--color-muted-foreground)",
+                  }}
+                >
+                  {p.label}
+                  {disabled && (
+                    <span className="rounded-full bg-[var(--color-surface-3)] px-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-subtle)]">
+                      Soon
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mb-3 text-[12px] text-[var(--color-subtle)]">{provider.blurb}</p>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]">
-            Connection name
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={`${provider.label} connection`}
-              className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
-            />
-          </label>
-          {provider.fields.map((f) => (
-            <label
-              key={f.key}
-              className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]"
-            >
-              {f.label}
-              {f.optional && <span className="text-[var(--color-subtle)]"> (optional)</span>}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]">
+              Connection name
               <input
-                value={values[f.key] ?? ""}
-                onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
-                placeholder={f.placeholder}
-                type={f.secret ? "password" : "text"}
-                autoComplete={f.secret ? "new-password" : "off"}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={`${provider.label} connection`}
                 className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
               />
             </label>
-          ))}
-        </div>
+            {provider.fields.map((f) => (
+              <label
+                key={f.key}
+                className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]"
+              >
+                {f.label}
+                {f.optional && <span className="text-[var(--color-subtle)]"> (optional)</span>}
+                <input
+                  value={values[f.key] ?? ""}
+                  onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
+                  placeholder={f.placeholder}
+                  type={f.secret ? "password" : "text"}
+                  autoComplete={f.secret ? "new-password" : "off"}
+                  className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+                />
+              </label>
+            ))}
+          </div>
 
-        <div className="mt-3 flex items-center gap-3">
-          <Button type="submit" variant="primary" disabled={create.isPending || missingRequired}>
-            Connect source
-          </Button>
-          <span className="text-[12px] text-[var(--color-subtle)]">
-            Credentials are stored securely and never shown again.
-          </span>
-        </div>
-      </form>
+          <div className="mt-3 flex items-center gap-3">
+            <Button type="submit" variant="primary" disabled={create.isPending || missingRequired}>
+              Connect source
+            </Button>
+            <span className="text-[12px] text-[var(--color-subtle)]">
+              Credentials are stored securely and never shown again.
+            </span>
+          </div>
+        </form>
+      )}
 
       <div className="flex items-center justify-between">
         <span className="text-[12px] font-semibold text-[var(--color-text)]">
@@ -387,27 +392,29 @@ export function SourceConnections({ eventId }: { eventId: string }) {
                     </span>
                   )}
                 </span>
-                <span className="flex gap-1.5">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => runTest(s.id)}
-                    disabled={test.isPending}
-                  >
-                    Test connection
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={() => setEditing(s)}>
-                    Edit
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => setRemoving(s)}
-                    disabled={remove.isPending}
-                  >
-                    Remove
-                  </Button>
-                </span>
+                {canManage && (
+                  <span className="flex gap-1.5">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => runTest(s.id)}
+                      disabled={test.isPending}
+                    >
+                      Test connection
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => setEditing(s)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => setRemoving(s)}
+                      disabled={remove.isPending}
+                    >
+                      Remove
+                    </Button>
+                  </span>
+                )}
               </li>
             );
           })}

@@ -40,21 +40,26 @@ type NetworkInfo = {
   downlink?: number;
 };
 
-/** Pick a tier from the Network Information API, with safe fallbacks. */
+/** Pick a tier from the Network Information API, with safe fallbacks.
+ *
+ * The bias is toward playing the video: the only hard skip is an explicit
+ * data-saver request. An unknown or ambiguous connection hint resolves to a
+ * small tier so the clip still plays on a modest link rather than falling back
+ * to a static poster (which is what "I can't see the video" looked like). */
 function pickTier(): Tier | null {
-  if (typeof navigator === "undefined") return "md";
+  if (typeof navigator === "undefined") return "lg";
   const conn = (navigator as Navigator & { connection?: NetworkInfo }).connection;
   if (!conn) return "lg"; // no hint (Safari/Firefox): assume a healthy link
 
   if (conn.saveData) return null; // honor data-saver: skip video entirely
+
   const type = conn.effectiveType ?? "";
-  if (type.includes("2g")) return null; // slow-2g / 2g: skip
-  if (type === "3g") {
-    // slow-3g lands here too; lean on downlink to separate them
-    return (conn.downlink ?? 0) >= 1.5 ? "md" : "sm";
-  }
-  // 4g and better: size by measured throughput
   const down = conn.downlink ?? 0;
+  // Very slow links get the smallest clip rather than nothing; the file is
+  // ~430KB, which is acceptable even on 2g, and it still looks intentional.
+  if (type.includes("2g")) return "sm";
+  if (type === "3g") return down >= 1.5 ? "md" : "sm";
+  // 4g and better (or an unreported type): size by measured throughput.
   if (down >= 8) return "xl";
   if (down >= 4) return "lg";
   return "md";
@@ -69,17 +74,20 @@ export function LoginVideoBg() {
   // Defer loading until the browser is idle so the login form paints first.
   const [armed, setArmed] = useState(false);
   const [tier, setTier] = useState<Tier | null>(null);
+  // 1 = fully visible; dips toward 0 at the loop seam to hide the restart cut.
+  const [loopFade, setLoopFade] = useState(1);
 
   useEffect(() => {
     setReady(false);
     setArmed(false);
 
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const chosen = reduce ? null : pickTier();
+    // Only an explicit data-saver / 2g skips the clip. Reduced-motion still gets
+    // the video: it is muted and loops gently as an ambient background, not an
+    // attention-grabbing animation, and the poster remains the fallback if it
+    // can't load.
+    const chosen = pickTier();
     setTier(chosen);
-    if (!chosen) return; // data-saver / 2g / reduced-motion: poster only
+    if (!chosen) return; // data-saver only: poster stays
 
     const idle = (cb: () => void) => {
       const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => number })
@@ -96,28 +104,73 @@ export function LoginVideoBg() {
     };
   }, [mode]);
 
-  // Once armed, load + play. Autoplay only works muted + playsInline.
+  // Once armed, load + play. Autoplay only works muted + playsInline. We reveal
+  // the video on the first frame that can paint (canplay OR loadeddata, since
+  // browsers differ on which fires first) and attempt playback; if the browser
+  // blocks autoplay or the file errors, `ready` stays false and the poster
+  // keeps showing.
   useEffect(() => {
     if (!armed) return;
     const el = videoRef.current;
     if (!el) return;
     el.load();
-    const onCanPlay = () => {
+    const reveal = () => {
       setReady(true);
       void el.play().catch(() => {
         /* autoplay blocked — the poster + themed background stay, which is fine */
       });
     };
-    el.addEventListener("canplay", onCanPlay, { once: true });
-    return () => el.removeEventListener("canplay", onCanPlay);
+    el.addEventListener("canplay", reveal, { once: true });
+    el.addEventListener("loadeddata", reveal, { once: true });
+    const onError = () => setReady(false);
+    el.addEventListener("error", onError);
+    return () => {
+      el.removeEventListener("canplay", reveal);
+      el.removeEventListener("loadeddata", reveal);
+      el.removeEventListener("error", onError);
+    };
   }, [armed]);
+
+  // Smooth, seamless loop. The clip's last frame does not match its first, so a
+  // raw `loop` shows a hard cut. The earlier fix reversed playback by stepping
+  // currentTime every frame, but that forces a seek/decode per frame and the
+  // decoder visibly STALLS at the turn-around. Instead we keep normal forward
+  // playback (never seek) and hide the restart seam behind a short opacity
+  // crossfade: as the clip nears its end we dip the video toward the poster for
+  // ~0.5s, it loops back to 0, and we fade it back in. No seeking, so no stall.
+  useEffect(() => {
+    if (!armed || !ready) return;
+    const el = videoRef.current;
+    if (!el) return;
+
+    let raf = 0;
+    const FADE = 0.55; // seconds of fade at each end of the loop
+
+    const tick = () => {
+      const dur = el.duration;
+      if (Number.isFinite(dur) && dur > FADE * 2) {
+        const t = el.currentTime;
+        // Fade out over the last FADE seconds and back in over the first FADE.
+        const outA = t > dur - FADE ? (dur - t) / FADE : 1;
+        const inA = t < FADE ? t / FADE : 1;
+        const a = Math.max(0, Math.min(1, Math.min(outA, inA)));
+        setLoopFade(a);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      setLoopFade(1);
+    };
+  }, [armed, ready]);
 
   const src = tier ? TIER_FILE[tier](videoMode) : null;
 
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-0 -z-10 overflow-hidden bg-[var(--color-bg)]"
+      className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-[var(--color-bg)]"
     >
       {/* Poster paints instantly for a non-blank first frame on every link. */}
       <div
@@ -138,22 +191,35 @@ export function LoginVideoBg() {
           poster={poster}
           disablePictureInPicture
           tabIndex={-1}
-          className={`size-full object-cover transition-opacity duration-700 ${
-            ready ? "opacity-100" : "opacity-0"
-          }`}
+          className="size-full object-cover"
+          // The source clip is a dark, low-contrast scanner shot (avg ~rgb(45,76,87)).
+          // A gentle brightness/contrast/saturation lift makes the teal footage
+          // read as intentional ambient motion against the dark console. Kept
+          // moderate on purpose: a heavy brightness boost amplifies the clip's
+          // compression noise into a washed-out haze. Opacity = ready gate times
+          // the loop-seam crossfade (dips at the restart so the cut is hidden).
+          style={{
+            opacity: ready ? loopFade : 0,
+            transition: ready ? "none" : "opacity 700ms",
+            filter:
+              videoMode === "dark"
+                ? "brightness(1.35) contrast(1.1) saturate(1.3)"
+                : "brightness(1.15) contrast(1.05) saturate(1.2)",
+          }}
         >
           <source src={src} type="video/mp4" />
         </video>
       )}
-      {/* Readability scrim: a mode-appropriate wash so the sign-in text and
-          member cards stay legible over the footage. */}
+      {/* Very light vignette only. The brand panel carries its own left-edge
+          gradient for text legibility, so this just keeps the footage from
+          blowing out at the extreme edges. Kept minimal so the truck reads. */}
       <div
         className="absolute inset-0"
         style={{
           background:
             videoMode === "light"
-              ? "linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 78%, transparent), color-mix(in srgb, var(--color-bg) 42%, transparent))"
-              : "linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 82%, transparent), color-mix(in srgb, var(--color-bg) 55%, transparent))",
+              ? "linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 18%, transparent), transparent 30%)"
+              : "linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 20%, transparent), transparent 30%)",
         }}
       />
     </div>

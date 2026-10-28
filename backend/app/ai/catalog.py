@@ -248,6 +248,25 @@ TASKS: dict[str, TaskInfo] = {
         default_model="muse-spark-1.3",
         default_effort=ReasoningEffort.BALANCED,
     ),
+    "name_load": TaskInfo(
+        id="name_load",
+        name="Load concept naming",
+        description=(
+            "Look at the load and name the noun phrases SAM should segment "
+            "(e.g. 'barrels and containers', 'tree branches'), so segmentation "
+            "is not tied to a fixed phrase list. A short perception call."
+        ),
+        kind="chat",
+        eligible_models=[
+            "muse-spark-1.3",
+            "muse-spark-1.3-contributor",
+            "muse-spark-1.2",
+            "muse-spark-1.1",
+            "muse-wonder-1.0",
+        ],
+        default_model="muse-spark-1.3",
+        default_effort=ReasoningEffort.LOW,
+    ),
     "narrate_anomaly": TaskInfo(
         id="narrate_anomaly",
         name="Anomaly narration",
@@ -263,6 +282,23 @@ TASKS: dict[str, TaskInfo] = {
         ],
         default_model="muse-spark-1.3",
         default_effort=ReasoningEffort.MINIMAL,
+    ),
+    "explain_pipeline": TaskInfo(
+        id="explain_pipeline",
+        name="Pipeline stage analysis",
+        description=(
+            "One batched call that authors the plain-language 'AI analysis' "
+            "paragraph shown beside each pipeline stage on the console, grounded "
+            "in the run's measured facts. Text only, so it stays cheap."
+        ),
+        kind="chat",
+        eligible_models=[
+            "muse-spark-1.3",
+            "muse-spark-1.3-contributor",
+            "muse-spark-1.2",
+        ],
+        default_model="muse-spark-1.3",
+        default_effort=ReasoningEffort.LOW,
     ),
     "analyst_chat": TaskInfo(
         id="analyst_chat",

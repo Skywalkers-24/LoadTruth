@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangleIcon, CircleDollarSignIcon, GaugeIcon, LayersIcon } from "lucide-react";
 
-import type { ReportsSummary, Ticket } from "@/lib/api";
+import type { ReportsSummary, Ticket, TicketSort } from "@/lib/api";
+import { useTickets } from "@/lib/hooks";
 import { DonutChart, RankedBars, type Datum } from "@/components/ui/charts-v2";
 import type { ChartConfig } from "@/components/ui/shadcn/chart";
 import { Card } from "@/components/ui/shadcn/card";
@@ -23,7 +24,7 @@ import {
   statusLabel,
 } from "@/lib/format";
 
-const LEDGER_PAGE_SIZE = 12;
+const LEDGER_PAGE_SIZE = 20;
 
 export interface PerEvent {
   id: string;
@@ -58,10 +59,17 @@ export function ReportsPanel({
   s,
   tickets,
   perEvent,
+  ledgerEventId,
 }: {
   s: ReportsSummary;
   tickets: Ticket[];
   perEvent?: PerEvent[];
+  /**
+   * Event the ledger pages against on the server (undefined = all tenant
+   * tickets, for the admin "All events" view). The charts above still use the
+   * `tickets` snapshot; only the ledger table is server-paged.
+   */
+  ledgerEventId?: string;
 }) {
   const measured = Number.parseFloat(s.total_est_dollar_value);
   const flagged = Number.parseFloat(s.overbill_dollar_value);
@@ -179,7 +187,7 @@ export function ReportsPanel({
         </Card>
       </div>
 
-      <Ledger tickets={tickets} />
+      <Ledger eventId={ledgerEventId} total={s.ticket_count} />
     </div>
   );
 }
@@ -213,47 +221,33 @@ function PerEventTable({ rows }: { rows: PerEvent[] }) {
   );
 }
 
-type SortCol = "created" | "delta" | "measured" | "value";
+type SortCol = TicketSort;
 
-function Ledger({ tickets }: { tickets: Ticket[] }) {
+/**
+ * The ticket ledger. Sorting and paging happen on the server: the component
+ * holds only the current page and the chosen sort, and asks the backend for the
+ * matching window. ``total`` (from the reports summary) is used until the first
+ * page lands so the count and page controls don't flicker.
+ */
+function Ledger({ eventId, total: totalHint }: { eventId?: string; total: number }) {
   const router = useRouter();
   const [sort, setSort] = useState<{ col: SortCol; dir: 1 | -1 }>({ col: "delta", dir: -1 });
   const [offset, setOffset] = useState(0);
 
-  const rows = useMemo(() => {
-    // Returns the sort value, or null for "no value" rows (e.g. uncalled
-    // tickets have no delta). Null rows are always pushed to the end,
-    // independent of sort direction, so they don't masquerade as extreme values.
-    const key = (t: Ticket): number | null => {
-      switch (sort.col) {
-        case "created":
-          return +new Date(t.created_at);
-        case "delta":
-          return t.valuation.delta_dollar_value === null
-            ? null
-            : Number.parseFloat(t.valuation.delta_dollar_value);
-        case "measured":
-          // The "Measured" column shows volume (cubic yards); sort by it.
-          return Number.parseFloat(t.valuation.est_cubic_yards);
-        case "value":
-          return Number.parseFloat(t.valuation.est_dollar_value);
-      }
-    };
-    return [...tickets].sort((a, b) => {
-      const ka = key(a);
-      const kb = key(b);
-      if (ka === null && kb === null) return 0;
-      if (ka === null) return 1; // a sinks to the end
-      if (kb === null) return -1; // b sinks to the end
-      return (ka - kb) * sort.dir;
-    });
-  }, [tickets, sort]);
+  const query = useTickets({
+    eventId,
+    // No event id = the whole tenant (admin "All events" view); allow that by
+    // not gating on an event. The hook otherwise disables when eventId is unset,
+    // so pass a sentinel the backend treats as "all".
+    limit: LEDGER_PAGE_SIZE,
+    offset,
+    sort: sort.col,
+    order: sort.dir === 1 ? "asc" : "desc",
+    allTenant: eventId === undefined,
+  });
 
-  // Page the sorted rows so a long ledger stays readable; sorting resets to the
-  // first page so the top of the new order is visible.
-  const total = rows.length;
-  const clampedOffset = offset >= total ? 0 : offset;
-  const pageRows = rows.slice(clampedOffset, clampedOffset + LEDGER_PAGE_SIZE);
+  const pageRows = query.data?.items ?? [];
+  const total = query.data?.total ?? totalHint;
 
   function sortBy(col: SortCol) {
     setOffset(0);
@@ -369,12 +363,7 @@ function Ledger({ tickets }: { tickets: Ticket[] }) {
       </div>
       {total > LEDGER_PAGE_SIZE && (
         <div className="border-t border-border px-4 py-2.5">
-          <Pagination
-            total={total}
-            limit={LEDGER_PAGE_SIZE}
-            offset={clampedOffset}
-            onOffset={setOffset}
-          />
+          <Pagination total={total} limit={LEDGER_PAGE_SIZE} offset={offset} onOffset={setOffset} />
         </div>
       )}
     </Card>

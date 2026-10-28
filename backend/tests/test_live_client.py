@@ -75,8 +75,17 @@ def _spark(answer: str, *, tokens_in: int = 1000, tokens_out: int = 200) -> dict
 class FakeMeta:
     """An in-process stand-in for https://api.meta.ai/v1."""
 
-    def __init__(self, *, frames: int = 2, ocr: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        frames: int = 2,
+        ocr: dict[str, Any] | None = None,
+        visual_fill: float | None = None,
+        named_load: list[str] | None = None,
+    ) -> None:
+        self.named_load = named_load if named_load is not None else ["steel drums"]
         self.frames = frames
+        self.visual_fill = visual_fill
         self.ocr = ocr or {
             "truck_id": "fl-dt-3391",
             "readable": True,
@@ -108,10 +117,28 @@ class FakeMeta:
                 200, headers={"content-type": "text/event-stream"}, content=_sse(text, usage)
             )
         task = (body.get("text") or {}).get("format", {}).get("name")
+        if task == "name_load":
+            answer = {"concepts": self.named_load, "visible_fill_pct": self.visual_fill or 50.0}
+            return httpx.Response(200, json=_spark(json.dumps(answer)))
         if task == "spark_ocr":
-            return httpx.Response(200, json=_spark(json.dumps(self.ocr)))
+            ocr = {"analysis": "I read the placard from the clearest frame.", **self.ocr}
+            return httpx.Response(200, json=_spark(json.dumps(ocr)))
         if task == "spark_classify":
-            answer = {"debris_class": "construction_demolition", "confidence": 0.9}
+            answer = {
+                "debris_class": "construction_demolition",
+                "confidence": 0.9,
+                "fill_pct": self.visual_fill,
+                "analysis": "The load is mostly damaged building materials.",
+            }
+            return httpx.Response(200, json=_spark(json.dumps(answer)))
+        if task == "explain_pipeline":
+            answer = {
+                "sam_track": "I tracked the truck, bed, and debris across the frames.",
+                "capacity": "The truck matched a certified record.",
+                "geometry": "I measured the bed fill from the masks.",
+                "anomalies": "The rules found nothing to flag.",
+                "dollar_math": "I valued the load by exact arithmetic.",
+            }
             return httpx.Response(200, json=_spark(json.dumps(answer)))
         return httpx.Response(200, json=_spark("Check the placard — it was hard to read."))
 
@@ -183,7 +210,18 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
 
     # SAM's raw output is kept per concept for the Review overlay, and the
     # media the models saw is stored for playback.
-    assert set(result.segments) == {"truck bed", "debris pile"}
+    # The overlay keys plus the tailgate rim and every load phrase, kept so a
+    # later measurement change can re-measure offline.
+    # Muse Spark named "steel drums"; the merged load set is that plus the two
+    # top defaults, capped at sam_load_max_concepts (3).
+    assert set(result.segments) == {
+        "truck bed",
+        "debris pile",
+        "tailgate",
+        "load: steel drums",
+        "load: debris pile",
+        "load: pile",
+    }
     assert result.segments["truck bed"].startswith("<0f>0<|box;")
     from app.pipeline import evidence_store
 
@@ -194,14 +232,26 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert fake.deleted == ["file-123"]
     sam = [b for b in fake.responses if b["model"].startswith("sam")]
     spark = [b for b in fake.responses if not b["model"].startswith("sam")]
-    assert sorted(b["input"][0]["content"][0]["text"] for b in sam) == ["debris pile", "truck bed"]
+    # Bed phrases, the tailgate rim, and the load phrases all go out in parallel.
+    assert sorted(b["input"][0]["content"][0]["text"] for b in sam) == [
+        "debris pile",
+        "dump truck",
+        "pile",
+        "steel drums",
+        "tailgate",
+        "truck bed",
+    ]
     for body in fake.responses:
         part = body["input"][0]["content"][-1]
         if part["type"] != "input_text":
             assert part == {"type": "input_video", "file_id": "file-123"}
     assert all(b["stream"] is True for b in sam)
     assert all(b["metadata"]["mask_encoding"] == "one_bit" for b in sam)
-    assert len(spark) == 2  # OCR + classify; a clean load raises no narration
+    # name_load (names the SAM load concept) + OCR + classify + the batched
+    # per-stage analysis; a clean load raises no anomaly narration.
+    assert len(spark) == 4
+    spark_tasks = {(b.get("text") or {}).get("format", {}).get("name") for b in spark}
+    assert spark_tasks == {"name_load", "spark_ocr", "spark_classify", "explain_pipeline"}
 
     # The trace carries what each model returned, for the Pipeline page.
     assert result.trace is not None
@@ -210,17 +260,32 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert "1,000 in, 200 out" in stages["spark_ocr"]["Tokens"]
     assert stages["spark_ocr"]["Cost"] == "$0.0021"
     assert stages["sam_track"]['Prompt "truck bed"'] == "1 object on 2 of 2 frames"
-    assert stages["sam_track"]["Billed"] == "100 frames (2 requests)"
+    assert stages["sam_track"]["Billed"] == "300 frames (6 requests)"
+    assert stages["sam_track"]["Bed measured from"] == '"truck bed"'
+    assert stages["sam_track"]["Load named by Muse Spark"] == '"steel drums"'
     assert stages["geometry"]["Frames measured"] == "2"
 
+    # Meta AI authored the per-stage "AI analysis": OCR/classify carry their own,
+    # and the batched explain_pipeline call fills in the rest.
+    analysis = {s.key: s.analysis for s in result.trace.stages}
+    assert analysis["spark_ocr"] == "I read the placard from the clearest frame."
+    assert analysis["spark_classify"] == "The load is mostly damaged building materials."
+    assert analysis["sam_track"] == "I tracked the truck, bed, and debris across the frames."
+    assert analysis["geometry"] == "I measured the bed fill from the masks."
+    assert analysis["dollar_math"] == "I valued the load by exact arithmetic."
+
     rows = {r.stage: r for r in await ledger.rows()}
-    # Two video requests, each billed at the 50-frame minimum ($0.20 / 1k frames).
-    assert rows["sam_track"].cost_usd == pytest.approx(0.02)
+    # Six SAM video requests at the 50-frame minimum ($0.06) plus the name_load
+    # Spark call folded into this stage ($0.0021).
+    assert rows["sam_track"].cost_usd == pytest.approx(0.0621)
     # 1000 in at $1.25/1M + 200 out at $4.25/1M.
     assert rows["spark_ocr"].cost_usd == pytest.approx(0.0021)
     assert rows["spark_ocr"].tokens_in == 1000
     assert rows["spark_classify"].model == "muse-spark-1.3"
-    assert ledger.summarize().total_cost_usd == pytest.approx(0.0242)
+    # The batched per-stage analysis is one more Spark call, billed like the rest.
+    assert rows["spark_explain"].cost_usd == pytest.approx(0.0021)
+    assert rows["spark_explain"].model == "muse-spark-1.3"
+    assert ledger.summarize().total_cost_usd == pytest.approx(0.0684)
 
 
 @pytest.mark.asyncio
@@ -229,11 +294,13 @@ async def test_image_goes_inline_and_bills_per_image() -> None:
     result, ledger = await _run(_client(fake), kind="image")
 
     assert fake.uploads == [] and fake.deleted == []
-    part = fake.responses[0]["input"][0]["content"][1]
+    sam = next(b for b in fake.responses if b["model"].startswith("sam"))
+    part = sam["input"][0]["content"][1]
     assert part["type"] == "input_image"
     assert part["image_url"].startswith("data:image/png;base64,")
     rows = {r.stage: r for r in await ledger.rows()}
-    assert rows["sam_track"].cost_usd == pytest.approx(0.005)  # 2 images at $2.50 / 1k
+    # 6 SAM images at $2.50 / 1k ($0.015) plus the name_load Spark call ($0.0021).
+    assert rows["sam_track"].cost_usd == pytest.approx(0.0171)
     assert result.ticket.evidence_frames == ["haul.png"]
 
 
@@ -265,6 +332,22 @@ async def test_unreadable_placard_flags_identity_and_narrates() -> None:
     assert flags["identity_unreadable"].explanation == "Check the placard, it was hard to read."
     rows = {r.stage: r for r in await ledger.rows()}
     assert rows["anomalies"].cost_usd > 0
+
+
+@pytest.mark.asyncio
+async def test_spark_visual_read_cross_checks_the_measured_fill() -> None:
+    """Muse Spark's fill read never sets the number, but a big gap flags review."""
+    agree_fill = (await _run(_client(FakeMeta())))[0].ticket.est_fill_pct
+    far_off = 0.0 if agree_fill > 50 else 100.0  # the other end of the scale
+    result, _ = await _run(_client(FakeMeta(visual_fill=far_off)))
+
+    assert result.ticket.est_fill_pct == agree_fill  # the masks still set the fill
+    assert result.fill_confidence < 0.45
+    assert "low_confidence" in {a.type.value for a in result.anomalies}
+    assert result.trace is not None
+    geometry = dict(next(s for s in result.trace.stages if s.key == "geometry").details)
+    assert geometry["Muse Spark visual read"].endswith("%")
+    assert "Muse Spark" in geometry["Review note"]
 
 
 @pytest.mark.asyncio

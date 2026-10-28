@@ -15,15 +15,18 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.ai import sam_measure
 from app.ai.base import (
     ClassifyResult,
     ClipMedia,
     Narration,
     OCRResult,
+    StageExplanations,
     TrackedObject,
     TrackResult,
 )
 from app.ai.cached_client import CachingAIClient
+from app.ai.sam_measure import Box, Detection
 from app.db.base import Base
 from app.tickets.repository import SqlTicketRepository
 from app.tickets.seed import DEMO_TENANT_ID
@@ -63,6 +66,12 @@ class CountingAIClient:
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
         self.narrate_calls += 1
         return Narration("narrative")
+
+    async def explain_pipeline(self, facts: dict[str, object]) -> StageExplanations:
+        return StageExplanations(by_stage={})
+
+    async def answer_question(self, prompt: str) -> Narration:
+        return Narration("")
 
 
 @pytest_asyncio.fixture
@@ -141,3 +150,89 @@ async def test_results_are_tenant_scoped(session: AsyncSession) -> None:
     assert inner.track_calls == 2
     assert await repo.get_ai_stage_result(TENANT, HASH, "sam_track") is not None
     assert await repo.get_ai_stage_result(other_tenant, HASH, "sam_track") is not None
+
+
+_BED_TXT = "<0f>0<|box;x1=100;y1=100;x2=299;y2=199;w=1000;h=1000|>\n"
+_RIM_TXT = "<0f>0<|box;x1=100;y1=160;x2=299;y2=199;w=1000;h=1000|>\n"
+_LOAD_TXT = "<0f>0<|box;x1=100;y1=100;x2=299;y2=159;w=1000;h=1000|>\n"
+
+
+def _old_track_row(*, with_rim: bool, with_load: bool = True) -> dict[str, object]:
+    """A live track stored by an older measurement version.
+
+    ``with_load`` controls whether a SAM load phrase matched (``load_source``):
+    a track with no load can't be replayed offline and must re-run SAM.
+    """
+    sam_output = {"truck bed": _BED_TXT, "debris pile": _LOAD_TXT if with_load else ""}
+    if with_rim:
+        sam_output["tailgate"] = _RIM_TXT
+    return {
+        "frame_count": 1,
+        "sam_output": sam_output,
+        "load_source": "segmented" if with_load else "none",
+        "measure_version": 1,
+        "objects": [
+            {"label": "truck bed", "sam_object_id": "bed-0", "mask_areas": [1.0]},
+            {
+                "label": "debris pile",
+                "sam_object_id": "load",
+                "mask_areas": [1.0 if with_load else 0.0],
+            },
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_outdated_track_with_every_concept_is_remeasured_offline(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Stand in for the SAM parser: each stored text decodes to one box.
+    boxes = {
+        _BED_TXT: Box(100, 100, 300, 200),
+        _RIM_TXT: Box(100, 160, 300, 200),
+        _LOAD_TXT: Box(100, 100, 300, 160),
+    }
+    monkeypatch.setattr(
+        sam_measure,
+        "parse_segmentation",
+        lambda text, media_kind: (
+            [Detection(0, "0", boxes[text], media_size=(1000, 1000))] if text in boxes else []
+        ),
+    )
+    repo = SqlTicketRepository(session)
+    await repo.save_ai_stage_result(
+        TENANT, HASH, "sam_track", result_json=_old_track_row(with_rim=True)
+    )
+    inner = CountingAIClient()
+    track = await CachingAIClient(inner, repo, TENANT).track(CLIP)
+
+    assert inner.track_calls == 0  # no model call: offline re-measure
+    assert track.measure_version >= 3
+    bed = track.by_label("truck bed")
+    assert bed is not None and bed.mask_areas == [200.0 * 60]  # opening above the rim
+    stored = await repo.get_ai_stage_result(TENANT, HASH, "sam_track")
+    assert stored is not None and stored["measure_version"] == track.measure_version
+
+
+@pytest.mark.asyncio
+async def test_outdated_track_missing_the_rim_reruns_sam(session: AsyncSession) -> None:
+    repo = SqlTicketRepository(session)
+    await repo.save_ai_stage_result(
+        TENANT, HASH, "sam_track", result_json=_old_track_row(with_rim=False)
+    )
+    inner = CountingAIClient()
+    await CachingAIClient(inner, repo, TENANT).track(CLIP)
+    assert inner.track_calls == 1  # SAM must supply the tailgate the new method reads
+
+
+@pytest.mark.asyncio
+async def test_outdated_track_with_no_load_reruns_sam(session: AsyncSession) -> None:
+    # The LT-804655 case: a cached track that found no load must re-run SAM so
+    # the current (named + expanded) load concepts get a chance, not replay 0%.
+    repo = SqlTicketRepository(session)
+    await repo.save_ai_stage_result(
+        TENANT, HASH, "sam_track", result_json=_old_track_row(with_rim=True, with_load=False)
+    )
+    inner = CountingAIClient()
+    await CachingAIClient(inner, repo, TENANT).track(CLIP)
+    assert inner.track_calls == 1

@@ -27,6 +27,10 @@ def track_to_json(r: TrackResult) -> dict[str, Any]:
         "frame_count": r.frame_count,
         "sam_output": dict(r.segments),
         "notes": dict(r.notes),
+        "load_source": r.load_source,
+        "coverage_spread": r.coverage_spread,
+        "measure_version": r.measure_version,
+        "bed_source": r.bed_source,
         "objects": [
             {
                 "label": o.label,
@@ -54,7 +58,14 @@ def track_from_json(d: dict[str, Any]) -> TrackResult:
     raw_notes = d.get("notes")
     notes = {str(k): str(v) for k, v in raw_notes.items()} if isinstance(raw_notes, dict) else {}
     return TrackResult(
-        objects=objects, frame_count=int(d["frame_count"]), segments=segments, notes=notes
+        objects=objects,
+        frame_count=int(d["frame_count"]),
+        segments=segments,
+        notes=notes,
+        load_source=str(d.get("load_source") or "segmented"),
+        coverage_spread=float(d.get("coverage_spread") or 0.0),
+        measure_version=int(d.get("measure_version") or 0),
+        bed_source=str(d.get("bed_source") or "bed"),
     )
 
 
@@ -66,12 +77,45 @@ def track_is_current(d: dict[str, Any]) -> bool:
     return "sam_output" in d
 
 
+def track_is_outdated(d: dict[str, Any], current_version: int) -> bool:
+    """True when a stored live track came from an older measurement method.
+
+    Fixture rows (no raw SAM output) are never outdated: there is nothing to
+    re-measure and the mock carries its own numbers.
+    """
+    raw = d.get("sam_output")
+    has_raw = isinstance(raw, dict) and any(str(v).strip() for v in raw.values())
+    return has_raw and int(d.get("measure_version") or 0) < current_version
+
+
+def track_has_load(d: dict[str, Any]) -> bool:
+    """True when the stored track actually segmented a load inside the bed.
+
+    ``load_source == "segmented"`` is set only when a SAM load phrase matched
+    inside the bed; "none" means no phrase matched. A track with no load cannot
+    be repaired by an offline re-measure (there is no load mask to re-measure);
+    it needs SAM to run again with the current concept set."""
+    return str(d.get("load_source") or "") == "segmented"
+
+
+def track_can_remeasure(d: dict[str, Any], rim_key: str) -> bool:
+    """True when the stored SAM output can be re-measured offline for the current
+    method: it holds the tailgate rim AND a load mask was segmented.
+
+    When no load was segmented, an offline replay would reproduce the same 0%
+    fill, so the caller must re-run SAM (to pick up new/named load concepts)
+    rather than replay."""
+    raw = d.get("sam_output")
+    return isinstance(raw, dict) and rim_key in raw and track_has_load(d)
+
+
 def ocr_to_json(r: OCRResult) -> dict[str, Any]:
     return {
         "truck_id": r.truck_id,
         "confidence": r.confidence,
         "frame_ref": r.frame_ref,
         "raw": r.raw,
+        "analysis": r.analysis,
     }
 
 
@@ -83,18 +127,28 @@ def ocr_from_json(d: dict[str, Any]) -> OCRResult:
         confidence=float(d["confidence"]),
         frame_ref=str(frame) if frame is not None else None,
         raw=str(d.get("raw") or ""),
+        analysis=str(d.get("analysis") or ""),
     )
 
 
 def classify_to_json(r: ClassifyResult) -> dict[str, Any]:
-    return {"debris_class": r.debris_class, "confidence": r.confidence, "raw": r.raw}
+    return {
+        "debris_class": r.debris_class,
+        "confidence": r.confidence,
+        "raw": r.raw,
+        "analysis": r.analysis,
+        "visual_fill_pct": r.visual_fill_pct,
+    }
 
 
 def classify_from_json(d: dict[str, Any]) -> ClassifyResult:
+    visual = d.get("visual_fill_pct")
     return ClassifyResult(
         debris_class=str(d["debris_class"]),
         confidence=float(d["confidence"]),
         raw=str(d.get("raw") or ""),
+        analysis=str(d.get("analysis") or ""),
+        visual_fill_pct=float(visual) if visual is not None else None,
     )
 
 

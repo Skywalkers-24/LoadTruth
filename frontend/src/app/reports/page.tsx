@@ -191,6 +191,7 @@ export default function ReportsPage() {
               s={panelSummary}
               tickets={panelTickets}
               perEvent={allMode ? perEvent : undefined}
+              ledgerEventId={allMode ? undefined : eventId}
             />
           ) : (
             <EmptyState

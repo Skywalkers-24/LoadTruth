@@ -13,22 +13,33 @@ not touch the DB itself, which keeps it trivially testable.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
 from uuid import UUID
 
-from app.ai.base import AIClient, CallUsage, ClipMedia, OCRResult
+from app.ai.base import AIClient, CallUsage, ClipMedia, OCRResult, StageExplanations
 from app.ai.config_store import get_ai_config_store
 from app.config import get_settings
 from app.pipeline.anomalies import Anomaly, AnomalyInput, evaluate
 from app.pipeline.cache import ResultCache
-from app.pipeline.geometry import MaskMeasurement, estimate_fill
+from app.pipeline.geometry import FillEstimate, MaskMeasurement, estimate_fill
 from app.pipeline.ingest import IngestedArtifact
 from app.pipeline.ledger import BudgetExceededError, CostLedger
 from app.pipeline.registry import TruckRegistry
-from app.pipeline.trace import PipelineTrace
+from app.pipeline.trace import PipelineTrace, StageRecord
 from app.tickets.domain import Ticket, new_ticket
 from app.tickets.schemas import DebrisClass
+
+# How the load was measured, in the trace's plain words.
+_LOAD_SOURCE_LABEL = {
+    "segmented": "SAM load mask",
+    "none": "No SAM load phrase matched inside the bed",
+}
+_BED_SOURCE_LABEL = {
+    "bed": "SAM truck bed mask",
+    "truck": "SAM whole-truck mask (no bed phrase matched)",
+}
 
 # Stage names used in the cost ledger (also the dashboard's per-stage buckets).
 _AI_STAGES = ("sam_track", "spark_ocr", "spark_classify")
@@ -62,6 +73,7 @@ async def run_pipeline(
     cache: ResultCache[PipelineResult] | None = None,
     ledger: CostLedger | None = None,
     data: bytes = b"",
+    on_stage: Callable[[StageRecord], None] | None = None,
 ) -> PipelineResult:
     """Run the full pipeline for one ingested clip and return a draft ticket.
 
@@ -71,6 +83,8 @@ async def run_pipeline(
     and already holds a result for this clip's content hash, the cached result is
     returned for free (every stage recorded as a $0 cache hit) and no AI call is
     made — the cost rule in LESSONS: no uncached model call on a repeated path.
+    ``on_stage`` is called with each stage the instant it is recorded, so a live
+    progress view can stream the run.
     """
     h = artifact.content_hash
 
@@ -79,7 +93,7 @@ async def run_pipeline(
         if hit is not None:
             await _record_cached(ledger)
             # Rebuild a trace for the cached run so the UI still shows the work.
-            trace = PipelineTrace(content_hash=h)
+            trace = PipelineTrace(content_hash=h, on_stage=on_stage)
             trace.cached = True
             trace.outcome = "cached" if not hit.no_truck else "no_truck"
             trace.stage(
@@ -92,7 +106,7 @@ async def run_pipeline(
     if ledger is not None and ledger.budget_status().hard_cap_hit:
         raise BudgetExceededError(ledger.budget_status().spent_usd)
 
-    trace = PipelineTrace(content_hash=h)
+    trace = PipelineTrace(content_hash=h, on_stage=on_stage)
     result = await _compute_pipeline(
         artifact=artifact,
         tenant_id=tenant_id,
@@ -184,6 +198,7 @@ async def _compute_pipeline(
             confidence=ocr.confidence,
             details=ocr_details,
             duration_ms=_latency(ocr.usage),
+            analysis=ocr.analysis,
         )
 
     # Stage 4 — capacity lookup.
@@ -211,30 +226,46 @@ async def _compute_pipeline(
             ],
         )
 
-    # Stage 5 — fill % from geometry + debris class (Spark).
+    # Stage 5 — fill % from geometry; Spark's visual read is only a cross-check.
     bed_area = _avg(bed.mask_areas)
     load_area = _avg(debris.mask_areas)
     fill = estimate_fill(
         [_mask_measurement(bed_area, load_area, debris.load_height_ratio)],
-        body_type=body_type,
+        load_source=tracks.load_source,
+        bed_source=tracks.bed_source,
+        coverage_spread=tracks.coverage_spread,
+        cross_check_pct=classify.visual_fill_pct,
     )
     await _record(ledger, "geometry")
     if trace:
+        weak = bool(fill.quality_notes)
+        geometry_details = [
+            ["Frames measured", str(len(bed.mask_areas))],
+            ["Bed opening, average", f"{bed_area:,.0f} px"],
+            ["Load inside the opening, average", f"{load_area:,.0f} px"],
+            ["Bed measured by", _BED_SOURCE_LABEL.get(tracks.bed_source, tracks.bed_source)],
+            ["Load measured by", _LOAD_SOURCE_LABEL.get(tracks.load_source, tracks.load_source)],
+            ["Opening coverage", f"{fill.planar_coverage:.0%}"],
+            ["Depth factor", f"{fill.depth_factor:.2f}"],
+            ["Frame agreement (spread)", f"{tracks.coverage_spread:.0%}"],
+        ]
+        if classify.visual_fill_pct is not None:
+            geometry_details.append(["Muse Spark visual read", f"{classify.visual_fill_pct:.0f}%"])
+        geometry_details += [["Review note", n] for n in fill.quality_notes]
+        geometry_details.append(["Fill", f"{fill.fill_pct}%"])
         trace.stage(
             "geometry",
             "Measure fill",
             "geometry",
-            f"Measured bed fill at {fill.fill_pct}% from the segmentation masks.",
+            (
+                f"Measured bed fill at {fill.fill_pct}%; flagged for review "
+                "because the measurement is weak."
+                if weak
+                else f"Measured bed fill at {fill.fill_pct}% from the segmentation masks."
+            ),
+            status="flagged" if weak else "ok",
             confidence=fill.confidence,
-            details=[
-                ["Frames measured", str(len(bed.mask_areas))],
-                ["Bed area, average", f"{bed_area:,.0f} px"],
-                ["Load area inside bed, average", f"{load_area:,.0f} px"],
-                ["Planar coverage", f"{fill.planar_coverage:.0%}"],
-                ["Load height vs. bed", f"{debris.load_height_ratio:.0%}"],
-                ["Depth factor", f"{fill.depth_factor:.2f}"],
-                ["Fill", f"{fill.fill_pct}%"],
-            ],
+            details=geometry_details,
         )
     await _record(ledger, "spark_classify", classify.usage)
     debris_class = _safe_debris_class(classify.debris_class)
@@ -250,6 +281,7 @@ async def _compute_pipeline(
             + [["Rate applied", f"${rate} per CY"]]
             + _usage_details(classify.usage),
             duration_ms=_latency(classify.usage),
+            analysis=classify.analysis,
         )
 
     # Stage 7 — draft the ticket (dollar math via the §7a value path).
@@ -332,6 +364,27 @@ async def _compute_pipeline(
         )
         trace.anomaly_count = len(anomalies)
         trace.outcome = "drafted"
+        # Muse Spark authors the "AI analysis" paragraph for the stages that do
+        # not already return their own (SAM track, capacity, geometry, anomaly
+        # flags, valuation), grounded in the measured facts. One batched call,
+        # cached with the rest of the run; a failure leaves the summary fallback.
+        explain_usage = await _explain(
+            ai,
+            trace,
+            facts=_explain_facts(
+                ocr=ocr,
+                match_found=match.found,
+                certified=certified,
+                body_type=body_type,
+                fill=fill,
+                debris_class=debris_class,
+                rate=rate,
+                ticket=ticket,
+                anomalies=anomalies,
+                frame_count=tracks.frame_count,
+            ),
+        )
+        await _record(ledger, "spark_explain", explain_usage)
     await _record(ledger, "dollar_math")
     return PipelineResult(
         ticket=ticket,
@@ -380,6 +433,63 @@ async def _narrate(
             )
         )
     return narrated, usage
+
+
+def _explain_facts(
+    *,
+    ocr: OCRResult,
+    match_found: bool,
+    certified: Decimal,
+    body_type: str | None,
+    fill: FillEstimate,
+    debris_class: DebrisClass,
+    rate: Decimal,
+    ticket: Ticket,
+    anomalies: list[Anomaly],
+    frame_count: int,
+) -> dict[str, object]:
+    """The measured facts Muse Spark narrates into per-stage analysis.
+
+    Only computed values the pipeline already produced; the model phrases them,
+    it never fetches or invents figures."""
+    return {
+        "frame_count": frame_count,
+        "truck_id": ocr.truck_id or "unidentified",
+        "identity_confidence": round(ocr.confidence, 2),
+        "truck_certified": match_found,
+        "certified_cubic_yards": str(certified),
+        "body_type": body_type or "unknown",
+        "fill_pct": str(fill.fill_pct),
+        "fill_confidence": round(fill.confidence, 2),
+        "fill_review_notes": list(fill.quality_notes),
+        "planar_coverage": round(fill.planar_coverage, 2),
+        "depth_factor": round(fill.depth_factor, 2),
+        "debris_class": debris_class.value,
+        "rate_per_cy": str(rate),
+        "est_cubic_yards": str(ticket.est_cubic_yards),
+        "est_dollar_value": str(ticket.est_dollar_value),
+        "anomalies": [
+            {"type": a.type.value, "severity": a.severity, "explanation": a.explanation}
+            for a in anomalies
+        ],
+    }
+
+
+async def _explain(
+    ai: AIClient, trace: PipelineTrace, *, facts: dict[str, object]
+) -> CallUsage | None:
+    """Attach Muse Spark's per-stage "AI analysis" to the trace.
+
+    One batched call. A failure is swallowed: the stages keep their summary
+    fallback, so authored analysis can never break the pipeline. Returns the
+    call's usage for the cost ledger (None when nothing was billed)."""
+    try:
+        result: StageExplanations = await ai.explain_pipeline(facts)
+    except Exception:  # noqa: BLE001 — analysis is best-effort, never fatal
+        return None
+    if result.by_stage:
+        trace.set_analysis(result.by_stage)
+    return result.usage
 
 
 async def _record(ledger: CostLedger | None, stage: str, usage: CallUsage | None = None) -> None:

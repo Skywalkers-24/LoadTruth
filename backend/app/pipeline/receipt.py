@@ -29,7 +29,8 @@ from typing import Any
 
 # Bump when the canonical receipt shape changes, so an old receipt is detectably
 # from an older format rather than silently "not matching."
-RECEIPT_VERSION = "1"
+# "2": bed_area is the bed opening above the tailgate rim (measurement v2).
+RECEIPT_VERSION = "2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,10 +44,10 @@ class ReceiptInputs:
 
     content_hash: str  # SHA-256 of the exact media bytes the models saw
     sam_output_hash: str  # SHA-256 of SAM's stored raw segmentation text
-    bed_area: float  # averaged truck-bed mask area (px)
-    load_area: float  # averaged debris mask area within the bed (px)
-    load_height_ratio: float  # load surface height vs. bed rails (0..1)
-    body_type: str | None  # depth prior key (changes the geometry)
+    bed_area: float  # averaged bed-opening area above the tailgate rim (px)
+    load_area: float  # averaged load area inside the opening (px)
+    load_height_ratio: float  # depth term the coverage stands for (0..1)
+    body_type: str | None  # matched truck body type (pinned for the audit trail)
     truck_id: str | None  # placard read
     debris_class: str  # classified load class
     certified_cubic_yards: str  # registry capacity (Decimal as string)

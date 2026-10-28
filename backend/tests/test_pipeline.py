@@ -19,7 +19,6 @@ from app.tickets.seed import DEMO_EVENT_ID, DEMO_TENANT_ID
 def test_estimate_fill_full_load_reads_high() -> None:
     est = estimate_fill(
         [MaskMeasurement(bed_area=26000, load_area=24000, load_height_ratio=0.9)],
-        body_type="construction_demolition",
     )
     assert est.fill_pct > Decimal(70)
     assert 0.0 <= est.confidence <= 1.0
@@ -28,6 +27,32 @@ def test_estimate_fill_full_load_reads_high() -> None:
 def test_estimate_fill_empty_bed_is_zero() -> None:
     est = estimate_fill([MaskMeasurement(bed_area=26000, load_area=0, load_height_ratio=0.0)])
     assert est.fill_pct == Decimal("0.00")
+
+
+def test_gate_camera_fill_is_the_opening_coverage() -> None:
+    est = estimate_fill([MaskMeasurement(bed_area=40000, load_area=24000, load_height_ratio=1.0)])
+    assert est.fill_pct == Decimal("60.00")
+    assert est.quality_notes == ()
+
+
+def test_weak_measurements_cap_confidence_below_the_review_threshold() -> None:
+    view = [MaskMeasurement(40000, 24000, 1.0)]
+    for kwargs in (
+        {"load_source": "none"},
+        {"bed_source": "truck"},
+        {"coverage_spread": 0.3},
+        {"cross_check_pct": 95.0},  # Muse Spark read 95%, the masks measured 60%
+    ):
+        est = estimate_fill(view, **kwargs)
+        assert est.confidence < 0.45, kwargs
+        assert est.quality_notes, kwargs
+        assert est.fill_pct == Decimal("60.00")  # confidence only; the number holds
+
+
+def test_agreeing_cross_check_keeps_confidence() -> None:
+    est = estimate_fill([MaskMeasurement(40000, 24000, 1.0)], cross_check_pct=65.0)
+    assert est.confidence >= 0.6
+    assert est.quality_notes == ()
 
 
 def test_estimate_fill_requires_a_view() -> None:
@@ -182,11 +207,13 @@ async def test_pipeline_records_ledger_rows_per_stage() -> None:
         ledger=ledger,
     )
     summary = ledger.summarize()
-    # One row per stage, all $0 (deterministic + mock AI), nothing cached.
-    assert summary.total_runs == 7
+    # One row per stage, all $0 (deterministic + mock AI), nothing cached. Eight
+    # stages: the seven pipeline stages plus the batched per-stage analysis call.
+    assert summary.total_runs == 8
     assert summary.total_cost_usd == 0.0
     assert summary.cache_hits == 0
     assert "sam_track" in summary.per_stage
+    assert "spark_explain" in summary.per_stage
 
 
 @pytest.mark.asyncio
@@ -212,8 +239,10 @@ async def test_pipeline_second_run_is_a_cache_hit() -> None:
     assert second is first  # cached result object returned as-is
     assert len(cache) == 1
     summary = ledger.summarize()
-    # 7 compute rows (first run) + 7 cache-hit rows (second run).
-    assert summary.total_runs == 14
+    # First run: 8 compute rows (7 stages + the batched analysis). Second run is
+    # served whole from the result cache, which replays the 7 standard stages as
+    # $0 cache-hit rows (the analysis call is not re-run), so 8 + 7 = 15.
+    assert summary.total_runs == 15
     assert summary.cache_hits == 7
 
 

@@ -10,7 +10,7 @@ import { EvidenceCanvas } from "@/components/console/evidence-canvas";
 import { MoneyFrame } from "@/components/console/money-frame";
 import { ReviewActions } from "@/components/console/review-actions";
 import { ReproducibilityCard } from "@/components/console/reproducibility-card";
-import { SectionCard } from "@/components/console/section-card";
+import { CollapsibleSectionCard, SectionCard } from "@/components/console/section-card";
 import { TicketMetadata, shortId } from "@/components/console/ticket-metadata";
 import { PipelineTrace } from "@/components/ai/pipeline-trace";
 import { Skeleton } from "@/components/ui/shadcn/skeleton";
@@ -43,7 +43,7 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
     <div className="lt-fade-in @container h-full min-h-0">
       {/* Narrow pane on desktop: this element is the one scroll area. Wide
           pane: it is a fixed-height grid and each column scrolls instead. */}
-      <div className="lt-scroll flex min-h-0 flex-col gap-3 lg:h-full lg:@max-[46rem]:overflow-y-auto @[46rem]:grid @[46rem]:grid-cols-[minmax(0,1fr)_17rem] @[46rem]:grid-rows-1 @[46rem]:overflow-hidden @[64rem]:grid-cols-[minmax(0,1fr)_20rem] @[64rem]:gap-4 @[96rem]:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="lt-scroll flex min-h-0 flex-col gap-3 lg:h-full lg:@max-[46rem]:overflow-y-auto @[46rem]:grid @[46rem]:grid-cols-[minmax(0,1fr)_20rem] @[46rem]:grid-rows-1 @[46rem]:overflow-hidden @[64rem]:grid-cols-[minmax(0,1fr)_24rem] @[64rem]:gap-4 @[96rem]:grid-cols-[minmax(0,1fr)_28rem]">
         {/* Center column. On a narrow pane its wrapper is `display: contents`
             so the decision bar can sit after the rail and stay pinned. */}
         <div className="lt-scroll contents @[46rem]:flex @[46rem]:min-h-0 @[46rem]:min-w-0 @[46rem]:flex-col @[46rem]:gap-3 @[46rem]:overflow-y-auto">
@@ -71,15 +71,22 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
             column. Bottom padding (lt-fab-safe) clears the AI analyst launcher. */}
         <div className="lt-fab-safe flex min-w-0 flex-col gap-3 @[46rem]:min-h-0 @[46rem]:overflow-hidden">
           <AiAnalysisCard ticketId={ticket.id} />
-          <SectionCard
+          <CollapsibleSectionCard
+            id="anomaly-flags"
             title="Anomaly flags"
             icon={<AlertIcon size={15} />}
             count={ticket.anomaly_count}
             countTone="danger"
+            summary={
+              ticket.anomaly_count > 0
+                ? `${ticket.anomaly_count} flag${ticket.anomaly_count === 1 ? "" : "s"} to review`
+                : "No anomalies flagged"
+            }
+            defaultOpen={false}
             className="shrink-0"
           >
             <AnomalyList ticket={ticket} />
-          </SectionCard>
+          </CollapsibleSectionCard>
           {/* Proof the number is reproducible: re-verify from evidence, plus the
               judge-mode Run live control. */}
           <div className="shrink-0">

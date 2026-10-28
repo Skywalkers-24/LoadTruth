@@ -37,6 +37,49 @@ class PreparedBytes:
     data: bytes
     mime: str
     transcoded: bool = False
+    # The fps the video was resampled to (None for an image or untranscoded).
+    # The Review player uses it to map SAM frame indexes to playback time.
+    fps: float | None = None
+
+
+async def _probe_duration_s(ffmpeg_dir_hint: str, src: Path) -> float | None:
+    """The clip's duration in seconds via ffprobe, or None if it can't be read."""
+    ffprobe = shutil.which("ffprobe")
+    if ffprobe is None:
+        return None
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            ffprobe,
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            str(src),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        out, _ = await asyncio.wait_for(proc.communicate(), timeout=20.0)
+    except (OSError, TimeoutError):
+        return None
+    try:
+        seconds = float(out.decode().strip())
+    except ValueError:
+        return None
+    return seconds if seconds > 0 else None
+
+
+def _fps_for_target(duration_s: float | None, target_frames: int) -> float:
+    """fps that samples ~``target_frames`` evenly across a clip of this duration.
+
+    Independent of the clip's length: a 10s clip and a 40s clip both yield about
+    ``target_frames`` evenly spaced frames. Clamped to 1..30 fps so a very short
+    or very long clip stays sane. Falls back to a mid rate if duration is unknown.
+    """
+    if not duration_s or duration_s <= 0:
+        return 6.0
+    return max(1.0, min(30.0, target_frames / duration_s))
 
 
 def _scale_filter(longest_edge: int) -> str:
@@ -81,14 +124,21 @@ async def prepare_media(data: bytes, *, media_kind: str, filename: str) -> Prepa
     s = get_settings()
     suffix = Path(filename).suffix.lower() or (".jpg" if media_kind == "image" else ".mp4")
     out_name = "out.jpg" if media_kind == "image" else "out.mp4"
+    fps = s.frame_sample_fps
     with tempfile.TemporaryDirectory(prefix="lt-media-") as tmp:
         src, dst = Path(tmp) / f"in{suffix}", Path(tmp) / out_name
         await asyncio.to_thread(src.write_bytes, data)
+        if media_kind != "image":
+            # Resample so the clip yields ~target_sampled_frames evenly spaced
+            # frames whatever its length, so SAM measures the same number of
+            # frames for a 10s clip and a 40s clip.
+            duration = await _probe_duration_s(ffmpeg, src)
+            fps = _fps_for_target(duration, s.target_sampled_frames)
         args = ffmpeg_args(
             src,
             dst,
             media_kind=media_kind,
-            fps=s.frame_sample_fps,
+            fps=fps,
             longest_edge=s.frame_downscale_longest_edge,
         )
         ok = await _run(ffmpeg, args, timeout_s=s.transcode_timeout_s)
@@ -108,7 +158,12 @@ async def prepare_media(data: bytes, *, media_kind: str, filename: str) -> Prepa
         bytes_in=len(data),
         bytes_out=len(out),
     )
-    return PreparedBytes(out, "image/jpeg" if media_kind == "image" else "video/mp4", True)
+    return PreparedBytes(
+        out,
+        "image/jpeg" if media_kind == "image" else "video/mp4",
+        True,
+        fps=None if media_kind == "image" else fps,
+    )
 
 
 async def _run(ffmpeg: str, args: list[str], *, timeout_s: float) -> bool:

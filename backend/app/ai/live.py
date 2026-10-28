@@ -42,6 +42,7 @@ from app.ai.base import (
     ClipMedia,
     Narration,
     OCRResult,
+    StageExplanations,
     TrackResult,
 )
 from app.ai.config_store import get_ai_config_store
@@ -54,8 +55,12 @@ from app.ai.meta_http import (
 from app.ai.pricing import sam_billed_units, sam_cost_usd, spark_cost_usd, token_counts
 from app.ai.request_params import params_for
 from app.ai.sam_measure import (
+    BED_FROM_BED,
+    BED_FROM_TRUCK,
     BED_LABEL,
     LOAD_LABEL,
+    LOAD_PREFIX,
+    RIM_LABEL,
     Detection,
     frames_covered,
     measure,
@@ -77,6 +82,16 @@ DEBRIS_CLASSES = (
     "other",
 )
 
+# Shared voice for every "analysis" field shown on the console. Impersonal and
+# declarative, like an audit report, never a chatbot narrating itself ("I ...").
+_ANALYSIS_STYLE = (
+    "Write it for an operations console in an impersonal, declarative voice, the way a "
+    "monitoring report reads. State what was found and what it means. Never use first "
+    "person ('I', 'my', 'we') and do not address the reader. Name the stage or model "
+    "doing the work when it helps (for example 'SAM 3.1 segmented ...', 'Muse Spark "
+    "read ...'). Be concise and confident and do not use dashes or parentheses."
+)
+
 _OCR_PROMPT = (
     "This is evidence footage of a disaster-debris haul truck at a monitoring site. "
     "Find the truck's identification placard: the truck number painted or posted on "
@@ -84,7 +99,8 @@ _OCR_PROMPT = (
     "uppercase, keeping hyphens. If no placard is legible, set readable to false and "
     "truck_id to an empty string. confidence is your probability, from 0 to 1, that "
     "truck_id is exactly right. seconds is the time in the video of the clearest view "
-    "of the placard; use 0 for a still image."
+    "of the placard; use 0 for a still image. analysis is two or three plain sentences "
+    f"explaining what the placard read was and why it matters. {_ANALYSIS_STYLE}"
 )
 
 _CLASSIFY_PROMPT = (
@@ -95,8 +111,36 @@ _CLASSIFY_PROMPT = (
     "refrigerators, washers, dryers, water heaters, air conditioners); hazardous "
     "(household chemicals, paint, batteries, propane tanks, oil, pesticides); other "
     "(anything else, or not visible). Pick the class that makes up most of the load. "
-    "confidence is your probability, from 0 to 1, that the class is right."
+    "confidence is your probability, from 0 to 1, that the class is right. fill_pct is "
+    "your visual estimate, from 0 to 100, of how full the truck bed is by volume: 0 is "
+    "an empty bed, 100 is a load level with the top of the side walls across the whole "
+    "bed; judge it on the frames where the bed is closest and most visible. analysis is "
+    "two or three plain sentences explaining what the load is and why that class was "
+    f"chosen. {_ANALYSIS_STYLE}"
 )
+
+_NAME_LOAD_PROMPT = (
+    "This is evidence footage of a haul truck at a debris site. Look at the material "
+    "loaded in the open truck bed and give short noun phrases naming it, so an image "
+    "segmentation model can find every piece of it. Rules for each phrase: name the "
+    "thing itself, not the truck or the bed; use a concrete noun phrase of one to four "
+    "words, like 'tree branches', 'broken concrete', 'barrels and containers', "
+    "'household furniture', 'metal appliances'; no sentences, questions, colors unless "
+    "they matter, or the word 'debris' alone. Return concepts as one to three phrases "
+    "ordered best first, covering the load if it is mixed. If the bed looks empty, "
+    "return an empty list. visible_fill_pct is your estimate from 0 to 100 of how full "
+    "the bed is by volume."
+)
+
+_NAME_LOAD_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "concepts": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
+        "visible_fill_pct": {"type": "number"},
+    },
+    "required": ["concepts", "visible_fill_pct"],
+    "additionalProperties": False,
+}
 
 _NARRATE_PROMPT = (
     "Write one plain sentence of at most 30 words for a debris monitor, explaining why "
@@ -105,6 +149,34 @@ _NARRATE_PROMPT = (
     "only."
 )
 
+_EXPLAIN_STAGES = ("sam_track", "capacity", "geometry", "anomalies", "dollar_math")
+
+_EXPLAIN_PROMPT = (
+    "Write the 'AI analysis' shown on an operations console beside each stage of a "
+    "disaster-debris measurement pipeline. Below are the measured facts for one "
+    "truckload, already computed by the pipeline. For each stage, write two or three "
+    "plain sentences explaining what that stage did and what its result means for this "
+    "load. Use only the facts given and never invent numbers. "
+    f"{_ANALYSIS_STYLE} "
+    "The stages are: sam_track (SAM 3.1 segmented and tracked the truck, bed, and load "
+    "across the frames, producing the masks every later measurement reads); capacity "
+    "(the identified truck was looked up in the certified registry for its registered "
+    "cubic-yard capacity); geometry (a deterministic estimator turned the masks into a "
+    "fill percentage from the bed opening coverage); anomalies (deterministic rules "
+    "checked the facts and raised any flags); dollar_math (exact arithmetic multiplies "
+    "fill percent by certified capacity for cubic yards, then by the rate for the "
+    "dollar value). State plainly that capacity, geometry, anomalies, and dollar_math "
+    "are deterministic steps, not model judgements, while sam_track is the vision "
+    "model's own work."
+)
+
+_EXPLAIN_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {key: {"type": "string"} for key in _EXPLAIN_STAGES},
+    "required": list(_EXPLAIN_STAGES),
+    "additionalProperties": False,
+}
+
 _OCR_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -112,8 +184,9 @@ _OCR_SCHEMA: dict[str, Any] = {
         "readable": {"type": "boolean"},
         "confidence": {"type": "number"},
         "seconds": {"type": "number"},
+        "analysis": {"type": "string"},
     },
-    "required": ["truck_id", "readable", "confidence", "seconds"],
+    "required": ["truck_id", "readable", "confidence", "seconds", "analysis"],
     "additionalProperties": False,
 }
 
@@ -122,8 +195,10 @@ _CLASSIFY_SCHEMA: dict[str, Any] = {
     "properties": {
         "debris_class": {"type": "string", "enum": list(DEBRIS_CLASSES)},
         "confidence": {"type": "number"},
+        "fill_pct": {"type": "number"},
+        "analysis": {"type": "string"},
     },
-    "required": ["debris_class", "confidence"],
+    "required": ["debris_class", "confidence", "fill_pct", "analysis"],
     "additionalProperties": False,
 }
 
@@ -160,6 +235,13 @@ def _clamp01(value: object) -> float:
     return max(0.0, min(1.0, number))
 
 
+def _visual_fill(value: object) -> float | None:
+    """Spark's visual fill read as 0..100, or None when absent or not a number."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    return round(max(0.0, min(100.0, float(value))), 1)
+
+
 def _json_answer(response: Mapping[str, Any]) -> dict[str, Any]:
     text = output_text(response).strip()
     if not text:
@@ -186,28 +268,76 @@ def _describe_run(run: _SegmentRun, media_kind: str) -> str:
 
 
 def _track_notes(
-    media: PreparedMedia, bed: _SegmentRun, load: _SegmentRun, bed_prompt: str, load_prompt: str
+    media: PreparedMedia,
+    runs: dict[str, _SegmentRun],
+    bed_concept: str,
+    rim_concept: str,
+    load_concepts: list[str],
 ) -> dict[str, str]:
     """Plain facts about what SAM returned, shown in the pipeline trace."""
-    size = re.search(r";w=(\d+);h=(\d+)", bed.text or load.text)
+    texts = "".join(r.text for r in runs.values())
+    size = re.search(r";w=(\d+);h=(\d+)", texts)
     sent = "uploaded file" if media.file_id else "inline"
     resolution = f"{size.group(1)}x{size.group(2)}, " if size else ""
     unit = "images" if media.media_kind == "image" else "frames"
-    return {
-        f'Prompt "{bed_prompt}"': _describe_run(bed, media.media_kind),
-        f'Prompt "{load_prompt}"': _describe_run(load, media.media_kind),
-        "Media sent": f"{resolution}{media.size_bytes / 1_000_000:.1f} MB, {sent}",
-        "Billed": f"{bed.billed_units + load.billed_units} {unit} (2 requests)",
-        "SAM response time": (
-            f"{bed.usage.latency_ms / 1000:.1f} s and "
-            f"{load.usage.latency_ms / 1000:.1f} s, in parallel"
-        ),
-    }
+    notes = {f'Prompt "{c}"': _describe_run(r, media.media_kind) for c, r in runs.items()}
+    notes["Bed measured from"] = f'"{bed_concept}"'
+    notes["Rim measured from"] = f'"{rim_concept}"'
+    notes["Load phrases merged"] = ", ".join(f'"{c}"' for c in load_concepts)
+    notes["Media sent"] = f"{resolution}{media.size_bytes / 1_000_000:.1f} MB, {sent}"
+    notes["Billed"] = f"{sum(r.billed_units for r in runs.values())} {unit} ({len(runs)} requests)"
+    slowest = max((r.usage.latency_ms for r in runs.values()), default=0.0)
+    notes["SAM response time"] = f"{slowest / 1000:.1f} s, all requests in parallel"
+    return notes
+
+
+def _in_bed_pixels(load: list[Detection], bed: list[Detection]) -> int:
+    """Box-overlap area of a load phrase's detections with the bed, all frames."""
+    beds: dict[int, list[Detection]] = {}
+    for d in bed:
+        beds.setdefault(d.frame, []).append(d)
+    total = 0
+    for ld in load:
+        for b in beds.get(ld.frame, []):
+            width = min(ld.box.right, b.box.right) - max(ld.box.left, b.box.left)
+            height = min(ld.box.bottom, b.box.bottom) - max(ld.box.top, b.box.top)
+            if width > 0 and height > 0:
+                total += width * height
+    return total
+
+
+def _sum_usage(base: CallUsage, others: list[CallUsage]) -> CallUsage:
+    """Fold the usage of retried SAM requests into one stage's usage."""
+    total = base
+    for u in others:
+        total = total.plus(u)
+    return total
 
 
 def _clean_sentence(text: str) -> str:
     one_line = " ".join(text.split())
     return one_line.replace(" — ", ", ").replace("—", ", ").replace("–", "-").strip(' "')
+
+
+def _clean_concept(text: object) -> str:
+    """Normalize a model-named SAM concept: a short lowercase noun phrase.
+
+    SAM ignores case and punctuation, so we only trim junk, drop a bare
+    'debris' (too generic, matches nothing useful), and cap the length so a
+    stray sentence can't become a prompt."""
+    if not isinstance(text, str):
+        return ""
+    words = "".join(c for c in text.lower() if c.isalnum() or c.isspace()).split()
+    if not words or words == ["debris"]:
+        return ""
+    return " ".join(words[:5])
+
+
+def _clean_paragraph(text: str) -> str:
+    """Normalize a model paragraph for the UI: collapse whitespace and strip the
+    em/en dashes the UI copy rule forbids, while keeping multiple sentences."""
+    collapsed = " ".join(text.split())
+    return collapsed.replace(" — ", ", ").replace("—", ", ").replace("–", "-").strip(' "')
 
 
 class LiveAIClient:
@@ -275,7 +405,7 @@ class LiveAIClient:
         # under SAM's per-frame boxes and masks (a resampled video's fps maps
         # SAM frame indexes to playback time).
         is_video = clip.media_kind == "video"
-        video_fps = s.frame_sample_fps if prepared.transcoded and is_video else None
+        video_fps = prepared.fps if prepared.transcoded and is_video else None
         await evidence_store.save(
             clip.content_hash, prepared.data, mime=prepared.mime, fps=video_fps
         )
@@ -305,34 +435,98 @@ class LiveAIClient:
         return PreparedMedia(clip.media_kind, prepared.mime, len(prepared.data), part, file_id)
 
     # ── SAM 3.1 ──────────────────────────────────────────────────────────────
+    async def _name_load_concepts(self, media: PreparedMedia) -> tuple[list[str], CallUsage | None]:
+        """Ask Muse Spark what noun phrases name the load, for SAM to segment.
+
+        The vision model looks at the clip and names the load's shape (for
+        example "barrels and containers", "tree branches"), so SAM is not tied
+        to a fixed phrase list. Returns the cleaned phrases (best first) and the
+        call's usage. On any failure returns no phrases; the caller falls back to
+        the configured defaults, so naming can never break the run."""
+        try:
+            response, usage = await self._spark(
+                "name_load",
+                [{"type": "input_text", "text": _NAME_LOAD_PROMPT}, media.part],
+                _NAME_LOAD_SCHEMA,
+            )
+            answer = _json_answer(response)
+        except (ModelAPIResponseError, ModelAPIRequestError):
+            return [], None
+        raw = answer.get("concepts")
+        phrases = [_clean_concept(p) for p in raw] if isinstance(raw, list) else []
+        phrases = [p for p in dict.fromkeys(phrases) if p][: get_settings().sam_load_max_concepts]
+        return phrases, usage
+
     async def track(self, clip: ClipMedia) -> TrackResult:
         media = await self._media(clip)
         s = get_settings()
-        bed, load = await asyncio.gather(
-            self._segment(media, s.sam_bed_concept),
-            self._segment(media, s.sam_load_concept),
+        # Muse Spark names the load's shape first, so SAM segments what is
+        # actually in the bed rather than a fixed phrase list. The configured
+        # defaults are kept as a safety net appended after the named phrases, so
+        # a strange model answer can never leave SAM with nothing to find.
+        named, name_usage = await self._name_load_concepts(media)
+        bed_concepts = list(dict.fromkeys(s.sam_bed_concepts))
+        load_concepts = list(dict.fromkeys([*named, *s.sam_load_concepts]))[
+            : max(1, s.sam_load_max_concepts)
+        ]
+        # Every concept goes to SAM in one parallel round: the bed phrases (in
+        # priority order), the tailgate (the rear rim that bounds the opening),
+        # and the load phrases (merged, since one phrase misses some loads).
+        concepts = [*bed_concepts, s.sam_rim_concept, *load_concepts]
+        runs = dict(
+            zip(
+                concepts,
+                await asyncio.gather(*(self._segment(media, c) for c in concepts)),
+                strict=True,
+            )
         )
+        bed_concept = next((c for c in bed_concepts if runs[c].detections), bed_concepts[0])
+        bed, rim = runs[bed_concept], runs[s.sam_rim_concept]
+        loads = [runs[c] for c in load_concepts]
         result = await asyncio.to_thread(
             measure,
             bed.detections,
-            load.detections,
+            [d for run in loads for d in run.detections],
             media_kind=media.media_kind,
             max_frames=s.max_sampled_frames,
+            rim_run=rim.detections,
         )
+        # The load-naming Spark call is part of this stage's cost.
+        sam_usages = [runs[c].usage for c in concepts[1:]]
+        if name_usage is not None:
+            sam_usages.append(name_usage)
+        usage = _sum_usage(runs[concepts[0]].usage, sam_usages)
         log.info(
             "sam_track_done",
+            named_load_concepts=named,
+            bed_concept=bed_concept,
             bed_detections=len(bed.detections),
-            load_detections=len(load.detections),
+            rim_detections=len(rim.detections),
+            load_detections=sum(len(r.detections) for r in loads),
+            load_source=result.load_source,
             frames=result.frame_count,
-            cost_usd=bed.usage.cost_usd + load.usage.cost_usd,
+            requests=len(concepts),
+            cost_usd=usage.cost_usd,
         )
+        # The overlay draws the bed and the load phrase that found the most;
+        # every phrase's raw output is also kept so Re-measure can replay it.
+        best_load = max(loads, key=lambda r: _in_bed_pixels(r.detections, bed.detections))
         segments = {
-            label: text
-            for label, text in ((BED_LABEL, bed.text), (LOAD_LABEL, load.text))
-            if len(text) <= _MAX_SEGMENT_CHARS
+            BED_LABEL: bed.text,
+            LOAD_LABEL: best_load.text,
+            RIM_LABEL: rim.text,
+            **{f"{LOAD_PREFIX}{c}": runs[c].text for c in load_concepts},
         }
-        notes = _track_notes(media, bed, load, s.sam_bed_concept, s.sam_load_concept)
-        return replace(result, usage=bed.usage.plus(load.usage), segments=segments, notes=notes)
+        segments = {k: v for k, v in segments.items() if len(v) <= _MAX_SEGMENT_CHARS}
+        notes = {
+            **_track_notes(media, runs, bed_concept, s.sam_rim_concept, load_concepts),
+            "Load named by Muse Spark": (
+                ", ".join(f'"{c}"' for c in named) if named else "naming failed, used defaults"
+            ),
+            **result.notes,
+        }
+        bed_source = BED_FROM_BED if bed_concept == bed_concepts[0] else BED_FROM_TRUCK
+        return replace(result, usage=usage, segments=segments, notes=notes, bed_source=bed_source)
 
     async def _segment(self, media: PreparedMedia, concept: str) -> _SegmentRun:
         model = get_ai_config_store().resolve("sam_track").model
@@ -410,6 +604,7 @@ class LiveAIClient:
             frame_ref=frame_ref,
             usage=usage,
             raw=output_text(response).strip(),
+            analysis=_clean_paragraph(str(answer.get("analysis") or "")),
         )
 
     async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
@@ -426,6 +621,8 @@ class LiveAIClient:
             confidence=_clamp01(answer.get("confidence")),
             usage=usage,
             raw=output_text(response).strip(),
+            analysis=_clean_paragraph(str(answer.get("analysis") or "")),
+            visual_fill_pct=_visual_fill(answer.get("fill_pct")),
         )
 
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
@@ -438,6 +635,24 @@ class LiveAIClient:
         if not text:
             raise ModelAPIResponseError("The model returned an empty narration.")
         return Narration(text=text, usage=usage)
+
+    async def explain_pipeline(self, facts: dict[str, object]) -> StageExplanations:
+        """One batched Muse Spark call authoring the per-stage 'AI analysis'.
+
+        Text-only (the measured facts, not the media), so it is cheap and never
+        re-sends the clip. Grounded strictly in ``facts``; the model phrases, it
+        does not fetch or invent."""
+        prompt = f"{_EXPLAIN_PROMPT}\n\nMeasured facts (JSON):\n{json.dumps(facts, default=str)}"
+        response, usage = await self._spark(
+            "explain_pipeline", [{"type": "input_text", "text": prompt}], _EXPLAIN_SCHEMA
+        )
+        answer = _json_answer(response)
+        by_stage = {
+            key: _clean_paragraph(str(answer[key]))
+            for key in _EXPLAIN_STAGES
+            if isinstance(answer.get(key), str) and str(answer[key]).strip()
+        }
+        return StageExplanations(by_stage=by_stage, usage=usage)
 
     async def answer_question(self, prompt: str) -> Narration:
         """Free-form grounded answer from Muse Spark (the analyst chat)."""

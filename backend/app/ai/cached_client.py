@@ -26,6 +26,7 @@ pipeline failure.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import replace
 from typing import Protocol
 from uuid import UUID
@@ -38,8 +39,11 @@ from app.ai.base import (
     ClipMedia,
     Narration,
     OCRResult,
+    StageExplanations,
     TrackResult,
 )
+from app.ai.sam_measure import MEASURE_VERSION, RIM_LABEL, remeasure
+from app.config import get_settings
 from app.log import get_logger
 
 log = get_logger("ai.cache")
@@ -90,8 +94,28 @@ class CachingAIClient:
     async def track(self, clip: ClipMedia) -> TrackResult:
         h = clip.content_hash
         cached = await self._repo.get_ai_stage_result(self._tenant, h, serde.STAGE_TRACK)
-        if cached is not None and serde.track_is_current(cached):
+        outdated = cached is not None and serde.track_is_outdated(cached, MEASURE_VERSION)
+        if cached is not None and serde.track_is_current(cached) and not outdated:
             return replace(serde.track_from_json(cached), usage=self._hit())
+        if cached is not None and outdated and serde.track_can_remeasure(cached, RIM_LABEL):
+            # Older measurement method, and SAM already returned every concept the
+            # current one reads (rim + a load mask): re-measure offline, no call.
+            stored = await asyncio.to_thread(
+                remeasure,
+                serde.track_from_json(cached),
+                media_kind=clip.media_kind,
+                max_frames=get_settings().max_sampled_frames,
+            )
+            await self._persist(h, serde.STAGE_TRACK, serde.track_to_json(stored))
+            log.info("ai_track_remeasured", content_hash=h, version=MEASURE_VERSION)
+            return replace(stored, usage=self._hit())
+        # Re-run SAM once when: a miss; or an outdated row that can't be replayed
+        # offline (missing the tailgate rim, or no load mask so an offline replay
+        # would reproduce the same 0% while the current method has new/named load
+        # concepts that may find it). The fresh result is persisted, so this
+        # costs at most one run per clip per measurement-version bump.
+        if cached is not None and outdated and not serde.track_has_load(cached):
+            log.info("ai_track_reran_no_stored_load", content_hash=h, version=MEASURE_VERSION)
         result = await self._inner.track(clip)
         await self._persist(h, serde.STAGE_TRACK, serde.track_to_json(result))
         return result
@@ -117,6 +141,12 @@ class CachingAIClient:
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
         # Not clip-keyed — pass through (see module docstring).
         return await self._inner.narrate_anomaly(anomaly_type, facts)
+
+    async def explain_pipeline(self, facts: dict[str, object]) -> StageExplanations:
+        # Keyed by the run's measured facts (which include monitor-dependent
+        # anomalies), not the clip hash alone — pass through. The whole-run
+        # result cache already prevents a repeat call on a re-ingest.
+        return await self._inner.explain_pipeline(facts)
 
     async def answer_question(self, prompt: str) -> Narration:
         # Not clip-keyed — pass through.

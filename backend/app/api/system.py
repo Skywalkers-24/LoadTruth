@@ -7,9 +7,14 @@ pipeline (and whether they are live or fixture-backed). Read-only.
 
 from __future__ import annotations
 
+import asyncio
+import json
+from collections.abc import AsyncIterator
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.ai import catalog
@@ -24,7 +29,13 @@ from app.api.ingest import get_cost_ledger
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_manage_events
 from app.config import get_settings
-from app.pipeline.trace import PipelineTrace, get_job_store
+from app.pipeline.trace import (
+    PipelineTrace,
+    ProgressEvent,
+    StageRecord,
+    get_job_store,
+    get_progress_broker,
+)
 from app.tickets.repository import TicketNotFoundError
 
 router = APIRouter(prefix="/system", tags=["system"])
@@ -88,6 +99,9 @@ class StageOut(BaseModel):
     duration_ms: float
     # Ordered [label, value] facts from the model's response.
     details: list[list[str]] = []
+    # Model-authored "AI analysis" paragraph for this stage (empty = fall back
+    # to summary in the UI).
+    analysis: str = ""
 
 
 class JobOut(BaseModel):
@@ -104,11 +118,34 @@ class JobOut(BaseModel):
     stages: list[StageOut]
 
 
+class PaginatedJobs(BaseModel):
+    """A page of pipeline jobs plus the full matching count, like PaginatedTickets."""
+
+    items: list[JobOut]
+    total: int
+    limit: int
+    offset: int
+
+
 def _details(raw: object) -> list[list[str]]:
     """Persisted stage details as clean [label, value] pairs (tolerates nulls)."""
     if not isinstance(raw, list):
         return []
     return [[str(r[0]), str(r[1])] for r in raw if isinstance(r, list | tuple) and len(r) == 2]
+
+
+def _stage_out(s: StageRecord) -> StageOut:
+    return StageOut(
+        key=s.key,
+        label=s.label,
+        model=s.model,
+        status=s.status,
+        summary=s.summary,
+        confidence=s.confidence,
+        duration_ms=s.duration_ms,
+        details=s.details,
+        analysis=s.analysis,
+    )
 
 
 def _job_out(event_id: str, tr: PipelineTrace) -> JobOut:
@@ -123,66 +160,60 @@ def _job_out(event_id: str, tr: PipelineTrace) -> JobOut:
         anomaly_count=tr.anomaly_count,
         dollar_value=tr.dollar_value,
         started_at=tr.started_at,
-        stages=[
-            StageOut(
-                key=s.key,
-                label=s.label,
-                model=s.model,
-                status=s.status,
-                summary=s.summary,
-                confidence=s.confidence,
-                duration_ms=s.duration_ms,
-                details=s.details,
-            )
-            for s in tr.stages
-        ],
+        stages=[_stage_out(s) for s in tr.stages],
     )
 
 
-@router.get("/jobs", response_model=list[JobOut])
+@router.get("/jobs", response_model=PaginatedJobs)
 async def list_jobs(
     _: CurrentMember,
     tenant: ActiveTenant,
     repo: Repository,
     event_id: UUID | None = None,
-    limit: int = 50,
-) -> list[JobOut]:
-    """Recent pipeline runs (newest first), scoped to the caller's tenant.
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> PaginatedJobs:
+    """Pipeline runs as a paginated envelope (newest first), scoped to the tenant.
 
     The shared job store is process-global and holds runs for every tenant, so
     we filter to the events this tenant actually owns before returning anything.
+    The in-memory live traces are merged with every ticket's persisted trace
+    from the database (de-duped by ticket), then paged on the server with
+    ``limit`` (1-100, default 20) / ``offset`` so the UI can walk the whole list
+    rather than only the first window. ``total`` is the full matching count.
     """
     owned = {str(e.id) for e in await repo.list_events(tenant)}
     if event_id is not None and str(event_id) not in owned:
-        return []
+        return PaginatedJobs(items=[], total=0, limit=limit, offset=offset)
     # Live window first: the in-memory store has the richest, freshest traces.
-    rows = await get_job_store().recent(event_id, limit=max(limit, 100))
-    scoped = [(ev, tr) for ev, tr in rows if ev in owned][:limit]
-    jobs = [_job_out(ev, tr) for ev, tr in scoped]
+    rows = await get_job_store().recent(event_id, limit=get_job_store().capacity())
+    jobs = [_job_out(ev, tr) for ev, tr in rows if ev in owned]
     seen_tickets: set[str] = {j.ticket_id for j in jobs if j.ticket_id}
 
     # Durable fallback: the store is process-local and empties on restart, so
     # also surface every ticket's persisted trace from the database. This keeps
     # the AI Pipeline populated across restarts, de-duped against the live rows.
-    if len(jobs) < limit:
-        db_jobs = await _persisted_jobs(repo, tenant, event_id, limit - len(jobs), seen_tickets)
-        jobs.extend(db_jobs)
+    db_jobs = await _persisted_jobs(repo, tenant, event_id, seen_tickets)
+    jobs.extend(db_jobs)
     jobs.sort(key=lambda j: j.started_at, reverse=True)
-    return jobs[:limit]
+
+    total = len(jobs)
+    page = jobs[offset : offset + limit]
+    return PaginatedJobs(items=page, total=total, limit=limit, offset=offset)
 
 
 async def _persisted_jobs(
     repo: Repository,
     tenant: UUID,
     event_id: UUID | None,
-    limit: int,
     skip_tickets: set[str],
 ) -> list[JobOut]:
-    """Reconstruct pipeline jobs from the database: tickets plus saved stages."""
-    # Candidates are newest-first (list_tickets orders by created_at desc). Drop
-    # the ones already shown live, then look up stages and keep only tickets that
-    # have a persisted trace, trimming to `limit` AFTER that filter so a ticket
-    # without stages never costs us a slot.
+    """Reconstruct pipeline jobs from the database: tickets plus saved stages.
+
+    Returns every ticket with a persisted trace (newest-first) that is not
+    already shown by a live run; paging happens once in :func:`list_jobs` over
+    the merged list, so this returns the full set and never trims.
+    """
     all_tickets = await repo.list_tickets(tenant, event_id)
     candidates = [t for t in all_tickets if str(t.id) not in skip_tickets]
     if not candidates:
@@ -215,13 +246,12 @@ async def _persisted_jobs(
                         confidence=float(s.confidence) if s.confidence is not None else None,
                         duration_ms=float(s.duration_ms),
                         details=_details(s.details),
+                        analysis=s.analysis or "",
                     )
                     for s in stage_rows
                 ],
             )
         )
-        if len(out) >= limit:
-            break
     return out
 
 
@@ -240,6 +270,63 @@ async def job_for_ticket(
         return None
     tr = await get_job_store().for_ticket(ticket_id)
     return _job_out(str(ticket.event_id), tr) if tr else None
+
+
+# ── Live pipeline progress (SSE) ──────────────────────────────────────────────
+
+
+def _progress_payload(ev: ProgressEvent) -> dict[str, object]:
+    """One progress event as a JSON-safe dict for the SSE stream."""
+    return {
+        "kind": ev.kind,
+        "content_hash": ev.content_hash,
+        "stage": _stage_out(ev.stage).model_dump() if ev.stage is not None else None,
+        "outcome": ev.outcome,
+        "ticket_id": ev.ticket_id,
+        "truck_id": ev.truck_id,
+        "detail": ev.detail,
+        "at": ev.at,
+    }
+
+
+async def _progress_stream(event_id: UUID) -> AsyncIterator[bytes]:
+    """Server-sent events for one event's in-flight pipeline runs.
+
+    Replays the recent backlog (so a page that connects mid-run still sees the
+    stages that already happened), then streams new events as they arrive. A
+    periodic comment keeps the connection alive through proxies."""
+    broker = get_progress_broker()
+    backlog, queue = await broker.subscribe(event_id)
+    try:
+        for ev in backlog:
+            yield f"data: {json.dumps(_progress_payload(ev))}\n\n".encode()
+        while True:
+            try:
+                ev = await asyncio.wait_for(queue.get(), timeout=20.0)
+            except TimeoutError:
+                yield b": keep-alive\n\n"
+                continue
+            yield f"data: {json.dumps(_progress_payload(ev))}\n\n".encode()
+    finally:
+        await broker.unsubscribe(event_id, queue)
+
+
+@router.get("/events/{event_id}/pipeline-progress")
+async def pipeline_progress(
+    _: CurrentMember, tenant: ActiveTenant, repo: Repository, event_id: UUID
+) -> StreamingResponse:
+    """Stream live pipeline stage events for an event (SSE).
+
+    Tenant-scoped: a caller can only watch events their tenant owns, so one
+    tenant's live runs are never visible to another."""
+    owned = {str(e.id) for e in await repo.list_events(tenant)}
+    if str(event_id) not in owned:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "event not found")
+    return StreamingResponse(
+        _progress_stream(event_id),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ── AI model & effort configuration (admin) ──────────────────────────────────

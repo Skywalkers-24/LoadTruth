@@ -45,7 +45,9 @@ export function useTickets(query: TicketQuery) {
   return useQuery({
     queryKey: ["tickets", query],
     queryFn: () => api.listTickets(query),
-    enabled: Boolean(query.eventId),
+    // Normally scoped to an event; `allTenant` opts into the whole-tenant list
+    // (admin "All events" reports) where there is intentionally no event id.
+    enabled: Boolean(query.eventId) || query.allTenant === true,
     placeholderData: keepPreviousData,
   });
 }
@@ -174,8 +176,14 @@ export function useTruckMutations() {
 }
 
 // ── Admin: users (tenant members) ────────────────────────────────────────────
-export function useUsers() {
-  return useQuery({ queryKey: ["users"], queryFn: () => api.listUsers() });
+export function useUsers(enabled = true) {
+  return useQuery({
+    queryKey: ["users"],
+    queryFn: () => api.listUsers(),
+    // The /users endpoint is county-admin-and-up; skip the request for roles
+    // that can't manage users so they never hit a 403.
+    enabled,
+  });
 }
 
 export function useUserMutations() {
@@ -231,11 +239,17 @@ export function useUpdateEvent() {
 }
 
 // ── AI pipeline jobs (live) ──────────────────────────────────────────────────
-export function usePipelineJobs(eventId: string | undefined) {
+export function usePipelineJobs(opts: {
+  eventId: string | undefined;
+  limit: number;
+  offset: number;
+}) {
+  const { eventId, limit, offset } = opts;
   return useQuery({
-    queryKey: ["pipeline-jobs", eventId],
-    queryFn: () => api.getPipelineJobs(eventId),
+    queryKey: ["pipeline-jobs", eventId, limit, offset],
+    queryFn: () => api.getPipelineJobs({ eventId, limit, offset }),
     refetchInterval: 4000,
+    placeholderData: keepPreviousData,
   });
 }
 
