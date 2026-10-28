@@ -33,6 +33,7 @@ import {
 import type { Capabilities } from "@/lib/api";
 import { Kbd } from "@/components/ui/kbd";
 import { LogoMark } from "@/components/ui/logo";
+import { MemberAvatar } from "@/components/ui/member-avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/shadcn/tooltip";
 import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
@@ -60,7 +61,13 @@ const NAV: NavItem[] = [
   { href: "/pipeline", label: "AI Pipeline", short: "Pipeline", icon: ActivityIcon },
   { href: "/reports", label: "Reports", short: "Reports", icon: ChartIcon },
   { href: "/billing", label: "Billing", short: "Billing", icon: CircleDollarSignIcon },
-  { href: "/admin", label: "Settings", short: "Settings", icon: SettingsIcon, cap: "manage_events" },
+  {
+    href: "/admin",
+    label: "Settings",
+    short: "Settings",
+    icon: SettingsIcon,
+    cap: "manage_events",
+  },
   { href: "/guide", label: "Guide", short: "Guide", icon: BookOpenIcon },
 ];
 
@@ -340,16 +347,7 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
   const { member, signOut } = useAuth();
   if (!member) return null;
   const name = member.full_name ?? member.email;
-  const initials = name.slice(0, 2).toUpperCase();
-  const avatar = (
-    <span
-      className="grid size-9 shrink-0 place-items-center rounded-full text-[12px] font-bold text-white"
-      style={{ backgroundColor: "var(--color-brand-fill)" }}
-      aria-hidden
-    >
-      {initials}
-    </span>
-  );
+  const avatar = <MemberAvatar seed={member.email} />;
 
   if (collapsed) {
     return (
