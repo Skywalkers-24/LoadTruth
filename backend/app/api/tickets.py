@@ -12,11 +12,13 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
 
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_manage_events, can_review_tickets
+from app.pipeline import evidence_store
 from app.tickets.repository import EventNotFoundError, TicketNotFoundError
 from app.tickets.schemas import (
     AnomalyOut,
@@ -30,6 +32,7 @@ from app.tickets.schemas import (
     ReportsSummary,
     StatusIn,
     TicketOut,
+    TicketPatch,
     TicketStatus,
     event_to_out,
     ticket_to_out,
@@ -153,6 +156,7 @@ class PipelineStageOut(BaseModel):
     summary: str
     confidence: float | None = None
     duration_ms: float = 0.0
+    details: list[list[str]] = Field(default_factory=list)
 
 
 @router.get("/tickets/{ticket_id}/pipeline", response_model=list[PipelineStageOut])
@@ -170,9 +174,60 @@ async def ticket_pipeline(
             summary=r.summary,
             confidence=float(r.confidence) if r.confidence is not None else None,
             duration_ms=float(r.duration_ms),
+            details=[
+                [str(d[0]), str(d[1])]
+                for d in (r.details or [])
+                if isinstance(d, list | tuple) and len(d) == 2
+            ],
         )
         for r in rows
     ]
+
+
+class EvidenceOut(BaseModel):
+    """The processed clip behind a ticket and SAM's raw per-frame segmentation."""
+
+    media_kind: str
+    mime: str
+    # Frame rate of the stored video when known; SAM frame N plays at N / fps.
+    fps: float | None = None
+    has_media: bool
+    # Concept label ("truck bed", "debris pile") -> SAM 3.1 output text.
+    segments: dict[str, str] = Field(default_factory=dict)
+
+
+@router.get("/tickets/{ticket_id}/evidence", response_model=EvidenceOut)
+async def ticket_evidence(repo: Repository, tenant: ActiveTenant, ticket_id: UUID) -> EvidenceOut:
+    """What the models saw for this ticket, for the Review console overlay."""
+    row = await repo.get_ticket_evidence(tenant, ticket_id)
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no evidence for this ticket")
+    stored = await evidence_store.load(row.content_hash)
+    raw = row.segments if isinstance(row.segments, dict) else {}
+    return EvidenceOut(
+        media_kind=row.media_kind,
+        mime=stored.mime if stored else row.mime,
+        fps=float(row.fps) if row.fps is not None else (stored.fps if stored else None),
+        has_media=stored is not None,
+        segments={str(k): str(v) for k, v in raw.items()},
+    )
+
+
+@router.get("/tickets/{ticket_id}/evidence/media")
+async def ticket_evidence_media(
+    repo: Repository, tenant: ActiveTenant, ticket_id: UUID
+) -> FileResponse:
+    """The stored clip itself (tenant-checked through the ticket's evidence row)."""
+    row = await repo.get_ticket_evidence(tenant, ticket_id)
+    stored = await evidence_store.load(row.content_hash) if row is not None else None
+    if row is None or stored is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no evidence media for this ticket")
+    return FileResponse(
+        stored.path,
+        media_type=stored.mime,
+        filename=f"evidence-{ticket_id}.{evidence_store.extension(stored.mime)}",
+        content_disposition_type="inline",
+    )
 
 
 @router.patch(
@@ -189,9 +244,7 @@ async def set_monitor_call(
     return ticket_to_out(t)
 
 
-@router.patch(
-    "/tickets/{ticket_id}/status", response_model=TicketOut, dependencies=[ReviewTickets]
-)
+@router.patch("/tickets/{ticket_id}/status", response_model=TicketOut, dependencies=[ReviewTickets])
 async def set_status(
     repo: Repository, tenant: ActiveTenant, ticket_id: UUID, body: StatusIn
 ) -> TicketOut:
@@ -200,6 +253,36 @@ async def set_status(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "cannot set a ticket back to draft")
     try:
         t = await repo.set_status(tenant, ticket_id, body.status)
+    except TicketNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
+    return ticket_to_out(t)
+
+
+@router.patch("/tickets/{ticket_id}", response_model=TicketOut, dependencies=[ReviewTickets])
+async def update_ticket(
+    repo: Repository, tenant: ActiveTenant, ticket_id: UUID, body: TicketPatch
+) -> TicketOut:
+    """Edit a ticket's truck ID and/or debris class; recomputes the valuation.
+
+    Setting the truck re-derives its certified capacity from the registry;
+    setting the debris class re-reads the event rate. Both re-run the §7a dollar
+    math so cubic yards, the monitor delta, and the value stay consistent.
+    """
+    fields = set(body.model_fields_set)
+    if not fields:
+        # Nothing to change — return the ticket as-is.
+        try:
+            return ticket_to_out(await repo.get_ticket(tenant, ticket_id))
+        except TicketNotFoundError as exc:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
+    try:
+        t = await repo.update_ticket(
+            tenant,
+            ticket_id,
+            truck_id=body.truck_id,
+            debris_class=body.debris_class,
+            fields_set=fields,
+        )
     except TicketNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
     return ticket_to_out(t)

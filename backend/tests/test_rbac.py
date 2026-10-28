@@ -37,17 +37,13 @@ def test_requires_authentication() -> None:
 
 def test_monitor_cannot_manage_trucks(as_role: Callable[[str], None], client: TestClient) -> None:
     as_role("monitor")
-    resp = client.post(
-        "/trucks", json={"truck_number": "NEW-1", "certified_cubic_yards": 20}
-    )
+    resp = client.post("/trucks", json={"truck_number": "NEW-1", "certified_cubic_yards": 20})
     assert resp.status_code == 403
 
 
 def test_supervisor_can_manage_trucks(as_role: Callable[[str], None], client: TestClient) -> None:
     as_role("supervisor")
-    resp = client.post(
-        "/trucks", json={"truck_number": "NEW-SUP-1", "certified_cubic_yards": 20}
-    )
+    resp = client.post("/trucks", json={"truck_number": "NEW-SUP-1", "certified_cubic_yards": 20})
     assert resp.status_code == 201
 
 
@@ -58,9 +54,7 @@ def test_auditor_is_read_only(as_role: Callable[[str], None], client: TestClient
     # Cannot review tickets or manage trucks
     tid = _a_draft_id(client)
     assert client.patch(f"/tickets/{tid}/status", json={"status": "confirmed"}).status_code == 403
-    truck_resp = client.post(
-        "/trucks", json={"truck_number": "AUD-1", "certified_cubic_yards": 10}
-    )
+    truck_resp = client.post("/trucks", json={"truck_number": "AUD-1", "certified_cubic_yards": 10})
     assert truck_resp.status_code == 403
 
 
@@ -78,9 +72,7 @@ def test_monitor_can_review_but_not_manage_events(
     assert client.post("/events", json={"name": "X"}).status_code == 403
 
 
-def test_supervisor_cannot_manage_users(
-    as_role: Callable[[str], None], client: TestClient
-) -> None:
+def test_supervisor_cannot_manage_users(as_role: Callable[[str], None], client: TestClient) -> None:
     as_role("supervisor")
     assert client.get("/users").status_code == 403
     assert (
@@ -96,9 +88,7 @@ def test_county_admin_cannot_create_super_admin(
 ) -> None:
     as_role("county_admin")
     # Can create a role at or below their own
-    ok = client.post(
-        "/users", json={"email": "sup@x.io", "role": "supervisor", "status": "active"}
-    )
+    ok = client.post("/users", json={"email": "sup@x.io", "role": "supervisor", "status": "active"})
     assert ok.status_code == 201
     # Cannot create a role above their own
     denied = client.post(

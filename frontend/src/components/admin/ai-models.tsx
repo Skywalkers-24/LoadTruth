@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   type AiConfigResponse,
@@ -70,8 +70,40 @@ function priceLine(model: ModelInfo): string {
   return `${parts.join(" · ")} per 1M tokens`;
 }
 
+/** The editable draft for one task row. */
+type Draft = { model: string; effort: ReasoningEffort; costMode: CostMode };
+
+function draftFromConfig(task: TaskInfo, cfg: TaskConfig | undefined): Draft {
+  return {
+    model: cfg?.model ?? task.default_model,
+    effort: cfg?.effort ?? task.default_effort,
+    costMode: cfg?.cost_mode ?? task.default_cost_mode,
+  };
+}
+
+function draftsFromData(data: AiConfigResponse): Record<string, Draft> {
+  const out: Record<string, Draft> = {};
+  for (const task of data.catalog.tasks) {
+    out[task.id] = draftFromConfig(
+      task,
+      data.config.find((c) => c.task_id === task.id),
+    );
+  }
+  return out;
+}
+
 export function AiModelsPanel() {
   const { data, isLoading, isError, refetch } = useAiConfig();
+  const toast = useToast();
+  const { update, reset } = useUpdateAiConfig();
+  const [confirming, setConfirming] = useState(false);
+  // One draft per task, lifted here so a single "Save all" can apply them
+  // together. Reseeded whenever the server config changes.
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+
+  useEffect(() => {
+    if (data) setDrafts(draftsFromData(data));
+  }, [data]);
 
   if (isError) {
     return (
@@ -82,7 +114,7 @@ export function AiModelsPanel() {
       />
     );
   }
-  if (isLoading || !data) {
+  if (isLoading || !data || Object.keys(drafts).length === 0) {
     return (
       <div className="flex flex-col gap-4">
         <Skeleton className="h-32 rounded-xl" />
@@ -92,29 +124,131 @@ export function AiModelsPanel() {
     );
   }
 
+  const config = data.config;
+  const setDraft = (taskId: string, next: Draft) =>
+    setDrafts((d) => ({ ...d, [taskId]: next }));
+
+  // Which tasks changed from what the server currently has.
+  const dirtyTasks = data.catalog.tasks.filter((task) => {
+    const d = drafts[task.id];
+    const cur = config.find((c) => c.task_id === task.id);
+    if (!d) return false;
+    const base = draftFromConfig(task, cur);
+    return d.model !== base.model || d.effort !== base.effort || d.costMode !== base.costMode;
+  });
+  const dirtyCount = dirtyTasks.length;
+
+  async function saveAll() {
+    const results = await Promise.allSettled(
+      dirtyTasks.map((task) => {
+        const d = drafts[task.id]!;
+        return update.mutateAsync({
+          taskId: task.id,
+          body: { model: d.model, effort: d.effort, cost_mode: d.costMode },
+        });
+      }),
+    );
+    setConfirming(false);
+    const failed = results.filter((r) => r.status === "rejected").length;
+    if (failed === 0) {
+      toast.push(
+        "ok",
+        dirtyCount === 1 ? "1 task updated." : `${dirtyCount} tasks updated.`,
+      );
+    } else {
+      toast.push("danger", `${failed} of ${dirtyCount} tasks did not save. Please retry.`);
+    }
+  }
+
+  function resetAllToDefault() {
+    setDrafts((prev) => {
+      const next = { ...prev };
+      for (const task of data!.catalog.tasks) {
+        next[task.id] = {
+          model: task.default_model,
+          effort: task.default_effort,
+          costMode: task.default_cost_mode,
+        };
+      }
+      return next;
+    });
+  }
+
+  function discard() {
+    setDrafts(draftsFromData(data!));
+  }
+
+  const busy = update.isPending || reset.isPending;
+
   return (
-    <div className="flex max-w-3xl flex-col gap-5">
+    <div className="flex max-w-4xl flex-col gap-5">
       <p className="text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
         Choose which model powers each step of the pipeline and how hard it reasons. Lower effort and
         the discounted Contributor mode save money; higher effort and Muse Wonder cost more but handle
         harder cases. Changes apply to work processed after you save.
       </p>
+
+      {/* Sticky action bar: one Save all for every edited task. */}
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
+        <Button
+          variant="primary"
+          size="sm"
+          disabled={dirtyCount === 0 || busy}
+          onClick={() => setConfirming(true)}
+        >
+          {dirtyCount > 1 ? `Save all (${dirtyCount})` : "Save all"}
+        </Button>
+        <Button variant="ghost" size="sm" disabled={dirtyCount === 0 || busy} onClick={discard}>
+          Discard changes
+        </Button>
+        <Button variant="ghost" size="sm" disabled={busy} onClick={resetAllToDefault}>
+          Reset all to default
+        </Button>
+        <span className="ml-auto text-[12px] text-[var(--color-muted-foreground)]">
+          {dirtyCount === 0
+            ? "All saved"
+            : dirtyCount === 1
+              ? "1 task has unsaved changes"
+              : `${dirtyCount} tasks have unsaved changes`}
+        </span>
+      </div>
+
       {data.catalog.tasks.map((task) => (
-        <TaskCard key={task.id} task={task} data={data} />
+        <TaskCard
+          key={task.id}
+          task={task}
+          data={data}
+          draft={drafts[task.id]!}
+          onChange={(next) => setDraft(task.id, next)}
+        />
       ))}
+
+      <ConfirmDialog
+        open={confirming}
+        title={dirtyCount === 1 ? "Save this change?" : `Save ${dirtyCount} changes?`}
+        description="New work runs on the selected models and effort. Cost per run changes accordingly; in-flight work is unaffected."
+        confirmLabel="Save all"
+        busy={update.isPending}
+        onConfirm={() => void saveAll()}
+        onCancel={() => setConfirming(false)}
+      />
     </div>
   );
 }
 
-function TaskCard({ task, data }: { task: TaskInfo; data: AiConfigResponse }) {
-  const toast = useToast();
-  const { update, reset } = useUpdateAiConfig();
+function TaskCard({
+  task,
+  data,
+  draft,
+  onChange,
+}: {
+  task: TaskInfo;
+  data: AiConfigResponse;
+  draft: Draft;
+  onChange: (next: Draft) => void;
+}) {
   const current = data.config.find((c) => c.task_id === task.id);
-
-  const [model, setModel] = useState<string>(current?.model ?? task.default_model);
-  const [effort, setEffort] = useState<ReasoningEffort>(current?.effort ?? task.default_effort);
-  const [costMode, setCostMode] = useState<CostMode>(current?.cost_mode ?? task.default_cost_mode);
-  const [confirming, setConfirming] = useState(false);
+  const { model, effort, costMode } = draft;
 
   const eligible = useMemo(
     () => data.catalog.models.filter((m) => task.eligible_models.includes(m.id)),
@@ -125,11 +259,10 @@ function TaskCard({ task, data }: { task: TaskInfo; data: AiConfigResponse }) {
   // Keep effort/cost mode valid for the chosen model.
   const availableEfforts = selected?.efforts ?? [];
   const availableModes = selected?.cost_modes ?? ["standard"];
-  const effortValid = !task.supports_effort || availableEfforts.includes(effort);
-  const modeValid = availableModes.includes(costMode);
 
+  const base = draftFromConfig(task, current);
   const dirty =
-    model !== current?.model || effort !== current?.effort || costMode !== current?.cost_mode;
+    model !== base.model || effort !== base.effort || costMode !== base.costMode;
   const isDefault =
     model === task.default_model &&
     effort === task.default_effort &&
@@ -138,44 +271,26 @@ function TaskCard({ task, data }: { task: TaskInfo; data: AiConfigResponse }) {
   const weight = selected ? spendWeight(selected, effort) : 0;
   const badge = spendBadge(weight);
 
-  function onModelChange(id: string) {
-    setModel(id);
+  function setModel(id: string) {
     const next = eligible.find((m) => m.id === id);
+    let ef = effort;
+    let cm = costMode;
     if (next) {
       if (task.supports_effort && next.efforts.length && !next.efforts.includes(effort)) {
-        setEffort(next.efforts.includes("balanced") ? "balanced" : next.efforts[0]!);
+        ef = next.efforts.includes("balanced") ? "balanced" : next.efforts[0]!;
       }
-      if (!next.cost_modes.includes(costMode)) setCostMode(next.cost_modes[0]!);
+      if (!next.cost_modes.includes(costMode)) cm = next.cost_modes[0]!;
     }
+    onChange({ model: id, effort: ef, costMode: cm });
   }
-
-  function save() {
-    update.mutate(
-      { taskId: task.id, body: { model, effort, cost_mode: costMode } },
-      {
-        onSuccess: () => {
-          toast.push("ok", `${task.name} updated.`);
-          setConfirming(false);
-        },
-        onError: (e) => {
-          toast.push("danger", `Couldn’t save ${task.name}: ${(e as Error).message}`);
-          setConfirming(false);
-        },
-      },
-    );
-  }
-
-  function onReset() {
-    reset.mutate(task.id, {
-      onSuccess: (c: TaskConfig) => {
-        setModel(c.model);
-        setEffort(c.effort);
-        setCostMode(c.cost_mode);
-        toast.push("ok", `${task.name} reset to the recommended default.`);
-      },
-      onError: () => toast.push("danger", `Couldn’t reset ${task.name}.`),
+  const setEffort = (ef: ReasoningEffort) => onChange({ ...draft, effort: ef });
+  const setCostMode = (cm: CostMode) => onChange({ ...draft, costMode: cm });
+  const resetThis = () =>
+    onChange({
+      model: task.default_model,
+      effort: task.default_effort,
+      costMode: task.default_cost_mode,
     });
-  }
 
   const selectClass =
     "rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-1.5 text-[13px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none";
@@ -201,7 +316,7 @@ function TaskCard({ task, data }: { task: TaskInfo; data: AiConfigResponse }) {
           <select
             className={selectClass}
             value={model}
-            onChange={(e) => onModelChange(e.target.value)}
+            onChange={(e) => setModel(e.target.value)}
             aria-label={`${task.name} model`}
           >
             {eligible.map((m) => (
@@ -271,29 +386,11 @@ function TaskCard({ task, data }: { task: TaskInfo; data: AiConfigResponse }) {
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Button
-          variant="primary"
-          size="sm"
-          disabled={!dirty || !effortValid || !modeValid || update.isPending}
-          onClick={() => setConfirming(true)}
-        >
-          Save
-        </Button>
-        <Button variant="ghost" size="sm" disabled={isDefault || reset.isPending} onClick={onReset}>
+        <Button variant="ghost" size="sm" disabled={isDefault} onClick={resetThis}>
           Reset to default
         </Button>
         {dirty && <span className="text-[12px] text-[var(--color-warn)]">Unsaved changes</span>}
       </div>
-
-      <ConfirmDialog
-        open={confirming}
-        title={`Update ${task.name}?`}
-        description="New work runs on the selected model and effort. Cost per run changes accordingly; in-flight work is unaffected."
-        confirmLabel="Save"
-        busy={update.isPending}
-        onConfirm={save}
-        onCancel={() => setConfirming(false)}
-      />
     </div>
   );
 }

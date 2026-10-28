@@ -63,6 +63,12 @@ export interface AnomalyItem {
   evidence_frame: string | null;
 }
 
+/** Editable ticket fields (truck ID, debris class). Recomputes the valuation. */
+export interface TicketPatch {
+  truck_id?: string | null;
+  debris_class?: DebrisClass;
+}
+
 export interface EventSummary {
   id: string;
   tenant_id: string;
@@ -398,6 +404,8 @@ export interface PipelineStage {
   summary: string;
   confidence: number | null;
   duration_ms: number;
+  /** Ordered [label, value] facts from the model's response (raw answer, tokens, cost). */
+  details?: [string, string][];
 }
 
 export interface PipelineJob {
@@ -426,6 +434,40 @@ export function getJobForTicket(ticketId: string): Promise<PipelineJob | null> {
 /** The persisted AI pipeline trace for a ticket (always available, from the DB). */
 export function getTicketPipeline(ticketId: string): Promise<PipelineStage[]> {
   return request<PipelineStage[]>(`/tickets/${ticketId}/pipeline`);
+}
+
+/** The processed clip behind a ticket and SAM 3.1's raw per-frame output. */
+export interface TicketEvidence {
+  media_kind: string;
+  mime: string;
+  /** Frame rate of the stored video when known (SAM frame N plays at N / fps). */
+  fps: number | null;
+  has_media: boolean;
+  /** Concept label ("truck bed", "debris pile") to SAM output text. */
+  segments: Record<string, string>;
+}
+
+/** A ticket's evidence, or null when the ticket has none (seeded tickets). */
+export async function getTicketEvidence(ticketId: string): Promise<TicketEvidence | null> {
+  try {
+    return await request<TicketEvidence>(`/tickets/${ticketId}/evidence`);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+/**
+ * Fetch the stored evidence clip with the bearer token and return an object
+ * URL for a <video> or <img>. The caller revokes it when done.
+ */
+export async function fetchEvidenceMediaUrl(ticketId: string): Promise<string> {
+  const res = await fetch(`${baseUrl()}/tickets/${ticketId}/evidence/media`, {
+    cache: "no-store",
+    headers: authToken ? { authorization: `Bearer ${authToken}` } : undefined,
+  });
+  if (!res.ok) throw new ApiError(res.status, "");
+  return URL.createObjectURL(await res.blob());
 }
 
 // ── AI model & reasoning-effort configuration (admin) ──
@@ -661,6 +703,8 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
+  updateTicket: (id: string, body: TicketPatch) =>
+    request<Ticket>(`/tickets/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   dashboard: (eventId: string) => request<Dashboard>(`/events/${eventId}/dashboard`),
   reportsSummary: (eventId: string) =>
     request<ReportsSummary>(`/events/${eventId}/reports/summary`),
@@ -668,6 +712,7 @@ export const api = {
   getPipelineJobs,
   getJobForTicket,
   getTicketPipeline,
+  getTicketEvidence,
   // Exports (CSV, audit packet, invoice) are downloaded via `openAuthedExport`
   // so the bearer token travels with the request; see that helper above.
 

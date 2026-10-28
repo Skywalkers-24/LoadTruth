@@ -100,9 +100,7 @@ class AIConfigStore:
             if model not in catalog.MODELS:
                 raise ConfigValidationError(f"unknown model: {model}")
             if model not in task.eligible_models:
-                raise ConfigValidationError(
-                    f"model {model} is not eligible for task {task_id}"
-                )
+                raise ConfigValidationError(f"model {model} is not eligible for task {task_id}")
 
             info = catalog.MODELS[model]
             if task.supports_effort and info.efforts and effort not in info.efforts:

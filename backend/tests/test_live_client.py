@@ -154,6 +154,7 @@ async def _run(client: LiveAIClient, kind: str = "video") -> tuple[Any, CostLedg
     registry = TruckRegistry([CertifiedTruck("FL-DT-3391", Decimal(20), "tandem")])
     async with client.clip_session("f" * 64):
         result = await run_pipeline(
+            cache=None,
             artifact=_artifact(kind),
             tenant_id=DEMO_TENANT_ID,
             event_id=DEMO_EVENT_ID,
@@ -180,6 +181,14 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert result.ticket.debris_class.value == "construction_demolition"
     assert result.ticket.est_fill_pct > 0
 
+    # SAM's raw output is kept per concept for the Review overlay, and the
+    # media the models saw is stored for playback.
+    assert set(result.segments) == {"truck bed", "debris pile"}
+    assert result.segments["truck bed"].startswith("<0f>0<|box;")
+    from app.pipeline import evidence_store
+
+    assert await evidence_store.load("f" * 64) is not None
+
     # One upload served every call, and it was deleted when the run ended.
     assert len(fake.uploads) == 1
     assert fake.deleted == ["file-123"]
@@ -193,6 +202,16 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert all(b["stream"] is True for b in sam)
     assert all(b["metadata"]["mask_encoding"] == "one_bit" for b in sam)
     assert len(spark) == 2  # OCR + classify; a clean load raises no narration
+
+    # The trace carries what each model returned, for the Pipeline page.
+    assert result.trace is not None
+    stages = {s.key: dict(s.details) for s in result.trace.stages}
+    assert stages["spark_ocr"]["Model answer"].startswith("{")
+    assert "1,000 in, 200 out" in stages["spark_ocr"]["Tokens"]
+    assert stages["spark_ocr"]["Cost"] == "$0.0021"
+    assert stages["sam_track"]['Prompt "truck bed"'] == "1 object on 2 of 2 frames"
+    assert stages["sam_track"]["Billed"] == "100 frames (2 requests)"
+    assert stages["geometry"]["Frames measured"] == "2"
 
     rows = {r.stage: r for r in await ledger.rows()}
     # Two video requests, each billed at the 50-frame minimum ($0.20 / 1k frames).
@@ -276,3 +295,13 @@ async def test_empty_media_is_a_request_error() -> None:
 async def test_ping_returns_the_answer() -> None:
     word, usage = await _client(FakeMeta()).ping()
     assert word and usage.cost_usd > 0
+
+
+@pytest.mark.asyncio
+async def test_answer_question_returns_model_text_with_usage() -> None:
+    """The analyst free-form path returns Muse Spark's text and priced usage."""
+    narration = await _client(FakeMeta()).answer_question("What is the flagged exposure?")
+    assert narration.text  # the fake returns a non-empty answer
+    assert narration.usage is not None
+    assert narration.usage.cost_usd > 0
+    assert narration.usage.model == "muse-spark-1.3"

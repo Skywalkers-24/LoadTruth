@@ -43,6 +43,8 @@ class PipelineResult:
     fill_confidence: float = 0.0
     no_truck: bool = False
     trace: PipelineTrace | None = None
+    # SAM's raw output per concept, for the Review console overlay.
+    segments: dict[str, str] = field(default_factory=dict)
 
 
 def _mask_measurement(track_bed_area: float, load_area: float, height: float) -> MaskMeasurement:
@@ -142,6 +144,8 @@ async def _compute_pipeline(
                 sam,
                 "No truck or load could be segmented in the footage.",
                 status="flagged",
+                details=_notes(tracks.notes) + _usage_details(tracks.usage),
+                duration_ms=_latency(tracks.usage),
             )
             trace.outcome = "no_truck"
         return PipelineResult(
@@ -154,6 +158,8 @@ async def _compute_pipeline(
             "Track and segment",
             sam,
             f"Tracked truck, bed, and debris across {tracks.frame_count} frames.",
+            details=_notes(tracks.notes) + _usage_details(tracks.usage),
+            duration_ms=_latency(tracks.usage),
         )
 
     # Stage 3 (Spark OCR) and the Stage 5 debris class (Spark classify) are
@@ -161,23 +167,24 @@ async def _compute_pipeline(
     ocr, classify = await asyncio.gather(ai.read_placard(clip), ai.classify_debris(clip))
     await _record(ledger, "spark_ocr", ocr.usage)
     if trace:
-        if ocr.truck_id:
-            trace.stage(
-                "spark_ocr",
-                "Read placard",
-                spark,
-                f"Read truck placard {ocr.truck_id}.",
-                confidence=ocr.confidence,
-            )
-        else:
-            trace.stage(
-                "spark_ocr",
-                "Read placard",
-                spark,
-                "Could not read the placard confidently.",
-                status="flagged",
-                confidence=ocr.confidence,
-            )
+        ocr_details = _answer(ocr.raw)
+        if ocr.frame_ref:
+            ocr_details.append(["Clearest view", ocr.frame_ref])
+        ocr_details += _usage_details(ocr.usage)
+        trace.stage(
+            "spark_ocr",
+            "Read placard",
+            spark,
+            (
+                f"Read truck placard {ocr.truck_id}."
+                if ocr.truck_id
+                else "Could not read the placard confidently."
+            ),
+            status="ok" if ocr.truck_id else "flagged",
+            confidence=ocr.confidence,
+            details=ocr_details,
+            duration_ms=_latency(ocr.usage),
+        )
 
     # Stage 4 — capacity lookup.
     match = registry.lookup(ocr.truck_id)
@@ -195,6 +202,13 @@ async def _compute_pipeline(
                 else "Truck not found in the certified registry."
             ),
             status="ok" if match.found else "flagged",
+            details=[
+                ["Placard read", ocr.truck_id or "None"],
+                ["Registry match", match.matched_id or "None"],
+                ["Match score", f"{match.confidence:.0%}"],
+                ["Certified capacity", f"{certified} CY"],
+                ["Body type", body_type or "Unknown"],
+            ],
         )
 
     # Stage 5 — fill % from geometry + debris class (Spark).
@@ -212,6 +226,15 @@ async def _compute_pipeline(
             "geometry",
             f"Measured bed fill at {fill.fill_pct}% from the segmentation masks.",
             confidence=fill.confidence,
+            details=[
+                ["Frames measured", str(len(bed.mask_areas))],
+                ["Bed area, average", f"{bed_area:,.0f} px"],
+                ["Load area inside bed, average", f"{load_area:,.0f} px"],
+                ["Planar coverage", f"{fill.planar_coverage:.0%}"],
+                ["Load height vs. bed", f"{debris.load_height_ratio:.0%}"],
+                ["Depth factor", f"{fill.depth_factor:.2f}"],
+                ["Fill", f"{fill.fill_pct}%"],
+            ],
         )
     await _record(ledger, "spark_classify", classify.usage)
     debris_class = _safe_debris_class(classify.debris_class)
@@ -223,6 +246,10 @@ async def _compute_pipeline(
             spark,
             f"Classified the load as {debris_class.value.replace('_', ' ')}.",
             confidence=classify.confidence,
+            details=_answer(classify.raw)
+            + [["Rate applied", f"${rate} per CY"]]
+            + _usage_details(classify.usage),
+            duration_ms=_latency(classify.usage),
         )
 
     # Stage 7 — draft the ticket (dollar math via the §7a value path).
@@ -275,6 +302,11 @@ async def _compute_pipeline(
                 else "No anomalies flagged."
             ),
             status="flagged" if anomalies else "ok",
+            details=[
+                [a.type.value.replace("_", " ").capitalize(), f"{a.severity}: {a.explanation}"]
+                for a in anomalies
+            ]
+            + (_usage_details(narration_usage) if narration_usage else []),
         )
         # Stage 7 — Value the load (the §7a dollar math, computed above).
         trace.stage(
@@ -282,6 +314,13 @@ async def _compute_pipeline(
             "Value the load",
             "deterministic",
             f"Valued the load at {ticket.est_dollar_value} ({fill.fill_pct}% of {certified} CY at ${rate}/CY).",  # noqa: E501
+            details=[
+                ["Volume", f"{fill.fill_pct}% of {certified} CY = {ticket.est_cubic_yards} CY"],
+                [
+                    "Value",
+                    f"{ticket.est_cubic_yards} CY at ${rate} per CY = ${ticket.est_dollar_value}",
+                ],
+            ],
         )
         trace.ticket_id = str(ticket.id)
         trace.truck_id = ocr.truck_id
@@ -299,6 +338,7 @@ async def _compute_pipeline(
         anomalies=anomalies,
         identity_confidence=ocr.confidence,
         fill_confidence=fill.confidence,
+        segments=dict(tracks.segments),
     )
 
 
@@ -384,6 +424,42 @@ def _stage_model(stage: str) -> str:
     if stage in _AI_STAGES:
         return get_ai_config_store().resolve(stage).model
     return "deterministic"
+
+
+def _answer(raw: str) -> list[list[str]]:
+    """The model's raw answer as a trace row, when there is one."""
+    return [["Model answer", raw]] if raw else []
+
+
+def _notes(notes: dict[str, str]) -> list[list[str]]:
+    return [[k, v] for k, v in notes.items()]
+
+
+def _latency(usage: CallUsage | None) -> float | None:
+    """A live call's own response time; None (use wall clock) otherwise."""
+    if usage is None or usage.cached or usage.latency_ms <= 0:
+        return None
+    return usage.latency_ms
+
+
+def _usage_details(usage: CallUsage | None) -> list[list[str]]:
+    """Tokens, cost, and response time for an AI stage, in plain words."""
+    if usage is None:
+        return []
+    if usage.cached:
+        return [["Source", "Saved result from an earlier run, no model call"]]
+    rows: list[list[str]] = []
+    if usage.tokens_in or usage.tokens_out:
+        reasoning = (
+            f", {usage.reasoning_tokens:,} of them reasoning" if usage.reasoning_tokens else ""
+        )
+        rows.append(["Tokens", f"{usage.tokens_in:,} in, {usage.tokens_out:,} out{reasoning}"])
+    if usage.requests > 1:
+        rows.append(["Requests", str(usage.requests)])
+    if usage.latency_ms > 0:
+        rows.append(["Response time", f"{usage.latency_ms / 1000:.1f} s"])
+    rows.append(["Cost", f"${usage.cost_usd:.4f}"])
+    return rows
 
 
 def _empty_ticket(tenant_id: UUID, event_id: UUID, _hash: str) -> Ticket:

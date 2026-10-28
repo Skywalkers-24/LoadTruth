@@ -9,6 +9,7 @@ import {
   type EventInput,
   type SourceInput,
   type TaskConfigUpdate,
+  type TicketPatch,
   type TicketQuery,
   type TicketStatus,
   type TruckInput,
@@ -134,6 +135,15 @@ export function useSetStatus() {
   });
 }
 
+/** Edit a ticket's truck ID / debris class; recomputes valuation + invalidates. */
+export function useUpdateTicket() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: TicketPatch }) => api.updateTicket(id, body),
+    onSuccess: invalidateAll(qc),
+  });
+}
+
 /** Invalidate every event-scoped query after a write. */
 function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   return () => {
@@ -243,6 +253,16 @@ export function useTicketPipeline(ticketId: string | null) {
     queryKey: ["ticket-pipeline", ticketId],
     queryFn: () => api.getTicketPipeline(ticketId as string),
     enabled: Boolean(ticketId),
+  });
+}
+
+/** The ticket's processed clip + SAM output (null when it has none). */
+export function useTicketEvidence(ticketId: string | null) {
+  return useQuery({
+    queryKey: ["ticket-evidence", ticketId],
+    queryFn: () => api.getTicketEvidence(ticketId as string),
+    enabled: Boolean(ticketId),
+    staleTime: 5 * 60_000,
   });
 }
 

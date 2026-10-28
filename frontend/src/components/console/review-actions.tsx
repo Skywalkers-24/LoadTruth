@@ -219,7 +219,8 @@ export function ReviewActions({
         <CheckIcon size={16} className="shrink-0" />
         <span className="truncate">Confirm assessment</span>
       </span>
-      <kbd className="hidden shrink-0 rounded bg-black/15 px-1.5 py-0.5 text-[11px] font-medium lg:inline">
+      {/* Shortcut hints only where the bar has room, so the labels never truncate. */}
+      <kbd className="hidden shrink-0 rounded bg-black/15 px-1.5 py-0.5 text-[11px] font-medium @[52rem]:inline">
         C
       </kbd>
     </button>
@@ -232,10 +233,10 @@ export function ReviewActions({
       onClick={() => setPending("overridden")}
       className={bar ? "min-w-0 whitespace-nowrap" : undefined}
     >
-      Override{" "}
-      <Kbd className="ml-1 hidden border-current/30 bg-transparent text-current lg:inline-flex">
-        O
-      </Kbd>
+      Override {/* Kbd sets its own display, so the wrapper does the hiding. */}
+      <span className="ml-1 hidden @[52rem]:inline-flex">
+        <Kbd className="border-current/30 bg-transparent text-current">O</Kbd>
+      </span>
     </Button>
   );
 
@@ -247,9 +248,9 @@ export function ReviewActions({
       className={bar ? "min-w-0 whitespace-nowrap" : undefined}
     >
       Dispute{" "}
-      <Kbd className="ml-1 hidden border-current/30 bg-transparent text-current lg:inline-flex">
-        D
-      </Kbd>
+      <span className="ml-1 hidden @[52rem]:inline-flex">
+        <Kbd className="border-current/30 bg-transparent text-current">D</Kbd>
+      </span>
     </Button>
   );
 
@@ -299,7 +300,7 @@ export function ReviewActions({
     // fixed proportions so they can shrink instead of overflowing the bar.
     return (
       <div className="@container">
-        <div className="flex flex-col gap-2 @[46rem]:flex-row @[46rem]:items-center @[46rem]:gap-3">
+        <div className="flex flex-col gap-2 @[44rem]:flex-row @[44rem]:items-center @[44rem]:gap-3">
           {decidedNote}
           <form onSubmit={submitCall} className="flex shrink-0 items-center gap-2">
             {callLabel}

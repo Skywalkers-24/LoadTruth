@@ -17,6 +17,7 @@ import {
   MenuIcon,
   SearchIcon,
   SettingsIcon,
+  TruckIcon,
   XIcon,
 } from "@/components/ui/icons";
 import {
@@ -48,16 +49,18 @@ type NavItem = {
   cap?: keyof Capabilities;
 };
 
-// Order: Overview, Review, Add, Reports, Admin, then Guide last (reference docs).
+// Order: Overview, Review, Ticket, Trucks, Reports, Billing, Settings, then
+// Guide last (reference docs).
 const NAV: NavItem[] = [
   { href: "/", label: "Overview", short: "Overview", icon: GaugeIcon },
   { href: "/console", label: "Review", short: "Review", icon: ClipboardIcon, badge: true },
-  { href: "/add", label: "New Ticket", short: "New", icon: PlusIcon, cap: "ingest" },
+  { href: "/add", label: "Ticket", short: "Ticket", icon: PlusIcon, cap: "ingest" },
+  { href: "/trucks", label: "Trucks", short: "Trucks", icon: TruckIcon, cap: "manage_trucks" },
   { href: "/assistant", label: "AI Analyst", short: "Analyst", icon: SparklesIcon },
   { href: "/pipeline", label: "AI Pipeline", short: "Pipeline", icon: ActivityIcon },
   { href: "/reports", label: "Reports", short: "Reports", icon: ChartIcon },
   { href: "/billing", label: "Billing", short: "Billing", icon: CircleDollarSignIcon },
-  { href: "/admin", label: "Admin", short: "Admin", icon: SettingsIcon, cap: "manage_events" },
+  { href: "/admin", label: "Settings", short: "Settings", icon: SettingsIcon, cap: "manage_events" },
   { href: "/guide", label: "Guide", short: "Guide", icon: BookOpenIcon },
 ];
 
@@ -83,14 +86,26 @@ const COLLAPSE_KEY = "loadtruth-rail-collapsed";
  * carries the event switcher. Mobile: compact top bar, slide-over drawer, and a
  * bottom tab bar. The rail collapse state is persisted.
  */
-export function AppShell({ children, section }: { children: ReactNode; section: string }) {
+export function AppShell({
+  children,
+  section,
+  fluid = false,
+}: {
+  children: ReactNode;
+  section: string;
+  /** Use the full window width (one-screen workspaces) instead of a centered column. */
+  fluid?: boolean;
+}) {
   const pathname = usePathname();
   const [drawer, setDrawer] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => setDrawer(false), [pathname]);
   useEffect(() => {
-    setCollapsed(window.localStorage.getItem(COLLAPSE_KEY) === "1");
+    // An explicit choice wins. Otherwise start collapsed on laptop and tablet
+    // widths (13-inch MacBook, iPad landscape) so the workspace gets the room.
+    const stored = window.localStorage.getItem(COLLAPSE_KEY);
+    setCollapsed(stored === null ? window.innerWidth < 1536 : stored === "1");
   }, []);
 
   const toggleCollapse = () => {
@@ -139,8 +154,13 @@ export function AppShell({ children, section }: { children: ReactNode; section: 
 
       <div className="flex min-w-0 flex-col lg:min-h-0">
         <TopBar section={section} onMenu={() => setDrawer(true)} />
-        <main className="lt-fade-in min-w-0 flex-1 px-4 pb-24 pt-4 sm:px-6 lg:min-h-0 lg:overflow-hidden lg:px-8 lg:pb-6 lg:pt-5">
-          <div className="mx-auto flex h-full min-h-0 w-full max-w-[1600px] flex-col">
+        <main className="lt-fade-in min-w-0 flex-1 px-4 pb-24 pt-4 sm:px-6 lg:min-h-0 lg:overflow-hidden lg:px-6 lg:pb-4 lg:pt-4 2xl:px-8 2xl:pb-5">
+          <div
+            className={cn(
+              "mx-auto flex h-full min-h-0 w-full flex-col",
+              !fluid && "max-w-[1600px]",
+            )}
+          >
             {children}
           </div>
         </main>
@@ -434,7 +454,7 @@ function BottomTabs({ pathname }: { pathname: string }) {
   const pending = usePendingCount();
   const { can } = useAuth();
   const primary = visibleNav(can)
-    .filter((i) => ["/", "/console", "/add", "/reports", "/admin"].includes(i.href))
+    .filter((i) => ["/", "/console", "/add", "/trucks", "/reports"].includes(i.href))
     .slice(0, 4);
   return (
     <nav

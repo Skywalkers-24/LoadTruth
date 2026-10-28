@@ -126,3 +126,25 @@ Entry format:
 - **Root cause:** Sizing was keyed to the window width only. Laptop screens are both narrower and much shorter, and the center column's height budget was never checked against a 900px viewport.
 - **Fix:** Container queries on the pane (`@[46rem]`) for column layout and for the bar's one-row versus two-row button grid; `min-w-0` on grid children; the evidence canvas cap on wide panes is `clamp(11rem, 100dvh - 44rem, 17rem)` so it shrinks on short screens; the queue count moved into a badge so the subtitle stays one line. Text sizes stay on the density scale.
 - **Rule going forward:** Before changing type sizes to fix overflow, measure with `scratch/shots/console-measure.mjs` at 1280x800, 1440x900, 1512x982, and 1920x1080 and find the element that overflows. Budget height as well as width for any one-screen layout.
+### 2026-10-27 — Clip uploads over 10 MB failed with a bare 500 (Next.js proxy body limit)
+- **What happened:** A real clip uploaded on New Ticket showed "upload to /events/…/ingest failed (500)". The backend logged nothing and no Meta call was made.
+- **Root cause:** The `/api/*` rewrite proxies through Next.js, which buffers request bodies and stops at 10 MB by default (`experimental.proxyClientMaxBodySize`). The truncated multipart body made the backend drop the socket (`ECONNRESET` in the frontend logs), and the proxy returned 500.
+- **Fix:** `frontend/next.config.ts` sets `proxyClientMaxBodySize: "500mb"` and `proxyTimeout: 600000` (a live run can take minutes). The upload client no longer turns a missing backend detail into a raw path-and-status string.
+- **Rule going forward:** When an upload fails with no backend log line, check `docker compose logs frontend` for proxy errors first. Test uploads above 10 MB through :3000, not only against :8000 directly.
+
+### 2026-10-28 — Fixed caps that fit a laptop leave a monitor half empty
+- **What happened:** The one-screen console was tuned for a 1440x900 laptop with fixed caps (evidence `max-h` 17rem, queue page of 6, 1600px content column). On a 1920x970 browser window each column ended 120 to 175px above the bottom, and on 2560x1300 about 450 to 500px.
+- **Root cause:** Caps sized for the smallest target screen never grow. The page size was a constant, so the queue could not use extra height either.
+- **Fix:** Let one element per column absorb leftover height (evidence `flex-1` with a 13rem floor; the rail's last card `flex-1`), compute the queue page size from the measured column height (`useFitCount`), and opt the console out of the 1600px cap (`AppShell fluid`).
+- **Rule going forward:** In a one-screen layout, give each column a single flexible element instead of a `max-h`/`clamp()` cap, and measure blank space (the `blank` field in `scratch/shots/console-measure.mjs`) on a monitor size as well as laptop sizes. Measure at browser-window heights (for example 1440x790), not the display's full height.
+
+### 2026-10-28 — Changing a ticket's inputs means re-running the whole §7a value path
+- **What happened:** Adding truck-ID and debris-class edits, it was tempting to just set `row.truck_id` / `row.debris_class` and return. That would have left `certified_cubic_yards`, `rate_per_cy`, `est_cubic_yards`, `est_dollar_value`, and the monitor delta all stale, so the money frame would contradict the new inputs.
+- **Root cause:** The ticket snapshots capacity and rate at ingest; they are not looked up live. The dollar fields are derived, not stored independently. domain.py says plainly the delta is "never recomputed ad hoc elsewhere."
+- **Fix:** `repo.update_ticket` re-derives capacity from the registry (fuzzy `TruckRegistry`) on a truck change and the rate from `event.rate_table` on a debris change, then re-runs `value_ticket()` and persists every est/monitor/delta field, mirroring `set_monitor_call`'s copy-back.
+- **Rule going forward:** Any mutation that touches a valuation input must route through `value_ticket()` and write all derived fields. Never hand-patch a single dollar/CY column.
+
+### 2026-10-28 — `mypy --strict` on `dict[str, object]` evidence needs typed accessors, not `# type: ignore`
+- **What happened:** The analyst agent had 21 `mypy --strict` errors from reading `ToolResult.evidence` (typed `dict[str, object]`) and calling `int(...)` / indexing the `object` values, papered over with `# type: ignore` that then went stale.
+- **Fix:** Small typed accessors (`_int`, `_num`, `_items`, `_mapping`, `_row_str`) narrow `object` to the needed type at the read site, and the evidence dicts that mix ints and floats are annotated `dict[str, object]` so a narrow inference can't fight a later assignment. Also typed `require()` as returning `Callable[[Session], Awaitable[Session]]` since its guard is async.
+- **Rule going forward:** Read `object`-typed values through a narrowing helper instead of `# type: ignore`; annotate heterogeneous evidence dicts as `dict[str, object]` at creation.

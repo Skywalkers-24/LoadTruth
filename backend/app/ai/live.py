@@ -29,6 +29,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import re
 import time
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
@@ -50,11 +51,19 @@ from app.ai.meta_http import (
     ModelAPIResponseError,
     output_text,
 )
-from app.ai.pricing import sam_cost_usd, spark_cost_usd, token_counts
+from app.ai.pricing import sam_billed_units, sam_cost_usd, spark_cost_usd, token_counts
 from app.ai.request_params import params_for
-from app.ai.sam_measure import Detection, frames_covered, measure, parse_segmentation
+from app.ai.sam_measure import (
+    BED_LABEL,
+    LOAD_LABEL,
+    Detection,
+    frames_covered,
+    measure,
+    parse_segmentation,
+)
 from app.config import get_settings
 from app.log import get_logger
+from app.pipeline import evidence_store
 from app.pipeline.media import SendMethod, plan_transport
 from app.pipeline.transcode import prepare_media
 
@@ -134,6 +143,13 @@ class PreparedMedia:
 class _SegmentRun:
     detections: list[Detection]
     usage: CallUsage
+    text: str = ""
+    billed_units: int = 0  # images or video frames SAM billed for this request
+
+
+# Raw SAM text kept per concept for the Review overlay (about 400 chars per
+# object per frame); a very long clip beyond this keeps its measurements only.
+_MAX_SEGMENT_CHARS = 4_000_000
 
 
 def _clamp01(value: object) -> float:
@@ -155,6 +171,38 @@ def _json_answer(response: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(answer, dict):
         raise ModelAPIResponseError("The model answer was not a JSON object.")
     return answer
+
+
+def _describe_run(run: _SegmentRun, media_kind: str) -> str:
+    """'2 objects on 30 of 30 frames' for one SAM concept request."""
+    ids = {d.object_id for d in run.detections}
+    if not ids:
+        return "No match"
+    noun = "object" if len(ids) == 1 else "objects"
+    if media_kind == "image":
+        return f"{len(ids)} {noun}"
+    with_hits = len({d.frame for d in run.detections})
+    return f"{len(ids)} {noun} on {with_hits} of {frames_covered(run.detections)} frames"
+
+
+def _track_notes(
+    media: PreparedMedia, bed: _SegmentRun, load: _SegmentRun, bed_prompt: str, load_prompt: str
+) -> dict[str, str]:
+    """Plain facts about what SAM returned, shown in the pipeline trace."""
+    size = re.search(r";w=(\d+);h=(\d+)", bed.text or load.text)
+    sent = "uploaded file" if media.file_id else "inline"
+    resolution = f"{size.group(1)}x{size.group(2)}, " if size else ""
+    unit = "images" if media.media_kind == "image" else "frames"
+    return {
+        f'Prompt "{bed_prompt}"': _describe_run(bed, media.media_kind),
+        f'Prompt "{load_prompt}"': _describe_run(load, media.media_kind),
+        "Media sent": f"{resolution}{media.size_bytes / 1_000_000:.1f} MB, {sent}",
+        "Billed": f"{bed.billed_units + load.billed_units} {unit} (2 requests)",
+        "SAM response time": (
+            f"{bed.usage.latency_ms / 1000:.1f} s and "
+            f"{load.usage.latency_ms / 1000:.1f} s, in parallel"
+        ),
+    }
 
 
 def _clean_sentence(text: str) -> str:
@@ -223,6 +271,14 @@ class LiveAIClient:
         prepared = await prepare_media(
             clip.data, media_kind=clip.media_kind, filename=clip.filename
         )
+        # Keep the exact media the models see, so the Review console can play it
+        # under SAM's per-frame boxes and masks (a resampled video's fps maps
+        # SAM frame indexes to playback time).
+        is_video = clip.media_kind == "video"
+        video_fps = s.frame_sample_fps if prepared.transcoded and is_video else None
+        await evidence_store.save(
+            clip.content_hash, prepared.data, mime=prepared.mime, fps=video_fps
+        )
         plan = plan_transport(len(prepared.data))
         kind = "input_image" if clip.media_kind == "image" else "input_video"
         if plan.send_method is SendMethod.UPLOAD:
@@ -270,7 +326,13 @@ class LiveAIClient:
             frames=result.frame_count,
             cost_usd=bed.usage.cost_usd + load.usage.cost_usd,
         )
-        return replace(result, usage=bed.usage.plus(load.usage))
+        segments = {
+            label: text
+            for label, text in ((BED_LABEL, bed.text), (LOAD_LABEL, load.text))
+            if len(text) <= _MAX_SEGMENT_CHARS
+        }
+        notes = _track_notes(media, bed, load, s.sam_bed_concept, s.sam_load_concept)
+        return replace(result, usage=bed.usage.plus(load.usage), segments=segments, notes=notes)
 
     async def _segment(self, media: PreparedMedia, concept: str) -> _SegmentRun:
         model = get_ai_config_store().resolve("sam_track").model
@@ -291,8 +353,9 @@ class LiveAIClient:
         )
         frames = 1 if media.media_kind == "image" else frames_covered(detections)
         cost = sam_cost_usd(streamed.usage, media_kind=media.media_kind, frames_seen=frames)
+        billed = sam_billed_units(streamed.usage, media_kind=media.media_kind, frames_seen=frames)
         usage = CallUsage(model=model, latency_ms=streamed.latency_ms, cost_usd=cost)
-        return _SegmentRun(detections, usage)
+        return _SegmentRun(detections, usage, streamed.text, billed)
 
     # ── Muse Spark ───────────────────────────────────────────────────────────
     async def _spark(
@@ -318,12 +381,15 @@ class LiveAIClient:
         raw_usage = response.get("usage")
         usage_block: Mapping[str, object] = raw_usage if isinstance(raw_usage, Mapping) else {}
         tokens_in, _, tokens_out = token_counts(usage_block)
+        details = usage_block.get("output_tokens_details")
+        reasoning = details.get("reasoning_tokens") if isinstance(details, Mapping) else 0
         usage = CallUsage(
             model=params.model,
             tokens_in=tokens_in,
             tokens_out=tokens_out,
             latency_ms=latency,
             cost_usd=spark_cost_usd(params.model, usage_block),
+            reasoning_tokens=int(reasoning) if isinstance(reasoning, int | float) else 0,
         )
         return response, usage
 
@@ -343,6 +409,7 @@ class LiveAIClient:
             confidence=_clamp01(answer.get("confidence")) if readable else 0.0,
             frame_ref=frame_ref,
             usage=usage,
+            raw=output_text(response).strip(),
         )
 
     async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
@@ -358,6 +425,7 @@ class LiveAIClient:
             debris_class=debris if debris in DEBRIS_CLASSES else "other",
             confidence=_clamp01(answer.get("confidence")),
             usage=usage,
+            raw=output_text(response).strip(),
         )
 
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
@@ -369,6 +437,16 @@ class LiveAIClient:
         text = _clean_sentence(output_text(response))
         if not text:
             raise ModelAPIResponseError("The model returned an empty narration.")
+        return Narration(text=text, usage=usage)
+
+    async def answer_question(self, prompt: str) -> Narration:
+        """Free-form grounded answer from Muse Spark (the analyst chat)."""
+        response, usage = await self._spark(
+            "analyst_chat", [{"type": "input_text", "text": prompt}], None
+        )
+        text = output_text(response).strip()
+        if not text:
+            raise ModelAPIResponseError("The model returned an empty answer.")
         return Narration(text=text, usage=usage)
 
     async def ping(self) -> tuple[str, CallUsage]:

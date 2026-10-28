@@ -35,6 +35,7 @@ def at_least(role: str, minimum: Role) -> bool:
 
 # ── Capability predicates. Each maps to a concrete action in the UI/API. ──
 
+
 def can_review_tickets(role: str) -> bool:
     """Set the monitor call and confirm/override/dispute a ticket."""
     # Monitors and supervisors do review work; county/super admins may too.

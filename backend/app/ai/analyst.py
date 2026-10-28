@@ -41,7 +41,7 @@ class AnalystTools:
     async def event_summary(self) -> ToolResult:
         """Totals for the active event: tickets, reviewed, flagged exposure."""
         s = await self._repo.reports_summary(self._tenant, self._event)
-        evidence = {
+        evidence: dict[str, object] = {
             "ticket_count": s.ticket_count,
             "reviewed_count": s.reviewed_count,
             "pending_count": s.ticket_count - s.reviewed_count,
@@ -56,7 +56,7 @@ class AnalystTools:
     async def accuracy_stats(self) -> ToolResult:
         """Fill-accuracy benchmark and review progress for the event."""
         d = await self._repo.dashboard(self._tenant, self._event)
-        evidence = {
+        evidence: dict[str, object] = {
             "accuracy_within_10pct": d.accuracy_within_10pct,
             "reviewed_count": d.reviewed_count,
             "ticket_count": d.ticket_count,
@@ -79,7 +79,7 @@ class AnalystTools:
         if overbill_only:
             rows = [t for t in rows if t.is_overbill]
         rows = sorted(rows, key=lambda t: _f(t.delta_dollar_value), reverse=True)[:limit]
-        items = [
+        items: list[dict[str, object]] = [
             {
                 "ticket": f"LT-{str(t.id).replace('-', '')[:6].upper()}",
                 "truck_id": t.truck_id,
@@ -87,9 +87,7 @@ class AnalystTools:
                 "status": t.status.value,
                 "measured_value": round(_f(t.est_dollar_value), 2),
                 "delta": (
-                    round(_f(t.delta_dollar_value), 2)
-                    if t.delta_dollar_value is not None
-                    else None
+                    round(_f(t.delta_dollar_value), 2) if t.delta_dollar_value is not None else None
                 ),
             }
             for t in rows
@@ -118,14 +116,12 @@ class AnalystTools:
             key=lambda t: _f(t.delta_dollar_value),
             reverse=True,
         )
-        items = [
+        items: list[dict[str, object]] = [
             {
                 "ticket": f"LT-{str(t.id).replace('-', '')[:6].upper()}",
                 "truck_id": t.truck_id,
                 "delta": (
-                    round(_f(t.delta_dollar_value), 2)
-                    if t.delta_dollar_value is not None
-                    else None
+                    round(_f(t.delta_dollar_value), 2) if t.delta_dollar_value is not None else None
                 ),
             }
             for t in disputed

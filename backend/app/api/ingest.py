@@ -25,11 +25,12 @@ from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_ingest
 from app.config import get_settings
 from app.log import get_logger
+from app.pipeline import evidence_store
 from app.pipeline.cache import InMemoryResultCache
 from app.pipeline.frames import sample_frames
 from app.pipeline.ingest import ingest_upload
 from app.pipeline.ledger import BudgetExceededError, CostLedger
-from app.pipeline.media import MediaTooLargeError, plan_transport
+from app.pipeline.media import MediaTooLargeError, guess_mime, plan_transport
 from app.pipeline.orchestrator import PipelineResult, run_pipeline
 from app.pipeline.registry import CertifiedTruck, TruckRegistry
 from app.pipeline.trace import get_job_store
@@ -172,6 +173,22 @@ async def ingest_clip(
     # Persist the AI stage trace so this ticket keeps its analysis permanently.
     if result.trace is not None and result.trace.stages:
         await repo.save_pipeline_stages(tenant, saved.id, list(result.trace.stages))
+    # Keep the clip for the Review console. The live client already stored the
+    # exact media the models saw; otherwise (fixtures, or a cached replay of an
+    # older clip) store the upload itself, which plays without an overlay.
+    await evidence_store.save(
+        artifact.content_hash, data, mime=guess_mime(filename, artifact.media_kind)
+    )
+    stored = await evidence_store.load(artifact.content_hash)
+    await repo.save_ticket_evidence(
+        tenant,
+        saved.id,
+        content_hash=artifact.content_hash,
+        media_kind=artifact.media_kind,
+        mime=stored.mime if stored else guess_mime(filename, artifact.media_kind),
+        fps=stored.fps if stored else None,
+        segments=result.segments,
+    )
     return ticket_to_out(saved)
 
 

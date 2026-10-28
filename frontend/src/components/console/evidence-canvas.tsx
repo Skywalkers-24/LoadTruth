@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import type { Ticket } from "@/lib/api";
+import { useTicketEvidence } from "@/lib/hooks";
+import { SamPlayer } from "@/components/console/sam-player";
 import { Badge } from "@/components/ui/badge";
 import { CameraIcon, SkipBackIcon, SkipForwardIcon } from "@/components/ui/icons";
 import { EmptyState } from "@/components/ui/primitives";
@@ -26,6 +28,15 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
     call: true,
   });
 
+  // The clip the models analyzed, with SAM's per-frame output, when stored.
+  const evidence = useTicketEvidence(ticket.id).data ?? null;
+  const live = Boolean(evidence?.has_media);
+  const [samFrame, setSamFrame] = useState({ frame: 0, total: 0 });
+  const onFrame = useCallback((frame: number, total: number) => {
+    setSamFrame((prev) => (prev.frame === frame && prev.total === total ? prev : { frame, total }));
+  }, []);
+  const hasViewer = live || frames.length > 0;
+
   const v = ticket.valuation;
   const measured = clamp(Number.parseFloat(v.est_fill_pct), 0, 100);
   const monitor =
@@ -36,29 +47,46 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
     setOverlays((prev) => ({ ...prev, [o]: !prev[o] }));
   }
 
+  // Narrow pane: a 2:1 box in the scrolling column. Wide pane: the viewer takes
+  // whatever height the center column has left, so the evidence grows on a tall
+  // monitor and shrinks (to a readable minimum) on a short laptop screen.
   return (
-    <div className="flex flex-col gap-3">
-      <div className="overflow-hidden rounded-lg border border-[var(--color-border)]">
+    <div className="flex flex-col gap-3 @[46rem]:min-h-[13rem] @[46rem]:flex-1">
+      <div className="overflow-hidden rounded-lg border border-[var(--color-border)] @[46rem]:flex @[46rem]:min-h-0 @[46rem]:flex-1 @[46rem]:flex-col">
         {/* Viewer header: title, frame, overlay toggles */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5">
           <div className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-[var(--color-text)]">
             <CameraIcon size={15} className="shrink-0 text-[var(--color-subtle)]" />
             Evidence
-            <Tooltip content="Drawn from the segmented load surface relative to the calibrated truck-bed geometry.">
+            <Tooltip
+              content={
+                live
+                  ? "The clip the models analyzed. Blue outlines are the truck bed and violet outlines are the load, exactly as SAM 3.1 segmented each frame."
+                  : "Drawn from the segmented load surface relative to the calibrated truck-bed geometry."
+              }
+            >
               <span tabIndex={0}>
-                <Badge tone="neutral">Measurement overlay</Badge>
+                <Badge tone="neutral">
+                  {live ? "SAM 3.1 segmentation" : "Measurement overlay"}
+                </Badge>
               </span>
             </Tooltip>
-            {frames.length > 0 && (
+            {live && samFrame.total > 0 ? (
               <span className="hidden truncate text-[12px] font-normal tabular-nums text-[var(--color-subtle)] md:inline">
-                {selectedFrame}
+                Frame {samFrame.frame + 1} of {samFrame.total}
               </span>
+            ) : (
+              frames.length > 0 && (
+                <span className="hidden truncate text-[12px] font-normal tabular-nums text-[var(--color-subtle)] md:inline">
+                  {selectedFrame}
+                </span>
+              )
             )}
           </div>
-          {frames.length > 0 && (
+          {hasViewer && (
             <div className="flex items-center gap-1.5">
               <OverlayToggle
-                label="Rail"
+                label={live ? "Bed" : "Rail"}
                 color="var(--color-info)"
                 on={overlays.rail}
                 onClick={() => toggle("rail")}
@@ -69,7 +97,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
                 on={overlays.load}
                 onClick={() => toggle("load")}
               />
-              {monitor !== null && (
+              {!live && monitor !== null && (
                 <OverlayToggle
                   label="Call"
                   color="var(--color-text)"
@@ -81,12 +109,25 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
           )}
         </div>
 
-        {/* 2:1 canvas, capped so it never pushes the decision bar off screen on
-            a wide pane (the SVG letterboxes inside the capped box). On a wide
-            pane the cap also tracks viewport height, so a 900px-tall laptop
-            screen fits the whole center column without scrolling. */}
-        <div className="relative aspect-[16/8] max-h-[17rem] w-full overflow-hidden bg-[var(--color-bg)] @[46rem]:max-h-[clamp(11rem,calc(100dvh_-_44rem),17rem)]">
-          {frames.length === 0 ? (
+        {/* The media and SVG overlays letterbox inside this box at any size. */}
+        <div className="relative aspect-[16/8] max-h-[17rem] w-full shrink-0 overflow-hidden bg-[var(--color-bg)] @[46rem]:aspect-auto @[46rem]:max-h-none @[46rem]:min-h-0 @[46rem]:shrink @[46rem]:flex-1">
+          {live && evidence ? (
+            <>
+              <SamPlayer
+                ticketId={ticket.id}
+                evidence={evidence}
+                show={{ bed: overlays.rail, load: overlays.load }}
+                onFrame={onFrame}
+              />
+              <div className="pointer-events-none absolute right-3 top-3 hidden gap-2 sm:flex">
+                <Readout
+                  label="Measured"
+                  value={percent(v.est_fill_pct)}
+                  color="var(--color-money)"
+                />
+              </div>
+            </>
+          ) : frames.length === 0 ? (
             <div className="absolute inset-0 grid place-items-center p-6">
               <EmptyState
                 icon={<CameraIcon size={22} />}
@@ -119,7 +160,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
         </div>
 
         {/* Frame stepper (only when there is more than one frame) */}
-        {frames.length > 1 && (
+        {!live && frames.length > 1 && (
           <div className="flex items-center justify-center gap-3 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5">
             <div className="flex items-center gap-1 text-[var(--color-subtle)]">
               <button

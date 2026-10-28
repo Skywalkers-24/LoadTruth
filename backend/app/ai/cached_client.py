@@ -90,7 +90,7 @@ class CachingAIClient:
     async def track(self, clip: ClipMedia) -> TrackResult:
         h = clip.content_hash
         cached = await self._repo.get_ai_stage_result(self._tenant, h, serde.STAGE_TRACK)
-        if cached is not None:
+        if cached is not None and serde.track_is_current(cached):
             return replace(serde.track_from_json(cached), usage=self._hit())
         result = await self._inner.track(clip)
         await self._persist(h, serde.STAGE_TRACK, serde.track_to_json(result))
@@ -117,6 +117,10 @@ class CachingAIClient:
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
         # Not clip-keyed — pass through (see module docstring).
         return await self._inner.narrate_anomaly(anomaly_type, facts)
+
+    async def answer_question(self, prompt: str) -> Narration:
+        # Not clip-keyed — pass through.
+        return await self._inner.answer_question(prompt)
 
     async def _persist(self, content_hash: str, stage_key: str, payload: dict[str, object]) -> None:
         try:

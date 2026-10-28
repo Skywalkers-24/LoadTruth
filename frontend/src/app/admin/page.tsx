@@ -10,16 +10,15 @@ import { PipelineStats } from "@/components/admin/pipeline-stats";
 import { RateTableEditor } from "@/components/admin/rate-table";
 import { RolesPanel } from "@/components/admin/roles-panel";
 import { SourceConnections } from "@/components/admin/source-connections";
-import { TruckRegistry } from "@/components/admin/truck-registry";
-import { CameraIcon, DollarIcon, TruckIcon, UsersIcon } from "@/components/ui/icons";
+import { CameraIcon, DollarIcon, UsersIcon } from "@/components/ui/icons";
 import { Card } from "@/components/ui/shadcn/card";
 import { ErrorState, Skeleton } from "@/components/ui/primitives";
 import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
-import { useSources, useTrucks, useUsers } from "@/lib/hooks";
+import { useSources, useUsers } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 
-type Tab = "rates" | "trucks" | "sources" | "users" | "models" | "pipeline";
+type Tab = "rates" | "sources" | "users" | "models" | "pipeline";
 
 const SECTIONS: { id: Tab; label: string; blurb: string; icon: ReactNode; usersOnly?: boolean }[] =
   [
@@ -28,12 +27,6 @@ const SECTIONS: { id: Tab; label: string; blurb: string; icon: ReactNode; usersO
       label: "Rates",
       blurb: "Price per cubic yard by debris class",
       icon: <DollarIcon size={16} />,
-    },
-    {
-      id: "trucks",
-      label: "Truck registry",
-      blurb: "Certified trucks and bed capacity",
-      icon: <TruckIcon size={16} />,
     },
     {
       id: "sources",
@@ -69,19 +62,17 @@ export default function AdminPage() {
   const { can } = useAuth();
   const sections = SECTIONS.filter((s) => !s.usersOnly || can("manage_users"));
   const [tab, setTab] = useState<Tab>("rates");
-  const trucks = useTrucks();
   const users = useUsers();
   const sources = useSources(event?.id);
 
   const counts: Partial<Record<Tab, number | undefined>> = {
-    trucks: trucks.data?.length,
     users: can("manage_users") ? users.data?.length : undefined,
     sources: sources.data?.length,
   };
   const active = sections.find((s) => s.id === tab) ?? sections[0]!;
 
   return (
-    <AppShell section="Admin">
+    <AppShell section="Settings" fluid>
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         <div className="flex flex-col">
           <h1 className="lt-page-title">Workspace settings</h1>
@@ -157,7 +148,6 @@ export default function AdminPage() {
                 className="lt-fade-in lt-fab-safe lt-scroll min-h-0 flex-1 overflow-y-auto p-5"
               >
                 {active.id === "rates" && <RateTableEditor event={event} />}
-                {active.id === "trucks" && <TruckRegistry />}
                 {active.id === "sources" && <SourceConnections eventId={event.id} />}
                 {active.id === "users" && <RolesPanel />}
                 {active.id === "models" && <AiModelsPanel />}

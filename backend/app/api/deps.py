@@ -12,7 +12,7 @@ Two auth surfaces live here:
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
@@ -23,6 +23,7 @@ from app.auth.session import verify_token as verify_session
 from app.db.tenant import AuthContext, AuthError, tenant_session, verify_token
 
 # ── LoadTruth session login (the build's real auth) ───────────────────────────
+
 
 async def current_member(
     authorization: Annotated[str | None, Header()] = None,
@@ -48,7 +49,9 @@ async def current_member(
 CurrentMember = Annotated[Session, Depends(current_member)]
 
 
-def require(predicate: Callable[[str], bool], message: str) -> Callable[[Session], Session]:
+def require(
+    predicate: Callable[[str], bool], message: str
+) -> Callable[[Session], Awaitable[Session]]:
     """Build a dependency that allows the request only if the role passes.
 
     Usage: `member: Annotated[Session, Depends(require(can_manage_users, "..."))]`.
@@ -64,6 +67,7 @@ def require(predicate: Callable[[str], bool], message: str) -> Callable[[Session
 
 
 # ── Supabase-JWT path (kept for /auth-context and future Postgres RLS) ─────────
+
 
 async def current_user(
     authorization: Annotated[str | None, Header()] = None,

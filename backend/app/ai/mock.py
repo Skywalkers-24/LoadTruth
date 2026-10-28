@@ -94,6 +94,11 @@ class MockAIClient:
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
         return Narration(text=self._narrative(anomaly_type, facts))
 
+    async def answer_question(self, prompt: str) -> Narration:
+        # No model in the mock: return empty so the analyst composes its own
+        # deterministic, data-true answer from the tool evidence instead.
+        return Narration(text="")
+
     @staticmethod
     def _narrative(anomaly_type: str, facts: dict[str, str]) -> str:
         # Deterministic, grounded narrative standing in for Muse Spark. The rules

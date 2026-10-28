@@ -11,6 +11,8 @@ import {
   useState,
 } from "react";
 
+import { PlusIcon } from "lucide-react";
+
 import { openAuthedExport } from "@/lib/api";
 import {
   ChartIcon,
@@ -115,6 +117,20 @@ function Palette({ onClose }: { onClose: () => void }) {
         run: () => go("/console"),
       },
       {
+        id: "nav-ticket",
+        group: "Navigate",
+        label: "Ticket",
+        icon: <PlusIcon size={15} />,
+        run: () => go("/add"),
+      },
+      {
+        id: "nav-trucks",
+        group: "Navigate",
+        label: "Trucks",
+        icon: <TruckIcon size={15} />,
+        run: () => go("/trucks"),
+      },
+      {
         id: "nav-reports",
         group: "Navigate",
         label: "Reports",
@@ -122,9 +138,9 @@ function Palette({ onClose }: { onClose: () => void }) {
         run: () => go("/reports"),
       },
       {
-        id: "nav-admin",
+        id: "nav-settings",
         group: "Navigate",
-        label: "Admin",
+        label: "Settings",
         icon: <SettingsIcon size={15} />,
         run: () => go("/admin"),
       },
