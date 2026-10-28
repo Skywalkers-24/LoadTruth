@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 
-import { ApiError, type Truck } from "@/lib/api";
+import { PencilIcon } from "lucide-react";
+
+import { ApiError, type Truck, type TruckInput } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { TruckIcon } from "@/components/ui/icons";
@@ -12,15 +14,16 @@ import { useTruckMutations, useTrucks } from "@/lib/hooks";
 import { cubicYards } from "@/lib/format";
 
 /**
- * Certified-truck registry: list, add (in a modal), and remove (with
- * confirmation). The add form opens in a dialog so the list stays the focus of
- * the page and the form has room to breathe.
+ * Certified-truck registry: list, add, edit, and remove certified trucks. Add
+ * and edit share one modal (overlay + focus trap via ConfirmDialog); remove uses
+ * a separate confirmation modal because it is destructive.
  */
 export function TruckRegistry() {
   const trucks = useTrucks();
-  const { create, remove } = useTruckMutations();
+  const { create, update, remove } = useTruckMutations();
   const toast = useToast();
-  const [adding, setAdding] = useState(false);
+  // `editing` null = closed; a Truck = edit that truck; "new" = add a truck.
+  const [editing, setEditing] = useState<Truck | "new" | null>(null);
   const [number, setNumber] = useState("");
   const [body, setBody] = useState("");
   const [cap, setCap] = useState("");
@@ -28,46 +31,67 @@ export function TruckRegistry() {
   const [error, setError] = useState<string | null>(null);
   const [removing, setRemoving] = useState<Truck | null>(null);
 
-  function resetForm() {
+  const isEdit = editing !== null && editing !== "new";
+  const saving = create.isPending || update.isPending;
+
+  function openAdd() {
     setNumber("");
     setBody("");
     setCap("");
     setSource("");
     setError(null);
+    setEditing("new");
   }
 
-  function openAdd() {
-    resetForm();
-    setAdding(true);
+  function openEdit(t: Truck) {
+    setNumber(t.truck_number);
+    setBody(t.body_type ?? "");
+    setCap(t.certified_cubic_yards);
+    setSource(t.registry_source ?? "");
+    setError(null);
+    setEditing(t);
   }
 
-  const canSubmit = number.trim() !== "" && cap.trim() !== "" && !create.isPending;
+  const canSubmit = number.trim() !== "" && cap.trim() !== "" && !saving;
 
-  function submitAdd() {
+  function submit() {
     if (!canSubmit) return;
     setError(null);
     const num = number.trim();
-    create.mutate(
-      {
-        truck_number: num,
-        body_type: body.trim() || null,
-        certified_cubic_yards: cap.trim(),
-        registry_source: source.trim() || null,
-      },
-      {
+    const payload: TruckInput = {
+      truck_number: num,
+      body_type: body.trim() || null,
+      certified_cubic_yards: cap.trim(),
+      registry_source: source.trim() || null,
+    };
+    const onError = (err: unknown) =>
+      setError(
+        err instanceof ApiError && err.status === 409
+          ? "A truck with that number already exists."
+          : "Could not save the truck. Check the fields and try again.",
+      );
+
+    if (isEdit) {
+      const t = editing as Truck;
+      update.mutate(
+        { id: t.id, body: payload },
+        {
+          onSuccess: () => {
+            setEditing(null);
+            toast.push("ok", `Updated truck ${num}.`);
+          },
+          onError,
+        },
+      );
+    } else {
+      create.mutate(payload, {
         onSuccess: () => {
-          resetForm();
-          setAdding(false);
+          setEditing(null);
           toast.push("ok", `Registered truck ${num}.`);
         },
-        onError: (err) =>
-          setError(
-            err instanceof ApiError && err.status === 409
-              ? "A truck with that number already exists."
-              : "Could not add truck. Check the fields and try again.",
-          ),
-      },
-    );
+        onError,
+      });
+    }
   }
 
   function confirmRemove() {
@@ -143,34 +167,48 @@ export function TruckRegistry() {
                   </span>
                 </span>
               </span>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => setRemoving(t)}
-                disabled={remove.isPending}
-              >
-                Remove
-              </Button>
+              <span className="flex shrink-0 items-center gap-1.5">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<PencilIcon size={14} />}
+                  onClick={() => openEdit(t)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setRemoving(t)}
+                  disabled={remove.isPending}
+                >
+                  Remove
+                </Button>
+              </span>
             </li>
           ))}
         </ul>
       )}
 
-      {/* Add-truck modal. ConfirmDialog hosts the form (overlay + focus trap). */}
+      {/* Add / edit modal. ConfirmDialog hosts the form (overlay + focus trap). */}
       <ConfirmDialog
-        open={adding}
-        title="Add a certified truck"
-        description="Register a truck so its loads match to a bed capacity. Truck number must be unique."
-        confirmLabel="Add truck"
-        busy={create.isPending}
+        open={editing !== null}
+        title={isEdit ? "Edit truck" : "Add a certified truck"}
+        description={
+          isEdit
+            ? "Change this truck's capacity or details. Editing the capacity re-values loads that match this truck on their next calculation."
+            : "Register a truck so its loads match to a bed capacity. Truck number must be unique."
+        }
+        confirmLabel={isEdit ? "Save changes" : "Add truck"}
+        busy={saving}
         reason={{ required: true, valid: canSubmit }}
-        onConfirm={submitAdd}
-        onCancel={() => setAdding(false)}
+        onConfirm={submit}
+        onCancel={() => setEditing(null)}
       >
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            submitAdd();
+            submit();
           }}
           className="flex flex-col gap-3"
         >

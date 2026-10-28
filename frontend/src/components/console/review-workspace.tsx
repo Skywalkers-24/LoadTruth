@@ -9,6 +9,7 @@ import { AnomalyList } from "@/components/console/anomaly-list";
 import { EvidenceCanvas } from "@/components/console/evidence-canvas";
 import { MoneyFrame } from "@/components/console/money-frame";
 import { ReviewActions } from "@/components/console/review-actions";
+import { ReproducibilityCard } from "@/components/console/reproducibility-card";
 import { SectionCard } from "@/components/console/section-card";
 import { TicketMetadata, shortId } from "@/components/console/ticket-metadata";
 import { PipelineTrace } from "@/components/ai/pipeline-trace";
@@ -75,10 +76,15 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
             icon={<AlertIcon size={15} />}
             count={ticket.anomaly_count}
             countTone="danger"
-            className="shrink-0 @[46rem]:flex-1"
+            className="shrink-0"
           >
             <AnomalyList ticket={ticket} />
           </SectionCard>
+          {/* Proof the number is reproducible: re-verify from evidence, plus the
+              judge-mode Run live control. Stretches to fill the rail. */}
+          <div className="shrink-0 @[46rem]:flex-1">
+            <ReproducibilityCard ticket={ticket} />
+          </div>
         </div>
       </div>
     </div>

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 
 from app.ai import clip_session, get_ai_client
 from app.ai.cached_client import CachingAIClient
@@ -63,9 +63,25 @@ def get_cost_ledger() -> CostLedger:
     dependencies=[Depends(require(can_ingest, "You do not have permission to upload clips."))],
 )
 async def ingest_clip(
-    repo: Repository, tenant: ActiveTenant, event_id: UUID, file: UploadFile
+    repo: Repository,
+    tenant: ActiveTenant,
+    event_id: UUID,
+    file: UploadFile,
+    bypass_cache: bool = Query(  # noqa: B008 — FastAPI dependency default
+        default=False,
+        description=(
+            "Skip every result cache and force a fresh model run. Used by judge "
+            "mode's 'bypass cache' toggle to prove the pipeline is live."
+        ),
+    ),
 ) -> TicketOut:
-    """Ingest one clip/image and return the drafted ticket."""
+    """Ingest one clip/image and return the drafted ticket.
+
+    ``bypass_cache`` forces a live run: the process-local result cache and the
+    durable per-stage cache are both skipped, so the vision models are actually
+    called again. It is the proof, for a judge, that a re-run is the real
+    pipeline and not a replay.
+    """
     event = await repo.get_event(tenant, event_id)
     if event is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "event not found")
@@ -127,7 +143,10 @@ async def ingest_clip(
     # same-process shortcut layered on top of that durable store.
     model_label = f"{settings.sam_model} · {settings.spark_model}"
     inner = get_ai_client()
-    ai = CachingAIClient(inner, repo, tenant, model_label=model_label)
+    # Judge-mode "bypass cache": call the raw client and skip both caches so the
+    # models actually run again; otherwise wrap in the durable per-stage cache.
+    ai = inner if bypass_cache else CachingAIClient(inner, repo, tenant, model_label=model_label)
+    result_cache = None if bypass_cache else get_pipeline_cache()
 
     try:
         async with clip_session(inner, artifact.content_hash):
@@ -138,7 +157,7 @@ async def ingest_clip(
                 registry=registry,
                 rate_table=event.rate_table,
                 ai=ai,
-                cache=get_pipeline_cache(),
+                cache=result_cache,
                 ledger=get_cost_ledger(),
                 data=data,
             )

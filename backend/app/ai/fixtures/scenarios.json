@@ -43,7 +43,7 @@
     "classify": { "debris_class": "construction_demolition", "confidence": 0.72 }
   },
   "hollow-load": {
-    "label": "hollow / fluffed vegetative load",
+    "label": "surface high, measured depth low (vegetative)",
     "track": {
       "frame_count": 55,
       "objects": [

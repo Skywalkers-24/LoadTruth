@@ -136,15 +136,21 @@ export function PipelineTrace({
               {/* Expanded detail — all the fields for this stage, including the
                   previously-hidden duration. */}
               {isOpen && (
-                <div className="lt-fade-in ml-[22px] mt-1 flex flex-col gap-2 rounded-lg border border-border bg-secondary/40 p-3">
-                  <p
-                    className={cn(
-                      "text-[12.5px] leading-relaxed",
-                      s.status === "flagged" ? "text-[var(--color-warn)]" : "text-foreground",
-                    )}
-                  >
-                    {s.summary}
-                  </p>
+                <div className="lt-fade-in ml-[22px] mt-1 flex flex-col gap-2.5 rounded-lg border border-border bg-secondary/40 p-3">
+                  {/* Detailed analysis of what this phase did, in plain words. */}
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-brand)]">
+                      AI analysis
+                    </span>
+                    <p className="text-[12.5px] leading-relaxed text-foreground">
+                      {analysisText(s)}
+                    </p>
+                  </div>
+                  {s.status === "flagged" && (
+                    <p className="text-[12.5px] leading-relaxed text-[var(--color-warn)]">
+                      {s.summary}
+                    </p>
+                  )}
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[11px]">
                     <Detail
                       label="Status"
@@ -178,6 +184,114 @@ export function PipelineTrace({
 function formatDuration(ms: number | null | undefined): string {
   if (ms == null) return "Not reported";
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${ms.toLocaleString()} ms`;
+}
+
+/** Look up a detail value by its label (case-insensitive, substring match). */
+function detail(stage: PipelineStage, keyPart: string): string | undefined {
+  const k = keyPart.toLowerCase();
+  return stage.details?.find(([label]) => label.toLowerCase().includes(k))?.[1];
+}
+
+/**
+ * A detailed, human-readable analysis of what one phase did, composed from the
+ * stage's status, confidence, and the model's own facts. This turns the terse
+ * one-line summary into a few sentences an operator or auditor can read, without
+ * inventing anything: every clause is backed by a field the stage reported.
+ */
+function analysisText(stage: PipelineStage): string {
+  const conf =
+    stage.confidence != null ? `${Math.round(stage.confidence * 100)}% confidence` : null;
+  const parts: string[] = [];
+
+  switch (stage.key) {
+    case "sam_track": {
+      parts.push(
+        "Meta SAM 3.1 tracked the truck bed and the debris pile across the sampled frames and returned a segmentation mask for each.",
+      );
+      const billed = detail(stage, "billed");
+      const media = detail(stage, "media sent");
+      if (media) parts.push(`The clip was sent ${media.toLowerCase()}.`);
+      if (billed) parts.push(`SAM was billed for ${billed.toLowerCase()}.`);
+      parts.push(
+        "These masks are the pixel evidence every downstream measurement is derived from.",
+      );
+      break;
+    }
+    case "spark_ocr": {
+      const truck = detail(stage, "clearest") ?? null;
+      if (stage.status === "flagged") {
+        parts.push(
+          "Muse Spark could not read the truck's ID placard confidently, so the ticket is flagged for manual identification.",
+        );
+      } else {
+        parts.push(
+          "Muse Spark read the truck's ID placard from the clearest frame of the footage.",
+        );
+      }
+      if (conf) parts.push(`The read carries ${conf}.`);
+      if (truck) parts.push(`The clearest view was at ${truck}.`);
+      break;
+    }
+    case "capacity": {
+      if (stage.status === "flagged") {
+        parts.push(
+          "The identified truck was not found in the certified registry, so no certified capacity could be applied. The load still measures, but it is flagged for verification.",
+        );
+      } else {
+        parts.push(
+          "The placard read was matched to a certified truck in the registry, which supplies the bed's registered cubic-yard capacity used in the volume math.",
+        );
+      }
+      const score = detail(stage, "match score");
+      if (score) parts.push(`The registry match scored ${score}.`);
+      break;
+    }
+    case "geometry": {
+      parts.push(
+        "The deterministic geometry estimator converted the bed and load masks into a fill percentage. It blends how much of the bed opening the load covers with how high the load sits against the rails, weighted by a body-type depth prior, so the number traces to the pixels rather than to a model's opinion.",
+      );
+      if (conf)
+        parts.push(
+          `The estimate carries ${conf}; lower confidence means occlusion or a near-empty or near-heaped load.`,
+        );
+      break;
+    }
+    case "spark_classify": {
+      parts.push(
+        "Muse Spark classified the load into one debris class, which selects the per-cubic-yard rate the valuation applies.",
+      );
+      if (conf) parts.push(`The classification carries ${conf}.`);
+      break;
+    }
+    case "anomalies": {
+      if (stage.status === "flagged") {
+        parts.push(
+          "Deterministic rules checked the measured facts against the truck's certification, capacity, and the surface-versus-depth relationship, and raised one or more flags. Muse Spark phrased each flag in plain language; the rules, not the model, decide whether a flag fires.",
+        );
+      } else {
+        parts.push(
+          "Deterministic rules checked the measured facts against certification, capacity, and the surface-versus-depth relationship, and found nothing to flag.",
+        );
+      }
+      break;
+    }
+    case "dollar_math": {
+      parts.push(
+        "The valuation is exact arithmetic, never a model output: fill percent times the truck's certified capacity gives cubic yards, and cubic yards times the event's rate for this debris class gives the measured dollar value. Once a monitor records a call, the signed delta against that value is computed here too.",
+      );
+      break;
+    }
+    case "cache": {
+      parts.push(
+        "This result was served from the durable, content-hash-keyed cache. The models already ran on this exact clip, so the stored outputs were replayed with no new model call and no cost.",
+      );
+      break;
+    }
+    default:
+      parts.push(stage.summary);
+  }
+
+  return parts.join(" ");
 }
 
 /** Pretty-print a JSON answer; leave anything else as it came. */

@@ -18,7 +18,7 @@ Built for the [Meta Global AI Developer Hackathon](https://cerebralvalley.ai/e/m
 
 > After a hurricane, debris is hauled away by the **cubic yard**, and a short-term "tower monitor" estimates each truck's fill percentage by eye — often in 10% increments. That subjective estimate becomes the official **load ticket**, which is audited years later when the evidence is long gone.
 >
-> **LoadTruth points a camera at the tower instead.** A seven-stage pipeline tracks and segments each truck's bed and load (SAM 3.1), reads the ID placard and classifies the debris (Muse Spark), converts the segmentation masks into a fill % with a **deterministic geometry engine**, and flags anomalies (impossible cycle times, hollow "fluffed" loads, loads above certified capacity) with a **rules engine**. Every figure links to its evidence frame; a human confirms or overrides each one.
+> **LoadTruth points a camera at the tower instead.** A seven-stage pipeline tracks and segments each truck's bed and load (SAM 3.1), reads the ID placard and classifies the debris (Muse Spark), converts the segmentation masks into a fill % with a **deterministic geometry engine**, and flags anomalies (impossible cycle times, a load surface spanning the bed with low measured depth, loads above certified capacity) with a **rules engine**. Every figure links to its evidence frame; a human confirms or overrides each one.
 >
 > The core engineering idea: **the AI measures, but no model decides the number.** The fill % is a ratio of mask pixels; the arithmetic is exact `Decimal`; the anomaly checks are plain code. A model mistake can surface a flag for review — it can never silently redefine a record.
 
@@ -74,7 +74,7 @@ A phone or pole camera at the tower records every truck. LoadTruth turns that cl
 │ 5  Geometry   │   │ 5b Muse Spark │   │ 6  Anomaly rules  │   │ 7  Draft      │
 │ fill %        │──▶│ classify      │──▶│ (deterministic)   │──▶│ ticket +      │
 │ DETERMINISTIC │det│ debris class  │AI │ capacity/cycle/   │det│ evidence +    │ det.
-│ from masks    │   │               │   │ hollow/uncertified│   │ exports       │
+│ from masks    │   │               │   │ depth/uncertified │   │ exports       │
 └───────────────┘   └───────────────┘   └───────────────────┘   └──────┬───────┘
                                                                         │
                                                         ┌───────────────┘
@@ -87,7 +87,7 @@ A phone or pole camera at the tower records every truck. LoadTruth turns that cl
 4. **Capacity lookup** — the OCR'd ID is matched to the certified-truck registry with **fuzzy matching** (exact → normalized → edit-distance) so OCR noise fails loudly instead of guessing.
 5. **Measure fill % (deterministic)** — the geometry engine turns the bed and load masks into `planar coverage × depth factor` (a body-type depth prior) → a fill % that is reproducible and traceable to the mask pixels.
 6. **Classify debris (Muse Spark)** — vegetative / construction & demolition / white goods / hazardous / other; this selects the per-class rate.
-7. **Flag + draft (deterministic)** — plain-Python rules raise `capacity_exceeded`, `impossible_cycle`, `hollow_load`, `uncertified_truck`, `duplicate_truck`, `identity_unreadable`, `low_confidence`; Muse Spark only *narrates* a flag the rules already decided. A **draft ticket** is written with its evidence frames and the full stage trace.
+7. **Flag + draft (deterministic)** — plain-Python rules raise `capacity_exceeded`, `impossible_cycle`, `surface_depth_mismatch`, `uncertified_truck`, `duplicate_truck`, `identity_unreadable`, `low_confidence`; Muse Spark only *narrates* a flag the rules already decided. A **draft ticket** is written with its evidence frames and the full stage trace.
 
 The human monitor then reviews the draft — **confirm**, **override**, or **dispute**. They never type a ticket from scratch; they adjudicate a machine-made one.
 
@@ -232,9 +232,10 @@ analyst chat → POST /chat → Muse Spark + read-only, tenant-scoped tools over
 | `PATCH` | `/tickets/{id}/monitor-call` | Record the monitor's call → computes the difference |
 | `PATCH` | `/tickets/{id}/status` | Confirm / override / dispute a ticket |
 | `GET` | `/tickets/{id}/pipeline` | The persisted AI stage trace for a ticket |
+| `POST` | `/tickets/{id}/reverify` | Reproduce the fill % from stored evidence and return the evidence receipt |
 | `GET`/`POST`/… | `/trucks…` | Certified-truck registry (unique per tenant) |
 | `GET`/`POST`/… | `/events/{id}/sources…` | Connected evidence sources (upload, RTSP, bucket) |
-| `GET` | `/events/{id}/dashboard` | Review progress, anomalies, fill accuracy, summed difference |
+| `GET` | `/events/{id}/dashboard` | Review progress, anomalies, agreement with monitor, summed difference |
 | `GET` | `/events/{id}/export.csv` | Event tickets as CSV |
 | `GET` | `/events/{id}/audit-packet.html` | Standalone HTML evidence packet for auditors |
 | `GET`/`PATCH` | `/system/ai-config…` | Per-task model / effort / cost-mode configuration |

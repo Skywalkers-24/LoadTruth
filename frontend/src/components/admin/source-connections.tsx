@@ -37,7 +37,13 @@ interface Provider {
     disabled for now — the field/push sources (upload, RTSP, HLS, webhook) are
     the ones in use. Flip `enabled` to turn any of them back on. */
 const PROVIDERS: Provider[] = [
-  { kind: "upload", label: "File upload", blurb: "Operators upload clips directly.", fields: [], enabled: true },
+  {
+    kind: "upload",
+    label: "File upload",
+    blurb: "Operators upload clips directly.",
+    fields: [],
+    enabled: true,
+  },
   {
     kind: "s3",
     label: "Amazon S3",
@@ -46,8 +52,20 @@ const PROVIDERS: Provider[] = [
       { key: "bucket", label: "Bucket", placeholder: "pinellas-debris-clips" },
       { key: "region", label: "Region", placeholder: "us-east-1" },
       { key: "prefix", label: "Prefix", placeholder: "2026/", optional: true },
-      { key: "access_key_id", label: "Access key ID", placeholder: "AKIA…", secret: true, optional: true },
-      { key: "secret_access_key", label: "Secret access key", placeholder: "••••••", secret: true, optional: true },
+      {
+        key: "access_key_id",
+        label: "Access key ID",
+        placeholder: "AKIA…",
+        secret: true,
+        optional: true,
+      },
+      {
+        key: "secret_access_key",
+        label: "Secret access key",
+        placeholder: "••••••",
+        secret: true,
+        optional: true,
+      },
     ],
   },
   {
@@ -57,7 +75,13 @@ const PROVIDERS: Provider[] = [
     fields: [
       { key: "bucket", label: "Bucket", placeholder: "pinellas-debris-clips" },
       { key: "prefix", label: "Prefix", placeholder: "2026/", optional: true },
-      { key: "service_account_json", label: "Service account JSON", placeholder: "paste key JSON", secret: true, optional: true },
+      {
+        key: "service_account_json",
+        label: "Service account JSON",
+        placeholder: "paste key JSON",
+        secret: true,
+        optional: true,
+      },
     ],
   },
   {
@@ -76,7 +100,13 @@ const PROVIDERS: Provider[] = [
     blurb: "Sync clips from a shared Drive folder.",
     fields: [
       { key: "folder_id", label: "Folder ID", placeholder: "1AbC…XyZ" },
-      { key: "service_account_json", label: "Service account JSON", placeholder: "paste key JSON", secret: true, optional: true },
+      {
+        key: "service_account_json",
+        label: "Service account JSON",
+        placeholder: "paste key JSON",
+        secret: true,
+        optional: true,
+      },
     ],
   },
   {
@@ -85,7 +115,13 @@ const PROVIDERS: Provider[] = [
     blurb: "Sync clips from a Dropbox folder.",
     fields: [
       { key: "path", label: "Folder path", placeholder: "/debris-clips/pinellas" },
-      { key: "access_token", label: "Access token", placeholder: "••••••", secret: true, optional: true },
+      {
+        key: "access_token",
+        label: "Access token",
+        placeholder: "••••••",
+        secret: true,
+        optional: true,
+      },
     ],
   },
   {
@@ -99,7 +135,9 @@ const PROVIDERS: Provider[] = [
     kind: "hls",
     label: "HLS stream",
     blurb: "Connect an HLS playlist stream.",
-    fields: [{ key: "url", label: "Playlist URL", placeholder: "https://cameras.local/site4/index.m3u8" }],
+    fields: [
+      { key: "url", label: "Playlist URL", placeholder: "https://cameras.local/site4/index.m3u8" },
+    ],
     enabled: true,
   },
   {
@@ -108,7 +146,13 @@ const PROVIDERS: Provider[] = [
     blurb: "Receive clips pushed from another system.",
     fields: [
       { key: "endpoint", label: "Endpoint URL", placeholder: "https://api.county.gov/hooks/clips" },
-      { key: "signing_secret", label: "Signing secret", placeholder: "••••••", secret: true, optional: true },
+      {
+        key: "signing_secret",
+        label: "Signing secret",
+        placeholder: "••••••",
+        secret: true,
+        optional: true,
+      },
     ],
     enabled: true,
   },
@@ -123,7 +167,7 @@ const SOURCE_STATUS_TONE = {
 /** Source connections admin: list, connect (provider-aware), test, and remove. */
 export function SourceConnections({ eventId }: { eventId: string }) {
   const sources = useSources(eventId);
-  const { create, remove, test } = useSourceMutations(eventId);
+  const { create, update, remove, test } = useSourceMutations(eventId);
   const toast = useToast();
   const [kind, setKind] = useState<SourceKind>("upload");
   const [name, setName] = useState("");
@@ -132,11 +176,10 @@ export function SourceConnections({ eventId }: { eventId: string }) {
     {},
   );
   const [removing, setRemoving] = useState<Source | null>(null);
+  const [editing, setEditing] = useState<Source | null>(null);
 
   const provider = PROVIDERS.find((p) => p.kind === kind)!;
-  const missingRequired = provider.fields.some(
-    (f) => !f.optional && !values[f.key]?.trim(),
-  );
+  const missingRequired = provider.fields.some((f) => !f.optional && !values[f.key]?.trim());
 
   function selectKind(next: SourceKind) {
     setKind(next);
@@ -191,6 +234,25 @@ export function SourceConnections({ eventId }: { eventId: string }) {
         setRemoving(null);
       },
     });
+  }
+
+  function saveEdit(next: {
+    name: string;
+    status: Source["status"];
+    config: Record<string, string>;
+  }) {
+    if (!editing) return;
+    const s = editing;
+    update.mutate(
+      { id: s.id, body: { name: next.name, status: next.status, config: next.config } },
+      {
+        onSuccess: () => {
+          toast.push("ok", `Updated ${next.name}.`);
+          setEditing(null);
+        },
+        onError: () => toast.push("danger", "Could not update the source."),
+      },
+    );
   }
 
   return (
@@ -248,7 +310,10 @@ export function SourceConnections({ eventId }: { eventId: string }) {
             />
           </label>
           {provider.fields.map((f) => (
-            <label key={f.key} className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]">
+            <label
+              key={f.key}
+              className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]"
+            >
               {f.label}
               {f.optional && <span className="text-[var(--color-subtle)]"> (optional)</span>}
               <input
@@ -274,7 +339,9 @@ export function SourceConnections({ eventId }: { eventId: string }) {
       </form>
 
       <div className="flex items-center justify-between">
-        <span className="text-[12px] font-semibold text-[var(--color-text)]">Connected sources</span>
+        <span className="text-[12px] font-semibold text-[var(--color-text)]">
+          Connected sources
+        </span>
         <span className="text-[11px] tabular-nums text-[var(--color-subtle)]">
           {sources.data?.length ?? 0} sources
         </span>
@@ -329,6 +396,9 @@ export function SourceConnections({ eventId }: { eventId: string }) {
                   >
                     Test connection
                   </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setEditing(s)}>
+                    Edit
+                  </Button>
                   <Button
                     variant="danger"
                     size="sm"
@@ -344,6 +414,15 @@ export function SourceConnections({ eventId }: { eventId: string }) {
         </ul>
       )}
 
+      {editing && (
+        <EditSourceModal
+          source={editing}
+          busy={update.isPending}
+          onSave={saveEdit}
+          onCancel={() => setEditing(null)}
+        />
+      )}
+
       <ConfirmDialog
         open={removing !== null}
         title="Remove this source?"
@@ -355,5 +434,121 @@ export function SourceConnections({ eventId }: { eventId: string }) {
         onCancel={() => setRemoving(null)}
       />
     </div>
+  );
+}
+
+/**
+ * Edit a connected source: rename it, pause or resume it, and update its config.
+ * Secret fields are write-only, so they render empty with a "leave blank to keep"
+ * hint and are only sent when the operator types a new value.
+ */
+function EditSourceModal({
+  source,
+  busy,
+  onSave,
+  onCancel,
+}: {
+  source: Source;
+  busy: boolean;
+  onSave: (next: {
+    name: string;
+    status: Source["status"];
+    config: Record<string, string>;
+  }) => void;
+  onCancel: () => void;
+}) {
+  const provider = PROVIDERS.find((p) => p.kind === source.kind);
+  const cfg = (source.config ?? {}) as Record<string, unknown>;
+  const [name, setName] = useState(source.name);
+  const [status, setStatus] = useState<Source["status"]>(source.status);
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    const seed: Record<string, string> = {};
+    for (const f of provider?.fields ?? []) {
+      if (!f.secret) seed[f.key] = cfg[f.key] != null ? String(cfg[f.key]) : "";
+    }
+    return seed;
+  });
+
+  const nameValid = name.trim().length > 0;
+
+  function submit() {
+    if (!nameValid) return;
+    const config: Record<string, string> = {};
+    // Keep existing non-secret config, override with edits.
+    for (const f of provider?.fields ?? []) {
+      if (f.secret) {
+        const typed = values[f.key]?.trim();
+        if (typed) config[f.key] = typed; // only send a new secret when provided
+      } else {
+        const v = values[f.key]?.trim();
+        if (v) config[f.key] = v;
+      }
+    }
+    onSave({ name: name.trim(), status, config });
+  }
+
+  return (
+    <ConfirmDialog
+      open
+      title="Edit source"
+      description={`Update the connection settings for this ${sourceKindLabel(source.kind)} source.`}
+      confirmLabel="Save changes"
+      busy={busy}
+      reason={{ required: true, valid: nameValid }}
+      onConfirm={submit}
+      onCancel={onCancel}
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+        className="flex flex-col gap-3"
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]">
+            Connection name
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              // eslint-disable-next-line jsx-a11y/no-autofocus -- focus the first field on open
+              autoFocus
+              className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]">
+            Status
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as Source["status"])}
+              className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+            >
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+            </select>
+          </label>
+          {(provider?.fields ?? []).map((f) => (
+            <label
+              key={f.key}
+              className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]"
+            >
+              {f.label}
+              {f.secret && (
+                <span className="text-[var(--color-subtle)]"> (leave blank to keep)</span>
+              )}
+              <input
+                value={values[f.key] ?? ""}
+                onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
+                placeholder={f.secret ? "••••••" : f.placeholder}
+                type={f.secret ? "password" : "text"}
+                autoComplete={f.secret ? "new-password" : "off"}
+                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+              />
+            </label>
+          ))}
+        </div>
+        <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+      </form>
+    </ConfirmDialog>
   );
 }

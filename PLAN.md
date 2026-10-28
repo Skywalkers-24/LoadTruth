@@ -1,5 +1,7 @@
 # LoadTruth — End-to-End Build Plan
 
+> **2026-10-28:** for the remaining build days, [Winner.md §0](./Winner.md) (implementation backlog) supersedes the §8a schedule below. This plan stays as the design reference.
+
 > Video-verified load tickets for hauling paid by the cubic yard, starting with disaster-debris removal.
 > Meta Global AI Developer Hackathon · Indie track · Theme: Push the Frontier · Build window: Oct 26 – Nov 4, 2026.
 

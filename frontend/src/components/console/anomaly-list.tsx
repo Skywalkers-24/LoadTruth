@@ -11,7 +11,7 @@ const TYPE_TITLE: Record<string, string> = {
   capacity_exceeded: "Capacity exceeded",
   impossible_cycle: "Impossible cycle time",
   duplicate_truck: "Duplicate truck",
-  hollow_load: "Hollow load",
+  surface_depth_mismatch: "Surface high, depth low",
   low_confidence: "Low confidence",
 };
 

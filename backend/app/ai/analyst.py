@@ -54,7 +54,7 @@ class AnalystTools:
         return ToolResult("event_summary", {}, evidence)
 
     async def accuracy_stats(self) -> ToolResult:
-        """Fill-accuracy benchmark and review progress for the event."""
+        """Monitor-agreement rate (within 10 points) and review progress."""
         d = await self._repo.dashboard(self._tenant, self._event)
         evidence: dict[str, object] = {
             "accuracy_within_10pct": d.accuracy_within_10pct,

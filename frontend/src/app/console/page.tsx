@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronDownIcon, ClipboardIcon } from "@/components/ui/icons";
 import { EmptyState, ErrorState, Panel, Skeleton } from "@/components/ui/primitives";
 import type { Ticket } from "@/lib/api";
+import { isJudgeMode, judgeTicketId } from "@/lib/app-mode";
 import { useEventContext } from "@/lib/event-context";
 import { useTicket, useTickets } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
@@ -57,9 +58,14 @@ function ConsoleView() {
   const searchParams = useSearchParams();
   const urlTicket = searchParams.get("ticket");
 
-  const [status, setStatus] = useState<StatusFilter>("draft");
+  // Judge mode opens on the headline over-call: show every ticket, sorted by
+  // dollar delta, so the pinned result is the first row (Winner.md B7).
+  const judge = isJudgeMode();
+  const [status, setStatus] = useState<StatusFilter>(judge ? "all" : "draft");
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortKey>("newest");
+  const [sort, setSort] = useState<SortKey>(judge ? "delta" : "newest");
+  // One-shot: auto-select the pinned (or highest-delta) ticket on first load.
+  const judgeSelectedRef = useRef(false);
   const [offset, setOffset] = useState(0);
   // Seed both from the URL so the very first render already knows which ticket
   // was asked for (a cached, stale queue must not win the first selection).
@@ -133,6 +139,25 @@ function ConsoleView() {
     window.addEventListener(OPEN_TICKET_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_TICKET_EVENT, onOpen);
   }, []);
+
+  // Judge mode: on first load (no deep link), open the pinned ticket if one is
+  // configured, else the highest-delta ticket (first row of the delta sort).
+  useEffect(() => {
+    if (!judge || judgeSelectedRef.current || urlTicket) return;
+    const pinnedId = judgeTicketId();
+    if (pinnedId) {
+      requestRef.current = pinnedId;
+      setRequestedId(pinnedId);
+      setSelectedId(pinnedId);
+      judgeSelectedRef.current = true;
+      return;
+    }
+    const first = rows[0];
+    if (first) {
+      setSelectedId(first.id);
+      judgeSelectedRef.current = true;
+    }
+  }, [judge, urlTicket, rows]);
 
   // A requested ticket may not be on the current page; fetch it directly.
   const pinned = useTicket(

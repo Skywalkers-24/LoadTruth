@@ -326,7 +326,13 @@ class TicketPatch(BaseModel):
 
 
 class DashboardOut(BaseModel):
-    """Event-level roll-up: the money frame summed + review/accuracy signals."""
+    """Event-level roll-up: the money frame summed + review + monitor-agreement signals.
+
+    ``accuracy_within_10pct`` is the share of reviewed tickets whose measured fill
+    lands within 10 points of the monitor's call. It is agreement with the human
+    reviewer, not benchmark accuracy against an independently known volume (that
+    lives in the benchmark harness, ``app.bench``).
+    """
 
     event_id: UUID
     ticket_count: int

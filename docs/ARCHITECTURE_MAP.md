@@ -28,6 +28,8 @@ loadtruth/
 | DB engine / init / seed | `app/db/engine.py` (`init_db` creates SQLite tables), `app/tickets/seed.py` (demo tenant) | Postgres uses infra SQL instead of `init_db` |
 | Ticket storage (repo) | `backend/app/tickets/repository.py` (`SqlTicketRepository`) + provider in `backend/app/api/repo.py` | async, tenant-scoped; session-per-request. `list_tickets` = all rows (dashboard/CSV/audit-packet aggregate the whole event); `list_tickets_page` = one page + total (ticket-list UI); `dashboard`/`reports_summary` build the roll-ups |
 | Pipeline stage (deterministic) | `backend/app/pipeline/` — `geometry.py` (fill %), `anomalies.py` (rules), `ingest.py` (hash), `registry.py` (capacity) | pure Python, no model calls |
+| Evidence receipt + reproduce | `backend/app/pipeline/receipt.py` (pure SHA-256 over pinned inputs) + `SqlTicketRepository.reverify_ticket` + `POST /tickets/{id}/reverify` in `api/tickets.py` | replays Stage-5 geometry over the stored SAM masks and rebuilds the receipt; offline, no model call. FE: `components/console/reproducibility-card.tsx` |
+| Known-volume benchmark | `backend/app/bench/` — `harness.py` (pure stats + CSV load), `run.py` (pipeline runner + CLI); manifest `data_bench/ground_truth.csv`, results `data_bench/results.json`, wrapper `scripts/benchmark.sh` | the independent accuracy number (distinct from monitor agreement) |
 | Frame decoding / keyframe sampling (Stage 1) | `backend/app/pipeline/frames.py` | samples 2-4 fps via PyAV (optional `av` dep, feature-detected); image→1 frame, no decoder→degraded empty sample |
 | Pipeline result cache (content-hash) | `backend/app/pipeline/cache.py` | `ResultCache` protocol + async-safe `InMemoryResultCache` (Redis later); injected into the orchestrator |
 | Cost ledger ($150 budget) | `backend/app/pipeline/ledger.py` | `CostLedger.record_run` per stage + `summarize()` (spend, cache-hit rate, per-stage) + `budget_status()` vs config caps |
@@ -57,6 +59,8 @@ loadtruth/
 | Analyst chat tool | `backend/app/chat/tools.py` | read-only, tenant-scoped, parameterized |
 | Background job | `backend/app/worker.py` (ARQ) | heavy video work goes here, not in request handlers |
 | A screen / page | `frontend/src/app/<route>/page.tsx` | RSC by default; Server Actions for mutations |
+| Public (no-login) page | `frontend/src/app/showcase/page.tsx` + allow-list in `components/auth/auth-gate.tsx` (`PUBLIC_PREFIXES`) | the submission's front door; renders signed out |
+| App mode / judge mode | `frontend/src/lib/app-mode.ts` (`NEXT_PUBLIC_APP_MODE`, `NEXT_PUBLIC_JUDGE_TICKET_ID`) read in `app/console/page.tsx`; `bypass_cache` on `api/ingest.py` | build-time `NEXT_PUBLIC_*`, baked by the frontend Dockerfile/compose build args |
 | Shared UI component | `frontend/src/components/` | responsive, a11y, dark theme tokens (money-frame, review-console, dashboard, ticket-list, badges, evidence-canvas) |
 | Operator console screen | `frontend/src/app/console/page.tsx` | dashboard + queue + review console; single seeded tenant |
 | Billing screen | `frontend/src/app/billing/page.tsx` + `frontend/src/components/billing/billing-panel.tsx` | per-event + combined invoice, KPIs, history chart, line items, invoice export; `useBilling` hook, `api.eventBilling`/`combinedBilling`/`invoiceUrl`/`combinedInvoiceUrl`; nav entry in `app-shell.tsx` |

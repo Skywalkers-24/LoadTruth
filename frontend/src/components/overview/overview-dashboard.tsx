@@ -1,10 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRightIcon, CircleCheckIcon, CircleDollarSignIcon, GaugeIcon, LayersIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  CircleCheckIcon,
+  CircleDollarSignIcon,
+  GaugeIcon,
+  LayersIcon,
+} from "lucide-react";
 
 import type { Dashboard, ReportsSummary, Ticket } from "@/lib/api";
-import { AreaTrend, DonutChart, type Datum, type TrendPoint } from "@/components/ui/charts-v2";
+import { AreaTrend, type TrendPoint } from "@/components/ui/charts-v2";
 import type { ChartConfig } from "@/components/ui/shadcn/chart";
 import { Card } from "@/components/ui/shadcn/card";
 import { Button } from "@/components/ui/shadcn/button";
@@ -20,13 +26,6 @@ const STATUS_COLOR: Record<string, string> = {
   confirmed: "var(--chart-2)",
   overridden: "var(--chart-3)",
   disputed: "var(--chart-5)",
-};
-
-const statusConfig: ChartConfig = {
-  draft: { label: "Needs review", color: "var(--chart-1)" },
-  confirmed: { label: "Confirmed", color: "var(--chart-2)" },
-  overridden: { label: "Overridden", color: "var(--chart-3)" },
-  disputed: { label: "Disputed", color: "var(--chart-5)" },
 };
 
 const trendConfig: ChartConfig = {
@@ -74,21 +73,17 @@ export function OverviewDashboard({
   const d = dashboard;
   const reviewPct = d.ticket_count > 0 ? d.reviewed_count / d.ticket_count : 0;
   const needsReview = summary?.counts_by_status?.draft ?? d.ticket_count - d.reviewed_count;
-  const exposure = Number.parseFloat(summary?.overbill_dollar_value ?? d.total_delta_dollar_value) || 0;
+  const exposure =
+    Number.parseFloat(summary?.overbill_dollar_value ?? d.total_delta_dollar_value) || 0;
   const measuredValue = summary ? Number.parseFloat(summary.total_est_dollar_value) : null;
-
-  const statusRows: Datum[] = summary
-    ? (["draft", "confirmed", "overridden", "disputed"] as const)
-        .filter((k) => (summary.counts_by_status[k] ?? 0) > 0)
-        .map((k) => ({ label: statusLabel(k), value: summary.counts_by_status[k] ?? 0, color: STATUS_COLOR[k] }))
-    : [];
 
   const ordered = [...tickets].sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
 
   const trend: TrendPoint[] = (() => {
     let running = 0;
     return ordered.map((t, i) => {
-      if (t.valuation.is_overbill) running += Number.parseFloat(t.valuation.delta_dollar_value ?? "0");
+      if (t.valuation.is_overbill)
+        running += Number.parseFloat(t.valuation.delta_dollar_value ?? "0");
       return { label: `${i + 1}`, value: Math.round(running * 100) / 100, display: money(running) };
     });
   })();
@@ -171,7 +166,13 @@ export function OverviewDashboard({
           <StatCard
             icon={<LayersIcon className="size-4" />}
             label="Measured value"
-            value={measuredValue === null ? "N/A" : <CountUp value={measuredValue} format={(n) => money(n)} />}
+            value={
+              measuredValue === null ? (
+                "N/A"
+              ) : (
+                <CountUp value={measuredValue} format={(n) => money(n)} />
+              )
+            }
             trend={measuredSpark}
             hint="Total dollar value of every load as measured by LoadTruth."
             sub={`${d.ticket_count} tickets in this event`}
@@ -185,7 +186,10 @@ export function OverviewDashboard({
             value={
               <span>
                 {d.reviewed_count}
-                <span className="text-[16px] font-semibold text-muted-foreground"> / {d.ticket_count}</span>
+                <span className="text-[16px] font-semibold text-muted-foreground">
+                  {" "}
+                  / {d.ticket_count}
+                </span>
               </span>
             }
             progress={reviewPct}
@@ -198,14 +202,19 @@ export function OverviewDashboard({
           <StatCard
             tone="primary"
             icon={<GaugeIcon className="size-4" />}
-            label="Fill accuracy"
+            label="Agreement with monitor"
             value={
-              d.accuracy_within_10pct === null ? "N/A" : (
-                <CountUp value={d.accuracy_within_10pct * 100} format={(n) => `${Math.round(n)}%`} />
+              d.accuracy_within_10pct === null ? (
+                "N/A"
+              ) : (
+                <CountUp
+                  value={d.accuracy_within_10pct * 100}
+                  format={(n) => `${Math.round(n)}%`}
+                />
               )
             }
             progress={d.accuracy_within_10pct ?? undefined}
-            hint="Share of tickets where the measured fill is within 10 percentage points of the monitor's call."
+            hint="Share of reviewed tickets where the measured fill lands within 10 percentage points of the monitor's call. This is agreement with the human reviewer, not benchmark accuracy against a known volume."
             sub="Within 10 points of the monitor"
           />
         </StaggerItem>
@@ -213,11 +222,14 @@ export function OverviewDashboard({
 
       {/* Charts + queue — grows to fill the remaining height */}
       <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-3">
-        <FadeIn className="min-h-0 xl:col-span-2" delay={0.05}>
-          <Card className="flex h-full flex-col gap-0 overflow-hidden py-0">
+        {/* Left: exposure trend on top, breakdowns below */}
+        <FadeIn className="flex min-h-0 flex-col gap-3 xl:col-span-2" delay={0.05}>
+          <Card className="flex min-h-0 flex-[3] flex-col gap-0 overflow-hidden py-0">
             <div className="flex items-baseline justify-between px-4 pt-3">
               <h3 className="text-[13px] font-semibold">Flagged exposure, running total</h3>
-              <span className="text-[11px] text-muted-foreground">Cumulative over-call value by capture order</span>
+              <span className="text-[11px] text-muted-foreground">
+                Cumulative over-call value by capture order
+              </span>
             </div>
             <div className="min-h-0 flex-1 px-2 pb-3">
               <AreaTrend
@@ -228,13 +240,35 @@ export function OverviewDashboard({
               />
             </div>
           </Card>
+
+          {/* Breakdown row: decision mix, debris mix, anomaly severity */}
+          <div className="grid shrink-0 gap-3 sm:grid-cols-3">
+            <BreakdownCard
+              title="Decision mix"
+              rows={statusBreakdown(summary)}
+              empty="No tickets yet"
+            />
+            <BreakdownCard
+              title="Debris classes"
+              rows={debrisBreakdown(summary)}
+              empty="No tickets yet"
+            />
+            <BreakdownCard
+              title="Anomaly flags"
+              rows={anomalyBreakdown(summary, d.anomaly_count)}
+              empty="No flags raised"
+            />
+          </div>
         </FadeIn>
 
         <FadeIn className="min-h-0" delay={0.1}>
           <Card className="flex h-full flex-col gap-0 overflow-hidden py-0">
             <div className="flex items-center justify-between gap-2 px-4 pt-3">
               <h3 className="text-[13px] font-semibold">Highest value to review</h3>
-              <Link href="/console" className="text-[12px] font-medium text-[var(--color-brand)] hover:underline">
+              <Link
+                href="/console"
+                className="text-[12px] font-medium text-[var(--color-brand)] hover:underline"
+              >
                 View all
               </Link>
             </div>
@@ -245,5 +279,106 @@ export function OverviewDashboard({
         </FadeIn>
       </div>
     </div>
+  );
+}
+
+interface BreakdownRow {
+  label: string;
+  count: number;
+  color: string;
+}
+
+const DEBRIS_LABEL: Record<string, string> = {
+  vegetative: "Vegetative",
+  construction_demolition: "C&D",
+  white_goods: "White goods",
+  hazardous: "Hazardous",
+  other: "Other",
+};
+
+const DEBRIS_COLOR: Record<string, string> = {
+  vegetative: "var(--chart-2)",
+  construction_demolition: "var(--chart-1)",
+  white_goods: "var(--chart-4)",
+  hazardous: "var(--chart-5)",
+  other: "var(--chart-3)",
+};
+
+const SEVERITY_META: { key: string; label: string; color: string }[] = [
+  { key: "high", label: "High", color: "var(--color-destructive)" },
+  { key: "warn", label: "Warn", color: "var(--color-warn)" },
+  { key: "info", label: "Info", color: "var(--color-info)" },
+];
+
+function statusBreakdown(summary: ReportsSummary | undefined): BreakdownRow[] {
+  if (!summary) return [];
+  return (["draft", "confirmed", "overridden", "disputed"] as const)
+    .map((k) => ({
+      label: statusLabel(k),
+      count: summary.counts_by_status[k] ?? 0,
+      color: STATUS_COLOR[k] ?? "var(--chart-3)",
+    }))
+    .filter((r) => r.count > 0);
+}
+
+function debrisBreakdown(summary: ReportsSummary | undefined): BreakdownRow[] {
+  if (!summary) return [];
+  return Object.entries(summary.counts_by_debris_class)
+    .map(([k, count]) => ({
+      label: DEBRIS_LABEL[k] ?? k,
+      count,
+      color: DEBRIS_COLOR[k] ?? "var(--chart-3)",
+    }))
+    .filter((r) => r.count > 0)
+    .sort((a, b) => b.count - a.count);
+}
+
+function anomalyBreakdown(summary: ReportsSummary | undefined, total: number): BreakdownRow[] {
+  const counts = summary?.anomaly_counts_by_severity ?? {};
+  const rows = SEVERITY_META.map((s) => ({
+    label: s.label,
+    count: counts[s.key] ?? 0,
+    color: s.color,
+  })).filter((r) => r.count > 0);
+  if (rows.length === 0 && total > 0)
+    return [{ label: "Flags", count: total, color: "var(--color-warn)" }];
+  return rows;
+}
+
+/** A compact labeled breakdown with proportional bars, from real event data. */
+function BreakdownCard({
+  title,
+  rows,
+  empty,
+}: {
+  title: string;
+  rows: BreakdownRow[];
+  empty: string;
+}) {
+  const max = Math.max(1, ...rows.map((r) => r.count));
+  return (
+    <Card className="flex flex-col gap-2 p-3">
+      <h4 className="text-[12px] font-semibold text-muted-foreground">{title}</h4>
+      {rows.length === 0 ? (
+        <p className="text-[12px] text-muted-foreground opacity-70">{empty}</p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {rows.map((r) => (
+            <li key={r.label} className="flex items-center gap-2">
+              <span className="w-20 shrink-0 truncate text-[11px] text-foreground">{r.label}</span>
+              <span className="relative h-2 flex-1 overflow-hidden rounded-full bg-secondary">
+                <span
+                  className="absolute inset-y-0 left-0 rounded-full"
+                  style={{ width: `${(r.count / max) * 100}%`, backgroundColor: r.color }}
+                />
+              </span>
+              <span className="w-6 shrink-0 text-right text-[11px] font-semibold tabular-nums text-foreground">
+                {r.count}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }

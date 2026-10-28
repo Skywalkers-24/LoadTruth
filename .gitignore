@@ -24,6 +24,13 @@
 
 # OS / editor
 .DS_Store
+**/.DS_Store
+
+# Large demo video exports (keep out of git; share separately)
+*.mp4
+
+# Local review/scratch artifacts
+semantic-review/
 
 # Logs / local artifacts
 responses.log
@@ -38,3 +45,8 @@ scratch/
 
 # Generated test clips (regenerable ~1MB fixtures); keep only the README.
 data_tests/*.mp4
+
+# Benchmark clips are large customer/scale-model media; the manifest + results
+# JSON are committed, the clip bytes are not (Winner.md B1/B2).
+data_bench/clips/*
+!data_bench/clips/.gitkeep
