@@ -118,6 +118,10 @@ class CachingAIClient:
         # Not clip-keyed — pass through (see module docstring).
         return await self._inner.narrate_anomaly(anomaly_type, facts)
 
+    async def answer_question(self, prompt: str) -> Narration:
+        # Not clip-keyed — pass through.
+        return await self._inner.answer_question(prompt)
+
     async def _persist(self, content_hash: str, stage_key: str, payload: dict[str, object]) -> None:
         try:
             await self._repo.save_ai_stage_result(

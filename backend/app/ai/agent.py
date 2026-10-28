@@ -1,24 +1,61 @@
 # ruff: noqa: E501 — grounded answer templates read better unwrapped
 """The analyst agent: intent routing, tool calls, and answer composition.
 
-This is the mock Muse Spark analyst (PLAN.md §6). It is read-only and grounded:
-it classifies the question, runs the matching tenant-scoped tool(s), and composes
-a natural-language answer from the real evidence those tools return. No figure is
-invented. When a live Muse Spark key is wired, the same tools feed the real model
-and this planner is replaced by the model's own tool-calling; the API and tool
-layer stay identical.
+Read-only and grounded (PLAN.md §6). It classifies the question, runs the
+matching tenant-scoped tool(s), and turns the real evidence those tools return
+into a natural-language answer. No figure is invented.
+
+Two composition paths share the same grounding:
+  * Live — when a Muse Spark key is configured, the gathered evidence plus the
+    user's question are sent to the model (`ai.answer_question`), which phrases a
+    grounded answer. The model never fetches or invents data; it only writes.
+  * Deterministic — with no key (dev/CI), a hand-written composer turns the same
+    evidence into a data-true answer, so the analyst works at $0.
+The tool layer, the API, and the SSE contract are identical for both.
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
 from app.ai.analyst import AnalystTools, ToolResult
+from app.ai.base import AIClient
+from app.config import get_settings
+from app.log import get_logger
+
+log = get_logger("ai.analyst")
 
 
 def money(n: float) -> str:
     return f"${n:,.2f}"
+
+
+def _int(v: object, default: int = 0) -> int:
+    """Read an int out of a tool's `object`-typed evidence."""
+    return int(v) if isinstance(v, int | float) else default
+
+
+def _num(v: object, default: float = 0.0) -> float:
+    """Read a float out of a tool's `object`-typed evidence."""
+    return float(v) if isinstance(v, int | float) else default
+
+
+def _items(v: object) -> list[dict[str, object]]:
+    """Read a list of row dicts out of a tool's evidence."""
+    if not isinstance(v, list):
+        return []
+    return [row for row in v if isinstance(row, dict)]
+
+
+def _mapping(v: object) -> dict[str, object]:
+    return v if isinstance(v, dict) else {}
+
+
+def _row_str(row: dict[str, object], key: str, default: str = "") -> str:
+    val = row.get(key)
+    return str(val) if val not in (None, "") else default
 
 
 @dataclass(slots=True)
@@ -108,8 +145,71 @@ def _follow_ups(intent: str, question: str, limit: int = 3) -> list[str]:
     return picked[:limit]
 
 
-async def answer(question: str, tools: AnalystTools, event_name: str) -> AnalystReply:
-    """Route the question to tools and compose a grounded answer."""
+async def answer(
+    question: str,
+    tools: AnalystTools,
+    event_name: str,
+    ai: AIClient | None = None,
+) -> AnalystReply:
+    """Answer one analyst question, grounded in the event's data.
+
+    Gathers evidence deterministically (so the figures are always real), then
+    phrases the answer with Muse Spark when a key is configured, else with the
+    built-in composer. Either way the suggestions and the evidence that grounds
+    the answer come from the same tool run.
+    """
+    grounded = await _compose(question, tools, event_name)
+    if ai is not None and get_settings().live_ai_enabled:
+        phrased = await _phrase_with_model(ai, question, event_name, grounded)
+        if phrased is not None:
+            return phrased
+    return grounded
+
+
+async def _phrase_with_model(
+    ai: AIClient, question: str, event_name: str, grounded: AnalystReply
+) -> AnalystReply | None:
+    """Ask Muse Spark to phrase an answer from the already-gathered evidence.
+
+    Returns ``None`` (so the caller keeps the deterministic answer) if the model
+    is unavailable or returns nothing, so the analyst never goes silent.
+    """
+    prompt = _build_prompt(question, event_name, grounded.tools)
+    try:
+        narration = await ai.answer_question(prompt)
+    except Exception:  # noqa: BLE001 — never fail the chat on a model hiccup
+        log.warning("analyst_model_failed", exc_info=True)
+        return None
+    text = narration.text.strip()
+    if not text:
+        return None
+    return AnalystReply(text, grounded.tools, grounded.suggestions)
+
+
+def _build_prompt(question: str, event_name: str, used: list[ToolResult]) -> str:
+    """Compose the grounded prompt: role, rules, the evidence, and the question."""
+    evidence = (
+        json.dumps([{"tool": t.tool, "data": t.evidence} for t in used], default=str, indent=2)
+        if used
+        else "{}"
+    )
+    return (
+        "You are the LoadTruth analyst for disaster-debris load auditing. You help "
+        "county staff and auditors understand one event's load tickets.\n"
+        "Rules:\n"
+        "- Answer ONLY from the Evidence below. Never invent or estimate a number.\n"
+        "- If the evidence does not contain the answer, say so plainly.\n"
+        "- Money is US dollars; fill is a percentage; volume is cubic yards (CY).\n"
+        "- Be concise and factual, in plain enterprise English. No markdown headers, "
+        "no em dashes. Short paragraphs or simple dashes for lists are fine.\n"
+        f"\nEvent: {event_name}\n"
+        f"\nEvidence (JSON):\n{evidence}\n"
+        f"\nQuestion: {question}\n\nAnswer:"
+    )
+
+
+async def _compose(question: str, tools: AnalystTools, event_name: str) -> AnalystReply:
+    """Route the question to tools and compose a grounded answer deterministically."""
     q = question.lower().strip()
     used: list[ToolResult] = []
 
@@ -117,14 +217,22 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
     if _mentions(q, "dispute", "disputed", "contested"):
         d = await tools.disputes()
         used.append(d)
-        items = d.evidence.get("disputes", [])  # type: ignore[assignment]
-        count = int(d.evidence.get("count", 0))  # type: ignore[arg-type]
+        items = _items(d.evidence.get("disputes"))
+        count = _int(d.evidence.get("count"))
         if count == 0:
-            text = f"There are no open disputes in {event_name}. Every reviewed ticket was confirmed or overridden."
+            text = (
+                f"There are no open disputes in {event_name}. Every reviewed ticket was "
+                "confirmed or overridden."
+            )
         else:
-            lead = f"There {'is' if count == 1 else 'are'} {count} open dispute{'' if count == 1 else 's'} in {event_name}."
+            lead = (
+                f"There {'is' if count == 1 else 'are'} {count} open "
+                f"dispute{'' if count == 1 else 's'} in {event_name}."
+            )
             lines = [
-                f"- {it['ticket']} ({it['truck_id'] or 'unidentified truck'}): {money(float(it['delta'] or 0))} over-called"
+                f"- {_row_str(it, 'ticket')} "
+                f"({_row_str(it, 'truck_id', 'unidentified truck')}): "
+                f"{money(_num(it.get('delta')))} over-called"
                 for it in items[:5]
             ]
             text = lead + "\n\n" + "\n".join(lines)
@@ -135,15 +243,15 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
         a = await tools.accuracy_stats()
         used.append(a)
         acc = a.evidence.get("accuracy_within_10pct")
-        reviewed = a.evidence.get("reviewed_count", 0)
-        total = a.evidence.get("ticket_count", 0)
+        reviewed = _int(a.evidence.get("reviewed_count"))
+        total = _int(a.evidence.get("ticket_count"))
         if acc is None:
             text = f"No accuracy benchmark is recorded for {event_name} yet."
         else:
-            pct = round(float(acc) * 100)  # type: ignore[arg-type]
+            pct = round(_num(acc) * 100)
             text = (
-                f"In {event_name}, {pct}% of tickets have a measured fill within 10 percentage points "
-                f"of the monitor's call. {reviewed} of {total} tickets have been reviewed."
+                f"In {event_name}, {pct}% of tickets have a measured fill within 10 percentage "
+                f"points of the monitor's call. {reviewed} of {total} tickets have been reviewed."
             )
         return AnalystReply(text, used, _follow_ups("accuracy", question))
 
@@ -151,13 +259,14 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
     if _mentions(q, "over-call", "overcall", "over call", "truck", "worst", "highest", "top"):
         t = await tools.query_tickets(overbill_only=True, limit=5)
         used.append(t)
-        items = t.evidence.get("tickets", [])  # type: ignore[assignment]
+        items = _items(t.evidence.get("tickets"))
         if not items:
             text = f"No tickets in {event_name} were called higher than the measured load."
         else:
             lines = [
-                f"- {it['ticket']} · {it['truck_id'] or 'unidentified'} · {it['debris_class']}: "
-                f"{money(float(it['delta'] or 0))} over the measured value"
+                f"- {_row_str(it, 'ticket')} · {_row_str(it, 'truck_id', 'unidentified')} · "
+                f"{_row_str(it, 'debris_class')}: "
+                f"{money(_num(it.get('delta')))} over the measured value"
                 for it in items
             ]
             text = f"The highest over-calls in {event_name} are:\n\n" + "\n".join(lines)
@@ -167,12 +276,12 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
     if _mentions(q, "anomal", "flag", "risk"):
         an = await tools.query_anomalies()
         used.append(an)
-        by = an.evidence.get("by_severity", {})  # type: ignore[assignment]
-        total = int(an.evidence.get("total", 0))  # type: ignore[arg-type]
+        by = _mapping(an.evidence.get("by_severity"))
+        total = _int(an.evidence.get("total"))
         if total == 0:
             text = f"No anomaly flags are raised in {event_name}."
         else:
-            parts = ", ".join(f"{v} {k}" for k, v in by.items())
+            parts = ", ".join(f"{_int(v)} {k}" for k, v in by.items())
             text = f"{event_name} has {total} anomaly flag{'' if total == 1 else 's'}: {parts}."
         return AnalystReply(text, used, _follow_ups("anomalies", question))
 
@@ -182,9 +291,9 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
     ):
         s = await tools.event_summary()
         used.append(s)
-        pending = int(s.evidence.get("pending_count", 0))  # type: ignore[arg-type]
-        total = int(s.evidence.get("ticket_count", 0))  # type: ignore[arg-type]
-        flagged = float(s.evidence.get("flagged_exposure", 0))  # type: ignore[arg-type]
+        pending = _int(s.evidence.get("pending_count"))
+        total = _int(s.evidence.get("ticket_count"))
+        flagged = _num(s.evidence.get("flagged_exposure"))
         text = (
             f"{pending} of {total} tickets in {event_name} still need review, "
             f"carrying {money(flagged)} in flagged exposure."
@@ -199,17 +308,19 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
         a = await tools.accuracy_stats()
         used += [s, a]
         e = s.evidence
-        pct = a.evidence.get("accuracy_within_10pct")
+        acc = a.evidence.get("accuracy_within_10pct")
         acc_line = (
-            f" Fill accuracy is {round(float(pct) * 100)}% within 10 points of the monitor."  # type: ignore[arg-type]
-            if pct is not None
+            f" Fill accuracy is {round(_num(acc) * 100)}% within 10 points of the monitor."
+            if acc is not None
             else ""
         )
         text = (
-            f"{event_name} summary: {e['ticket_count']} tickets, {money(float(e['measured_value']))} measured. "  # type: ignore[arg-type]
-            f"{e['overbill_ticket_count']} were over-called, flagging {money(float(e['flagged_exposure']))} in exposure. "  # type: ignore[arg-type]
-            f"{e['reviewed_count']} reviewed, {e['pending_count']} pending, {e['disputed']} disputed."  # type: ignore[index]
-            + acc_line
+            f"{event_name} summary: {_int(e.get('ticket_count'))} tickets, "
+            f"{money(_num(e.get('measured_value')))} measured. "
+            f"{_int(e.get('overbill_ticket_count'))} were over-called, flagging "
+            f"{money(_num(e.get('flagged_exposure')))} in exposure. "
+            f"{_int(e.get('reviewed_count'))} reviewed, {_int(e.get('pending_count'))} pending, "
+            f"{_int(e.get('disputed'))} disputed." + acc_line
         )
         return AnalystReply(text, used, _follow_ups("summary", question))
 
@@ -217,11 +328,13 @@ async def answer(question: str, tools: AnalystTools, event_name: str) -> Analyst
     s = await tools.event_summary()
     used.append(s)
     e = s.evidence
+    overbill = _int(e.get("overbill_ticket_count"))
     text = (
-        f"In {event_name}, {money(float(e['flagged_exposure']))} is flagged across "  # type: ignore[arg-type]
-        f"{e['overbill_ticket_count']} over-called ticket{'' if e['overbill_ticket_count'] == 1 else 's'}, "  # type: ignore[index]
-        f"out of {money(float(e['measured_value']))} measured over {e['ticket_count']} tickets. "  # type: ignore[arg-type]
-        f"{e['pending_count']} still need review."  # type: ignore[index]
+        f"In {event_name}, {money(_num(e.get('flagged_exposure')))} is flagged across "
+        f"{overbill} over-called ticket{'' if overbill == 1 else 's'}, "
+        f"out of {money(_num(e.get('measured_value')))} measured over "
+        f"{_int(e.get('ticket_count'))} tickets. "
+        f"{_int(e.get('pending_count'))} still need review."
     )
     if not _mentions(q, "exposure", "money", "flag", "dollar", "cost", "bill"):
         text = (

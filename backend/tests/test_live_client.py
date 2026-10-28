@@ -295,3 +295,13 @@ async def test_empty_media_is_a_request_error() -> None:
 async def test_ping_returns_the_answer() -> None:
     word, usage = await _client(FakeMeta()).ping()
     assert word and usage.cost_usd > 0
+
+
+@pytest.mark.asyncio
+async def test_answer_question_returns_model_text_with_usage() -> None:
+    """The analyst free-form path returns Muse Spark's text and priced usage."""
+    narration = await _client(FakeMeta()).answer_question("What is the flagged exposure?")
+    assert narration.text  # the fake returns a non-empty answer
+    assert narration.usage is not None
+    assert narration.usage.cost_usd > 0
+    assert narration.usage.model == "muse-spark-1.3"

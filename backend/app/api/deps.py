@@ -12,7 +12,7 @@ Two auth surfaces live here:
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
@@ -49,7 +49,9 @@ async def current_member(
 CurrentMember = Annotated[Session, Depends(current_member)]
 
 
-def require(predicate: Callable[[str], bool], message: str) -> Callable[[Session], Session]:
+def require(
+    predicate: Callable[[str], bool], message: str
+) -> Callable[[Session], Awaitable[Session]]:
     """Build a dependency that allows the request only if the role passes.
 
     Usage: `member: Annotated[Session, Depends(require(can_manage_users, "..."))]`.

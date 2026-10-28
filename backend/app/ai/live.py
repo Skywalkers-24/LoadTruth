@@ -439,6 +439,16 @@ class LiveAIClient:
             raise ModelAPIResponseError("The model returned an empty narration.")
         return Narration(text=text, usage=usage)
 
+    async def answer_question(self, prompt: str) -> Narration:
+        """Free-form grounded answer from Muse Spark (the analyst chat)."""
+        response, usage = await self._spark(
+            "analyst_chat", [{"type": "input_text", "text": prompt}], None
+        )
+        text = output_text(response).strip()
+        if not text:
+            raise ModelAPIResponseError("The model returned an empty answer.")
+        return Narration(text=text, usage=usage)
+
     async def ping(self) -> tuple[str, CallUsage]:
         """A one-word Spark call to confirm the key, endpoint, and model work."""
         response, usage = await self._spark(

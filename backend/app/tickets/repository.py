@@ -15,7 +15,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import models
+from app.pipeline.registry import CertifiedTruck, TruckRegistry
 from app.tickets.domain import Event, Ticket
+from app.tickets.money import value_ticket
 from app.tickets.schemas import DebrisClass, TicketStatus
 
 
@@ -325,6 +327,75 @@ class SqlTicketRepository:
             )
         await self._s.flush()
         return await self.get_ticket(tenant_id, ticket_id)
+
+    async def update_ticket(
+        self,
+        tenant_id: UUID,
+        ticket_id: UUID,
+        *,
+        truck_id: str | None = None,
+        debris_class: DebrisClass | None = None,
+        fields_set: set[str],
+    ) -> Ticket:
+        """Edit a ticket's identity/classification and recompute its valuation.
+
+        Only fields named in ``fields_set`` change (so a caller can set
+        ``truck_id`` to ``None`` to clear it). Changing the truck re-runs the
+        certified-capacity lookup; changing the debris class re-reads the event's
+        rate table. Either change re-runs the §7a value path so cubic yards, the
+        monitor delta, and the dollar value all stay consistent, never patched by
+        hand.
+        """
+        row = await self._get_row(tenant_id, ticket_id)
+
+        if "truck_id" in fields_set:
+            new_truck = (truck_id or "").strip() or None
+            row.truck_id = new_truck
+            # Re-derive certified capacity from the registry for the new truck.
+            match = await self._match_capacity(tenant_id, new_truck)
+            row.certified_cubic_yards = match
+
+        if "debris_class" in fields_set and debris_class is not None:
+            row.debris_class = debris_class.value
+            row.rate_per_cy = await self._rate_for(tenant_id, row.event_id, debris_class)
+
+        # Recompute every derived figure from the (possibly) new inputs via the
+        # single §7a value path, preserving any monitor call already recorded.
+        dom = _to_ticket(row, 0)
+        v = value_ticket(
+            certified_cubic_yards=dom.certified_cubic_yards,
+            rate_per_cy=dom.rate_per_cy,
+            est_fill_pct=dom.est_fill_pct,
+            monitor_fill_pct=dom.monitor_call_fill_pct,
+        )
+        row.est_cubic_yards = v.est_cubic_yards
+        row.est_dollar_value = v.est_dollar_value
+        row.monitor_cubic_yards = v.monitor_cubic_yards
+        row.monitor_dollar_value = v.monitor_dollar_value
+        row.delta_cubic_yards = v.delta_cubic_yards
+        row.delta_dollar_value = v.delta_dollar_value
+        await self._s.flush()
+        return await self.get_ticket(tenant_id, ticket_id)
+
+    async def _match_capacity(self, tenant_id: UUID, truck_id: str | None) -> Decimal:
+        """Certified capacity for a (possibly fuzzy) truck id, or 0 if unknown."""
+        if not truck_id:
+            return Decimal(0)
+        registry = TruckRegistry(
+            [
+                CertifiedTruck(number, cap, body_type or "")
+                for number, body_type, cap in await self.get_registry(tenant_id)
+            ]
+        )
+        match = registry.lookup(truck_id)
+        return match.truck.certified_cubic_yards if match.truck else Decimal(0)
+
+    async def _rate_for(
+        self, tenant_id: UUID, event_id: UUID, debris_class: DebrisClass
+    ) -> Decimal:
+        """The event's $/CY rate for a debris class, or 0 when unset."""
+        event = await self.get_event(tenant_id, event_id)
+        return event.rate_for(debris_class) if event is not None else Decimal(0)
 
     async def save_pipeline_stages(
         self, tenant_id: UUID, ticket_id: UUID, stages: list[object]

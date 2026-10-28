@@ -32,6 +32,7 @@ from app.tickets.schemas import (
     ReportsSummary,
     StatusIn,
     TicketOut,
+    TicketPatch,
     TicketStatus,
     event_to_out,
     ticket_to_out,
@@ -252,6 +253,36 @@ async def set_status(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "cannot set a ticket back to draft")
     try:
         t = await repo.set_status(tenant, ticket_id, body.status)
+    except TicketNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
+    return ticket_to_out(t)
+
+
+@router.patch("/tickets/{ticket_id}", response_model=TicketOut, dependencies=[ReviewTickets])
+async def update_ticket(
+    repo: Repository, tenant: ActiveTenant, ticket_id: UUID, body: TicketPatch
+) -> TicketOut:
+    """Edit a ticket's truck ID and/or debris class; recomputes the valuation.
+
+    Setting the truck re-derives its certified capacity from the registry;
+    setting the debris class re-reads the event rate. Both re-run the §7a dollar
+    math so cubic yards, the monitor delta, and the value stay consistent.
+    """
+    fields = set(body.model_fields_set)
+    if not fields:
+        # Nothing to change — return the ticket as-is.
+        try:
+            return ticket_to_out(await repo.get_ticket(tenant, ticket_id))
+        except TicketNotFoundError as exc:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
+    try:
+        t = await repo.update_ticket(
+            tenant,
+            ticket_id,
+            truck_id=body.truck_id,
+            debris_class=body.debris_class,
+            fields_set=fields,
+        )
     except TicketNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
     return ticket_to_out(t)

@@ -9,6 +9,7 @@ import {
   type EventInput,
   type SourceInput,
   type TaskConfigUpdate,
+  type TicketPatch,
   type TicketQuery,
   type TicketStatus,
   type TruckInput,
@@ -130,6 +131,15 @@ export function useSetStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: TicketStatus }) => api.setStatus(id, status),
+    onSuccess: invalidateAll(qc),
+  });
+}
+
+/** Edit a ticket's truck ID / debris class; recomputes valuation + invalidates. */
+export function useUpdateTicket() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: TicketPatch }) => api.updateTicket(id, body),
     onSuccess: invalidateAll(qc),
   });
 }

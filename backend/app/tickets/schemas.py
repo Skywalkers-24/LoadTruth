@@ -313,6 +313,18 @@ class StatusIn(BaseModel):
     status: TicketStatus
 
 
+class TicketPatch(BaseModel):
+    """Edit a ticket's identity/classification; only supplied fields change.
+
+    Setting ``truck_id`` re-looks up the certified capacity; setting
+    ``debris_class`` re-reads the event rate. Either recomputes the valuation.
+    ``truck_id`` may be an empty string or null to mark the truck unidentified.
+    """
+
+    truck_id: str | None = Field(default=None, max_length=64)
+    debris_class: DebrisClass | None = None
+
+
 class DashboardOut(BaseModel):
     """Event-level roll-up: the money frame summed + review/accuracy signals."""
 

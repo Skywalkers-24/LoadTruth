@@ -144,3 +144,12 @@ class AIClient(Protocol):
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
         """Muse Spark: one-line human narrative for a flag the rules raised."""
         ...
+
+    async def answer_question(self, prompt: str) -> Narration:
+        """Muse Spark: a free-form, grounded answer to an analyst question.
+
+        The caller builds ``prompt`` from the user's question plus evidence it
+        already pulled from the tenant's data, so the model only phrases a
+        grounded answer; it never fetches or invents figures.
+        """
+        ...

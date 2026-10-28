@@ -63,6 +63,12 @@ export interface AnomalyItem {
   evidence_frame: string | null;
 }
 
+/** Editable ticket fields (truck ID, debris class). Recomputes the valuation. */
+export interface TicketPatch {
+  truck_id?: string | null;
+  debris_class?: DebrisClass;
+}
+
 export interface EventSummary {
   id: string;
   tenant_id: string;
@@ -697,6 +703,8 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
+  updateTicket: (id: string, body: TicketPatch) =>
+    request<Ticket>(`/tickets/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   dashboard: (eventId: string) => request<Dashboard>(`/events/${eventId}/dashboard`),
   reportsSummary: (eventId: string) =>
     request<ReportsSummary>(`/events/${eventId}/reports/summary`),

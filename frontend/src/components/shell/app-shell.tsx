@@ -17,6 +17,7 @@ import {
   MenuIcon,
   SearchIcon,
   SettingsIcon,
+  TruckIcon,
   XIcon,
 } from "@/components/ui/icons";
 import {
@@ -48,16 +49,18 @@ type NavItem = {
   cap?: keyof Capabilities;
 };
 
-// Order: Overview, Review, Add, Reports, Admin, then Guide last (reference docs).
+// Order: Overview, Review, Ticket, Trucks, Reports, Billing, Settings, then
+// Guide last (reference docs).
 const NAV: NavItem[] = [
   { href: "/", label: "Overview", short: "Overview", icon: GaugeIcon },
   { href: "/console", label: "Review", short: "Review", icon: ClipboardIcon, badge: true },
-  { href: "/add", label: "New Ticket", short: "New", icon: PlusIcon, cap: "ingest" },
+  { href: "/add", label: "Ticket", short: "Ticket", icon: PlusIcon, cap: "ingest" },
+  { href: "/trucks", label: "Trucks", short: "Trucks", icon: TruckIcon, cap: "manage_trucks" },
   { href: "/assistant", label: "AI Analyst", short: "Analyst", icon: SparklesIcon },
   { href: "/pipeline", label: "AI Pipeline", short: "Pipeline", icon: ActivityIcon },
   { href: "/reports", label: "Reports", short: "Reports", icon: ChartIcon },
   { href: "/billing", label: "Billing", short: "Billing", icon: CircleDollarSignIcon },
-  { href: "/admin", label: "Admin", short: "Admin", icon: SettingsIcon, cap: "manage_events" },
+  { href: "/admin", label: "Settings", short: "Settings", icon: SettingsIcon, cap: "manage_events" },
   { href: "/guide", label: "Guide", short: "Guide", icon: BookOpenIcon },
 ];
 
@@ -451,7 +454,7 @@ function BottomTabs({ pathname }: { pathname: string }) {
   const pending = usePendingCount();
   const { can } = useAuth();
   const primary = visibleNav(can)
-    .filter((i) => ["/", "/console", "/add", "/reports", "/admin"].includes(i.href))
+    .filter((i) => ["/", "/console", "/add", "/trucks", "/reports"].includes(i.href))
     .slice(0, 4);
   return (
     <nav

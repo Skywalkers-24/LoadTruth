@@ -6,6 +6,7 @@ recording a monitor call (which must recompute + persist the §7a delta), the
 confirm/override review action, and the dashboard money-frame roll-up.
 """
 
+from decimal import Decimal
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -80,6 +81,50 @@ def test_set_monitor_call_recomputes_delta(client: TestClient) -> None:
     # Persisted: a fresh GET reflects the recomputed delta.
     reread = client.get(f"/tickets/{ticket_id}").json()
     assert reread["valuation"]["delta_dollar_value"] == after["valuation"]["delta_dollar_value"]
+
+
+def test_patch_debris_class_recomputes_value(client: TestClient) -> None:
+    """Changing the debris class re-reads the event rate and recomputes value."""
+    ticket_id = _draft_without_call_id(client)
+    before = client.get(f"/tickets/{ticket_id}").json()
+    before_class = before["debris_class"]
+    target = "hazardous" if before_class != "hazardous" else "vegetative"
+
+    resp = client.patch(f"/tickets/{ticket_id}", json={"debris_class": target})
+    assert resp.status_code == 200
+    after = resp.json()
+    assert after["debris_class"] == target
+    # Rate comes from the event rate table for the new class; value follows it.
+    cert = Decimal(after["valuation"]["certified_cubic_yards"])
+    fill = Decimal(after["valuation"]["est_fill_pct"])
+    rate = Decimal(after["valuation"]["rate_per_cy"])
+    expected_cy = (cert * fill / 100).quantize(Decimal("0.001"))
+    expected_value = (expected_cy * rate).quantize(Decimal("0.01"))
+    assert Decimal(after["valuation"]["est_cubic_yards"]) == expected_cy
+    assert Decimal(after["valuation"]["est_dollar_value"]) == expected_value
+
+
+def test_patch_truck_id_rederives_capacity(client: TestClient) -> None:
+    """Setting a known truck id pulls its certified capacity from the registry."""
+    ticket_id = _draft_without_call_id(client)
+    # FL-DT-7120 is seeded at 35 CY; pick a truck that changes the capacity.
+    resp = client.patch(f"/tickets/{ticket_id}", json={"truck_id": "FL-DT-7120"})
+    assert resp.status_code == 200
+    after = resp.json()
+    assert after["truck_id"] == "FL-DT-7120"
+    assert Decimal(after["valuation"]["certified_cubic_yards"]) == Decimal("35.000")
+
+    # Clearing the truck drops the capacity to zero (unidentified / uncertified).
+    cleared = client.patch(f"/tickets/{ticket_id}", json={"truck_id": None}).json()
+    assert cleared["truck_id"] is None
+    assert Decimal(cleared["valuation"]["certified_cubic_yards"]) == Decimal("0.000")
+
+
+def test_patch_unknown_ticket_404(client: TestClient) -> None:
+    resp = client.patch(
+        "/tickets/00000000-0000-0000-0000-000000000009", json={"truck_id": "FL-DT-7120"}
+    )
+    assert resp.status_code == 404
 
 
 def test_confirm_sets_status_and_confirmed_fill(client: TestClient) -> None:

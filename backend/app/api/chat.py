@@ -19,6 +19,7 @@ from pydantic import BaseModel
 
 from app.ai.agent import STARTER_PROMPTS, answer, stream_answer
 from app.ai.analyst import AnalystTools
+from app.ai.factory import get_ai_client
 from app.api.repo import ActiveTenant, Repository
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -49,9 +50,10 @@ async def chat(repo: Repository, tenant: ActiveTenant, body: ChatRequest) -> Str
     """Answer one analyst question, streamed as SSE. Read-only and grounded."""
     tools = AnalystTools(repo, tenant, body.event_id)
     event_name = body.event_name or "this event"
+    ai = get_ai_client()
 
     async def gen() -> AsyncIterator[str]:
-        reply = await answer(body.message, tools, event_name)
+        reply = await answer(body.message, tools, event_name, ai)
         # Surface which grounded tools ran, so the UI can show the analyst's work.
         for t in reply.tools:
             yield _sse("tool", {"tool": t.tool, "args": t.args})

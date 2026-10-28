@@ -282,8 +282,8 @@ export default function GuidePage() {
                 d="Totals, breakdowns by status, debris class, and anomaly severity, the full ticket ledger, and CSV and audit-packet exports."
               />
               <Term
-                t="Admin"
-                d="Manage the rate table, the truck registry, evidence sources, members, and which AI models power each task. Access is role-gated."
+                t="Settings"
+                d="Manage the rate table, evidence sources, members, and which AI models power each task. Access is role-gated."
               />
             </dl>
           </Section>

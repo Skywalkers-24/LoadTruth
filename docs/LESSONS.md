@@ -137,3 +137,14 @@ Entry format:
 - **Root cause:** Caps sized for the smallest target screen never grow. The page size was a constant, so the queue could not use extra height either.
 - **Fix:** Let one element per column absorb leftover height (evidence `flex-1` with a 13rem floor; the rail's last card `flex-1`), compute the queue page size from the measured column height (`useFitCount`), and opt the console out of the 1600px cap (`AppShell fluid`).
 - **Rule going forward:** In a one-screen layout, give each column a single flexible element instead of a `max-h`/`clamp()` cap, and measure blank space (the `blank` field in `scratch/shots/console-measure.mjs`) on a monitor size as well as laptop sizes. Measure at browser-window heights (for example 1440x790), not the display's full height.
+
+### 2026-10-28 — Changing a ticket's inputs means re-running the whole §7a value path
+- **What happened:** Adding truck-ID and debris-class edits, it was tempting to just set `row.truck_id` / `row.debris_class` and return. That would have left `certified_cubic_yards`, `rate_per_cy`, `est_cubic_yards`, `est_dollar_value`, and the monitor delta all stale, so the money frame would contradict the new inputs.
+- **Root cause:** The ticket snapshots capacity and rate at ingest; they are not looked up live. The dollar fields are derived, not stored independently. domain.py says plainly the delta is "never recomputed ad hoc elsewhere."
+- **Fix:** `repo.update_ticket` re-derives capacity from the registry (fuzzy `TruckRegistry`) on a truck change and the rate from `event.rate_table` on a debris change, then re-runs `value_ticket()` and persists every est/monitor/delta field, mirroring `set_monitor_call`'s copy-back.
+- **Rule going forward:** Any mutation that touches a valuation input must route through `value_ticket()` and write all derived fields. Never hand-patch a single dollar/CY column.
+
+### 2026-10-28 — `mypy --strict` on `dict[str, object]` evidence needs typed accessors, not `# type: ignore`
+- **What happened:** The analyst agent had 21 `mypy --strict` errors from reading `ToolResult.evidence` (typed `dict[str, object]`) and calling `int(...)` / indexing the `object` values, papered over with `# type: ignore` that then went stale.
+- **Fix:** Small typed accessors (`_int`, `_num`, `_items`, `_mapping`, `_row_str`) narrow `object` to the needed type at the read site, and the evidence dicts that mix ints and floats are annotated `dict[str, object]` so a narrow inference can't fight a later assignment. Also typed `require()` as returning `Callable[[Session], Awaitable[Session]]` since its guard is async.
+- **Rule going forward:** Read `object`-typed values through a narrowing helper instead of `# type: ignore`; annotate heterogeneous evidence dicts as `dict[str, object]` at creation.
