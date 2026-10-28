@@ -5,6 +5,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Add an entry i
 
 ## [Unreleased]
 
+### Added
+- **Mode-aware video background on the login screen.** The sign-in page plays a looping truck-scanner clip behind the content, picking `login-dark.mp4` in dark mode and `login-light.mp4` in light mode (new `components/auth/login-video-bg.tsx`). It loads lazily and never blocks sign-in: the form paints first on a solid themed background, and the video is `preload="none"` and only starts fetching once the browser is idle (`requestIdleCallback`). It skips the video entirely on data-saver / slow 2G connections and when `prefers-reduced-motion` is set, degrading to the themed background. A readability scrim plus a solid, blurred sign-in card keep every control legible over the footage in both modes. Videos live in `frontend/public/` (gitignored like other `*.mp4`, baked into the image at build).
+
 ### Fixed
 - **Review console: AI analysis is the highlight.** The right rail's AI-analysis card was cramped and clipped (it shared one rail-level scroll and had no flex treatment). It now takes the rail's leftover height (`flex-1`, min 16rem) and scrolls its own body, so the full 7-stage trace is reachable; the anomaly and reproducibility cards sit below at their natural size.
 - **Pagination added to the capped lists.** The Reports ticket ledger (12/page), the Trucks registry (10/page), and the AI Pipeline jobs list (12/page) now use the shared `Pagination` control instead of one long scroll, so large lists stay readable. Sorting the ledger resets to the first page.
