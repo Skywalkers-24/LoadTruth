@@ -213,6 +213,7 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
         "tailgate",
         "load: debris pile",
         "load: pile",
+        "load: barrels and containers",
     }
     assert result.segments["truck bed"].startswith("<0f>0<|box;")
     from app.pipeline import evidence_store
@@ -226,6 +227,7 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     spark = [b for b in fake.responses if not b["model"].startswith("sam")]
     # Bed phrases, the tailgate rim, and the load phrases all go out in parallel.
     assert sorted(b["input"][0]["content"][0]["text"] for b in sam) == [
+        "barrels and containers",
         "debris pile",
         "dump truck",
         "pile",
@@ -251,7 +253,7 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert "1,000 in, 200 out" in stages["spark_ocr"]["Tokens"]
     assert stages["spark_ocr"]["Cost"] == "$0.0021"
     assert stages["sam_track"]['Prompt "truck bed"'] == "1 object on 2 of 2 frames"
-    assert stages["sam_track"]["Billed"] == "250 frames (5 requests)"
+    assert stages["sam_track"]["Billed"] == "300 frames (6 requests)"
     assert stages["sam_track"]["Bed measured from"] == '"truck bed"'
     assert stages["geometry"]["Frames measured"] == "2"
 
@@ -265,8 +267,8 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert analysis["dollar_math"] == "I valued the load by exact arithmetic."
 
     rows = {r.stage: r for r in await ledger.rows()}
-    # Five video requests, each billed at the 50-frame minimum ($0.20 / 1k frames).
-    assert rows["sam_track"].cost_usd == pytest.approx(0.05)
+    # Six video requests, each billed at the 50-frame minimum ($0.20 / 1k frames).
+    assert rows["sam_track"].cost_usd == pytest.approx(0.06)
     # 1000 in at $1.25/1M + 200 out at $4.25/1M.
     assert rows["spark_ocr"].cost_usd == pytest.approx(0.0021)
     assert rows["spark_ocr"].tokens_in == 1000
@@ -274,7 +276,7 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     # The batched per-stage analysis is one more Spark call, billed like the rest.
     assert rows["spark_explain"].cost_usd == pytest.approx(0.0021)
     assert rows["spark_explain"].model == "muse-spark-1.3"
-    assert ledger.summarize().total_cost_usd == pytest.approx(0.0563)
+    assert ledger.summarize().total_cost_usd == pytest.approx(0.0663)
 
 
 @pytest.mark.asyncio
@@ -287,7 +289,7 @@ async def test_image_goes_inline_and_bills_per_image() -> None:
     assert part["type"] == "input_image"
     assert part["image_url"].startswith("data:image/png;base64,")
     rows = {r.stage: r for r in await ledger.rows()}
-    assert rows["sam_track"].cost_usd == pytest.approx(0.0125)  # 5 images at $2.50 / 1k
+    assert rows["sam_track"].cost_usd == pytest.approx(0.015)  # 6 images at $2.50 / 1k
     assert result.ticket.evidence_frames == ["haul.png"]
 
 

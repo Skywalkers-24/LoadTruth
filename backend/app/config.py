@@ -93,11 +93,14 @@ class Settings(BaseSettings):
     #   bed:  "truck bed" first; "dump truck" (whole truck, coarser) is used only
     #         when no bed phrase matched, e.g. a tall-walled trailer.
     #   rim:  "tailgate"; its top edge bounds the bed opening.
-    #   load: merged; "debris pile" finds C&D, "pile" finds vegetative loads
-    #         (palm fronds, brush) that "debris pile" misses.
     sam_bed_concepts: list[str] = Field(default_factory=lambda: ["truck bed", "dump truck"])
     sam_rim_concept: str = Field(default="tailgate")
-    sam_load_concepts: list[str] = Field(default_factory=lambda: ["debris pile", "pile"])
+    #   load: merged across "debris pile" (C&D), "pile" (vegetative brush/fronds),
+    #         and "barrels and containers" (hazardous drums/cans/batteries, which
+    #         are not a "pile"; tuned on FL-DT-7788, 2026-10-29).
+    sam_load_concepts: list[str] = Field(
+        default_factory=lambda: ["debris pile", "pile", "barrels and containers"]
+    )
     # SAM pricing (dev.meta.ai/docs/pricing-rate-limits): images per 1k, video per
     # 1k frames with a 50-frame minimum per request.
     sam_image_price_per_1k: float = Field(default=2.50)
