@@ -73,9 +73,10 @@ export function LoginScreen() {
       {/* Mode-aware video background behind everything (lazy, muted, looped). */}
       <LoginVideoBg />
 
-      {/* Brand panel. Semi-transparent so the video shows through; the gradient
-          and a blur keep the headline and stats readable over the footage. */}
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-sidebar/70 p-10 text-sidebar-foreground backdrop-blur-sm lg:flex">
+      {/* Brand panel. The video reads through, but a themed sidebar wash + blur
+          backs the text so the headline and stats stay legible in every theme
+          and in both light and dark mode. The z-10 lifts it above the video. */}
+      <div className="relative z-10 hidden flex-col justify-between overflow-hidden bg-sidebar/70 p-10 text-sidebar-foreground backdrop-blur-md lg:flex">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-80"
@@ -85,8 +86,8 @@ export function LoginScreen() {
           }}
         />
         <div className="relative flex items-center gap-3">
-          <LogoMark size={34} />
-          <span className="text-[18px] font-bold tracking-tight">LoadTruth</span>
+          <LogoMark size={48} />
+          <span className="text-[26px] font-bold tracking-tight">LoadTruth</span>
         </div>
 
         <div className="relative flex flex-col gap-6">
@@ -162,16 +163,17 @@ export function LoginScreen() {
       </div>
 
       {/* Sign-in panel. Semi-transparent over the video; the sign-in card itself
-          sits on a solid surface so every control stays fully legible. */}
-      <div className="relative flex items-center justify-center bg-background/55 p-6 backdrop-blur-md">
+          sits on a solid surface so every control stays fully legible. z-10 lifts
+          it above the video layer. */}
+      <div className="relative z-10 flex items-center justify-center bg-background/60 p-6 backdrop-blur-md">
         {/* Theme picker — reachable before sign-in so users land in their preferred look. */}
         <div className="absolute right-5 top-5 z-10">
           <ThemeToggle />
         </div>
         <div className="w-full max-w-md rounded-2xl border border-border bg-[var(--color-surface)]/90 p-6 shadow-xl backdrop-blur-xl sm:p-8">
           <div className="mb-6 flex items-center gap-3 lg:hidden">
-            <LogoMark size={30} />
-            <span className="text-[16px] font-bold tracking-tight">LoadTruth</span>
+            <LogoMark size={40} />
+            <span className="text-[22px] font-bold tracking-tight">LoadTruth</span>
           </div>
 
           <h2 className="text-[22px] font-semibold tracking-tight">Sign in</h2>
@@ -256,7 +258,7 @@ export function LoginScreen() {
 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5">
+    <div className="rounded-xl border border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-accent)]/60 px-3 py-2.5">
       <div className="text-[18px] font-bold tabular-nums text-sidebar-foreground">{value}</div>
       <div className="mt-0.5 text-[11px] leading-tight text-sidebar-muted">{label}</div>
     </div>
@@ -266,7 +268,7 @@ function Stat({ value, label }: { value: string; label: string }) {
 function Feature({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
   return (
     <li className="flex gap-3">
-      <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-white/[0.06] text-[var(--color-brand-strong)] ring-1 ring-white/[0.06]">
+      <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--color-sidebar-accent)]/70 text-[var(--color-brand-strong)] ring-1 ring-[var(--color-sidebar-border)]">
         {icon}
       </span>
       <span className="flex flex-col">
