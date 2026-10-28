@@ -79,6 +79,7 @@ class Settings(BaseSettings):
     spark_perception_max_output_tokens: int = Field(default=4000)  # OCR / classify
     spark_narrate_max_output_tokens: int = Field(default=2000)  # one-line flag narrative
     analyst_max_output_tokens: int = Field(default=4000)  # grounded analyst answer
+    spark_explain_max_output_tokens: int = Field(default=4000)  # batched per-stage analysis
 
     # ── Live Meta client (app/ai/live.py) ──
     model_api_timeout_s: float = Field(default=300.0)
@@ -86,8 +87,17 @@ class Settings(BaseSettings):
     model_api_max_retries: int = Field(default=2)
     # SAM takes one short noun phrase per request (dev.meta.ai/docs/sam/segmenting),
     # so the clip is segmented once per concept. Tune these on real footage.
-    sam_bed_concept: str = Field(default="truck bed")
-    sam_load_concept: str = Field(default="debris pile")
+    # Every phrase below is one SAM request, all sent in parallel per clip (one
+    # SAM video request has a 50-frame minimum, about $0.01). Tuned on gate
+    # footage on 2026-10-29 (see LESSONS.md):
+    #   bed:  "truck bed" first; "dump truck" (whole truck, coarser) is used only
+    #         when no bed phrase matched, e.g. a tall-walled trailer.
+    #   rim:  "tailgate"; its top edge bounds the bed opening.
+    #   load: merged; "debris pile" finds C&D, "pile" finds vegetative loads
+    #         (palm fronds, brush) that "debris pile" misses.
+    sam_bed_concepts: list[str] = Field(default_factory=lambda: ["truck bed", "dump truck"])
+    sam_rim_concept: str = Field(default="tailgate")
+    sam_load_concepts: list[str] = Field(default_factory=lambda: ["debris pile", "pile"])
     # SAM pricing (dev.meta.ai/docs/pricing-rate-limits): images per 1k, video per
     # 1k frames with a 50-frame minimum per request.
     sam_image_price_per_1k: float = Field(default=2.50)
@@ -109,8 +119,10 @@ class Settings(BaseSettings):
     # Processed evidence media (the exact clip the models saw), by content hash.
     evidence_dir: str = Field(default=str(_REPO_ROOT / "media" / "evidence"), alias="EVIDENCE_DIR")
     # Hard cap on keyframes sampled from any one clip (bounds SAM frame cost and
-    # memory for a long video, regardless of fps/duration).
-    max_sampled_frames: int = Field(default=120)
+    # memory for a long video, regardless of fps/duration). Capped at 60 so the
+    # Review console's per-frame overlay scrubs smoothly (fewer, evenly spaced
+    # frames keep the canvas responsive).
+    max_sampled_frames: int = Field(default=60)
     # Longest edge (px) to downscale a frame to before sending to a VLM. Keeps
     # the base64 payload small and the per-call token cost down (LEARNINGS §1).
     frame_downscale_longest_edge: int = Field(default=1024)

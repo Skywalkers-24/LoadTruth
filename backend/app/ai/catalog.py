@@ -264,6 +264,23 @@ TASKS: dict[str, TaskInfo] = {
         default_model="muse-spark-1.3",
         default_effort=ReasoningEffort.MINIMAL,
     ),
+    "explain_pipeline": TaskInfo(
+        id="explain_pipeline",
+        name="Pipeline stage analysis",
+        description=(
+            "One batched call that authors the plain-language 'AI analysis' "
+            "paragraph shown beside each pipeline stage on the console, grounded "
+            "in the run's measured facts. Text only, so it stays cheap."
+        ),
+        kind="chat",
+        eligible_models=[
+            "muse-spark-1.3",
+            "muse-spark-1.3-contributor",
+            "muse-spark-1.2",
+        ],
+        default_model="muse-spark-1.3",
+        default_effort=ReasoningEffort.LOW,
+    ),
     "analyst_chat": TaskInfo(
         id="analyst_chat",
         name="AI analyst chat",

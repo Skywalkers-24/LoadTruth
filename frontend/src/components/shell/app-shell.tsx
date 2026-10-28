@@ -48,6 +48,8 @@ type NavItem = {
   badge?: boolean;
   /** Only shown when the signed-in member has this capability. */
   cap?: keyof Capabilities;
+  /** Shown when the member has any one of these capabilities. */
+  anyCap?: (keyof Capabilities)[];
 };
 
 // Order: Overview, Review, Ticket, Trucks, Reports, Billing, Settings, then
@@ -66,13 +68,18 @@ const NAV: NavItem[] = [
     label: "Settings",
     short: "Settings",
     icon: SettingsIcon,
-    cap: "manage_events",
+    // Supervisors manage sources here; county/super admins get every tab.
+    anyCap: ["manage_events", "manage_sources", "manage_users"],
   },
   { href: "/guide", label: "Guide", short: "Guide", icon: BookOpenIcon },
 ];
 
 function visibleNav(can: (c: keyof Capabilities) => boolean): NavItem[] {
-  return NAV.filter((item) => !item.cap || can(item.cap));
+  return NAV.filter((item) => {
+    if (item.cap && !can(item.cap)) return false;
+    if (item.anyCap && !item.anyCap.some(can)) return false;
+    return true;
+  });
 }
 
 function isActive(pathname: string, href: string) {

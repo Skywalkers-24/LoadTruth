@@ -74,8 +74,13 @@ class TrackedObject:
     label: str
     sam_object_id: str
     # Per-frame area of the object's mask, in pixels; index = sampled frame.
+    # For the bed this is the bed opening (above the tailgate rim); for the load
+    # it is the load inside that opening.
     mask_areas: list[float] = field(default_factory=list)
-    # Height of the load surface vs. the bed rails (0..1), best frame only.
+    # Load only: the share of the bed's depth the measured coverage stands for
+    # (0..1). The gate camera's opening coverage already reads depth (a lower
+    # load shows more inner wall), so live measurement reports 1.0; fixtures
+    # carry a hand-set depth so their scenarios keep their intended fills.
     load_height_ratio: float = 0.0
 
 
@@ -91,6 +96,26 @@ class TrackResult:
     segments: dict[str, str] = field(default_factory=dict, compare=False, repr=False)
     # Plain-language facts about what SAM returned, for the pipeline trace.
     notes: dict[str, str] = field(default_factory=dict, compare=False, repr=False)
+    # A plain-language "AI analysis" paragraph authored by the model for the
+    # Pipeline screen (what this stage did and what the result means). Empty when
+    # the model did not supply one (e.g. the fixture mock); the trace then falls
+    # back to the stage summary.
+    analysis: str = field(default="", compare=False, repr=False)
+    # How the load was measured: "segmented" (a SAM load phrase matched inside
+    # the bed) or "none" (no phrase matched). "none" reads 0% and flags the
+    # ticket for review; the pipeline never substitutes a non-AI guess.
+    load_source: str = "segmented"
+    # Interquartile spread of the per-frame coverages (0..1); a wide spread means
+    # the frames disagree and lowers confidence.
+    coverage_spread: float = 0.0
+    # Version of the measurement method that produced these numbers
+    # (app.ai.sam_measure.MEASURE_VERSION); 0 for fixtures. A stored result from
+    # an older method is re-measured from its stored SAM output.
+    measure_version: int = 0
+    # Which SAM phrase gave the bed outline: "bed" (the truck bed itself) or
+    # "truck" (no bed phrase matched, so the whole truck was used; coarser,
+    # lowers confidence).
+    bed_source: str = "bed"
 
     def by_label(self, label: str) -> TrackedObject | None:
         return next((o for o in self.objects if o.label == label), None)
@@ -106,6 +131,8 @@ class OCRResult:
     usage: CallUsage | None = field(default=None, compare=False, repr=False)
     # The model's answer exactly as returned (JSON text), for the trace.
     raw: str = field(default="", compare=False, repr=False)
+    # Model-authored "AI analysis" paragraph for the Pipeline screen.
+    analysis: str = field(default="", compare=False, repr=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,6 +143,12 @@ class ClassifyResult:
     confidence: float
     usage: CallUsage | None = field(default=None, compare=False, repr=False)
     raw: str = field(default="", compare=False, repr=False)
+    # Model-authored "AI analysis" paragraph for the Pipeline screen.
+    analysis: str = field(default="", compare=False, repr=False)
+    # Muse Spark's own visual read of how full the bed is (0..100), returned in
+    # the same classify call. An independent cross-check on the measured fill:
+    # it never sets the number, but a large disagreement lowers confidence.
+    visual_fill_pct: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,6 +156,21 @@ class Narration:
     """Muse Spark Stage-6b: a plain-language sentence for one anomaly."""
 
     text: str
+    usage: CallUsage | None = field(default=None, compare=False, repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class StageExplanations:
+    """Muse Spark: one "AI analysis" paragraph per pipeline stage key.
+
+    Authored by the model for the Pipeline screen so the per-stage narrative is
+    the model's own words, grounded in the measured facts the caller supplies.
+    ``by_stage`` maps a stage key (``sam_track``, ``capacity``, ``geometry``,
+    ``anomalies``, ``dollar_math``) to its paragraph. A missing key means the
+    model declined to explain that stage and the trace falls back to the summary.
+    """
+
+    by_stage: dict[str, str]
     usage: CallUsage | None = field(default=None, compare=False, repr=False)
 
 
@@ -143,6 +191,16 @@ class AIClient(Protocol):
 
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
         """Muse Spark: one-line human narrative for a flag the rules raised."""
+        ...
+
+    async def explain_pipeline(self, facts: dict[str, object]) -> StageExplanations:
+        """Muse Spark: author the "AI analysis" paragraph for each stage.
+
+        One batched call grounded in the run's measured facts, so the Pipeline
+        screen's per-stage narrative is the model's own words. Covers the stages
+        that do not already return their own analysis (SAM track, capacity,
+        geometry, anomalies, valuation).
+        """
         ...
 
     async def answer_question(self, prompt: str) -> Narration:

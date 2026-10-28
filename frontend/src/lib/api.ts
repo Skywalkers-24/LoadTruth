@@ -97,12 +97,24 @@ export interface PaginatedTickets {
   offset: number;
 }
 
+/** Ledger sort columns the backend understands. */
+export type TicketSort = "created" | "delta" | "measured" | "value";
+export type SortOrder = "asc" | "desc";
+
 export interface TicketQuery {
   eventId?: string;
   status?: TicketStatus;
   debrisClass?: DebrisClass;
   limit?: number;
   offset?: number;
+  sort?: TicketSort;
+  order?: SortOrder;
+  /**
+   * List across the whole tenant (omit `event_id`). Used by the admin "All
+   * events" reports view. Not a backend query param; it only signals that the
+   * request is intentional without an event id. Ignored by `ticketQueryString`.
+   */
+  allTenant?: boolean;
 }
 
 export interface Truck {
@@ -406,6 +418,8 @@ export interface PipelineStage {
   duration_ms: number;
   /** Ordered [label, value] facts from the model's response (raw answer, tokens, cost). */
   details?: [string, string][];
+  /** Model-authored "AI analysis" paragraph for this stage (empty = fall back to summary). */
+  analysis?: string;
 }
 
 export interface PipelineJob {
@@ -422,9 +436,23 @@ export interface PipelineJob {
   stages: PipelineStage[];
 }
 
-export function getPipelineJobs(eventId?: string): Promise<PipelineJob[]> {
-  const q = eventId ? `?event_id=${eventId}&limit=50` : "?limit=50";
-  return request<PipelineJob[]>(`/system/jobs${q}`);
+export interface PaginatedJobs {
+  items: PipelineJob[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export function getPipelineJobs(opts: {
+  eventId?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<PaginatedJobs> {
+  const params = new URLSearchParams();
+  if (opts.eventId) params.set("event_id", opts.eventId);
+  params.set("limit", String(opts.limit ?? 20));
+  params.set("offset", String(opts.offset ?? 0));
+  return request<PaginatedJobs>(`/system/jobs?${params.toString()}`);
 }
 
 export function getJobForTicket(ticketId: string): Promise<PipelineJob | null> {
@@ -659,6 +687,8 @@ function ticketQueryString(q: TicketQuery): string {
   if (q.debrisClass) p.set("debris_class", q.debrisClass);
   if (q.limit !== undefined) p.set("limit", String(q.limit));
   if (q.offset !== undefined) p.set("offset", String(q.offset));
+  if (q.sort) p.set("sort", q.sort);
+  if (q.order) p.set("order", q.order);
   const s = p.toString();
   return s ? `?${s}` : "";
 }

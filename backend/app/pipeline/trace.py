@@ -35,6 +35,9 @@ class StageRecord:
     # Ordered (label, value) facts from the model's response: its raw answer,
     # tokens, cost, objects found, and the measurement inputs.
     details: list[list[str]] = field(default_factory=list)
+    # Model-authored "AI analysis" paragraph for the Pipeline screen (empty when
+    # the model supplied none; the UI falls back to the summary).
+    analysis: str = ""
 
 
 @dataclass(slots=True)
@@ -67,10 +70,12 @@ class PipelineTrace:
         confidence: float | None = None,
         details: list[list[str]] | None = None,
         duration_ms: float | None = None,
+        analysis: str = "",
     ) -> None:
         """Record a stage. ``duration_ms`` overrides the wall-clock gap since the
         previous stage (use the model's own response time for AI stages, since
-        those calls run in parallel)."""
+        those calls run in parallel). ``analysis`` is the model-authored
+        paragraph for the Pipeline screen (empty falls back to the summary)."""
         now = time.perf_counter()
         dur = (now - self._t0) * 1000.0
         self._t0 = now
@@ -84,8 +89,22 @@ class PipelineTrace:
                 confidence=confidence,
                 duration_ms=round(duration_ms if duration_ms is not None else dur, 1),
                 details=list(details or []),
+                analysis=analysis,
             )
         )
+
+    def set_analysis(self, by_key: dict[str, str]) -> None:
+        """Fill in model-authored analysis on already-recorded stages.
+
+        Stages are appended in pipeline order as they run, but the batched
+        ``explain_pipeline`` call that authors their analysis only has the full
+        set of facts near the end. This assigns each paragraph to its stage by
+        key, leaving a stage's analysis untouched when the model did not supply
+        one (the UI then falls back to the summary)."""
+        for s in self.stages:
+            text = by_key.get(s.key)
+            if text:
+                s.analysis = text
 
 
 @dataclass(slots=True)
@@ -110,7 +129,12 @@ class JobStore:
 
     def __init__(self, maxlen: int = 100) -> None:
         self._runs: deque[tuple[str, PipelineTrace]] = deque(maxlen=maxlen)
+        self._maxlen = maxlen
         self._lock = asyncio.Lock()
+
+    def capacity(self) -> int:
+        """How many runs the buffer can hold (its ring size)."""
+        return self._maxlen
 
     async def add(self, event_id: UUID, trace: PipelineTrace) -> None:
         async with self._lock:

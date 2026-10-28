@@ -10,17 +10,39 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import UnaryExpression
 
 from app.config import get_settings
 from app.db import models
 from app.pipeline.registry import CertifiedTruck, TruckRegistry
 from app.tickets.domain import Event, Ticket
 from app.tickets.money import value_ticket
-from app.tickets.schemas import DebrisClass, TicketStatus
+from app.tickets.schemas import DebrisClass, SortOrder, TicketSort, TicketStatus
+
+# Which Ticket column each ledger sort maps to.
+_SORT_COLUMN = {
+    TicketSort.CREATED: models.Ticket.created_at,
+    TicketSort.DELTA: models.Ticket.delta_dollar_value,
+    TicketSort.MEASURED: models.Ticket.est_cubic_yards,
+    TicketSort.VALUE: models.Ticket.est_dollar_value,
+}
+
+
+def _order_by(sort: TicketSort, order: SortOrder) -> list[UnaryExpression[Any]]:
+    """ORDER BY clause for a ledger page: chosen column, nulls last, id tiebreak.
+
+    Nulls are forced to the end in both directions so uncalled tickets (no
+    delta) never read as extreme values. ``id`` is the stable tiebreaker so
+    paging never drops or repeats a row across pages.
+    """
+    col = _SORT_COLUMN[sort]
+    direction = col.asc() if order is SortOrder.ASC else col.desc()
+    return [direction.nulls_last(), models.Ticket.id.desc()]
 
 
 class TicketNotFoundError(Exception):
@@ -250,13 +272,18 @@ class SqlTicketRepository:
         debris_class: DebrisClass | None = None,
         limit: int,
         offset: int,
+        sort: TicketSort = TicketSort.CREATED,
+        order: SortOrder = SortOrder.DESC,
     ) -> tuple[list[Ticket], int]:
-        """One page of tickets plus the total matching count (newest first).
+        """One page of tickets plus the total matching count.
 
         Tenant-scoped with optional ``event_id``/``status``/``debris_class``
-        filters. Runs a COUNT over the filtered set and a separate LIMIT/OFFSET
-        page query so the envelope's ``total`` reflects the full match, not the
-        page. The two queries share the same filter predicates.
+        filters, ordered by ``sort``/``order`` (default newest first). Runs a
+        COUNT over the filtered set and a separate LIMIT/OFFSET page query so the
+        envelope's ``total`` reflects the full match, not the page. The two
+        queries share the same filter predicates. Rows with a null sort value
+        (e.g. an uncalled ticket has no delta) always sort to the end regardless
+        of direction, so they never masquerade as extreme values.
         """
         filters = [models.Ticket.tenant_id == tenant_id]
         if event_id is not None:
@@ -276,7 +303,7 @@ class SqlTicketRepository:
         page_stmt = (
             select(models.Ticket)
             .where(*filters)
-            .order_by(models.Ticket.created_at.desc())
+            .order_by(*_order_by(sort, order))
             .limit(limit)
             .offset(offset)
         )
@@ -435,6 +462,7 @@ class SqlTicketRepository:
                     confidence=getattr(s, "confidence", None),
                     duration_ms=getattr(s, "duration_ms", 0.0) or 0.0,
                     details=list(getattr(s, "details", None) or []),
+                    analysis=getattr(s, "analysis", "") or None,
                 )
             )
         await self._s.flush()
@@ -537,8 +565,7 @@ class SqlTicketRepository:
                     load_area=load_area,
                     load_height_ratio=debris.load_height_ratio,
                 )
-            ],
-            body_type=body_type,
+            ]
         )
 
         receipt = compute_receipt(
@@ -577,7 +604,7 @@ class SqlTicketRepository:
         )
 
     async def _body_type_for(self, tenant_id: UUID, truck_id: str | None) -> str | None:
-        """The matched truck's body type (drives the geometry depth prior), or None."""
+        """The matched truck's body type (pinned on the receipt), or None."""
         if not truck_id:
             return None
         registry = TruckRegistry(

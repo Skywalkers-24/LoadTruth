@@ -24,7 +24,14 @@ def test_get_ai_config_returns_catalog_and_defaults(client: TestClient) -> None:
     assert body["catalog"]["efforts"] == ["minimal", "low", "balanced", "high", "max"]
     assert body["catalog"]["cost_modes"] == ["standard", "contributor"]
     task_ids = {t["id"] for t in body["catalog"]["tasks"]}
-    expected = {"sam_track", "spark_ocr", "spark_classify", "narrate_anomaly", "analyst_chat"}
+    expected = {
+        "sam_track",
+        "spark_ocr",
+        "spark_classify",
+        "narrate_anomaly",
+        "explain_pipeline",
+        "analyst_chat",
+    }
     assert task_ids == expected
     ocr = next(c for c in body["config"] if c["task_id"] == "spark_ocr")
     assert ocr["model"] == "muse-spark-1.3"

@@ -41,6 +41,20 @@ class TicketStatus(StrEnum):
     DISPUTED = "disputed"
 
 
+class TicketSort(StrEnum):
+    """Columns the ticket ledger can order by (server-side paging + sorting)."""
+
+    CREATED = "created"
+    DELTA = "delta"
+    MEASURED = "measured"  # estimated cubic yards (the "Measured" ledger column)
+    VALUE = "value"  # estimated dollar value
+
+
+class SortOrder(StrEnum):
+    ASC = "asc"
+    DESC = "desc"
+
+
 class Role(StrEnum):
     """The product's RBAC role vocabulary (PLAN.md §10)."""
 

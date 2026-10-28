@@ -31,9 +31,11 @@ from app.tickets.schemas import (
     MonitorCallIn,
     PaginatedTickets,
     ReportsSummary,
+    SortOrder,
     StatusIn,
     TicketOut,
     TicketPatch,
+    TicketSort,
     TicketStatus,
     event_to_out,
     ticket_to_out,
@@ -103,12 +105,17 @@ async def list_tickets(
     debris_class: DebrisClass | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
+    sort: TicketSort = TicketSort.CREATED,
+    order: SortOrder = SortOrder.DESC,
 ) -> PaginatedTickets:
-    """List tickets as a paginated envelope, newest first.
+    """List tickets as a paginated envelope.
 
-    Supports optional ``event_id``/``status``/``debris_class`` filters and
-    ``limit`` (1-100, default 20) / ``offset`` (default 0) paging. ``total`` is
-    the full matching count, not the size of the returned page.
+    Supports optional ``event_id``/``status``/``debris_class`` filters,
+    ``limit`` (1-100, default 20) / ``offset`` (default 0) paging, and
+    ``sort``/``order`` (default newest first). ``total`` is the full matching
+    count, not the size of the returned page. Sorting and paging happen on the
+    server so the ledger can walk every row in the chosen order, not just the
+    first window.
     """
     tickets, total = await repo.list_tickets_page(
         tenant,
@@ -117,6 +124,8 @@ async def list_tickets(
         debris_class=debris_class,
         limit=limit,
         offset=offset,
+        sort=sort,
+        order=order,
     )
     return PaginatedTickets(
         items=[ticket_to_out(t) for t in tickets],
@@ -158,6 +167,7 @@ class PipelineStageOut(BaseModel):
     confidence: float | None = None
     duration_ms: float = 0.0
     details: list[list[str]] = Field(default_factory=list)
+    analysis: str = ""
 
 
 @router.get("/tickets/{ticket_id}/pipeline", response_model=list[PipelineStageOut])
@@ -180,6 +190,7 @@ async def ticket_pipeline(
                 for d in (r.details or [])
                 if isinstance(d, list | tuple) and len(d) == 2
             ],
+            analysis=r.analysis or "",
         )
         for r in rows
     ]

@@ -16,7 +16,7 @@ import { useEventContext } from "@/lib/event-context";
 import { debrisLabel, money, relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const JOBS_PAGE_SIZE = 12;
+const JOBS_PAGE_SIZE = 20;
 
 const OUTCOME_TONE = {
   drafted: "ok",
@@ -38,20 +38,25 @@ const OUTCOME_LABEL = {
  */
 export default function PipelinePage() {
   const { selectedId: eventId } = useEventContext();
-  const jobs = usePipelineJobs(eventId);
   const router = useRouter();
   const [selected, setSelected] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
 
-  const rows: PipelineJob[] = jobs.data ?? [];
-  const total = rows.length;
-  const clampedOffset = offset >= total ? 0 : offset;
-  const pageRows = rows.slice(clampedOffset, clampedOffset + JOBS_PAGE_SIZE);
-  const active = rows.find((j) => j.content_hash === selected) ?? rows[0] ?? null;
+  // Reset to the first page whenever the event scope changes.
+  useEffect(() => setOffset(0), [eventId]);
+
+  const jobs = usePipelineJobs({ eventId, limit: JOBS_PAGE_SIZE, offset });
+  const pageRows: PipelineJob[] = jobs.data?.items ?? [];
+  const total = jobs.data?.total ?? 0;
+  // The selected trace must be on the current page (server-side paging returns
+  // only this page's jobs); fall back to the first row of the page.
+  const active = pageRows.find((j) => j.content_hash === selected) ?? pageRows[0] ?? null;
 
   useEffect(() => {
-    if (!selected && rows.length > 0) setSelected(rows[0]!.content_hash);
-  }, [rows, selected]);
+    if (pageRows.length > 0 && !pageRows.some((j) => j.content_hash === selected)) {
+      setSelected(pageRows[0]!.content_hash);
+    }
+  }, [pageRows, selected]);
 
   return (
     <AppShell section="AI Pipeline">
@@ -87,7 +92,7 @@ export default function PipelinePage() {
                     <Skeleton key={i} className="h-14" />
                   ))}
                 </div>
-              ) : rows.length === 0 ? (
+              ) : total === 0 ? (
                 <p className="px-4 py-10 text-center text-[13px] text-muted-foreground">
                   No pipeline runs yet. Capture a ticket to see the AI stages here.
                 </p>
@@ -138,7 +143,7 @@ export default function PipelinePage() {
                 <Pagination
                   total={total}
                   limit={JOBS_PAGE_SIZE}
-                  offset={clampedOffset}
+                  offset={offset}
                   onOffset={setOffset}
                 />
               </div>

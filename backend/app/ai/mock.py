@@ -17,12 +17,21 @@ from app.ai.base import (
     ClipMedia,
     Narration,
     OCRResult,
+    StageExplanations,
     TrackedObject,
     TrackResult,
 )
 
 _FIXTURES_PATH = Path(__file__).parent / "fixtures" / "scenarios.json"
 _DEFAULT_KEY = "clean-full-cd"
+
+
+def _pct(value: object) -> str:
+    """A 0..1 fraction as a rounded percentage string (e.g. 0.82 -> '82%')."""
+    try:
+        return f"{float(value):.0%}"  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return "most of"
 
 
 @lru_cache
@@ -78,21 +87,114 @@ class MockAIClient:
 
     async def read_placard(self, clip: ClipMedia) -> OCRResult:
         o = self._scenario(clip.content_hash)["ocr"]
+        truck_id = o.get("truck_id")
+        confidence = float(o["confidence"])
+        if truck_id:
+            analysis = (
+                f"I located the truck's rear placard and read its ID as {truck_id} from the "
+                f"clearest frame, with {confidence:.0%} confidence. This ID keys the certified "
+                "capacity lookup, so the whole valuation hangs on reading it right."
+            )
+        else:
+            analysis = (
+                "I could not read the truck's rear placard confidently: the panel was too blurred "
+                "or angled in every sampled frame. The ticket is flagged for manual identification "
+                "before it can be certified."
+            )
         return OCRResult(
-            truck_id=o.get("truck_id"),
-            confidence=float(o["confidence"]),
+            truck_id=truck_id,
+            confidence=confidence,
             frame_ref=o.get("frame_ref"),
+            analysis=analysis,
         )
 
     async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
         c = self._scenario(clip.content_hash)["classify"]
+        debris_class = c["debris_class"]
+        confidence = float(c["confidence"])
+        label = debris_class.replace("_", " ")
+        analysis = (
+            f"I classified the load in the bed as {label} with {confidence:.0%} confidence, based "
+            "on the material's shape, color, and texture across the sampled frames. This class "
+            "selects the per-cubic-yard rate the valuation applies."
+        )
         return ClassifyResult(
-            debris_class=c["debris_class"],
-            confidence=float(c["confidence"]),
+            debris_class=debris_class,
+            confidence=confidence,
+            analysis=analysis,
         )
 
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
         return Narration(text=self._narrative(anomaly_type, facts))
+
+    async def explain_pipeline(self, facts: dict[str, object]) -> StageExplanations:
+        """Grounded, deterministic per-stage analysis standing in for Muse Spark.
+
+        The live client asks the model to author the same paragraphs; here we
+        phrase the measured facts the caller supplies so MOCK_AI mode shows the
+        same "AI analysis" surface the demo relies on."""
+        return StageExplanations(by_stage=self._explanations(facts))
+
+    @staticmethod
+    def _explanations(facts: dict[str, object]) -> dict[str, str]:
+        def s(key: str, default: str = "") -> str:
+            value = facts.get(key, default)
+            return str(value) if value is not None else default
+
+        truck = s("truck_id", "the truck")
+        certified = s("certified_cubic_yards", "0")
+        fill = s("fill_pct", "0")
+        coverage = _pct(facts.get("planar_coverage"))
+        debris = s("debris_class", "other").replace("_", " ")
+        rate = s("rate_per_cy", "0")
+        est_cy = s("est_cubic_yards", "0")
+        value = s("est_dollar_value", "0")
+        frame_count = s("frame_count", "the sampled")
+        certified_truck = bool(facts.get("truck_certified"))
+        anomalies = facts.get("anomalies")
+        anomaly_list = anomalies if isinstance(anomalies, list) else []
+
+        out: dict[str, str] = {
+            "sam_track": (
+                f"I tracked the truck, its bed, and the debris pile across {frame_count} frames "
+                "and returned a segmentation mask for each in every frame. These masks are the "
+                "pixel evidence every downstream measurement is derived from, so the rest of the "
+                "pipeline reads from what I saw, not from an assumption."
+            ),
+            "capacity": (
+                f"Truck {truck} matched a certified record carrying {certified} cubic yards of "
+                "registered capacity, which I hand to the volume math as the bed's full-load size."
+                if certified_truck
+                else f"Truck {truck} was not found in the certified registry, so no certified "
+                "capacity could be applied. The load still measures, but it is flagged for "
+                "verification before it can be certified."
+            ),
+            "geometry": (
+                f"I measured the bed at {fill}% full. The load surface covers {coverage} of the "
+                "bed opening, and I weighted that by how high the pile sits against the rails and "
+                "by a body-type depth prior, so the number traces to the masks rather than a guess."
+            ),
+            "dollar_math": (
+                f"I valued the load at ${value} by exact arithmetic: {fill}% of {certified} cubic "
+                f"yards is {est_cy} cubic yards, and at the {debris} rate of ${rate} per cubic "
+                "yard that is the measured dollar value. No model opinion enters this step."
+            ),
+        }
+        if anomaly_list:
+            count = len(anomaly_list)
+            noun = "anomaly" if count == 1 else "anomalies"
+            out["anomalies"] = (
+                f"Deterministic rules checked the measured facts against this truck's "
+                f"certification, capacity, and the surface-versus-depth relationship, and raised "
+                f"{count} {noun} for review. The rules decide whether a flag fires; I only phrase "
+                "each one in plain language for the monitor."
+            )
+        else:
+            out["anomalies"] = (
+                "Deterministic rules checked the measured facts against certification, capacity, "
+                "and the surface-versus-depth relationship, and found nothing to flag on this load."
+            )
+        return out
 
     async def answer_question(self, prompt: str) -> Narration:
         # No model in the mock: return empty so the analyst composes its own

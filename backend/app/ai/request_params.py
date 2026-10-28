@@ -65,6 +65,8 @@ def _default_output_cap(task_id: str) -> int:
         return s.spark_narrate_max_output_tokens
     if task_id == "analyst_chat":
         return s.analyst_max_output_tokens
+    if task_id == "explain_pipeline":
+        return s.spark_explain_max_output_tokens
     return s.spark_max_output_tokens
 
 
