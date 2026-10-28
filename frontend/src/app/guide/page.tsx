@@ -23,9 +23,9 @@ import { Card } from "@/components/ui/shadcn/card";
  */
 export default function GuidePage() {
   return (
-    <AppShell section="Guide">
+    <AppShell section="Guide" fluid>
       <div className="lt-scroll lt-fab-safe min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-4xl flex-col gap-5">
+        <div className="flex w-full flex-col gap-5">
           <header className="flex flex-col gap-1">
             <h1 className="lt-page-title">Operating LoadTruth</h1>
             <p className="text-[13px] leading-relaxed text-muted-foreground">
@@ -59,273 +59,283 @@ export default function GuidePage() {
             />
           </div>
 
-          {/* ── The AI pipeline ─────────────────────────────────────────── */}
-          <Section
-            icon={<SparklesIcon className="size-[18px]" />}
-            title="What the AI does (the 7-stage pipeline)"
-          >
-            <p>
-              Every ticket shows its full stage trace on the Review screen and the AI Pipeline
-              screen, so no number is a black box. Click any stage to see the model, confidence, and
-              timing.
-            </p>
-            <ol className="ml-4 list-decimal space-y-1.5">
-              <li>
-                <B>Track and segment.</B> SAM 3.1 tracks the truck, bed, and debris across frames
-                and produces the masks everything else measures from.
-              </li>
-              <li>
-                <B>Read placard.</B> Muse Spark reads the truck&apos;s ID from the footage. Low
-                confidence here flags the ticket for manual identification.
-              </li>
-              <li>
-                <B>Capacity lookup.</B> The read ID is matched to the certified truck registry to
-                get the bed&apos;s registered cubic-yard capacity.
-              </li>
-              <li>
-                <B>Measure fill.</B> The geometry estimator converts the bed and debris masks into a
-                fill percentage with a confidence score.
-              </li>
-              <li>
-                <B>Classify debris.</B> Muse Spark labels the load as vegetative, C&amp;D, white
-                goods, hazardous, or other, which selects the event rate.
-              </li>
-              <li>
-                <B>Flag anomalies.</B> Deterministic rules check the measured facts and raise flags.
-                Muse Spark phrases each one for a reviewer.
-              </li>
-              <li>
-                <B>Value the load.</B> The deterministic money math produces the measured value and,
-                once a monitor call exists, the signed delta.
-              </li>
-            </ol>
-            <p className="text-[12px] text-[var(--color-subtle)]">
-              Stages 1 through 3 and stage 5 are AI. Capacity, fill geometry, anomaly rules, and the
-              dollar math are deterministic, so the AI never sets a price.
-            </p>
-          </Section>
+          {/* The reference sections tile two-up on wide screens (self-start so a
+              short card does not stretch next to a tall one), and read top to
+              bottom in one column on narrow screens. */}
+          <div className="grid items-start gap-5 xl:grid-cols-2">
+            {/* ── The AI pipeline ─────────────────────────────────────────── */}
+            <Section
+              icon={<SparklesIcon className="size-[18px]" />}
+              title="What the AI does (the 7-stage pipeline)"
+            >
+              <p>
+                Every ticket shows its full stage trace on the Review screen and the AI Pipeline
+                screen, so no number is a black box. Click any stage to see the model, confidence,
+                and timing.
+              </p>
+              <ol className="ml-4 list-decimal space-y-1.5">
+                <li>
+                  <B>Track and segment.</B> SAM 3.1 tracks the truck, bed, and debris across frames
+                  and produces the masks everything else measures from.
+                </li>
+                <li>
+                  <B>Read placard.</B> Muse Spark reads the truck&apos;s ID from the footage. Low
+                  confidence here flags the ticket for manual identification.
+                </li>
+                <li>
+                  <B>Capacity lookup.</B> The read ID is matched to the certified truck registry to
+                  get the bed&apos;s registered cubic-yard capacity.
+                </li>
+                <li>
+                  <B>Measure fill.</B> The geometry estimator converts the bed and debris masks into
+                  a fill percentage with a confidence score.
+                </li>
+                <li>
+                  <B>Classify debris.</B> Muse Spark labels the load as vegetative, C&amp;D, white
+                  goods, hazardous, or other, which selects the event rate.
+                </li>
+                <li>
+                  <B>Flag anomalies.</B> Deterministic rules check the measured facts and raise
+                  flags. Muse Spark phrases each one for a reviewer.
+                </li>
+                <li>
+                  <B>Value the load.</B> The deterministic money math produces the measured value
+                  and, once a monitor call exists, the signed delta.
+                </li>
+              </ol>
+              <p className="text-[12px] text-[var(--color-subtle)]">
+                Stages 1 through 3 and stage 5 are AI. Capacity, fill geometry, anomaly rules, and
+                the dollar math are deterministic, so the AI never sets a price.
+              </p>
+            </Section>
 
-          {/* ── The money frame ─────────────────────────────────────────── */}
-          <Section
-            icon={<CircleDollarSignIcon className="size-[18px]" />}
-            title="Reading the money frame"
-          >
-            <p>
-              Each ticket compares two numbers: the value LoadTruth measured from the evidence, and
-              the value implied by the monitor&apos;s fill call. The signed difference is the{" "}
-              <B>delta</B>, monitor value minus measured value.
-            </p>
-            <ul className="ml-4 list-disc space-y-1">
-              <li>
-                <B>Over-call.</B> The monitor called the load higher than measured, so the bill is
-                higher than the evidence supports. This is the flagged exposure, shown in Signal
-                Violet. For example, a truck certified at 25 CY measures 48%, or 12 CY. The monitor
-                called 90%, or 22.5 CY. At $8.50 per CY the delta is +$89.25 in the
-                contractor&apos;s favor.
-              </li>
-              <li>
-                <B>Under-call.</B> The monitor called it lower than measured, so the delta is
-                negative.
-              </li>
-              <li>
-                <B>Agreement.</B> The two are within a small tolerance, so there is nothing to
-                recover.
-              </li>
-            </ul>
-            <p>
-              <B>Fill accuracy</B> on the Overview is the share of monitor-reviewed tickets whose
-              machine estimate landed within 10 percentage points of the monitor&apos;s call. It is
-              computed from your own data.
-            </p>
-          </Section>
+            {/* ── The money frame ─────────────────────────────────────────── */}
+            <Section
+              icon={<CircleDollarSignIcon className="size-[18px]" />}
+              title="Reading the money frame"
+            >
+              <p>
+                Each ticket compares two numbers: the value LoadTruth measured from the evidence,
+                and the value implied by the monitor&apos;s fill call. The signed difference is the{" "}
+                <B>delta</B>, monitor value minus measured value.
+              </p>
+              <ul className="ml-4 list-disc space-y-1">
+                <li>
+                  <B>Over-call.</B> The monitor called the load higher than measured, so the bill is
+                  higher than the evidence supports. This is the flagged exposure, shown in Signal
+                  Violet. For example, a truck certified at 25 CY measures 48%, or 12 CY. The
+                  monitor called 90%, or 22.5 CY. At $8.50 per CY the delta is +$89.25 in the
+                  contractor&apos;s favor.
+                </li>
+                <li>
+                  <B>Under-call.</B> The monitor called it lower than measured, so the delta is
+                  negative.
+                </li>
+                <li>
+                  <B>Agreement.</B> The two are within a small tolerance, so there is nothing to
+                  recover.
+                </li>
+              </ul>
+              <p>
+                <B>Agreement with monitor</B> on the Overview is the share of monitor-reviewed
+                tickets whose machine estimate landed within 10 percentage points of the
+                monitor&apos;s call. It is computed from your own data and measures agreement with
+                the human reviewer, not benchmark accuracy against a known volume.
+              </p>
+            </Section>
 
-          {/* ── Reviewing a ticket ──────────────────────────────────────── */}
-          <Section icon={<ClipboardCheckIcon className="size-[18px]" />} title="Reviewing a ticket">
-            <p>
-              The Review screen works one ticket at a time and fits on one screen. The queue sits on
-              the left. The center shows the money frame, the evidence, and the truck record, with
-              the decision bar pinned at the bottom. The AI analysis and anomaly flags sit in the
-              right rail. Record the monitor&apos;s fill call if there is one, then decide.
-            </p>
-            <ul className="ml-4 list-disc space-y-1">
-              <li>
-                <B>Confirm.</B> The evidence supports the call, so the ticket is approved as is.
-              </li>
-              <li>
-                <B>Override.</B> Record a corrected decision when the call was wrong. A short reason
-                is required.
-              </li>
-              <li>
-                <B>Dispute.</B> Flag the ticket for resolution with the contractor. A reason is
-                required so the dispute is documented.
-              </li>
-            </ul>
-            <KeyRow />
-          </Section>
+            {/* ── Reviewing a ticket ──────────────────────────────────────── */}
+            <Section
+              icon={<ClipboardCheckIcon className="size-[18px]" />}
+              title="Reviewing a ticket"
+            >
+              <p>
+                The Review screen works one ticket at a time and fits on one screen. The queue sits
+                on the left. The center shows the money frame, the evidence, and the truck record,
+                with the decision bar pinned at the bottom. The AI analysis and anomaly flags sit in
+                the right rail. Record the monitor&apos;s fill call if there is one, then decide.
+              </p>
+              <ul className="ml-4 list-disc space-y-1">
+                <li>
+                  <B>Confirm.</B> The evidence supports the call, so the ticket is approved as is.
+                </li>
+                <li>
+                  <B>Override.</B> Record a corrected decision when the call was wrong. A short
+                  reason is required.
+                </li>
+                <li>
+                  <B>Dispute.</B> Flag the ticket for resolution with the contractor. A reason is
+                  required so the dispute is documented.
+                </li>
+              </ul>
+              <KeyRow />
+            </Section>
 
-          {/* ── Anomaly flags ───────────────────────────────────────────── */}
-          <Section
-            icon={<TriangleAlertIcon className="size-[18px]" />}
-            title="Anomaly flags and what they mean"
-          >
-            <p>
-              Flags are automatic prompts to look closer. They never block a decision, they focus
-              it.
-            </p>
-            <div className="overflow-hidden rounded-lg border border-border">
-              <table className="w-full text-[13px]">
-                <tbody className="divide-y divide-border">
-                  <FlagRow
-                    sev="High"
-                    flag="Uncertified truck"
-                    meaning="The identified truck has no active certification in the registry. Verify it before approving."
-                  />
-                  <FlagRow
-                    sev="High"
-                    flag="Capacity exceeded"
-                    meaning="The measured volume is above the truck's certified capacity. Check for an overfilled or misidentified truck."
-                  />
-                  <FlagRow
-                    sev="High"
-                    flag="Impossible cycle"
-                    meaning="The same truck recorded two loads closer together than a realistic round trip, a possible duplicate."
-                  />
-                  <FlagRow
-                    sev="Warn"
-                    flag="Placard unreadable"
-                    meaning="The truck ID could not be read confidently. Identify it manually before certifying."
-                  />
-                  <FlagRow
-                    sev="Warn"
-                    flag="Hollow load"
-                    meaning="The load covers most of the bed opening but credits a low fill, a possible hollow or fluffed load."
-                  />
-                  <FlagRow
-                    sev="Info"
-                    flag="Low confidence"
-                    meaning="The fill estimate is uncertain from occlusion or extreme fill. Confirm the measurement manually."
-                  />
-                </tbody>
-              </table>
-            </div>
-          </Section>
+            {/* ── Anomaly flags ───────────────────────────────────────────── */}
+            <Section
+              icon={<TriangleAlertIcon className="size-[18px]" />}
+              title="Anomaly flags and what they mean"
+            >
+              <p>
+                Flags are automatic prompts to look closer. They never block a decision, they focus
+                it.
+              </p>
+              <div className="overflow-hidden rounded-lg border border-border">
+                <table className="w-full text-[13px]">
+                  <tbody className="divide-y divide-border">
+                    <FlagRow
+                      sev="High"
+                      flag="Uncertified truck"
+                      meaning="The identified truck has no active certification in the registry. Verify it before approving."
+                    />
+                    <FlagRow
+                      sev="High"
+                      flag="Capacity exceeded"
+                      meaning="The measured volume is above the truck's certified capacity. Check for an overfilled or misidentified truck."
+                    />
+                    <FlagRow
+                      sev="High"
+                      flag="Impossible cycle"
+                      meaning="The same truck recorded two loads closer together than a realistic round trip, a possible duplicate."
+                    />
+                    <FlagRow
+                      sev="Warn"
+                      flag="Placard unreadable"
+                      meaning="The truck ID could not be read confidently. Identify it manually before certifying."
+                    />
+                    <FlagRow
+                      sev="Warn"
+                      flag="Surface high, depth low"
+                      meaning="The load surface spans most of the bed opening but the measured depth is low. Review the surface against the depth before crediting the volume."
+                    />
+                    <FlagRow
+                      sev="Info"
+                      flag="Low confidence"
+                      meaning="The fill estimate is uncertain from occlusion or extreme fill. Confirm the measurement manually."
+                    />
+                  </tbody>
+                </table>
+              </div>
+            </Section>
 
-          {/* ── Screens by role ─────────────────────────────────────────── */}
-          <Section
-            icon={<ShieldCheckIcon className="size-[18px]" />}
-            title="What you can do, by role"
-          >
-            <p>
-              Every action is enforced on the server, so the UI only hides what your role cannot do.
-              A higher role can do everything a lower one can, plus more. Auditor is deliberately
-              read-only. It ranks above Monitor in trust but cannot change a decision.
-            </p>
-            <div className="overflow-hidden rounded-lg border border-border">
-              <table className="w-full text-[13px]">
-                <thead className="bg-muted text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-2 text-left font-semibold">Role</th>
-                    <th className="px-4 py-2 text-left font-semibold">Can do</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  <RoleRow
-                    role="Field Monitor"
-                    can="Review tickets, record monitor calls, confirm, override, or dispute, and upload clips on New Ticket."
-                  />
-                  <RoleRow
-                    role="Auditor"
-                    can="Read-only across the workspace plus CSV and audit-packet exports. Cannot change a ticket or any setting."
-                  />
-                  <RoleRow
-                    role="Supervisor"
-                    can="Everything a monitor can, plus manage the truck registry and evidence sources."
-                  />
-                  <RoleRow
-                    role="County Admin"
-                    can="Everything above, plus create and edit events and their rate tables, and manage members up to their own rank."
-                  />
-                  <RoleRow
-                    role="System Owner"
-                    can="Full access across the whole workspace, including all member and event administration."
-                  />
-                </tbody>
-              </table>
-            </div>
-          </Section>
+            {/* ── Screens by role ─────────────────────────────────────────── */}
+            <Section
+              icon={<ShieldCheckIcon className="size-[18px]" />}
+              title="What you can do, by role"
+            >
+              <p>
+                Every action is enforced on the server, so the UI only hides what your role cannot
+                do. A higher role can do everything a lower one can, plus more. Auditor is
+                deliberately read-only. It ranks above Monitor in trust but cannot change a
+                decision.
+              </p>
+              <div className="overflow-hidden rounded-lg border border-border">
+                <table className="w-full text-[13px]">
+                  <thead className="bg-muted text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-semibold">Role</th>
+                      <th className="px-4 py-2 text-left font-semibold">Can do</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    <RoleRow
+                      role="Field Monitor"
+                      can="Review tickets, record monitor calls, confirm, override, or dispute, and upload clips on New Ticket."
+                    />
+                    <RoleRow
+                      role="Auditor"
+                      can="Read-only across the workspace plus CSV and audit-packet exports. Cannot change a ticket or any setting."
+                    />
+                    <RoleRow
+                      role="Supervisor"
+                      can="Everything a monitor can, plus manage the truck registry and evidence sources."
+                    />
+                    <RoleRow
+                      role="County Admin"
+                      can="Everything above, plus create and edit events and their rate tables, and manage members up to their own rank."
+                    />
+                    <RoleRow
+                      role="System Owner"
+                      can="Full access across the whole workspace, including all member and event administration."
+                    />
+                  </tbody>
+                </table>
+              </div>
+            </Section>
 
-          {/* ── The screens ─────────────────────────────────────────────── */}
-          <Section icon={<ScanEyeIcon className="size-[18px]" />} title="The screens">
-            <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
-              <Term
-                t="Overview"
-                d="The event's money frame at a glance: flagged exposure, measured value, review progress, fill accuracy, and the highest-value tickets still to review."
-              />
-              <Term
-                t="Review"
-                d="Work the queue one ticket at a time, with the evidence, AI analysis, truck facts, flags, and your confirm, override, or dispute decision."
-              />
-              <Term
-                t="New Ticket"
-                d="Upload a clip or image to draft a ticket from the measured load. Requires review access."
-              />
-              <Term
-                t="AI Analyst"
-                d="Ask questions about the event in plain language. It answers only from your real data and shows the queries it ran. Available on every screen from the chat button."
-              />
-              <Term
-                t="AI Pipeline"
-                d="A live view of every clip run through the models, with the full stage trace and timing."
-              />
-              <Term
-                t="Reports"
-                d="Totals, breakdowns by status, debris class, and anomaly severity, the full ticket ledger, and CSV and audit-packet exports."
-              />
-              <Term
-                t="Settings"
-                d="Manage the rate table, evidence sources, members, and which AI models power each task. Access is role-gated."
-              />
-            </dl>
-          </Section>
+            {/* ── The screens ─────────────────────────────────────────────── */}
+            <Section icon={<ScanEyeIcon className="size-[18px]" />} title="The screens">
+              <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+                <Term
+                  t="Overview"
+                  d="The event's money frame at a glance: flagged exposure, measured value, review progress, agreement with the monitor, and the highest-value tickets still to review."
+                />
+                <Term
+                  t="Review"
+                  d="Work the queue one ticket at a time, with the evidence, AI analysis, truck facts, flags, and your confirm, override, or dispute decision."
+                />
+                <Term
+                  t="New Ticket"
+                  d="Upload a clip or image to draft a ticket from the measured load. Requires review access."
+                />
+                <Term
+                  t="AI Analyst"
+                  d="Ask questions about the event in plain language. It answers only from your real data and shows the queries it ran. Available on every screen from the chat button."
+                />
+                <Term
+                  t="AI Pipeline"
+                  d="A live view of every clip run through the models, with the full stage trace and timing."
+                />
+                <Term
+                  t="Reports"
+                  d="Totals, breakdowns by status, debris class, and anomaly severity, the full ticket ledger, and CSV and audit-packet exports."
+                />
+                <Term
+                  t="Settings"
+                  d="Manage the rate table, evidence sources, members, and which AI models power each task. Access is role-gated."
+                />
+              </dl>
+            </Section>
 
-          {/* ── Glossary ────────────────────────────────────────────────── */}
-          <Section icon={<TruckIcon className="size-[18px]" />} title="Glossary">
-            <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
-              <Term
-                t="FEMA"
-                d="The Federal Emergency Management Agency. It reimburses counties for eligible debris-removal costs, so tickets are formatted to stand up to its review."
-              />
-              <Term
-                t="Fill percent"
-                d="How full the truck bed is, from 0 to 100%. The core measured quantity."
-              />
-              <Term t="CY, cubic yards" d="The volume unit loads are measured and paid in." />
-              <Term
-                t="pp, percentage points"
-                d="The gap between two percentages. 80% minus 62% is 18 pp."
-              />
-              <Term
-                t="Certified capacity"
-                d="A truck's registered bed volume in cubic yards, from the registry."
-              />
-              <Term
-                t="Delta"
-                d="Monitor-called value minus measured value. A positive delta is an over-call, which is flagged exposure."
-              />
-              <Term
-                t="Flagged exposure"
-                d="Total positive dollar delta across over-called tickets awaiting review."
-              />
-              <Term
-                t="Placard"
-                d="The truck's identifying number, read from the evidence by the AI."
-              />
-              <Term
-                t="Anomaly flag"
-                d="An automatic prompt to look closer, for example a load above capacity."
-              />
-            </dl>
-          </Section>
+            {/* ── Glossary ────────────────────────────────────────────────── */}
+            <Section icon={<TruckIcon className="size-[18px]" />} title="Glossary">
+              <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+                <Term
+                  t="FEMA"
+                  d="The Federal Emergency Management Agency. It reimburses counties for eligible debris-removal costs, so tickets are formatted to stand up to its review."
+                />
+                <Term
+                  t="Fill percent"
+                  d="How full the truck bed is, from 0 to 100%. The core measured quantity."
+                />
+                <Term t="CY, cubic yards" d="The volume unit loads are measured and paid in." />
+                <Term
+                  t="pp, percentage points"
+                  d="The gap between two percentages. 80% minus 62% is 18 pp."
+                />
+                <Term
+                  t="Certified capacity"
+                  d="A truck's registered bed volume in cubic yards, from the registry."
+                />
+                <Term
+                  t="Delta"
+                  d="Monitor-called value minus measured value. A positive delta is an over-call, which is flagged exposure."
+                />
+                <Term
+                  t="Flagged exposure"
+                  d="Total positive dollar delta across over-called tickets awaiting review."
+                />
+                <Term
+                  t="Placard"
+                  d="The truck's identifying number, read from the evidence by the AI."
+                />
+                <Term
+                  t="Anomaly flag"
+                  d="An automatic prompt to look closer, for example a load above capacity."
+                />
+              </dl>
+            </Section>
+          </div>
         </div>
       </div>
     </AppShell>

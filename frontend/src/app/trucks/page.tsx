@@ -13,7 +13,7 @@ import { TruckIcon } from "@/components/ui/icons";
 export default function TrucksPage() {
   return (
     <AppShell section="Trucks" fluid>
-      <div className="mx-auto flex min-h-0 w-full max-w-[1100px] flex-1 flex-col gap-4">
+      <div className="flex min-h-0 w-full flex-1 flex-col gap-4">
         <div className="flex items-center gap-2.5">
           <span className="grid size-9 place-items-center rounded-xl bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
             <TruckIcon size={18} />
@@ -21,7 +21,8 @@ export default function TrucksPage() {
           <div className="flex min-w-0 flex-col">
             <h1 className="lt-page-title">Truck registry</h1>
             <p className="truncate text-[12px] text-muted-foreground">
-              Certified trucks and their bed capacity.
+              Certified trucks and their bed capacity. Capacity here drives the cubic-yard math for
+              every load.
             </p>
           </div>
         </div>

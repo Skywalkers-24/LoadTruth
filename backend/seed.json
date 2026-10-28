@@ -111,7 +111,6 @@
       "name": "Hurricane Season 2026",
       "location": "Pinellas County, FL",
       "status": "active",
-      "benchmark_accuracy_within_10pct": 0.9,
       "rate_table": {
         "vegetative": 8.0,
         "construction_demolition": 12.0,
@@ -226,7 +225,7 @@
           }
         },
         {
-          "label": "hollow/fluffed load",
+          "label": "surface high, measured depth low",
           "debris_class": "vegetative",
           "certified_cubic_yards": 30,
           "rate_per_cy": 8,
@@ -239,9 +238,9 @@
             "frame_0418.jpg"
           ],
           "anomaly": {
-            "type": "hollow_load",
+            "type": "surface_depth_mismatch",
             "severity": "warn",
-            "explanation": "High bed coverage with low credited fill \u2014 possible fluffed load."
+            "explanation": "The load surface spans most of the bed opening, but the measured depth is low."
           }
         },
         {
@@ -360,9 +359,9 @@
             "frame_0912.jpg"
           ],
           "anomaly": {
-            "type": "hollow_load",
+            "type": "surface_depth_mismatch",
             "severity": "warn",
-            "explanation": "High bed coverage with low credited fill \u2014 possible fluffed load."
+            "explanation": "The load surface spans most of the bed opening, but the measured depth is low."
           }
         },
         {
@@ -661,7 +660,6 @@
       "name": "Camp Fire Recovery 2026",
       "location": "Butte County, CA",
       "status": "active",
-      "benchmark_accuracy_within_10pct": 0.87,
       "rate_table": {
         "vegetative": 9.5,
         "construction_demolition": 14.0,
@@ -771,9 +769,9 @@
             "frame_2040.jpg"
           ],
           "anomaly": {
-            "type": "hollow_load",
+            "type": "surface_depth_mismatch",
             "severity": "warn",
-            "explanation": "High bed coverage with low credited fill."
+            "explanation": "The load surface spans most of the bed opening, but the measured depth is low."
           }
         },
         {
@@ -822,7 +820,6 @@
       "name": "Winter Storm Uri Cleanup 2026",
       "location": "Travis County, TX",
       "status": "active",
-      "benchmark_accuracy_within_10pct": 0.91,
       "rate_table": {
         "vegetative": 8.5,
         "construction_demolition": 11.0,

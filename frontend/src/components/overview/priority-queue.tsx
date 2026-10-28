@@ -6,7 +6,8 @@ import { ChevronRightIcon, TruckIcon } from "lucide-react";
 import type { Ticket } from "@/lib/api";
 import { shortId } from "@/components/console/ticket-metadata";
 import { Skeleton } from "@/components/ui/shadcn/skeleton";
-import { debrisLabel, relativeTime, signedMoney } from "@/lib/format";
+import { debrisLabel, money, relativeTime, signedMoney } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 /**
  * Priority queue: over-called tickets still awaiting a decision, ranked by the
@@ -23,13 +24,18 @@ export function PriorityQueue({
   bare?: boolean;
 }) {
   const router = useRouter();
+  // All tickets still awaiting a decision, ranked by the dollar delta at stake
+  // (over-calls first, highest exposure on top). Including every draft, not just
+  // over-called ones, keeps the panel full and gives the reviewer the real
+  // work queue rather than a sparse highlight list.
   const rows = tickets
-    .filter((t) => t.valuation.is_overbill && t.status === "draft")
-    .sort(
-      (a, b) =>
-        Number.parseFloat(b.valuation.delta_dollar_value ?? "0") -
-        Number.parseFloat(a.valuation.delta_dollar_value ?? "0"),
-    );
+    .filter((t) => t.status === "draft")
+    .sort((a, b) => {
+      const da = Number.parseFloat(a.valuation.delta_dollar_value ?? "0");
+      const db = Number.parseFloat(b.valuation.delta_dollar_value ?? "0");
+      // Over-calls (positive delta) rank above calls with no exposure.
+      return db - da;
+    });
 
   if (isLoading) {
     return (
@@ -44,7 +50,9 @@ export function PriorityQueue({
   if (rows.length === 0) {
     return (
       <div className="grid h-full place-items-center p-6 text-center">
-        <p className="text-[13px] text-muted-foreground">No over-called tickets are awaiting review.</p>
+        <p className="text-[13px] text-muted-foreground">
+          Every ticket in this event has a decision.
+        </p>
       </div>
     );
   }
@@ -58,7 +66,9 @@ export function PriorityQueue({
             onClick={() => router.push(`/console?ticket=${t.id}`)}
             className="group grid w-full grid-cols-[18px_1fr_auto_16px] items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-accent"
           >
-            <span className="text-[12px] font-semibold tabular-nums text-muted-foreground">{i + 1}</span>
+            <span className="text-[12px] font-semibold tabular-nums text-muted-foreground">
+              {i + 1}
+            </span>
             <span className="flex min-w-0 flex-col">
               <span className="text-[13px] font-semibold tabular-nums">{shortId(t.id)}</span>
               <span className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
@@ -69,8 +79,15 @@ export function PriorityQueue({
                 <span className="hidden opacity-60 sm:inline">· {relativeTime(t.created_at)}</span>
               </span>
             </span>
-            <span className="text-right text-[14px] font-bold tabular-nums text-[var(--color-money)]">
-              {signedMoney(t.valuation.delta_dollar_value)}
+            <span
+              className={cn(
+                "text-right text-[14px] font-bold tabular-nums",
+                t.valuation.is_overbill ? "text-[var(--color-money)]" : "text-muted-foreground",
+              )}
+            >
+              {t.valuation.delta_dollar_value
+                ? signedMoney(t.valuation.delta_dollar_value)
+                : money(t.valuation.est_dollar_value)}
             </span>
             <ChevronRightIcon className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
           </button>
@@ -81,7 +98,5 @@ export function PriorityQueue({
 
   if (bare) return list;
 
-  return (
-    <section className="rounded-xl border bg-card p-2">{list}</section>
-  );
+  return <section className="rounded-xl border bg-card p-2">{list}</section>;
 }

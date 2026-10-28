@@ -59,6 +59,10 @@ services:
       context: ./frontend
       args:
         BACKEND_URL: http://backend:8000
+        # Set NEXT_PUBLIC_APP_MODE=judge in your shell/.env before building the
+        # frontend to get the judge-demo build (pinned ticket + Run live).
+        NEXT_PUBLIC_APP_MODE: "${NEXT_PUBLIC_APP_MODE:-default}"
+        NEXT_PUBLIC_JUDGE_TICKET_ID: "${NEXT_PUBLIC_JUDGE_TICKET_ID:-}"
     environment:
       BACKEND_URL: http://backend:8000
     ports:
