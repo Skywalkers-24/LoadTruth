@@ -5,6 +5,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Add an entry i
 
 ## [Unreleased]
 
+### Fixed
+- **Equal-height KPI cards.** `StatCard` is now a full-height flex column with the sub-line pinned to the bottom (`mt-auto`), and the Overview KPI grid stretches its items, so all four tiles match height whether or not they carry a progress bar. The Billing KPI row equalizes the same way.
+- **Overview "Highest value to review" no longer leaves a gap.** The panel listed only over-called drafts (often just 2-3 rows) while stretching to the full column height. It now ranks every draft ticket by dollar delta (over-calls first, then no-exposure drafts shown in muted text), so the panel fills its space and is the real review queue.
+- **Billing "Billed amount by month" single-period view.** The lone floating bar (which read as a glitch when only one month is invoiced) is replaced with a clean single-period panel: the month, the amount, a "First invoiced month" chip, and a full-width baseline track, with a note that a trend appears as more periods are invoiced.
+- **Guide uses the full screen.** Dropped the centered `max-w-6xl` column; the intro and step cards span full width and the reference sections tile two-up (`xl:grid-cols-2`, `items-start`) on wide screens, reading top-to-bottom in one column when narrow.
+
 ### Added
 - **Showcase: product-features and sourced case-studies sections.** The public `/showcase` page now presents the product surface judges should see (multi-tenant isolation, the money frame, reporting and exports, billing and invoicing, the grounded AI analyst, and the evidence receipt + re-verify) and a case-studies grid where every figure (107M CY cleared in 2024, the $190M Miami-Dade monitoring contract, 500%+ of capacity in a post-Katrina audit, the $716K DOJ load-slip fraud, 15M+ CY after Sandy, ~$2B in FL reimbursement) links to its primary source (FEMA, DHS OIG, DOJ, Miami-Dade). The stats band and feature cards use per-item color accents (colorful but simple). All figures are paraphrased from government reports with a compliance note.
 - **Friendly, non-gendered member avatars on the login screen.** The two-letter initials are replaced with a small set of varied person glyphs (user-round, circle-user-round, contact-round, smile, user-star) assigned deterministically per member with a color from the chart palette, so the member list reads as human and varied without labeling anyone by gender.

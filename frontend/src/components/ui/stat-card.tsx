@@ -5,11 +5,7 @@ import type { ReactNode } from "react";
 import { Card } from "@/components/ui/shadcn/card";
 import { Progress } from "@/components/ui/shadcn/progress";
 import { Sparkline } from "@/components/ui/sparkline";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/shadcn/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/shadcn/tooltip";
 import { InfoIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -72,7 +68,7 @@ export function StatCard({
   return (
     <Card
       className={cn(
-        "group relative gap-0 overflow-hidden p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+        "group relative flex h-full flex-col gap-0 overflow-hidden p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
         hero && "ring-1 ring-[var(--color-money)]/30",
       )}
     >
@@ -107,7 +103,12 @@ export function StatCard({
       </div>
 
       <div className="mt-3 flex items-end justify-between gap-2">
-        <div className={cn("text-[30px] font-bold leading-none tracking-tight tabular-nums", TONE_VALUE[tone])}>
+        <div
+          className={cn(
+            "text-[30px] font-bold leading-none tracking-tight tabular-nums",
+            TONE_VALUE[tone],
+          )}
+        >
           {value}
         </div>
         {trend && trend.length > 1 && (
@@ -116,10 +117,15 @@ export function StatCard({
       </div>
 
       {progress !== undefined && (
-        <Progress value={Math.round(Math.max(0, Math.min(1, progress)) * 100)} className="mt-3 h-1.5" />
+        <Progress
+          value={Math.round(Math.max(0, Math.min(1, progress)) * 100)}
+          className="mt-3 h-1.5"
+        />
       )}
 
-      {sub && <p className="mt-2 text-[12px] text-muted-foreground">{sub}</p>}
+      {/* Pin the sub line to the bottom so every card in a row aligns, whether
+          or not it has a progress bar above it. */}
+      {sub && <p className="mt-auto pt-2 text-[12px] text-muted-foreground">{sub}</p>}
     </Card>
   );
 }
