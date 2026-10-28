@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from uuid import UUID
 
@@ -58,6 +59,10 @@ class PipelineTrace:
     outcome: str = "running"  # "running" | "drafted" | "no_truck" | "cached"
     cached: bool = False
     _t0: float = field(default_factory=time.perf_counter)
+    # Optional sink called with each StageRecord the instant it is recorded, so
+    # a live progress view can stream stages as they land (set by the ingest run;
+    # None for a plain trace). Must not raise.
+    on_stage: Callable[[StageRecord], None] | None = field(default=None, compare=False, repr=False)
 
     def stage(
         self,
@@ -79,19 +84,20 @@ class PipelineTrace:
         now = time.perf_counter()
         dur = (now - self._t0) * 1000.0
         self._t0 = now
-        self.stages.append(
-            StageRecord(
-                key=key,
-                label=label,
-                model=model,
-                status=status,
-                summary=summary,
-                confidence=confidence,
-                duration_ms=round(duration_ms if duration_ms is not None else dur, 1),
-                details=list(details or []),
-                analysis=analysis,
-            )
+        record = StageRecord(
+            key=key,
+            label=label,
+            model=model,
+            status=status,
+            summary=summary,
+            confidence=confidence,
+            duration_ms=round(duration_ms if duration_ms is not None else dur, 1),
+            details=list(details or []),
+            analysis=analysis,
         )
+        self.stages.append(record)
+        if self.on_stage is not None:
+            self.on_stage(record)
 
     def set_analysis(self, by_key: dict[str, str]) -> None:
         """Fill in model-authored analysis on already-recorded stages.
@@ -163,3 +169,92 @@ _job_store = JobStore()
 def get_job_store() -> JobStore:
     """The shared pipeline job store."""
     return _job_store
+
+
+# ── Live progress (streamed to the UI while a clip is running) ───────────────
+
+
+@dataclass(slots=True)
+class ProgressEvent:
+    """One live update broadcast to subscribers while a clip runs.
+
+    ``kind`` is "started" (a run began), "stage" (one stage finished, ``stage``
+    set), or "done" (the run resolved, ``outcome``/``ticket_id`` set)."""
+
+    kind: str
+    content_hash: str
+    stage: StageRecord | None = None
+    outcome: str | None = None
+    ticket_id: str | None = None
+    truck_id: str | None = None
+    detail: str | None = None  # human message for a no-truck/failed outcome
+    at: float = field(default_factory=time.time)
+
+
+class ProgressBroker:
+    """Fan-out of live pipeline events, scoped per event id.
+
+    The ingest run publishes "started", a "stage" per completed stage, and a
+    terminal "done"; SSE subscribers for that event receive each one. Async-safe
+    and in-memory: a run and its stream share one process and event loop, so a
+    plain per-subscriber queue is enough. Nothing here is the system of record;
+    the durable trace is still saved on the ticket.
+    """
+
+    def __init__(self, replay: int = 16) -> None:
+        self._subs: dict[str, set[asyncio.Queue[ProgressEvent]]] = {}
+        # Recent events per event id, so a subscriber that connects mid-run sees
+        # the stages that already happened rather than only future ones.
+        self._recent: dict[str, deque[ProgressEvent]] = {}
+        self._replay = replay
+        self._lock = asyncio.Lock()
+
+    async def publish(self, event_id: str, event: ProgressEvent) -> None:
+        async with self._lock:
+            recent = self._recent.setdefault(event_id, deque(maxlen=self._replay))
+            if event.kind == "started":
+                recent.clear()  # a new run supersedes the previous one's replay
+            recent.append(event)
+            queues = list(self._subs.get(event_id, ()))
+        for q in queues:
+            q.put_nowait(event)
+
+    def publisher(self, event_id: UUID) -> Callable[[ProgressEvent], None]:
+        """A sync callback that schedules a publish on the running loop.
+
+        Given to the trace's ``on_stage`` hook, which is called synchronously
+        from the pipeline; it hands off to the async ``publish`` without blocking
+        the stage recording."""
+        loop = asyncio.get_running_loop()
+        ev = str(event_id)
+
+        def _emit(event: ProgressEvent) -> None:
+            loop.create_task(self.publish(ev, event))  # noqa: RUF006 — fire and forget
+
+        return _emit
+
+    async def subscribe(
+        self, event_id: UUID
+    ) -> tuple[list[ProgressEvent], asyncio.Queue[ProgressEvent]]:
+        """Register a subscriber; return the replay backlog and its live queue."""
+        q: asyncio.Queue[ProgressEvent] = asyncio.Queue()
+        async with self._lock:
+            self._subs.setdefault(str(event_id), set()).add(q)
+            backlog = list(self._recent.get(str(event_id), ()))
+        return backlog, q
+
+    async def unsubscribe(self, event_id: UUID, q: asyncio.Queue[ProgressEvent]) -> None:
+        async with self._lock:
+            subs = self._subs.get(str(event_id))
+            if subs is not None:
+                subs.discard(q)
+                if not subs:
+                    self._subs.pop(str(event_id), None)
+
+
+_progress_broker = ProgressBroker()
+
+
+def get_progress_broker() -> ProgressBroker:
+    """The shared live-progress broker."""
+    return _progress_broker

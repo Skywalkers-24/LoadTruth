@@ -6,6 +6,7 @@ import { ActivityIcon, CpuIcon, TruckIcon } from "lucide-react";
 
 import type { PipelineJob } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
+import { LivePipelineFlow } from "@/components/ai/live-pipeline-flow";
 import { PipelineTrace } from "@/components/ai/pipeline-trace";
 import { StatusChip } from "@/components/ui/status-chip";
 import { Card } from "@/components/ui/shadcn/card";
@@ -77,6 +78,10 @@ export default function PipelinePage() {
             Live
           </span>
         </div>
+
+        {/* Live run: lights up each stage left to right as a clip is analysed,
+            then refreshes the jobs list when it finishes. */}
+        <LivePipelineFlow eventId={eventId} onComplete={() => jobs.refetch()} />
 
         <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
           {/* Jobs list */}

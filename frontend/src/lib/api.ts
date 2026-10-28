@@ -654,6 +654,65 @@ export function streamChat(
   return () => controller.abort();
 }
 
+/** One live pipeline-progress event streamed while a clip runs. */
+export interface PipelineProgressEvent {
+  kind: "started" | "stage" | "done";
+  content_hash: string;
+  stage: PipelineStage | null;
+  outcome: "drafted" | "cached" | "no_truck" | "failed" | null;
+  ticket_id: string | null;
+  truck_id: string | null;
+  detail: string | null;
+  at: number;
+}
+
+/**
+ * Subscribe to live pipeline progress for an event over SSE. The backend
+ * replays any in-flight run's stages, then streams each new stage and a final
+ * "done". Uses fetch (not EventSource) so the bearer token travels in the
+ * header. Returns a function to stop listening.
+ */
+export function streamPipelineProgress(
+  eventId: string,
+  onEvent: (e: PipelineProgressEvent) => void,
+): () => void {
+  const controller = new AbortController();
+  (async () => {
+    try {
+      const res = await fetch(`${baseUrl()}/system/events/${eventId}/pipeline-progress`, {
+        signal: controller.signal,
+        cache: "no-store",
+        headers: authToken ? { authorization: `Bearer ${authToken}` } : undefined,
+      });
+      if (!res.ok || !res.body) return;
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() ?? "";
+        for (const frame of frames) {
+          const dataLine = /^data:\s*(.+)/m.exec(frame)?.[1];
+          if (!dataLine) continue; // keep-alive comment or blank
+          try {
+            onEvent(JSON.parse(dataLine) as PipelineProgressEvent);
+          } catch {
+            /* a chunk-split frame: skip it */
+          }
+        }
+      }
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        /* network drop: the caller may resubscribe */
+      }
+    }
+  })();
+  return () => controller.abort();
+}
+
 async function upload<T>(path: string, file: File): Promise<T> {
   const form = new FormData();
   form.append("file", file);

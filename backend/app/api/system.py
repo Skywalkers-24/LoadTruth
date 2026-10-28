@@ -7,10 +7,14 @@ pipeline (and whether they are live or fixture-backed). Read-only.
 
 from __future__ import annotations
 
+import asyncio
+import json
+from collections.abc import AsyncIterator
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.ai import catalog
@@ -25,7 +29,13 @@ from app.api.ingest import get_cost_ledger
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_manage_events
 from app.config import get_settings
-from app.pipeline.trace import PipelineTrace, get_job_store
+from app.pipeline.trace import (
+    PipelineTrace,
+    ProgressEvent,
+    StageRecord,
+    get_job_store,
+    get_progress_broker,
+)
 from app.tickets.repository import TicketNotFoundError
 
 router = APIRouter(prefix="/system", tags=["system"])
@@ -124,6 +134,20 @@ def _details(raw: object) -> list[list[str]]:
     return [[str(r[0]), str(r[1])] for r in raw if isinstance(r, list | tuple) and len(r) == 2]
 
 
+def _stage_out(s: StageRecord) -> StageOut:
+    return StageOut(
+        key=s.key,
+        label=s.label,
+        model=s.model,
+        status=s.status,
+        summary=s.summary,
+        confidence=s.confidence,
+        duration_ms=s.duration_ms,
+        details=s.details,
+        analysis=s.analysis,
+    )
+
+
 def _job_out(event_id: str, tr: PipelineTrace) -> JobOut:
     return JobOut(
         content_hash=tr.content_hash,
@@ -136,20 +160,7 @@ def _job_out(event_id: str, tr: PipelineTrace) -> JobOut:
         anomaly_count=tr.anomaly_count,
         dollar_value=tr.dollar_value,
         started_at=tr.started_at,
-        stages=[
-            StageOut(
-                key=s.key,
-                label=s.label,
-                model=s.model,
-                status=s.status,
-                summary=s.summary,
-                confidence=s.confidence,
-                duration_ms=s.duration_ms,
-                details=s.details,
-                analysis=s.analysis,
-            )
-            for s in tr.stages
-        ],
+        stages=[_stage_out(s) for s in tr.stages],
     )
 
 
@@ -259,6 +270,63 @@ async def job_for_ticket(
         return None
     tr = await get_job_store().for_ticket(ticket_id)
     return _job_out(str(ticket.event_id), tr) if tr else None
+
+
+# ── Live pipeline progress (SSE) ──────────────────────────────────────────────
+
+
+def _progress_payload(ev: ProgressEvent) -> dict[str, object]:
+    """One progress event as a JSON-safe dict for the SSE stream."""
+    return {
+        "kind": ev.kind,
+        "content_hash": ev.content_hash,
+        "stage": _stage_out(ev.stage).model_dump() if ev.stage is not None else None,
+        "outcome": ev.outcome,
+        "ticket_id": ev.ticket_id,
+        "truck_id": ev.truck_id,
+        "detail": ev.detail,
+        "at": ev.at,
+    }
+
+
+async def _progress_stream(event_id: UUID) -> AsyncIterator[bytes]:
+    """Server-sent events for one event's in-flight pipeline runs.
+
+    Replays the recent backlog (so a page that connects mid-run still sees the
+    stages that already happened), then streams new events as they arrive. A
+    periodic comment keeps the connection alive through proxies."""
+    broker = get_progress_broker()
+    backlog, queue = await broker.subscribe(event_id)
+    try:
+        for ev in backlog:
+            yield f"data: {json.dumps(_progress_payload(ev))}\n\n".encode()
+        while True:
+            try:
+                ev = await asyncio.wait_for(queue.get(), timeout=20.0)
+            except TimeoutError:
+                yield b": keep-alive\n\n"
+                continue
+            yield f"data: {json.dumps(_progress_payload(ev))}\n\n".encode()
+    finally:
+        await broker.unsubscribe(event_id, queue)
+
+
+@router.get("/events/{event_id}/pipeline-progress")
+async def pipeline_progress(
+    _: CurrentMember, tenant: ActiveTenant, repo: Repository, event_id: UUID
+) -> StreamingResponse:
+    """Stream live pipeline stage events for an event (SSE).
+
+    Tenant-scoped: a caller can only watch events their tenant owns, so one
+    tenant's live runs are never visible to another."""
+    owned = {str(e.id) for e in await repo.list_events(tenant)}
+    if str(event_id) not in owned:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "event not found")
+    return StreamingResponse(
+        _progress_stream(event_id),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ── AI model & effort configuration (admin) ──────────────────────────────────

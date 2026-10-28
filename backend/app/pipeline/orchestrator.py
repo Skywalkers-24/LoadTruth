@@ -13,6 +13,7 @@ not touch the DB itself, which keeps it trivially testable.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
 from uuid import UUID
@@ -26,7 +27,7 @@ from app.pipeline.geometry import FillEstimate, MaskMeasurement, estimate_fill
 from app.pipeline.ingest import IngestedArtifact
 from app.pipeline.ledger import BudgetExceededError, CostLedger
 from app.pipeline.registry import TruckRegistry
-from app.pipeline.trace import PipelineTrace
+from app.pipeline.trace import PipelineTrace, StageRecord
 from app.tickets.domain import Ticket, new_ticket
 from app.tickets.schemas import DebrisClass
 
@@ -72,6 +73,7 @@ async def run_pipeline(
     cache: ResultCache[PipelineResult] | None = None,
     ledger: CostLedger | None = None,
     data: bytes = b"",
+    on_stage: Callable[[StageRecord], None] | None = None,
 ) -> PipelineResult:
     """Run the full pipeline for one ingested clip and return a draft ticket.
 
@@ -81,6 +83,8 @@ async def run_pipeline(
     and already holds a result for this clip's content hash, the cached result is
     returned for free (every stage recorded as a $0 cache hit) and no AI call is
     made — the cost rule in LESSONS: no uncached model call on a repeated path.
+    ``on_stage`` is called with each stage the instant it is recorded, so a live
+    progress view can stream the run.
     """
     h = artifact.content_hash
 
@@ -89,7 +93,7 @@ async def run_pipeline(
         if hit is not None:
             await _record_cached(ledger)
             # Rebuild a trace for the cached run so the UI still shows the work.
-            trace = PipelineTrace(content_hash=h)
+            trace = PipelineTrace(content_hash=h, on_stage=on_stage)
             trace.cached = True
             trace.outcome = "cached" if not hit.no_truck else "no_truck"
             trace.stage(
@@ -102,7 +106,7 @@ async def run_pipeline(
     if ledger is not None and ledger.budget_status().hard_cap_hit:
         raise BudgetExceededError(ledger.budget_status().spent_usd)
 
-    trace = PipelineTrace(content_hash=h)
+    trace = PipelineTrace(content_hash=h, on_stage=on_stage)
     result = await _compute_pipeline(
         artifact=artifact,
         tenant_id=tenant_id,

@@ -33,7 +33,7 @@ from app.pipeline.ledger import BudgetExceededError, CostLedger
 from app.pipeline.media import MediaTooLargeError, guess_mime, plan_transport
 from app.pipeline.orchestrator import PipelineResult, run_pipeline
 from app.pipeline.registry import CertifiedTruck, TruckRegistry
-from app.pipeline.trace import get_job_store
+from app.pipeline.trace import ProgressEvent, StageRecord, get_job_store, get_progress_broker
 from app.tickets.schemas import TicketOut, ticket_to_out
 
 router = APIRouter(tags=["ingest"])
@@ -148,6 +148,19 @@ async def ingest_clip(
     ai = inner if bypass_cache else CachingAIClient(inner, repo, tenant, model_label=model_label)
     result_cache = None if bypass_cache else get_pipeline_cache()
 
+    # Live progress: broadcast "started", then each stage as it lands, so the
+    # Pipeline page shows the run moving left to right instead of a long wait.
+    broker = get_progress_broker()
+    ch = artifact.content_hash
+    emit = broker.publisher(event_id)
+
+    def _on_stage(record: StageRecord) -> None:
+        emit(ProgressEvent(kind="stage", content_hash=ch, stage=record))
+
+    await broker.publish(
+        str(event_id), ProgressEvent(kind="started", content_hash=ch, truck_id=None)
+    )
+
     try:
         async with clip_session(inner, artifact.content_hash):
             result = await run_pipeline(
@@ -160,6 +173,7 @@ async def ingest_clip(
                 cache=result_cache,
                 ledger=get_cost_ledger(),
                 data=data,
+                on_stage=_on_stage,
             )
     except BudgetExceededError as exc:
         log.warning("ingest_budget_cap_reached", spent_usd=exc.spent_usd)
@@ -169,9 +183,21 @@ async def ingest_clip(
             "new clips.",
         ) from exc
     except ModelAPIError as exc:
+        await broker.publish(
+            str(event_id),
+            ProgressEvent(
+                kind="done", content_hash=ch, outcome="failed", detail="AI service error"
+            ),
+        )
         raise _model_api_http_error(exc) from exc
     except Exception as exc:  # noqa: BLE001 — surface a clean 500, never a stack trace
         log.error("ingest_pipeline_failed", content_hash=artifact.content_hash, exc_info=True)
+        await broker.publish(
+            str(event_id),
+            ProgressEvent(
+                kind="done", content_hash=ch, outcome="failed", detail="The pipeline failed."
+            ),
+        )
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             "The analysis pipeline failed on that clip. Please try again.",
@@ -183,6 +209,15 @@ async def ingest_clip(
         await get_job_store().add(event_id, result.trace)
 
     if result.no_truck:
+        await broker.publish(
+            str(event_id),
+            ProgressEvent(
+                kind="done",
+                content_hash=ch,
+                outcome="no_truck",
+                detail="No truck or load was detected in that footage.",
+            ),
+        )
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             "No truck or load was detected in that footage, so no ticket was drafted.",
@@ -207,6 +242,16 @@ async def ingest_clip(
         mime=stored.mime if stored else guess_mime(filename, artifact.media_kind),
         fps=stored.fps if stored else None,
         segments=result.segments,
+    )
+    await broker.publish(
+        str(event_id),
+        ProgressEvent(
+            kind="done",
+            content_hash=ch,
+            outcome="cached" if result.trace is not None and result.trace.cached else "drafted",
+            ticket_id=str(saved.id),
+            truck_id=saved.truck_id,
+        ),
     )
     return ticket_to_out(saved)
 
