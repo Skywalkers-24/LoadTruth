@@ -28,6 +28,7 @@ def test_get_ai_config_returns_catalog_and_defaults(client: TestClient) -> None:
         "sam_track",
         "spark_ocr",
         "spark_classify",
+        "name_load",
         "narrate_anomaly",
         "explain_pipeline",
         "analyst_chat",

@@ -98,9 +98,15 @@ class Settings(BaseSettings):
     #   load: merged across "debris pile" (C&D), "pile" (vegetative brush/fronds),
     #         and "barrels and containers" (hazardous drums/cans/batteries, which
     #         are not a "pile"; tuned on FL-DT-7788, 2026-10-29).
+    # Muse Spark names the load's shape per clip (app/ai/live.py::track), so the
+    # list below is only a safety-net fallback appended after the AI-named
+    # phrases. It covers the common loads if the naming call fails or returns
+    # nothing. `sam_load_max_concepts` caps how many load phrases SAM segments
+    # per clip (each is one SAM request), counting the AI phrases first.
     sam_load_concepts: list[str] = Field(
         default_factory=lambda: ["debris pile", "pile", "barrels and containers"]
     )
+    sam_load_max_concepts: int = Field(default=3, ge=1, le=6)
     # SAM pricing (dev.meta.ai/docs/pricing-rate-limits): images per 1k, video per
     # 1k frames with a 50-frame minimum per request.
     sam_image_price_per_1k: float = Field(default=2.50)

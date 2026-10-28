@@ -248,6 +248,25 @@ TASKS: dict[str, TaskInfo] = {
         default_model="muse-spark-1.3",
         default_effort=ReasoningEffort.BALANCED,
     ),
+    "name_load": TaskInfo(
+        id="name_load",
+        name="Load concept naming",
+        description=(
+            "Look at the load and name the noun phrases SAM should segment "
+            "(e.g. 'barrels and containers', 'tree branches'), so segmentation "
+            "is not tied to a fixed phrase list. A short perception call."
+        ),
+        kind="chat",
+        eligible_models=[
+            "muse-spark-1.3",
+            "muse-spark-1.3-contributor",
+            "muse-spark-1.2",
+            "muse-spark-1.1",
+            "muse-wonder-1.0",
+        ],
+        default_model="muse-spark-1.3",
+        default_effort=ReasoningEffort.LOW,
+    ),
     "narrate_anomaly": TaskInfo(
         id="narrate_anomaly",
         name="Anomaly narration",

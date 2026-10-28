@@ -111,6 +111,29 @@ _CLASSIFY_PROMPT = (
     "and do not use dashes or parentheses."
 )
 
+_NAME_LOAD_PROMPT = (
+    "This is evidence footage of a haul truck at a debris site. Look at the material "
+    "loaded in the open truck bed and give short noun phrases naming it, so an image "
+    "segmentation model can find every piece of it. Rules for each phrase: name the "
+    "thing itself, not the truck or the bed; use a concrete noun phrase of one to four "
+    "words, like 'tree branches', 'broken concrete', 'barrels and containers', "
+    "'household furniture', 'metal appliances'; no sentences, questions, colors unless "
+    "they matter, or the word 'debris' alone. Return concepts as one to three phrases "
+    "ordered best first, covering the load if it is mixed. If the bed looks empty, "
+    "return an empty list. visible_fill_pct is your estimate from 0 to 100 of how full "
+    "the bed is by volume."
+)
+
+_NAME_LOAD_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "concepts": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
+        "visible_fill_pct": {"type": "number"},
+    },
+    "required": ["concepts", "visible_fill_pct"],
+    "additionalProperties": False,
+}
+
 _NARRATE_PROMPT = (
     "Write one plain sentence of at most 30 words for a debris monitor, explaining why "
     "this load was flagged for review and what to check. Use only the facts given and "
@@ -289,6 +312,20 @@ def _clean_sentence(text: str) -> str:
     return one_line.replace(" — ", ", ").replace("—", ", ").replace("–", "-").strip(' "')
 
 
+def _clean_concept(text: object) -> str:
+    """Normalize a model-named SAM concept: a short lowercase noun phrase.
+
+    SAM ignores case and punctuation, so we only trim junk, drop a bare
+    'debris' (too generic, matches nothing useful), and cap the length so a
+    stray sentence can't become a prompt."""
+    if not isinstance(text, str):
+        return ""
+    words = "".join(c for c in text.lower() if c.isalnum() or c.isspace()).split()
+    if not words or words == ["debris"]:
+        return ""
+    return " ".join(words[:5])
+
+
 def _clean_paragraph(text: str) -> str:
     """Normalize a model paragraph for the UI: collapse whitespace and strip the
     em/en dashes the UI copy rule forbids, while keeping multiple sentences."""
@@ -391,14 +428,43 @@ class LiveAIClient:
         return PreparedMedia(clip.media_kind, prepared.mime, len(prepared.data), part, file_id)
 
     # ── SAM 3.1 ──────────────────────────────────────────────────────────────
+    async def _name_load_concepts(self, media: PreparedMedia) -> tuple[list[str], CallUsage | None]:
+        """Ask Muse Spark what noun phrases name the load, for SAM to segment.
+
+        The vision model looks at the clip and names the load's shape (for
+        example "barrels and containers", "tree branches"), so SAM is not tied
+        to a fixed phrase list. Returns the cleaned phrases (best first) and the
+        call's usage. On any failure returns no phrases; the caller falls back to
+        the configured defaults, so naming can never break the run."""
+        try:
+            response, usage = await self._spark(
+                "name_load",
+                [{"type": "input_text", "text": _NAME_LOAD_PROMPT}, media.part],
+                _NAME_LOAD_SCHEMA,
+            )
+            answer = _json_answer(response)
+        except (ModelAPIResponseError, ModelAPIRequestError):
+            return [], None
+        raw = answer.get("concepts")
+        phrases = [_clean_concept(p) for p in raw] if isinstance(raw, list) else []
+        phrases = [p for p in dict.fromkeys(phrases) if p][: get_settings().sam_load_max_concepts]
+        return phrases, usage
+
     async def track(self, clip: ClipMedia) -> TrackResult:
         media = await self._media(clip)
         s = get_settings()
+        # Muse Spark names the load's shape first, so SAM segments what is
+        # actually in the bed rather than a fixed phrase list. The configured
+        # defaults are kept as a safety net appended after the named phrases, so
+        # a strange model answer can never leave SAM with nothing to find.
+        named, name_usage = await self._name_load_concepts(media)
+        bed_concepts = list(dict.fromkeys(s.sam_bed_concepts))
+        load_concepts = list(dict.fromkeys([*named, *s.sam_load_concepts]))[
+            : max(1, s.sam_load_max_concepts)
+        ]
         # Every concept goes to SAM in one parallel round: the bed phrases (in
         # priority order), the tailgate (the rear rim that bounds the opening),
         # and the load phrases (merged, since one phrase misses some loads).
-        bed_concepts = list(dict.fromkeys(s.sam_bed_concepts))
-        load_concepts = list(dict.fromkeys(s.sam_load_concepts))
         concepts = [*bed_concepts, s.sam_rim_concept, *load_concepts]
         runs = dict(
             zip(
@@ -418,9 +484,14 @@ class LiveAIClient:
             max_frames=s.max_sampled_frames,
             rim_run=rim.detections,
         )
-        usage = _sum_usage(runs[concepts[0]].usage, [runs[c].usage for c in concepts[1:]])
+        # The load-naming Spark call is part of this stage's cost.
+        sam_usages = [runs[c].usage for c in concepts[1:]]
+        if name_usage is not None:
+            sam_usages.append(name_usage)
+        usage = _sum_usage(runs[concepts[0]].usage, sam_usages)
         log.info(
             "sam_track_done",
+            named_load_concepts=named,
             bed_concept=bed_concept,
             bed_detections=len(bed.detections),
             rim_detections=len(rim.detections),
@@ -442,6 +513,9 @@ class LiveAIClient:
         segments = {k: v for k, v in segments.items() if len(v) <= _MAX_SEGMENT_CHARS}
         notes = {
             **_track_notes(media, runs, bed_concept, s.sam_rim_concept, load_concepts),
+            "Load named by Muse Spark": (
+                ", ".join(f'"{c}"' for c in named) if named else "naming failed, used defaults"
+            ),
             **result.notes,
         }
         bed_source = BED_FROM_BED if bed_concept == bed_concepts[0] else BED_FROM_TRUCK

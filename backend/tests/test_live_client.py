@@ -81,7 +81,9 @@ class FakeMeta:
         frames: int = 2,
         ocr: dict[str, Any] | None = None,
         visual_fill: float | None = None,
+        named_load: list[str] | None = None,
     ) -> None:
+        self.named_load = named_load if named_load is not None else ["steel drums"]
         self.frames = frames
         self.visual_fill = visual_fill
         self.ocr = ocr or {
@@ -115,6 +117,9 @@ class FakeMeta:
                 200, headers={"content-type": "text/event-stream"}, content=_sse(text, usage)
             )
         task = (body.get("text") or {}).get("format", {}).get("name")
+        if task == "name_load":
+            answer = {"concepts": self.named_load, "visible_fill_pct": self.visual_fill or 50.0}
+            return httpx.Response(200, json=_spark(json.dumps(answer)))
         if task == "spark_ocr":
             ocr = {"analysis": "I read the placard from the clearest frame.", **self.ocr}
             return httpx.Response(200, json=_spark(json.dumps(ocr)))
@@ -207,13 +212,15 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     # media the models saw is stored for playback.
     # The overlay keys plus the tailgate rim and every load phrase, kept so a
     # later measurement change can re-measure offline.
+    # Muse Spark named "steel drums"; the merged load set is that plus the two
+    # top defaults, capped at sam_load_max_concepts (3).
     assert set(result.segments) == {
         "truck bed",
         "debris pile",
         "tailgate",
+        "load: steel drums",
         "load: debris pile",
         "load: pile",
-        "load: barrels and containers",
     }
     assert result.segments["truck bed"].startswith("<0f>0<|box;")
     from app.pipeline import evidence_store
@@ -227,10 +234,10 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     spark = [b for b in fake.responses if not b["model"].startswith("sam")]
     # Bed phrases, the tailgate rim, and the load phrases all go out in parallel.
     assert sorted(b["input"][0]["content"][0]["text"] for b in sam) == [
-        "barrels and containers",
         "debris pile",
         "dump truck",
         "pile",
+        "steel drums",
         "tailgate",
         "truck bed",
     ]
@@ -240,11 +247,11 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
             assert part == {"type": "input_video", "file_id": "file-123"}
     assert all(b["stream"] is True for b in sam)
     assert all(b["metadata"]["mask_encoding"] == "one_bit" for b in sam)
-    # OCR + classify + the batched per-stage analysis; a clean load raises no
-    # anomaly narration.
-    assert len(spark) == 3
+    # name_load (names the SAM load concept) + OCR + classify + the batched
+    # per-stage analysis; a clean load raises no anomaly narration.
+    assert len(spark) == 4
     spark_tasks = {(b.get("text") or {}).get("format", {}).get("name") for b in spark}
-    assert spark_tasks == {"spark_ocr", "spark_classify", "explain_pipeline"}
+    assert spark_tasks == {"name_load", "spark_ocr", "spark_classify", "explain_pipeline"}
 
     # The trace carries what each model returned, for the Pipeline page.
     assert result.trace is not None
@@ -255,6 +262,7 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert stages["sam_track"]['Prompt "truck bed"'] == "1 object on 2 of 2 frames"
     assert stages["sam_track"]["Billed"] == "300 frames (6 requests)"
     assert stages["sam_track"]["Bed measured from"] == '"truck bed"'
+    assert stages["sam_track"]["Load named by Muse Spark"] == '"steel drums"'
     assert stages["geometry"]["Frames measured"] == "2"
 
     # Meta AI authored the per-stage "AI analysis": OCR/classify carry their own,
@@ -267,8 +275,9 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert analysis["dollar_math"] == "I valued the load by exact arithmetic."
 
     rows = {r.stage: r for r in await ledger.rows()}
-    # Six video requests, each billed at the 50-frame minimum ($0.20 / 1k frames).
-    assert rows["sam_track"].cost_usd == pytest.approx(0.06)
+    # Six SAM video requests at the 50-frame minimum ($0.06) plus the name_load
+    # Spark call folded into this stage ($0.0021).
+    assert rows["sam_track"].cost_usd == pytest.approx(0.0621)
     # 1000 in at $1.25/1M + 200 out at $4.25/1M.
     assert rows["spark_ocr"].cost_usd == pytest.approx(0.0021)
     assert rows["spark_ocr"].tokens_in == 1000
@@ -276,7 +285,7 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     # The batched per-stage analysis is one more Spark call, billed like the rest.
     assert rows["spark_explain"].cost_usd == pytest.approx(0.0021)
     assert rows["spark_explain"].model == "muse-spark-1.3"
-    assert ledger.summarize().total_cost_usd == pytest.approx(0.0663)
+    assert ledger.summarize().total_cost_usd == pytest.approx(0.0684)
 
 
 @pytest.mark.asyncio
@@ -285,11 +294,13 @@ async def test_image_goes_inline_and_bills_per_image() -> None:
     result, ledger = await _run(_client(fake), kind="image")
 
     assert fake.uploads == [] and fake.deleted == []
-    part = fake.responses[0]["input"][0]["content"][1]
+    sam = next(b for b in fake.responses if b["model"].startswith("sam"))
+    part = sam["input"][0]["content"][1]
     assert part["type"] == "input_image"
     assert part["image_url"].startswith("data:image/png;base64,")
     rows = {r.stage: r for r in await ledger.rows()}
-    assert rows["sam_track"].cost_usd == pytest.approx(0.015)  # 6 images at $2.50 / 1k
+    # 6 SAM images at $2.50 / 1k ($0.015) plus the name_load Spark call ($0.0021).
+    assert rows["sam_track"].cost_usd == pytest.approx(0.0171)
     assert result.ticket.evidence_frames == ["haul.png"]
 
 
