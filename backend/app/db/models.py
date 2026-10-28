@@ -163,6 +163,9 @@ class PipelineStageRow(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, B
     summary: Mapped[str] = mapped_column(String(512), nullable=False)
     confidence: Mapped[float | None] = mapped_column(Numeric(4, 3), nullable=True)
     duration_ms: Mapped[float] = mapped_column(Numeric(10, 1), nullable=False, default=0)
+    # Ordered [label, value] facts from the model's response (raw answer,
+    # tokens, cost, objects found, measurement inputs).
+    details: Mapped[list[list[str]] | None] = mapped_column(JSON, nullable=True)
 
     __table_args__ = (Index("ix_pipeline_stages_tenant_ticket", "tenant_id", "ticket_id"),)
 

@@ -26,6 +26,7 @@ def track_to_json(r: TrackResult) -> dict[str, Any]:
     return {
         "frame_count": r.frame_count,
         "sam_output": dict(r.segments),
+        "notes": dict(r.notes),
         "objects": [
             {
                 "label": o.label,
@@ -50,7 +51,11 @@ def track_from_json(d: dict[str, Any]) -> TrackResult:
     ]
     raw = d.get("sam_output")
     segments = {str(k): str(v) for k, v in raw.items()} if isinstance(raw, dict) else {}
-    return TrackResult(objects=objects, frame_count=int(d["frame_count"]), segments=segments)
+    raw_notes = d.get("notes")
+    notes = {str(k): str(v) for k, v in raw_notes.items()} if isinstance(raw_notes, dict) else {}
+    return TrackResult(
+        objects=objects, frame_count=int(d["frame_count"]), segments=segments, notes=notes
+    )
 
 
 def track_is_current(d: dict[str, Any]) -> bool:
@@ -66,6 +71,7 @@ def ocr_to_json(r: OCRResult) -> dict[str, Any]:
         "truck_id": r.truck_id,
         "confidence": r.confidence,
         "frame_ref": r.frame_ref,
+        "raw": r.raw,
     }
 
 
@@ -76,17 +82,19 @@ def ocr_from_json(d: dict[str, Any]) -> OCRResult:
         truck_id=str(truck) if truck is not None else None,
         confidence=float(d["confidence"]),
         frame_ref=str(frame) if frame is not None else None,
+        raw=str(d.get("raw") or ""),
     )
 
 
 def classify_to_json(r: ClassifyResult) -> dict[str, Any]:
-    return {"debris_class": r.debris_class, "confidence": r.confidence}
+    return {"debris_class": r.debris_class, "confidence": r.confidence, "raw": r.raw}
 
 
 def classify_from_json(d: dict[str, Any]) -> ClassifyResult:
     return ClassifyResult(
         debris_class=str(d["debris_class"]),
         confidence=float(d["confidence"]),
+        raw=str(d.get("raw") or ""),
     )
 
 

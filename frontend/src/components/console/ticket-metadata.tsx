@@ -12,7 +12,9 @@ export function TicketMetadata({ ticket }: { ticket: Ticket }) {
   const v = ticket.valuation;
   return (
     <div className="@container">
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 @sm:grid-cols-3 @3xl:grid-cols-6">
+      {/* One row of six once there is room (a 13-inch laptop's center column),
+          so the record stays one line tall and the evidence keeps the height. */}
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 @sm:grid-cols-3 @[44rem]:grid-cols-6 @[44rem]:gap-x-3">
         <Item label="Truck" value={ticket.truck_id ?? "Unidentified"} warn={!ticket.truck_id} />
         <Item
           label="Placard"

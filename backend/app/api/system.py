@@ -86,6 +86,8 @@ class StageOut(BaseModel):
     summary: str
     confidence: float | None = None
     duration_ms: float
+    # Ordered [label, value] facts from the model's response.
+    details: list[list[str]] = []
 
 
 class JobOut(BaseModel):
@@ -100,6 +102,13 @@ class JobOut(BaseModel):
     dollar_value: float | None
     started_at: float
     stages: list[StageOut]
+
+
+def _details(raw: object) -> list[list[str]]:
+    """Persisted stage details as clean [label, value] pairs (tolerates nulls)."""
+    if not isinstance(raw, list):
+        return []
+    return [[str(r[0]), str(r[1])] for r in raw if isinstance(r, list | tuple) and len(r) == 2]
 
 
 def _job_out(event_id: str, tr: PipelineTrace) -> JobOut:
@@ -123,6 +132,7 @@ def _job_out(event_id: str, tr: PipelineTrace) -> JobOut:
                 summary=s.summary,
                 confidence=s.confidence,
                 duration_ms=s.duration_ms,
+                details=s.details,
             )
             for s in tr.stages
         ],
@@ -204,6 +214,7 @@ async def _persisted_jobs(
                         summary=s.summary,
                         confidence=float(s.confidence) if s.confidence is not None else None,
                         duration_ms=float(s.duration_ms),
+                        details=_details(s.details),
                     )
                     for s in stage_rows
                 ],

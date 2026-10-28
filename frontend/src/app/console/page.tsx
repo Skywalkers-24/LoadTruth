@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { SlidersHorizontalIcon } from "lucide-react";
 
@@ -22,11 +22,19 @@ import type { Ticket } from "@/lib/api";
 import { useEventContext } from "@/lib/event-context";
 import { useTicket, useTickets } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
+import { useFitCount } from "@/lib/use-fit-count";
 import { isTypingTarget, useMediaQuery } from "@/lib/use-media-query";
 
-// A page of compact queue rows that fits the queue column without scrolling at
-// common laptop heights; the rest are reachable via the pager.
+// Queue page size on phones and portrait tablets, where the queue scrolls with
+// the page.
+// On desktop the page size is however many rows fit the queue column, so a tall
+// monitor shows more tickets and a short laptop screen shows fewer.
 const PAGE_SIZE = 6;
+const TALL_PAGE_SIZE = 10;
+const ROW_ESTIMATE_PX = 80; // matches the skeleton row height below
+const ROW_GAP_PX = 6; // gap-1.5 in TicketQueue
+// List padding (p-2, top and bottom) plus the pinned pager row.
+const QUEUE_RESERVE_PX = 16 + 46;
 
 /**
  * Review Console: single-ticket review that fits one screen. A narrow queue on
@@ -53,15 +61,42 @@ function ConsoleView() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
   const [offset, setOffset] = useState(0);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [requestedId, setRequestedId] = useState<string | null>(null);
+  // Seed both from the URL so the very first render already knows which ticket
+  // was asked for (a cached, stale queue must not win the first selection).
+  const [selectedId, setSelectedId] = useState<string | null>(urlTicket);
+  const [requestedId, setRequestedId] = useState<string | null>(urlTicket);
+  // Set synchronously when a specific ticket is requested, before React applies
+  // the matching state, so the queue-selection effect in the same commit can't
+  // overwrite it with the first row.
+  const requestRef = useRef<string | null>(urlTicket);
   const [mobileDetail, setMobileDetail] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // A portrait tablet has room for a longer list than a phone.
+  const tallScreen = useMediaQuery("(min-height: 1000px)", false);
+  const queueBodyRef = useRef<HTMLDivElement>(null);
+  const [rowsKey, setRowsKey] = useState(0);
+  const pageSize = useFitCount(queueBodyRef, {
+    enabled: isDesktop,
+    fallback: tallScreen ? TALL_PAGE_SIZE : PAGE_SIZE,
+    itemSelector: '[role="option"]',
+    estimatePx: ROW_ESTIMATE_PX,
+    gapPx: ROW_GAP_PX,
+    reservePx: QUEUE_RESERVE_PX,
+    min: 3,
+    max: 30,
+    remeasureKey: rowsKey,
+  });
+
+  // Keep the first visible ticket on screen when the page size changes.
+  useEffect(() => {
+    setOffset((o) => Math.floor(o / pageSize) * pageSize);
+  }, [pageSize]);
 
   const tickets = useTickets({
     eventId,
     status: status === "all" ? undefined : status,
-    limit: PAGE_SIZE,
+    limit: pageSize,
     offset,
   });
 
@@ -69,11 +104,18 @@ function ConsoleView() {
   const total = tickets.data?.total ?? 0;
   const rows = useMemo(() => filterAndSort(page, search, sort), [page, search, sort]);
 
+  // Re-read the real row height once rows (not skeletons) are rendered.
+  const hasRows = rows.length > 0;
+  useEffect(() => {
+    if (hasRows) setRowsKey((k) => k + 1);
+  }, [hasRows]);
+
   // Deep link (?ticket=): react to the search param so client-side navigations
   // (e.g. clicking a row in the Reports ledger) always open the requested
   // ticket, not just the first mount. This is the fix for "wrong ticket opens".
   useEffect(() => {
     if (!urlTicket) return;
+    requestRef.current = urlTicket;
     setRequestedId(urlTicket);
     setSelectedId(urlTicket);
     setMobileDetail(true);
@@ -83,6 +125,7 @@ function ConsoleView() {
   useEffect(() => {
     function onOpen(e: Event) {
       const id = (e as CustomEvent<string>).detail;
+      requestRef.current = id;
       setRequestedId(id);
       setSelectedId(id);
       setMobileDetail(true);
@@ -99,11 +142,14 @@ function ConsoleView() {
   // Once the requested ticket actually appears in the queue (after paging or a
   // filter change), drop the "requested" pin so normal queue navigation resumes.
   useEffect(() => {
-    if (requestedId && rows.some((t) => t.id === requestedId)) setRequestedId(null);
+    if (requestedId && rows.some((t) => t.id === requestedId)) {
+      requestRef.current = null;
+      setRequestedId(null);
+    }
   }, [rows, requestedId]);
 
   useEffect(() => {
-    if (requestedId) return;
+    if (requestedId || requestRef.current) return;
     // Don't override a deep-linked/pinned selection that is still loading or is
     // being served from the direct fetch rather than the current page.
     if (pinned.isLoading) return;
@@ -127,6 +173,7 @@ function ConsoleView() {
     null;
 
   const selectTicket = useCallback((id: string) => {
+    requestRef.current = null;
     setRequestedId(null);
     setSelectedId(id);
     setMobileDetail(true);
@@ -179,7 +226,7 @@ function ConsoleView() {
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 flex-col">
             <div className="flex items-center gap-1.5">
-              <h2 className="lt-card-title">Review queue</h2>
+              <h2 className="lt-card-title whitespace-nowrap">Review queue</h2>
               <span
                 className="rounded-full bg-[var(--color-surface-2)] px-1.5 text-[11px] font-semibold leading-[18px] tabular-nums text-muted-foreground"
                 aria-label={`${total} ticket${total === 1 ? "" : "s"}`}
@@ -204,7 +251,8 @@ function ConsoleView() {
             )}
           >
             <SlidersHorizontalIcon className="size-3.5" />
-            Filter
+            {/* Icon only in the narrow laptop/tablet queue column. */}
+            <span className="lg:max-xl:sr-only">Filter</span>
             {filtersActive && (
               <span
                 className="absolute -right-1 -top-1 size-2 rounded-full bg-[var(--color-accent)]"
@@ -229,43 +277,52 @@ function ConsoleView() {
         />
       </div>
 
-      <div className="lt-scroll lt-fab-safe min-h-0 flex-1 overflow-y-auto p-2">
-        {tickets.isLoading ? (
-          <div className="flex flex-col gap-1.5">
-            {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-              <Skeleton key={i} className="h-[72px]" />
-            ))}
+      {/* Measured by useFitCount: its height decides the desktop page size. */}
+      <div ref={queueBodyRef} className="flex min-h-0 flex-1 flex-col">
+        <div
+          className={cn(
+            "lt-scroll min-h-0 flex-1 overflow-y-auto p-2",
+            // The floating launcher sits over the right rail on desktop, not here.
+            !isDesktop && "lt-fab-safe",
+          )}
+        >
+          {tickets.isLoading ? (
+            <div className="flex flex-col gap-1.5">
+              {Array.from({ length: pageSize }).map((_, i) => (
+                <Skeleton key={i} className="h-[80px]" />
+              ))}
+            </div>
+          ) : tickets.isError ? (
+            <ErrorState
+              description="Could not load the ticket queue."
+              onRetry={() => tickets.refetch()}
+            />
+          ) : rows.length === 0 ? (
+            <EmptyState
+              icon={<ClipboardIcon size={20} />}
+              title={status === "draft" && !search ? "Queue is clear" : "No tickets match"}
+              description={
+                status === "draft" && !search
+                  ? "Every ticket in this event has a decision."
+                  : "Try a different filter or search term."
+              }
+            />
+          ) : (
+            <TicketQueue
+              tickets={rows}
+              selectedId={selectedId}
+              onSelect={selectTicket}
+              showStatus={status === "all"}
+            />
+          )}
+        </div>
+
+        {!tickets.isLoading && !tickets.isError && total > pageSize && (
+          <div className="border-t border-border px-2.5 py-2">
+            <Pagination total={total} limit={pageSize} offset={offset} onOffset={setOffset} />
           </div>
-        ) : tickets.isError ? (
-          <ErrorState
-            description="Could not load the ticket queue."
-            onRetry={() => tickets.refetch()}
-          />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            icon={<ClipboardIcon size={20} />}
-            title={status === "draft" && !search ? "Queue is clear" : "No tickets match"}
-            description={
-              status === "draft" && !search
-                ? "Every ticket in this event has a decision."
-                : "Try a different filter or search term."
-            }
-          />
-        ) : (
-          <TicketQueue
-            tickets={rows}
-            selectedId={selectedId}
-            onSelect={selectTicket}
-            showStatus={status === "all"}
-          />
         )}
       </div>
-
-      {!tickets.isLoading && !tickets.isError && total > PAGE_SIZE && (
-        <div className="border-t border-border px-2.5 py-2">
-          <Pagination total={total} limit={PAGE_SIZE} offset={offset} onOffset={setOffset} />
-        </div>
-      )}
     </div>
   );
 
@@ -295,11 +352,11 @@ function ConsoleView() {
   }
 
   return (
-    <AppShell section="Review">
+    <AppShell section="Review" fluid>
       {isDesktop ? (
         // Fixed-height grid: the queue column scrolls its list with the pager
         // pinned; the workspace lays out its own columns and scroll areas.
-        <div className="grid min-h-0 flex-1 grid-cols-[13rem_minmax(0,1fr)] gap-4 xl:grid-cols-[14rem_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-[13rem_minmax(0,1fr)] gap-3 xl:grid-cols-[14rem_minmax(0,1fr)] xl:gap-4 2xl:grid-cols-[16rem_minmax(0,1fr)]">
           <div className="min-h-0 overflow-hidden rounded-xl border border-border bg-card">
             {queuePanel}
           </div>

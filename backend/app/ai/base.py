@@ -50,6 +50,8 @@ class CallUsage:
     cost_usd: float = 0.0
     requests: int = 1
     cached: bool = False
+    # Part of tokens_out spent on hidden reasoning (billed as output).
+    reasoning_tokens: int = 0
 
     def plus(self, other: CallUsage) -> CallUsage:
         """Combine two usages (e.g. the two SAM concept requests of one stage)."""
@@ -57,6 +59,7 @@ class CallUsage:
             model=self.model,
             tokens_in=self.tokens_in + other.tokens_in,
             tokens_out=self.tokens_out + other.tokens_out,
+            reasoning_tokens=self.reasoning_tokens + other.reasoning_tokens,
             latency_ms=max(self.latency_ms, other.latency_ms),
             cost_usd=round(self.cost_usd + other.cost_usd, 6),
             requests=self.requests + other.requests,
@@ -86,6 +89,8 @@ class TrackResult:
     # SAM's raw output text per concept label ("truck bed", "debris pile"):
     # kept so the Review console can draw the real boxes and masks per frame.
     segments: dict[str, str] = field(default_factory=dict, compare=False, repr=False)
+    # Plain-language facts about what SAM returned, for the pipeline trace.
+    notes: dict[str, str] = field(default_factory=dict, compare=False, repr=False)
 
     def by_label(self, label: str) -> TrackedObject | None:
         return next((o for o in self.objects if o.label == label), None)
@@ -99,6 +104,8 @@ class OCRResult:
     confidence: float
     frame_ref: str | None = None
     usage: CallUsage | None = field(default=None, compare=False, repr=False)
+    # The model's answer exactly as returned (JSON text), for the trace.
+    raw: str = field(default="", compare=False, repr=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +115,7 @@ class ClassifyResult:
     debris_class: str
     confidence: float
     usage: CallUsage | None = field(default=None, compare=False, repr=False)
+    raw: str = field(default="", compare=False, repr=False)
 
 
 @dataclass(frozen=True, slots=True)

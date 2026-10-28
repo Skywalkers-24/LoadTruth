@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { CheckIcon, ChevronRightIcon, ClockIcon, CpuIcon, TriangleAlertIcon, ZapIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  CpuIcon,
+  TriangleAlertIcon,
+  ZapIcon,
+} from "lucide-react";
 
 import type { PipelineStage } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -30,12 +37,22 @@ function StageIcon({ stage, className }: { stage: PipelineStage; className?: str
  * reveal the full stage detail (model, status, confidence, duration, summary).
  * Makes the AI work legible instead of a black box.
  */
-export function PipelineTrace({ stages, compact = false }: { stages: PipelineStage[]; compact?: boolean }) {
+export function PipelineTrace({
+  stages,
+  compact = false,
+}: {
+  stages: PipelineStage[];
+  compact?: boolean;
+}) {
   // Track which stage keys are expanded. A Set lets several be open at once.
   const [open, setOpen] = useState<Set<string>>(new Set());
 
   if (stages.length === 0) {
-    return <p className="text-[12px] text-muted-foreground">No pipeline trace is available for this ticket.</p>;
+    return (
+      <p className="text-[12px] text-muted-foreground">
+        No pipeline trace is available for this ticket.
+      </p>
+    );
   }
 
   function toggle(id: string) {
@@ -57,7 +74,12 @@ export function PipelineTrace({ stages, compact = false }: { stages: PipelineSta
         return (
           <li key={rowId} className="relative flex gap-3 pb-2 last:pb-0">
             {/* Rail connecting the stage dots */}
-            {!last && <span className="absolute left-[11px] top-7 h-[calc(100%-0.5rem)] w-px bg-border" aria-hidden />}
+            {!last && (
+              <span
+                className="absolute left-[11px] top-7 h-[calc(100%-0.5rem)] w-px bg-border"
+                aria-hidden
+              />
+            )}
             <span
               className="relative z-10 mt-1 grid size-6 shrink-0 place-items-center rounded-full ring-2 ring-[var(--color-surface)]"
               style={{ backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)`, color }}
@@ -124,18 +146,25 @@ export function PipelineTrace({ stages, compact = false }: { stages: PipelineSta
                     {s.summary}
                   </p>
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[11px]">
-                    <Detail label="Status" value={STATUS_LABEL[s.status] ?? s.status} color={color} />
+                    <Detail
+                      label="Status"
+                      value={STATUS_LABEL[s.status] ?? s.status}
+                      color={color}
+                    />
                     <Detail
                       label="Confidence"
-                      value={s.confidence != null ? `${Math.round(s.confidence * 100)}%` : "—"}
+                      value={
+                        s.confidence != null ? `${Math.round(s.confidence * 100)}%` : "Not reported"
+                      }
                     />
                     <Detail label="Model" value={s.model} mono />
                     <Detail
                       label="Duration"
-                      value={s.duration_ms != null ? `${s.duration_ms.toLocaleString()} ms` : "—"}
+                      value={formatDuration(s.duration_ms)}
                       icon={<ClockIcon className="size-3" />}
                     />
                   </dl>
+                  <StageFacts details={s.details ?? []} />
                 </div>
               )}
             </div>
@@ -143,6 +172,55 @@ export function PipelineTrace({ stages, compact = false }: { stages: PipelineSta
         );
       })}
     </ol>
+  );
+}
+
+function formatDuration(ms: number | null | undefined): string {
+  if (ms == null) return "Not reported";
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${ms.toLocaleString()} ms`;
+}
+
+/** Pretty-print a JSON answer; leave anything else as it came. */
+function prettyAnswer(raw: string): string {
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * What the model actually returned for this stage: its raw answer, the objects
+ * it found, tokens, response time, and cost, plus the measurement inputs for
+ * the deterministic stages.
+ */
+function StageFacts({ details }: { details: [string, string][] }) {
+  if (details.length === 0) return null;
+  const answer = details.find(([k]) => k === "Model answer")?.[1];
+  const rows = details.filter(([k]) => k !== "Model answer");
+  return (
+    <div className="flex flex-col gap-2 border-t border-border pt-2.5">
+      {answer && (
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Model answer
+          </span>
+          <pre className="overflow-x-auto rounded-md bg-[var(--color-bg)] px-2.5 py-2 font-mono text-[11.5px] leading-relaxed text-foreground">
+            {prettyAnswer(answer)}
+          </pre>
+        </div>
+      )}
+      {rows.length > 0 && (
+        <dl className="grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[12px]">
+          {rows.map(([k, v], i) => (
+            <div key={`${k}-${i}`} className="contents">
+              <dt className="text-muted-foreground">{k}</dt>
+              <dd className="min-w-0 break-words font-medium tabular-nums">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
   );
 }
 
@@ -161,7 +239,9 @@ function Detail({
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
-      <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </dt>
       <dd
         className={cn(
           "flex items-center gap-1 break-words text-[11.5px] font-semibold",

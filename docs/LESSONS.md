@@ -131,3 +131,9 @@ Entry format:
 - **Root cause:** The `/api/*` rewrite proxies through Next.js, which buffers request bodies and stops at 10 MB by default (`experimental.proxyClientMaxBodySize`). The truncated multipart body made the backend drop the socket (`ECONNRESET` in the frontend logs), and the proxy returned 500.
 - **Fix:** `frontend/next.config.ts` sets `proxyClientMaxBodySize: "500mb"` and `proxyTimeout: 600000` (a live run can take minutes). The upload client no longer turns a missing backend detail into a raw path-and-status string.
 - **Rule going forward:** When an upload fails with no backend log line, check `docker compose logs frontend` for proxy errors first. Test uploads above 10 MB through :3000, not only against :8000 directly.
+
+### 2026-10-28 — Fixed caps that fit a laptop leave a monitor half empty
+- **What happened:** The one-screen console was tuned for a 1440x900 laptop with fixed caps (evidence `max-h` 17rem, queue page of 6, 1600px content column). On a 1920x970 browser window each column ended 120 to 175px above the bottom, and on 2560x1300 about 450 to 500px.
+- **Root cause:** Caps sized for the smallest target screen never grow. The page size was a constant, so the queue could not use extra height either.
+- **Fix:** Let one element per column absorb leftover height (evidence `flex-1` with a 13rem floor; the rail's last card `flex-1`), compute the queue page size from the measured column height (`useFitCount`), and opt the console out of the 1600px cap (`AppShell fluid`).
+- **Rule going forward:** In a one-screen layout, give each column a single flexible element instead of a `max-h`/`clamp()` cap, and measure blank space (the `blank` field in `scratch/shots/console-measure.mjs`) on a monitor size as well as laptop sizes. Measure at browser-window heights (for example 1440x790), not the display's full height.

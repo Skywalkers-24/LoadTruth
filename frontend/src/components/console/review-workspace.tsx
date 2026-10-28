@@ -42,10 +42,10 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
     <div className="lt-fade-in @container h-full min-h-0">
       {/* Narrow pane on desktop: this element is the one scroll area. Wide
           pane: it is a fixed-height grid and each column scrolls instead. */}
-      <div className="lt-scroll flex min-h-0 flex-col gap-3 lg:h-full lg:@max-[46rem]:overflow-y-auto @[46rem]:grid @[46rem]:grid-cols-[minmax(0,1fr)_17rem] @[46rem]:grid-rows-1 @[46rem]:gap-4 @[46rem]:overflow-hidden @[64rem]:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="lt-scroll flex min-h-0 flex-col gap-3 lg:h-full lg:@max-[46rem]:overflow-y-auto @[46rem]:grid @[46rem]:grid-cols-[minmax(0,1fr)_17rem] @[46rem]:grid-rows-1 @[46rem]:overflow-hidden @[64rem]:grid-cols-[minmax(0,1fr)_20rem] @[64rem]:gap-4 @[96rem]:grid-cols-[minmax(0,1fr)_24rem]">
         {/* Center column. On a narrow pane its wrapper is `display: contents`
             so the decision bar can sit after the rail and stay pinned. */}
-        <div className="lt-scroll contents @[46rem]:flex @[46rem]:min-h-0 @[46rem]:min-w-0 @[46rem]:flex-col @[46rem]:gap-3 @[46rem]:overflow-y-auto @[46rem]:pr-1">
+        <div className="lt-scroll contents @[46rem]:flex @[46rem]:min-h-0 @[46rem]:min-w-0 @[46rem]:flex-col @[46rem]:gap-3 @[46rem]:overflow-y-auto">
           <TicketHeader ticket={ticket} nav={nav} />
           <MoneyFrame v={ticket.valuation} reviewed={reviewed} />
           <EvidenceCanvas ticket={ticket} />
@@ -55,7 +55,9 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
 
           {/* Decision bar: last in reading order, pinned to the bottom of the
               scroll area (and above the mobile tab bar). */}
-          <div className="sticky bottom-0 z-10 order-last max-lg:bottom-[calc(4rem+env(safe-area-inset-bottom))] @[46rem]:order-none">
+          {/* In the single-column layout on tablets the bar spans to the right
+              edge, so it stops short of the AI launcher. */}
+          <div className="sticky bottom-0 z-10 order-last max-lg:bottom-[calc(4rem+env(safe-area-inset-bottom))] sm:@max-[46rem]:mr-[4.5rem] @[46rem]:order-none">
             <div className="lt-card-shadow rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 shadow-[0_-6px_20px_-12px_rgba(0,0,0,0.5)]">
               <ReviewActions ticket={ticket} layout="bar" />
             </div>
@@ -64,13 +66,16 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
 
         {/* Right rail: the AI read, then the flags it raised. Bottom padding
             (lt-fab-safe) clears the floating AI analyst launcher. */}
-        <div className="lt-scroll lt-fab-safe flex min-w-0 flex-col gap-3 @[46rem]:min-h-0 @[46rem]:gap-4 @[46rem]:overflow-y-auto">
+        <div className="lt-scroll lt-fab-safe flex min-w-0 flex-col gap-3 @[46rem]:min-h-0 @[46rem]:overflow-y-auto">
           <AiAnalysisCard ticketId={ticket.id} />
+          {/* On a wide pane the last card stretches so the rail ends flush
+              with the queue and center columns instead of leaving a gap. */}
           <SectionCard
             title="Anomaly flags"
             icon={<AlertIcon size={15} />}
             count={ticket.anomaly_count}
             countTone="danger"
+            className="shrink-0 @[46rem]:flex-1"
           >
             <AnomalyList ticket={ticket} />
           </SectionCard>

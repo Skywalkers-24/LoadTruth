@@ -155,6 +155,7 @@ class PipelineStageOut(BaseModel):
     summary: str
     confidence: float | None = None
     duration_ms: float = 0.0
+    details: list[list[str]] = Field(default_factory=list)
 
 
 @router.get("/tickets/{ticket_id}/pipeline", response_model=list[PipelineStageOut])
@@ -172,6 +173,11 @@ async def ticket_pipeline(
             summary=r.summary,
             confidence=float(r.confidence) if r.confidence is not None else None,
             duration_ms=float(r.duration_ms),
+            details=[
+                [str(d[0]), str(d[1])]
+                for d in (r.details or [])
+                if isinstance(d, list | tuple) and len(d) == 2
+            ],
         )
         for r in rows
     ]

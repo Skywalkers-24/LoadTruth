@@ -73,7 +73,7 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
   return (
     <div className="@container">
       <div
-        className="lt-card-shadow grid overflow-hidden rounded-xl border bg-[var(--color-surface)] @2xl:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]"
+        className="lt-card-shadow grid overflow-hidden rounded-xl border bg-[var(--color-surface)] @[36rem]:grid-cols-[minmax(0,1fr)_minmax(0,14rem)] @2xl:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]"
         style={{ borderColor: `color-mix(in srgb, ${tone.color} 40%, var(--color-border))` }}
       >
         {/* Measured over monitor, per quantity */}
@@ -121,7 +121,7 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
 
         {/* Hero: the dollar difference */}
         <div
-          className="flex flex-col justify-center gap-1 border-t px-4 py-2.5 @2xl:border-l @2xl:border-t-0"
+          className="flex flex-col justify-center gap-1 border-t px-4 py-2.5 @[36rem]:border-l @[36rem]:border-t-0"
           style={{
             borderColor: "var(--color-border)",
             background: `linear-gradient(160deg, color-mix(in srgb, ${tone.color} 16%, var(--color-surface)), color-mix(in srgb, ${tone.color} 4%, var(--color-surface)))`,

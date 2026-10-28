@@ -32,6 +32,9 @@ class StageRecord:
     summary: str
     confidence: float | None = None
     duration_ms: float = 0.0
+    # Ordered (label, value) facts from the model's response: its raw answer,
+    # tokens, cost, objects found, and the measurement inputs.
+    details: list[list[str]] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -62,7 +65,12 @@ class PipelineTrace:
         *,
         status: str = "ok",
         confidence: float | None = None,
+        details: list[list[str]] | None = None,
+        duration_ms: float | None = None,
     ) -> None:
+        """Record a stage. ``duration_ms`` overrides the wall-clock gap since the
+        previous stage (use the model's own response time for AI stages, since
+        those calls run in parallel)."""
         now = time.perf_counter()
         dur = (now - self._t0) * 1000.0
         self._t0 = now
@@ -74,7 +82,8 @@ class PipelineTrace:
                 status=status,
                 summary=summary,
                 confidence=confidence,
-                duration_ms=round(dur, 1),
+                duration_ms=round(duration_ms if duration_ms is not None else dur, 1),
+                details=list(details or []),
             )
         )
 

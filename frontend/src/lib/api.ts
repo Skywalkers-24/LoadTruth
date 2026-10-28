@@ -398,6 +398,8 @@ export interface PipelineStage {
   summary: string;
   confidence: number | null;
   duration_ms: number;
+  /** Ordered [label, value] facts from the model's response (raw answer, tokens, cost). */
+  details?: [string, string][];
 }
 
 export interface PipelineJob {

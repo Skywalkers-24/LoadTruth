@@ -343,6 +343,7 @@ class SqlTicketRepository:
                     summary=getattr(s, "summary", ""),
                     confidence=getattr(s, "confidence", None),
                     duration_ms=getattr(s, "duration_ms", 0.0) or 0.0,
+                    details=list(getattr(s, "details", None) or []),
                 )
             )
         await self._s.flush()

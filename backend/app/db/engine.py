@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from functools import lru_cache
 
+from sqlalchemy import Connection, inspect, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -19,6 +20,9 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.config import get_settings
+from app.log import get_logger
+
+log = get_logger("db.engine")
 
 
 @lru_cache
@@ -70,3 +74,34 @@ async def init_db() -> None:
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_add_missing_columns)
+
+
+def _add_missing_columns(sync_conn: Connection) -> None:
+    """Add nullable columns that exist in the models but not yet in the DB.
+
+    ``create_all`` only creates missing tables, so a new nullable column on an
+    existing table (e.g. ``pipeline_stages.details``) would otherwise be absent
+    on a database created by an older build. Only additive, nullable columns are
+    handled; anything else needs a real migration.
+    """
+    from app.db.base import Base
+
+    insp = inspect(sync_conn)
+    preparer = sync_conn.dialect.identifier_preparer
+    for table in Base.metadata.sorted_tables:
+        if not insp.has_table(table.name):
+            continue
+        existing = {c["name"] for c in insp.get_columns(table.name)}
+        for col in table.columns:
+            if col.name in existing or not col.nullable:
+                continue
+            col_type = col.type.compile(dialect=sync_conn.dialect)
+            # Identifiers come from our own ORM metadata (never user input) and
+            # are quoted by the dialect's preparer.
+            ddl = (
+                f"ALTER TABLE {preparer.quote(table.name)} "  # noqa: S608
+                f"ADD COLUMN {preparer.quote(col.name)} {col_type}"
+            )
+            sync_conn.execute(text(ddl))
+            log.info("db_column_added", table=table.name, column=col.name)
