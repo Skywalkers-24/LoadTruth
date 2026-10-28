@@ -49,7 +49,7 @@ export default function ShowcasePage() {
 function Nav() {
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg)_90%,transparent)] backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
         <span className="flex items-center gap-2 font-semibold">
           <span className="grid size-7 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
             <TruckIcon size={16} />
@@ -72,35 +72,105 @@ function Nav() {
 
 function Hero() {
   return (
-    <section className="mx-auto max-w-5xl px-4 pb-10 pt-14">
-      <p className="mb-3 text-[13px] font-medium uppercase tracking-wide text-[var(--color-brand)]">
-        Disaster-debris load auditing
-      </p>
-      <h1 className="max-w-3xl text-balance text-3xl font-bold leading-tight sm:text-4xl">
-        Every debris load ticket is a number nobody can reproduce. LoadTruth makes it a number
-        anyone can reproduce, from the video, in one click.
-      </h1>
-      <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
-        After a hurricane, a monitor in a tower eyeballs each dump truck&apos;s fill percentage, and
-        that guess decides federal payments. LoadTruth measures the load from video against the
-        truck&apos;s certified bed, drafts a FEMA-format ticket with evidence frames, and flags the
-        loads that do not add up. A human monitor still confirms or overrides every ticket.
-      </p>
-      <div className="mt-6 flex flex-wrap gap-3">
-        <Link
-          href="/console"
-          className="rounded-md bg-[var(--color-brand)] px-4 py-2 text-[14px] font-medium text-white hover:opacity-90"
-        >
-          See a live ticket
-        </Link>
-        <Link
-          href="/guide"
-          className="rounded-md border border-[var(--color-border)] px-4 py-2 text-[14px] font-medium hover:border-[var(--color-border-strong)]"
-        >
-          How it works
-        </Link>
+    <section className="mx-auto grid max-w-7xl items-center gap-10 px-6 pb-12 pt-16 lg:grid-cols-[1.15fr_0.85fr]">
+      {/* Left: the pitch */}
+      <div className="min-w-0">
+        <p className="mb-3 text-[13px] font-medium uppercase tracking-wide text-[var(--color-brand)]">
+          Disaster-debris load auditing
+        </p>
+        <h1 className="text-balance text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl">
+          Every debris load ticket is a number nobody can reproduce. LoadTruth makes it a number
+          anyone can reproduce, from the video, in one click.
+        </h1>
+        <p className="mt-6 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
+          After a hurricane, a monitor in a tower eyeballs each dump truck&apos;s fill percentage,
+          and that guess decides federal payments. LoadTruth measures the load from video against
+          the truck&apos;s certified bed, drafts a FEMA-format ticket with evidence frames, and
+          flags the loads that do not add up. A human monitor still confirms or overrides every
+          ticket.
+        </p>
+        <div className="mt-7 flex flex-wrap gap-3">
+          <Link
+            href="/console"
+            className="rounded-md bg-[var(--color-brand)] px-5 py-2.5 text-[14px] font-semibold text-white hover:opacity-90"
+          >
+            See a live ticket
+          </Link>
+          <Link
+            href="/guide"
+            className="rounded-md border border-[var(--color-border)] px-5 py-2.5 text-[14px] font-medium hover:border-[var(--color-border-strong)]"
+          >
+            How it works
+          </Link>
+        </div>
       </div>
+
+      {/* Right: a visual that fills the other half instead of empty space */}
+      <HeroVisual />
     </section>
+  );
+}
+
+/**
+ * A compact "one ticket" panel for the hero's right column, so the fold uses the
+ * full width instead of leaving the right half blank. Pure presentation.
+ */
+function HeroVisual() {
+  const rows: { label: string; value: string; tone?: "money" | "muted" }[] = [
+    { label: "Truck", value: "FL-DT-3391" },
+    { label: "Certified bed", value: "25 CY" },
+    { label: "Measured fill", value: "48%" },
+    { label: "Measured value", value: "$102.00" },
+    { label: "Monitor call", value: "90%", tone: "muted" },
+  ];
+  return (
+    <div className="relative hidden lg:block">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -inset-6 -z-10 rounded-[2rem] opacity-70"
+        style={{
+          background:
+            "radial-gradient(500px 300px at 70% 20%, color-mix(in srgb, var(--color-brand) 22%, transparent), transparent 70%), radial-gradient(400px 300px at 20% 100%, color-mix(in srgb, var(--color-money) 16%, transparent), transparent 70%)",
+        }}
+      />
+      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xl">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="flex items-center gap-2 text-[13px] font-semibold">
+            <span className="grid size-7 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
+              <TruckIcon size={15} />
+            </span>
+            Load ticket LT-2C707D
+          </span>
+          <span className="rounded-full bg-[var(--color-ok-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-ok)]">
+            Reproducible
+          </span>
+        </div>
+        <dl className="flex flex-col divide-y divide-[var(--color-border)]">
+          {rows.map((r) => (
+            <div key={r.label} className="flex items-center justify-between py-2">
+              <dt className="text-[13px] text-muted-foreground">{r.label}</dt>
+              <dd
+                className={`text-[14px] font-semibold tabular-nums ${
+                  r.tone === "muted" ? "text-muted-foreground" : "text-foreground"
+                }`}
+              >
+                {r.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <div className="mt-3 flex items-center justify-between rounded-lg bg-[var(--color-money-soft)] px-3 py-2.5">
+          <span className="text-[12px] font-medium text-foreground">Dollar difference</span>
+          <span className="text-[18px] font-bold tabular-nums text-[var(--color-money)]">
+            +$89.25
+          </span>
+        </div>
+        <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
+          Every figure traces to a pixel, a registry row, or a rate. Re-verify recomputes it from
+          the stored masks and matches the receipt hash.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -129,7 +199,7 @@ function StatsBand() {
   ];
   return (
     <section className="border-y border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 px-4 py-8 sm:grid-cols-4">
+      <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-6 py-8 sm:grid-cols-4">
         {stats.map((s) => (
           <div
             key={s.label}
@@ -196,13 +266,13 @@ const STAGES: { n: number; title: string; body: string; icon: React.ReactNode }[
 
 function Anatomy() {
   return (
-    <section className="mx-auto max-w-5xl px-4 py-12">
+    <section className="mx-auto max-w-7xl px-6 py-12">
       <h2 className="text-xl font-semibold">One clip, seven stages</h2>
       <p className="mt-2 max-w-2xl text-[14px] text-muted-foreground">
         The model proposes, deterministic code decides. Every number on the ticket traces to a
         pixel, a registry row, or a rate, and each stage records what it did.
       </p>
-      <ol className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <ol className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {STAGES.map((s) => (
           <li
             key={s.n}
@@ -267,7 +337,7 @@ const FEATURES: { title: string; body: string; icon: React.ReactNode; color: str
 function Features() {
   return (
     <section className="border-t border-[var(--color-border)]">
-      <div className="mx-auto max-w-5xl px-4 py-12">
+      <div className="mx-auto max-w-7xl px-6 py-12">
         <h2 className="text-xl font-semibold">A product, not a demo</h2>
         <p className="mt-2 max-w-2xl text-[14px] text-muted-foreground">
           The pipeline is the engine. Around it is the operator console an agency actually runs on:
@@ -364,7 +434,7 @@ const CASE_STUDIES: CaseStudy[] = [
 function CaseStudies() {
   return (
     <section className="border-t border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="mx-auto max-w-5xl px-4 py-12">
+      <div className="mx-auto max-w-7xl px-6 py-12">
         <h2 className="text-xl font-semibold">Why this is worth measuring</h2>
         <p className="mt-2 max-w-2xl text-[14px] text-muted-foreground">
           The problem is large, expensive, and already a known fraud surface. Every figure below
@@ -402,7 +472,7 @@ function CaseStudies() {
 function Personas() {
   return (
     <section className="border-t border-[var(--color-border)]">
-      <div className="mx-auto grid max-w-5xl gap-6 px-4 py-12 sm:grid-cols-2">
+      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-12 sm:grid-cols-2">
         <Persona
           role="The tower monitor"
           side="Records the ticket"
@@ -432,7 +502,7 @@ function Persona({ role, side, body }: { role: string; side: string; body: strin
 
 function BenchmarkCard() {
   return (
-    <section className="mx-auto max-w-5xl px-4 py-12">
+    <section className="mx-auto max-w-7xl px-6 py-12">
       <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
         <h2 className="text-xl font-semibold">How we measure accuracy</h2>
         <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">
@@ -459,9 +529,9 @@ function BenchmarkCard() {
 function Constraint() {
   return (
     <section className="border-t border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="mx-auto max-w-5xl px-4 py-12">
+      <div className="mx-auto max-w-7xl px-6 py-12">
         <h2 className="text-xl font-semibold">A constraint we hit</h2>
-        <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">
+        <p className="mt-2 max-w-4xl text-[14px] leading-relaxed text-muted-foreground">
           SAM 3.1 takes one concept per request, so the bed and the load are two calls combined in
           our code. Muse Spark is a reasoning model whose hidden reasoning counts against the output
           budget, so a tight token cap returns an empty answer. We send a few downscaled keyframes,
@@ -493,7 +563,7 @@ function WhereItStands() {
     "Live camera feeds beyond direct upload",
   ];
   return (
-    <section className="mx-auto max-w-5xl px-4 py-12">
+    <section className="mx-auto max-w-7xl px-6 py-12">
       <h2 className="text-xl font-semibold">Where it stands</h2>
       <p className="mt-2 text-[14px] text-muted-foreground">An honest status, not a wish list.</p>
       <div className="mt-6 grid gap-6 sm:grid-cols-3">
@@ -526,7 +596,7 @@ function StatusColumn({ title, tone, items }: { title: string; tone: string; ite
 function Footer() {
   return (
     <footer className="border-t border-[var(--color-border)]">
-      <div className="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-8 text-[13px] text-muted-foreground">
+      <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-8 text-[13px] text-muted-foreground">
         <p>
           Built in 10 days. LoadTruth produces evidence and flags inconsistencies; the responsible
           monitor keeps authority over the official record.
