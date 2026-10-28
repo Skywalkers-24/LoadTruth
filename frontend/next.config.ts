@@ -18,6 +18,20 @@ const nextConfig: NextConfig = {
     const backend = process.env.BACKEND_URL ?? "http://localhost:8000";
     return [{ source: "/api/:path*", destination: `${backend}/:path*` }];
   },
+  // The login background clips and posters are content-stable: serve them with a
+  // long immutable cache so Cloudflare's edge holds them and repeat visits skip
+  // the origin entirely. The filenames are versioned by content (new encode =
+  // new deploy), so immutable is safe here.
+  async headers() {
+    const immutable = {
+      key: "Cache-Control",
+      value: "public, max-age=31536000, immutable",
+    };
+    return [
+      { source: "/login-:slug(.*).mp4", headers: [immutable] },
+      { source: "/login-:slug(.*).jpg", headers: [immutable] },
+    ];
+  },
 };
 
 export default nextConfig;
