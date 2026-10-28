@@ -6,6 +6,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Add an entry i
 ## [Unreleased]
 
 ### Fixed
+- **Review console: AI analysis is the highlight.** The right rail's AI-analysis card was cramped and clipped (it shared one rail-level scroll and had no flex treatment). It now takes the rail's leftover height (`flex-1`, min 16rem) and scrolls its own body, so the full 7-stage trace is reachable; the anomaly and reproducibility cards sit below at their natural size.
+- **Pagination added to the capped lists.** The Reports ticket ledger (12/page), the Trucks registry (10/page), and the AI Pipeline jobs list (12/page) now use the shared `Pagination` control instead of one long scroll, so large lists stay readable. Sorting the ledger resets to the first page.
+- **Guide no longer leaves white space.** The reference sections moved from a two-column grid (which left gaps beside short cards and a lonely trailing card) to a CSS masonry (`columns-2`, `break-inside-avoid`) that packs cards of different heights tightly.
+- **AI Analyst chat no longer sprawls.** The full-page chat is centered in a `max-w-4xl` card so it reads as a focused chat app instead of stretching edge to edge with a vast empty middle.
+- **Overview actions grouped.** The Upload clip button stays the primary action; Export CSV and Audit packet are grouped into a bordered segment, visually separated so the header reads "capture here, export there".
+
+### Fixed
 - **Showcase uses the full screen.** The page was capped at `max-w-5xl`, leaving wide empty gutters (and a blank right half of the hero). Widened every section to `max-w-7xl`, made the hero a two-column layout with a sample load-ticket card filling the right column, and tiled the 7-stage anatomy four-up on xl. Prose intros stay at a readable width while cards and grids span the container.
 - **Member avatars everywhere.** The friendly, non-gendered person glyphs were only on the login screen; the app-shell user block still showed two-letter initials. Extracted a shared `MemberAvatar` (`components/ui/member-avatar.tsx`) and used it in both the login screen and the sidebar user block, so the signed-in member shows the same colorful persona icon as the login list.
 - **Showcase theme toggle.** The public `/showcase` page rendered with no way to switch theme. Added the shared `ThemeToggle` to its top nav (it only needs the ThemeProvider, which already wraps the page).

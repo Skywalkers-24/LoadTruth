@@ -12,7 +12,18 @@ import { StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { CountUp } from "@/components/ui/motion";
 import { shortId } from "@/components/console/ticket-metadata";
-import { cubicYards, dateTime, debrisLabel, money, percent, signedMoney, statusLabel } from "@/lib/format";
+import { Pagination } from "@/components/pagination";
+import {
+  cubicYards,
+  dateTime,
+  debrisLabel,
+  money,
+  percent,
+  signedMoney,
+  statusLabel,
+} from "@/lib/format";
+
+const LEDGER_PAGE_SIZE = 12;
 
 export interface PerEvent {
   id: string;
@@ -66,12 +77,20 @@ export function ReportsPanel({
     }
     return [...sums.entries()]
       .sort((a, b) => b[1] - a[1])
-      .map(([k, v]) => ({ label: debrisLabel(k), value: Math.round(v * 100) / 100, display: money(v) }));
+      .map(([k, v]) => ({
+        label: debrisLabel(k),
+        value: Math.round(v * 100) / 100,
+        display: money(v),
+      }));
   }, [tickets]);
 
   const statusRows: Datum[] = (["draft", "confirmed", "overridden", "disputed"] as const)
     .filter((k) => (s.counts_by_status[k] ?? 0) > 0)
-    .map((k) => ({ label: statusLabel(k), value: s.counts_by_status[k] ?? 0, color: STATUS_COLOR[k] }));
+    .map((k) => ({
+      label: statusLabel(k),
+      value: s.counts_by_status[k] ?? 0,
+      color: STATUS_COLOR[k],
+    }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -118,11 +137,17 @@ export function ReportsPanel({
               {perEvent ? "Events compared" : "Flagged exposure by debris class"}
             </h3>
             <span className="text-[11px] text-muted-foreground">
-              {perEvent ? "Measured value and flagged exposure per event" : "Where the over-call dollars come from"}
+              {perEvent
+                ? "Measured value and flagged exposure per event"
+                : "Where the over-call dollars come from"}
             </span>
           </div>
           <div className="px-2 pb-3 pt-1">
-            {perEvent ? <PerEventTable rows={perEvent} /> : <RankedBars data={byClass} config={classConfig} />}
+            {perEvent ? (
+              <PerEventTable rows={perEvent} />
+            ) : (
+              <RankedBars data={byClass} config={classConfig} />
+            )}
           </div>
         </Card>
         <Card className="gap-0 py-0">
@@ -130,11 +155,21 @@ export function ReportsPanel({
             <h3 className="text-[13px] font-semibold">Status mix</h3>
           </div>
           <div className="px-2 pb-4">
-            <DonutChart data={statusRows} config={statusConfig} centerValue={String(s.ticket_count)} centerLabel="tickets" height={200} />
+            <DonutChart
+              data={statusRows}
+              config={statusConfig}
+              centerValue={String(s.ticket_count)}
+              centerLabel="tickets"
+              height={200}
+            />
             <ul className="mt-1 flex flex-col gap-1.5 px-2">
               {statusRows.map((row) => (
                 <li key={row.label} className="flex items-center gap-2 text-[12px]">
-                  <span className="size-2.5 rounded-[3px]" style={{ background: row.color }} aria-hidden />
+                  <span
+                    className="size-2.5 rounded-[3px]"
+                    style={{ background: row.color }}
+                    aria-hidden
+                  />
                   <span className="flex-1 text-muted-foreground">{row.label}</span>
                   <span className="font-semibold tabular-nums">{row.value}</span>
                 </li>
@@ -167,7 +202,9 @@ function PerEventTable({ rows }: { rows: PerEvent[] }) {
               <td className="px-3 py-2.5 font-medium">{r.name}</td>
               <td className="px-3 py-2.5 text-right text-muted-foreground">{r.ticketCount}</td>
               <td className="px-3 py-2.5 text-right">{money(r.measured)}</td>
-              <td className="px-3 py-2.5 text-right font-semibold text-[var(--color-money)]">{money(r.flagged)}</td>
+              <td className="px-3 py-2.5 text-right font-semibold text-[var(--color-money)]">
+                {money(r.flagged)}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -181,6 +218,7 @@ type SortCol = "created" | "delta" | "measured" | "value";
 function Ledger({ tickets }: { tickets: Ticket[] }) {
   const router = useRouter();
   const [sort, setSort] = useState<{ col: SortCol; dir: 1 | -1 }>({ col: "delta", dir: -1 });
+  const [offset, setOffset] = useState(0);
 
   const rows = useMemo(() => {
     // Returns the sort value, or null for "no value" rows (e.g. uncalled
@@ -211,18 +249,31 @@ function Ledger({ tickets }: { tickets: Ticket[] }) {
     });
   }, [tickets, sort]);
 
+  // Page the sorted rows so a long ledger stays readable; sorting resets to the
+  // first page so the top of the new order is visible.
+  const total = rows.length;
+  const clampedOffset = offset >= total ? 0 : offset;
+  const pageRows = rows.slice(clampedOffset, clampedOffset + LEDGER_PAGE_SIZE);
+
+  function sortBy(col: SortCol) {
+    setOffset(0);
+    setSort((st) => ({ col, dir: st.col === col ? ((st.dir * -1) as 1 | -1) : -1 }));
+  }
+
   function header(col: SortCol, label: string, align: "left" | "right" = "right") {
     const active = sort.col === col;
     return (
       <th className={`px-4 py-2.5 font-semibold ${align === "right" ? "text-right" : "text-left"}`}>
         <button
           type="button"
-          onClick={() => setSort((st) => ({ col, dir: st.col === col ? ((st.dir * -1) as 1 | -1) : -1 }))}
+          onClick={() => sortBy(col)}
           className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-foreground ${active ? "text-foreground" : ""}`}
           aria-sort={active ? (sort.dir === 1 ? "ascending" : "descending") : "none"}
         >
           {label}
-          <span aria-hidden className="text-[10px]">{active ? (sort.dir === 1 ? "▲" : "▼") : ""}</span>
+          <span aria-hidden className="text-[10px]">
+            {active ? (sort.dir === 1 ? "▲" : "▼") : ""}
+          </span>
         </button>
       </th>
     );
@@ -233,27 +284,39 @@ function Ledger({ tickets }: { tickets: Ticket[] }) {
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex flex-col">
           <h3 className="text-[14px] font-semibold">Ticket ledger</h3>
-          <span className="text-[12px] text-muted-foreground">Select a row to open the ticket.</span>
+          <span className="text-[12px] text-muted-foreground">
+            Select a row to open the ticket.
+          </span>
         </div>
-        <span className="text-[12px] tabular-nums text-muted-foreground">{tickets.length} tickets</span>
+        <span className="text-[12px] tabular-nums text-muted-foreground">{total} tickets</span>
       </header>
-      <div className="max-h-[560px] overflow-auto">
+      <div className="overflow-x-auto">
         <table className="w-full min-w-[820px] border-collapse text-[13px]">
           <thead className="sticky top-0 z-10 bg-muted text-[11px] text-muted-foreground">
             <tr>
-              <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider">Ticket</th>
-              <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider">Truck</th>
-              <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider">Debris</th>
+              <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider">
+                Ticket
+              </th>
+              <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider">
+                Truck
+              </th>
+              <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider">
+                Debris
+              </th>
               {header("measured", "Measured")}
-              <th className="px-4 py-2.5 text-right font-semibold uppercase tracking-wider">Called</th>
+              <th className="px-4 py-2.5 text-right font-semibold uppercase tracking-wider">
+                Called
+              </th>
               {header("value", "Value")}
               {header("delta", "Delta")}
-              <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider">Status</th>
+              <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider">
+                Status
+              </th>
               {header("created", "Captured", "left")}
             </tr>
           </thead>
           <tbody className="tabular-nums">
-            {rows.map((t) => {
+            {pageRows.map((t) => {
               const v = t.valuation;
               const d = Number.parseFloat(v.delta_dollar_value ?? "0");
               return (
@@ -263,29 +326,57 @@ function Ledger({ tickets }: { tickets: Ticket[] }) {
                   className="cursor-pointer border-t border-border transition-colors hover:bg-accent"
                 >
                   <td className="px-4 py-2.5 font-semibold">{shortId(t.id)}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground">{t.truck_id ?? "Unidentified"}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground">{debrisLabel(t.debris_class)}</td>
-                  <td className="px-4 py-2.5 text-right text-[var(--color-money)]">
-                    {percent(v.est_fill_pct)} <span className="text-muted-foreground">· {cubicYards(v.est_cubic_yards)}</span>
+                  <td className="px-4 py-2.5 text-muted-foreground">
+                    {t.truck_id ?? "Unidentified"}
                   </td>
-                  <td className="px-4 py-2.5 text-right">{v.monitor_fill_pct ? percent(v.monitor_fill_pct) : "Not called"}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground">
+                    {debrisLabel(t.debris_class)}
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-[var(--color-money)]">
+                    {percent(v.est_fill_pct)}{" "}
+                    <span className="text-muted-foreground">· {cubicYards(v.est_cubic_yards)}</span>
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    {v.monitor_fill_pct ? percent(v.monitor_fill_pct) : "Not called"}
+                  </td>
                   <td className="px-4 py-2.5 text-right">{money(v.est_dollar_value)}</td>
                   <td
                     className="px-4 py-2.5 text-right font-semibold"
-                    style={{ color: v.delta_dollar_value === null ? "var(--muted-foreground)" : d > 0.005 ? "var(--color-money)" : "var(--color-ok)" }}
+                    style={{
+                      color:
+                        v.delta_dollar_value === null
+                          ? "var(--muted-foreground)"
+                          : d > 0.005
+                            ? "var(--color-money)"
+                            : "var(--color-ok)",
+                    }}
                   >
-                    {v.delta_dollar_value === null ? "Not called" : signedMoney(v.delta_dollar_value)}
+                    {v.delta_dollar_value === null
+                      ? "Not called"
+                      : signedMoney(v.delta_dollar_value)}
                   </td>
                   <td className="px-4 py-2.5">
                     <StatusBadge status={t.status} />
                   </td>
-                  <td className="px-4 py-2.5 text-[12px] text-muted-foreground">{dateTime(t.created_at)}</td>
+                  <td className="px-4 py-2.5 text-[12px] text-muted-foreground">
+                    {dateTime(t.created_at)}
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+      {total > LEDGER_PAGE_SIZE && (
+        <div className="border-t border-border px-4 py-2.5">
+          <Pagination
+            total={total}
+            limit={LEDGER_PAGE_SIZE}
+            offset={clampedOffset}
+            onOffset={setOffset}
+          />
+        </div>
+      )}
     </Card>
   );
 }

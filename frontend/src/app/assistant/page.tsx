@@ -34,7 +34,9 @@ export default function AssistantPage() {
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card/40">
+        {/* Centered reading column so the chat reads as a focused app instead
+            of sprawling edge to edge on a wide monitor. */}
+        <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card/40 shadow-sm">
           <AssistantChat
             density="full"
             messages={chat.messages}

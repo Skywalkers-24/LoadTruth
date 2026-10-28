@@ -59,10 +59,10 @@ export default function GuidePage() {
             />
           </div>
 
-          {/* The reference sections tile two-up on wide screens (self-start so a
-              short card does not stretch next to a tall one), and read top to
-              bottom in one column on narrow screens. */}
-          <div className="grid items-start gap-5 xl:grid-cols-2">
+          {/* The reference sections flow in a masonry (CSS columns) on wide
+              screens so cards of different heights pack tightly with no gaps,
+              and read top to bottom in one column on narrow screens. */}
+          <div className="gap-5 [column-fill:_balance] xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
             {/* ── The AI pipeline ─────────────────────────────────────────── */}
             <Section
               icon={<SparklesIcon className="size-[18px]" />}

@@ -65,12 +65,12 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
           </div>
         </div>
 
-        {/* Right rail: the AI read, then the flags it raised. Bottom padding
-            (lt-fab-safe) clears the floating AI analyst launcher. */}
-        <div className="lt-scroll lt-fab-safe flex min-w-0 flex-col gap-3 @[46rem]:min-h-0 @[46rem]:overflow-y-auto">
+        {/* Right rail: the AI read is the highlight and takes the leftover
+            height with its own scroll; the flags and reproducibility sit below
+            at their natural size. On a narrow pane the whole rail scrolls as one
+            column. Bottom padding (lt-fab-safe) clears the AI analyst launcher. */}
+        <div className="lt-fab-safe flex min-w-0 flex-col gap-3 @[46rem]:min-h-0 @[46rem]:overflow-hidden">
           <AiAnalysisCard ticketId={ticket.id} />
-          {/* On a wide pane the last card stretches so the rail ends flush
-              with the queue and center columns instead of leaving a gap. */}
           <SectionCard
             title="Anomaly flags"
             icon={<AlertIcon size={15} />}
@@ -81,8 +81,8 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
             <AnomalyList ticket={ticket} />
           </SectionCard>
           {/* Proof the number is reproducible: re-verify from evidence, plus the
-              judge-mode Run live control. Stretches to fill the rail. */}
-          <div className="shrink-0 @[46rem]:flex-1">
+              judge-mode Run live control. */}
+          <div className="shrink-0">
             <ReproducibilityCard ticket={ticket} />
           </div>
         </div>
@@ -149,8 +149,11 @@ function TicketHeader({ ticket, nav }: { ticket: Ticket; nav?: TicketNav }) {
  */
 function AiAnalysisCard({ ticketId }: { ticketId: string }) {
   return (
-    <section className="lt-card-shadow overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-      <header className="lt-card-head border-b border-[var(--color-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-brand)_14%,transparent),transparent)]">
+    // The AI read is the headline of the rail: on a wide pane it takes the
+    // leftover height (flex-1 + min-h-0) and scrolls its own body, so the full
+    // 7-stage trace is reachable instead of being clipped in a short card.
+    <section className="lt-card-shadow flex min-h-0 shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] @[46rem]:min-h-[16rem] @[46rem]:shrink @[46rem]:flex-1">
+      <header className="lt-card-head shrink-0 border-b border-[var(--color-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-brand)_14%,transparent),transparent)]">
         <span className="grid size-6 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
           <SparklesIcon size={14} />
         </span>
@@ -159,7 +162,7 @@ function AiAnalysisCard({ ticketId }: { ticketId: string }) {
           SAM 3.1 · Muse Spark
         </span>
       </header>
-      <div className="lt-card-body">
+      <div className="lt-card-body lt-scroll min-h-0 flex-1 overflow-y-auto">
         <AiAnalysis ticketId={ticketId} />
       </div>
     </section>
