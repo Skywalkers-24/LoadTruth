@@ -15,6 +15,7 @@ import {
 
 import { getDirectory, type DirectoryMember, type Role } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { LoginVideoBg } from "@/components/auth/login-video-bg";
 import { LogoMark } from "@/components/ui/logo";
 import { MemberAvatar } from "@/components/ui/member-avatar";
 import { Button } from "@/components/ui/shadcn/button";
@@ -68,9 +69,13 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="grid min-h-dvh lg:grid-cols-2">
-      {/* Brand panel */}
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-sidebar p-10 text-sidebar-foreground lg:flex">
+    <div className="relative grid min-h-dvh overflow-hidden lg:grid-cols-2">
+      {/* Mode-aware video background behind everything (lazy, muted, looped). */}
+      <LoginVideoBg />
+
+      {/* Brand panel. Semi-transparent so the video shows through; the gradient
+          and a blur keep the headline and stats readable over the footage. */}
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-sidebar/70 p-10 text-sidebar-foreground backdrop-blur-sm lg:flex">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-80"
@@ -156,13 +161,14 @@ export function LoginScreen() {
         </div>
       </div>
 
-      {/* Sign-in panel */}
-      <div className="relative flex items-center justify-center bg-background p-6">
+      {/* Sign-in panel. Semi-transparent over the video; the sign-in card itself
+          sits on a solid surface so every control stays fully legible. */}
+      <div className="relative flex items-center justify-center bg-background/55 p-6 backdrop-blur-md">
         {/* Theme picker — reachable before sign-in so users land in their preferred look. */}
         <div className="absolute right-5 top-5 z-10">
           <ThemeToggle />
         </div>
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-[var(--color-surface)]/90 p-6 shadow-xl backdrop-blur-xl sm:p-8">
           <div className="mb-6 flex items-center gap-3 lg:hidden">
             <LogoMark size={30} />
             <span className="text-[16px] font-bold tracking-tight">LoadTruth</span>

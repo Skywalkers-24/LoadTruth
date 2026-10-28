@@ -10,10 +10,13 @@ import { PipelineTrace } from "@/components/ai/pipeline-trace";
 import { StatusChip } from "@/components/ui/status-chip";
 import { Card } from "@/components/ui/shadcn/card";
 import { Skeleton } from "@/components/ui/shadcn/skeleton";
+import { Pagination } from "@/components/pagination";
 import { usePipelineJobs } from "@/lib/hooks";
 import { useEventContext } from "@/lib/event-context";
 import { debrisLabel, money, relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+const JOBS_PAGE_SIZE = 12;
 
 const OUTCOME_TONE = {
   drafted: "ok",
@@ -38,8 +41,12 @@ export default function PipelinePage() {
   const jobs = usePipelineJobs(eventId);
   const router = useRouter();
   const [selected, setSelected] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
 
   const rows: PipelineJob[] = jobs.data ?? [];
+  const total = rows.length;
+  const clampedOffset = offset >= total ? 0 : offset;
+  const pageRows = rows.slice(clampedOffset, clampedOffset + JOBS_PAGE_SIZE);
   const active = rows.find((j) => j.content_hash === selected) ?? rows[0] ?? null;
 
   useEffect(() => {
@@ -71,7 +78,7 @@ export default function PipelinePage() {
           <Card className="flex min-h-0 flex-col gap-0 overflow-hidden py-0">
             <header className="flex items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-[14px] font-semibold">Recent jobs</h2>
-              <span className="text-[12px] tabular-nums text-muted-foreground">{rows.length}</span>
+              <span className="text-[12px] tabular-nums text-muted-foreground">{total}</span>
             </header>
             <div className="min-h-0 flex-1 overflow-y-auto">
               {jobs.isLoading ? (
@@ -86,7 +93,7 @@ export default function PipelinePage() {
                 </p>
               ) : (
                 <ul className="divide-y divide-border">
-                  {rows.map((j) => {
+                  {pageRows.map((j) => {
                     const isActive = active?.content_hash === j.content_hash;
                     return (
                       <li key={j.content_hash}>
@@ -126,6 +133,16 @@ export default function PipelinePage() {
                 </ul>
               )}
             </div>
+            {total > JOBS_PAGE_SIZE && (
+              <div className="border-t border-border px-4 py-2.5">
+                <Pagination
+                  total={total}
+                  limit={JOBS_PAGE_SIZE}
+                  offset={clampedOffset}
+                  onOffset={setOffset}
+                />
+              </div>
+            )}
           </Card>
 
           {/* Selected trace */}

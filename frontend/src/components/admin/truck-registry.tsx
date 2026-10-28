@@ -9,9 +9,12 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { TruckIcon } from "@/components/ui/icons";
 import { EmptyState, Skeleton } from "@/components/ui/primitives";
+import { Pagination } from "@/components/pagination";
 import { useToast } from "@/components/ui/toast";
 import { useTruckMutations, useTrucks } from "@/lib/hooks";
 import { cubicYards } from "@/lib/format";
+
+const TRUCK_PAGE_SIZE = 10;
 
 /**
  * Certified-truck registry: list, add, edit, and remove certified trucks. Add
@@ -30,9 +33,15 @@ export function TruckRegistry() {
   const [source, setSource] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [removing, setRemoving] = useState<Truck | null>(null);
+  const [offset, setOffset] = useState(0);
 
   const isEdit = editing !== null && editing !== "new";
   const saving = create.isPending || update.isPending;
+
+  const allTrucks = trucks.data ?? [];
+  const total = allTrucks.length;
+  const clampedOffset = offset >= total ? 0 : offset;
+  const pageTrucks = allTrucks.slice(clampedOffset, clampedOffset + TRUCK_PAGE_SIZE);
 
   function openAdd() {
     setNumber("");
@@ -144,8 +153,8 @@ export function TruckRegistry() {
           description="Add your certified trucks so loads can be matched to a bed capacity."
         />
       ) : (
-        <ul className="lt-scroll divide-y divide-[var(--color-border)] overflow-y-auto rounded-lg border border-[var(--color-border)]">
-          {trucks.data?.map((t: Truck) => (
+        <ul className="divide-y divide-[var(--color-border)] rounded-lg border border-[var(--color-border)]">
+          {pageTrucks.map((t: Truck) => (
             <li
               key={t.id}
               className="flex items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-[var(--color-surface-2)]"
@@ -188,6 +197,15 @@ export function TruckRegistry() {
             </li>
           ))}
         </ul>
+      )}
+
+      {total > TRUCK_PAGE_SIZE && (
+        <Pagination
+          total={total}
+          limit={TRUCK_PAGE_SIZE}
+          offset={clampedOffset}
+          onOffset={setOffset}
+        />
       )}
 
       {/* Add / edit modal. ConfirmDialog hosts the form (overlay + focus trap). */}

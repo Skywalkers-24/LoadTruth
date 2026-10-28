@@ -47,6 +47,7 @@ export function EventActions({
         className="hidden"
         aria-label="Upload clip"
       />
+      {/* Primary action: capture a new ticket. */}
       <Button
         variant={uploadVariant}
         size="sm"
@@ -56,26 +57,32 @@ export function EventActions({
         {ingest.isPending ? <Loader2Icon className="animate-spin" /> : <UploadIcon />}
         {ingest.isPending ? "Analyzing clip" : "Upload clip"}
       </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() =>
-          void openAuthedExport(`/events/${eventId}/export.csv`, {
-            download: `loadtruth-${eventId}.csv`,
-          })
-        }
-      >
-        <DownloadIcon />
-        Export CSV
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => void openAuthedExport(`/events/${eventId}/audit-packet.html`)}
-      >
-        <FileTextIcon />
-        Audit packet
-      </Button>
+
+      {/* Exports, grouped and visually separated from the primary action so the
+          header reads as "capture here, export there". */}
+      <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() =>
+            void openAuthedExport(`/events/${eventId}/export.csv`, {
+              download: `loadtruth-${eventId}.csv`,
+            })
+          }
+        >
+          <DownloadIcon />
+          Export CSV
+        </Button>
+        <span className="h-4 w-px bg-[var(--color-border)]" aria-hidden />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => void openAuthedExport(`/events/${eventId}/audit-packet.html`)}
+        >
+          <FileTextIcon />
+          Audit packet
+        </Button>
+      </div>
     </div>
   );
 }
