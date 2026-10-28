@@ -14,6 +14,7 @@ import {
 
 import { ApiError, type Ticket } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
+import { LivePipelineFlow } from "@/components/ai/live-pipeline-flow";
 import { shortId } from "@/components/console/ticket-metadata";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/shadcn/button";
@@ -177,6 +178,17 @@ export default function NewTicketPage() {
                 </div>
               </Card>
             </FadeIn>
+
+            {/* Live stage flow: polls the event's current run and lights each
+                stage left to right. Shows the in-flight run even after a page
+                refresh (the server holds the progress). */}
+            <LivePipelineFlow
+              eventId={eventId}
+              onComplete={() => {
+                void tickets.refetch();
+                void dashboard.refetch();
+              }}
+            />
 
             {/* What happens to the clip — fills the column with context */}
             {!result && !error && (

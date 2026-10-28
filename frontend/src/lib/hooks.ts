@@ -253,6 +253,22 @@ export function usePipelineJobs(opts: {
   });
 }
 
+/**
+ * Live progress of the latest pipeline run for an event, polled every 3s while
+ * a run is active. The server holds the snapshot, so a page refreshed mid-run
+ * still sees the in-flight run. Polling stops once the run is done (and when the
+ * tab is hidden).
+ */
+export function usePipelineProgress(eventId: string | undefined) {
+  return useQuery({
+    queryKey: ["pipeline-progress", eventId],
+    enabled: Boolean(eventId),
+    queryFn: () => api.getPipelineProgress(eventId as string),
+    refetchInterval: (query) => (query.state.data?.status === "running" ? 3000 : false),
+    refetchIntervalInBackground: false,
+  });
+}
+
 export function useJobForTicket(ticketId: string | null) {
   return useQuery({
     queryKey: ["pipeline-job", ticketId],
