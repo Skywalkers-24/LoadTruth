@@ -98,8 +98,8 @@ class CachingAIClient:
         if cached is not None and serde.track_is_current(cached) and not outdated:
             return replace(serde.track_from_json(cached), usage=self._hit())
         if cached is not None and outdated and serde.track_can_remeasure(cached, RIM_LABEL):
-            # Older measurement method, but SAM already returned every concept
-            # the current one reads: re-measure the stored output offline.
+            # Older measurement method, and SAM already returned every concept the
+            # current one reads (rim + a load mask): re-measure offline, no call.
             stored = await asyncio.to_thread(
                 remeasure,
                 serde.track_from_json(cached),
@@ -109,8 +109,13 @@ class CachingAIClient:
             await self._persist(h, serde.STAGE_TRACK, serde.track_to_json(stored))
             log.info("ai_track_remeasured", content_hash=h, version=MEASURE_VERSION)
             return replace(stored, usage=self._hit())
-        # A miss, or an outdated row missing concepts the current method needs
-        # (the tailgate rim): run SAM once and persist the fresh result.
+        # Re-run SAM once when: a miss; or an outdated row that can't be replayed
+        # offline (missing the tailgate rim, or no load mask so an offline replay
+        # would reproduce the same 0% while the current method has new/named load
+        # concepts that may find it). The fresh result is persisted, so this
+        # costs at most one run per clip per measurement-version bump.
+        if cached is not None and outdated and not serde.track_has_load(cached):
+            log.info("ai_track_reran_no_stored_load", content_hash=h, version=MEASURE_VERSION)
         result = await self._inner.track(clip)
         await self._persist(h, serde.STAGE_TRACK, serde.track_to_json(result))
         return result

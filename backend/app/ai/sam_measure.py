@@ -72,9 +72,13 @@ LOAD_PREFIX = "load: "
 BED_FROM_BED = "bed"
 BED_FROM_TRUCK = "truck"
 
-# Bumped whenever the measurement method changes, so stored track results from
-# an older method are re-measured from their stored SAM output (no model call).
-MEASURE_VERSION = 2
+# Bumped whenever the measurement method OR the SAM concept set changes, so
+# stored tracks from an older run are re-evaluated: re-measured offline when the
+# stored masks suffice, else re-run through SAM (to pick up new/named load
+# concepts). v3: Muse Spark now names the load concepts per clip and the load
+# set gained "barrels and containers", so a v2 track that found no load must get
+# another SAM pass rather than keep its stale 0%.
+MEASURE_VERSION = 3
 
 # How the load was measured on the selected frames.
 LOAD_SEGMENTED = "segmented"  # a SAM load phrase matched inside the bed

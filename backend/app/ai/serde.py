@@ -88,11 +88,25 @@ def track_is_outdated(d: dict[str, Any], current_version: int) -> bool:
     return has_raw and int(d.get("measure_version") or 0) < current_version
 
 
+def track_has_load(d: dict[str, Any]) -> bool:
+    """True when the stored track actually segmented a load inside the bed.
+
+    ``load_source == "segmented"`` is set only when a SAM load phrase matched
+    inside the bed; "none" means no phrase matched. A track with no load cannot
+    be repaired by an offline re-measure (there is no load mask to re-measure);
+    it needs SAM to run again with the current concept set."""
+    return str(d.get("load_source") or "") == "segmented"
+
+
 def track_can_remeasure(d: dict[str, Any], rim_key: str) -> bool:
-    """True when the stored SAM output already holds every concept the current
-    method reads (the tailgate rim), so it can be re-measured offline."""
+    """True when the stored SAM output can be re-measured offline for the current
+    method: it holds the tailgate rim AND a load mask was segmented.
+
+    When no load was segmented, an offline replay would reproduce the same 0%
+    fill, so the caller must re-run SAM (to pick up new/named load concepts)
+    rather than replay."""
     raw = d.get("sam_output")
-    return isinstance(raw, dict) and rim_key in raw
+    return isinstance(raw, dict) and rim_key in raw and track_has_load(d)
 
 
 def ocr_to_json(r: OCRResult) -> dict[str, Any]:

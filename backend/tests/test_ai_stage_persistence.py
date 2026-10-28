@@ -154,19 +154,30 @@ async def test_results_are_tenant_scoped(session: AsyncSession) -> None:
 
 _BED_TXT = "<0f>0<|box;x1=100;y1=100;x2=299;y2=199;w=1000;h=1000|>\n"
 _RIM_TXT = "<0f>0<|box;x1=100;y1=160;x2=299;y2=199;w=1000;h=1000|>\n"
+_LOAD_TXT = "<0f>0<|box;x1=100;y1=100;x2=299;y2=159;w=1000;h=1000|>\n"
 
 
-def _old_track_row(*, with_rim: bool) -> dict[str, object]:
-    """A live track stored by measurement v1 (no measure_version)."""
-    sam_output = {"truck bed": _BED_TXT, "debris pile": ""}
+def _old_track_row(*, with_rim: bool, with_load: bool = True) -> dict[str, object]:
+    """A live track stored by an older measurement version.
+
+    ``with_load`` controls whether a SAM load phrase matched (``load_source``):
+    a track with no load can't be replayed offline and must re-run SAM.
+    """
+    sam_output = {"truck bed": _BED_TXT, "debris pile": _LOAD_TXT if with_load else ""}
     if with_rim:
         sam_output["tailgate"] = _RIM_TXT
     return {
         "frame_count": 1,
         "sam_output": sam_output,
+        "load_source": "segmented" if with_load else "none",
+        "measure_version": 1,
         "objects": [
             {"label": "truck bed", "sam_object_id": "bed-0", "mask_areas": [1.0]},
-            {"label": "debris pile", "sam_object_id": "load", "mask_areas": [0.0]},
+            {
+                "label": "debris pile",
+                "sam_object_id": "load",
+                "mask_areas": [1.0 if with_load else 0.0],
+            },
         ],
     }
 
@@ -176,7 +187,11 @@ async def test_outdated_track_with_every_concept_is_remeasured_offline(
     session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # Stand in for the SAM parser: each stored text decodes to one box.
-    boxes = {_BED_TXT: Box(100, 100, 300, 200), _RIM_TXT: Box(100, 160, 300, 200)}
+    boxes = {
+        _BED_TXT: Box(100, 100, 300, 200),
+        _RIM_TXT: Box(100, 160, 300, 200),
+        _LOAD_TXT: Box(100, 100, 300, 160),
+    }
     monkeypatch.setattr(
         sam_measure,
         "parse_segmentation",
@@ -191,8 +206,8 @@ async def test_outdated_track_with_every_concept_is_remeasured_offline(
     inner = CountingAIClient()
     track = await CachingAIClient(inner, repo, TENANT).track(CLIP)
 
-    assert inner.track_calls == 0  # no model call
-    assert track.measure_version >= 2
+    assert inner.track_calls == 0  # no model call: offline re-measure
+    assert track.measure_version >= 3
     bed = track.by_label("truck bed")
     assert bed is not None and bed.mask_areas == [200.0 * 60]  # opening above the rim
     stored = await repo.get_ai_stage_result(TENANT, HASH, "sam_track")
@@ -208,3 +223,16 @@ async def test_outdated_track_missing_the_rim_reruns_sam(session: AsyncSession) 
     inner = CountingAIClient()
     await CachingAIClient(inner, repo, TENANT).track(CLIP)
     assert inner.track_calls == 1  # SAM must supply the tailgate the new method reads
+
+
+@pytest.mark.asyncio
+async def test_outdated_track_with_no_load_reruns_sam(session: AsyncSession) -> None:
+    # The LT-804655 case: a cached track that found no load must re-run SAM so
+    # the current (named + expanded) load concepts get a chance, not replay 0%.
+    repo = SqlTicketRepository(session)
+    await repo.save_ai_stage_result(
+        TENANT, HASH, "sam_track", result_json=_old_track_row(with_rim=True, with_load=False)
+    )
+    inner = CountingAIClient()
+    await CachingAIClient(inner, repo, TENANT).track(CLIP)
+    assert inner.track_calls == 1
