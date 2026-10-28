@@ -458,6 +458,27 @@ export async function getTicketEvidence(ticketId: string): Promise<TicketEvidenc
 }
 
 /**
+ * The result of reproducing a ticket's number from its stored evidence. The
+ * backend re-runs the geometry over the saved SAM masks and rebuilds the receipt
+ * (a SHA-256 over every pinned input), so an auditor gets a matching number and a
+ * matching fingerprint without any model call.
+ */
+export interface Reverify {
+  ticket_id: string;
+  reproducible: boolean;
+  reason: string;
+  stored_fill_pct: string;
+  recomputed_fill_pct: string | null;
+  receipt_hash: string | null;
+  receipt_inputs: Record<string, unknown>;
+}
+
+/** Reproduce a ticket's measured fill % and rebuild its evidence receipt. */
+export function reverifyTicket(ticketId: string): Promise<Reverify> {
+  return request<Reverify>(`/tickets/${ticketId}/reverify`, { method: "POST" });
+}
+
+/**
  * Fetch the stored evidence clip with the bearer token and return an object
  * URL for a <video> or <img>. The caller revokes it when done.
  */
@@ -708,11 +729,16 @@ export const api = {
   dashboard: (eventId: string) => request<Dashboard>(`/events/${eventId}/dashboard`),
   reportsSummary: (eventId: string) =>
     request<ReportsSummary>(`/events/${eventId}/reports/summary`),
-  ingest: (eventId: string, file: File) => upload<Ticket>(`/events/${eventId}/ingest`, file),
+  ingest: (eventId: string, file: File, opts: { bypassCache?: boolean } = {}) =>
+    upload<Ticket>(
+      `/events/${eventId}/ingest${opts.bypassCache ? "?bypass_cache=true" : ""}`,
+      file,
+    ),
   getPipelineJobs,
   getJobForTicket,
   getTicketPipeline,
   getTicketEvidence,
+  reverifyTicket,
   // Exports (CSV, audit packet, invoice) are downloaded via `openAuthedExport`
   // so the bearer token travels with the request; see that helper above.
 

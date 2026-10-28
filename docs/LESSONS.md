@@ -148,3 +148,16 @@ Entry format:
 - **What happened:** The analyst agent had 21 `mypy --strict` errors from reading `ToolResult.evidence` (typed `dict[str, object]`) and calling `int(...)` / indexing the `object` values, papered over with `# type: ignore` that then went stale.
 - **Fix:** Small typed accessors (`_int`, `_num`, `_items`, `_mapping`, `_row_str`) narrow `object` to the needed type at the read site, and the evidence dicts that mix ints and floats are annotated `dict[str, object]` so a narrow inference can't fight a later assignment. Also typed `require()` as returning `Callable[[Session], Awaitable[Session]]` since its guard is async.
 - **Rule going forward:** Read `object`-typed values through a narrowing helper instead of `# type: ignore`; annotate heterogeneous evidence dicts as `dict[str, object]` at creation.
+
+### 2026-10-28 — Re-verify needs the stored SAM output, and the mock keeps the key but not the content
+
+- **What happened:** Building Re-verify (B5), I assumed a ticket ingested under the fixture mock could not be re-verified, because the mock's `TrackResult` carries no raw `segments`. In fact `serde.track_to_json` always writes `"sam_output": dict(r.segments)` even when empty, and `track_is_current` only checks that the *key* is present, so a mock-ingested ticket does replay (its bed/debris mask areas are what the geometry needs; the raw `sam_output` only feeds the overlay and the receipt's `sam_output_hash`, which falls back to a fixed sentinel when empty). So the positive Re-verify path is testable under MOCK_AI without real SAM output.
+- **Root cause:** Two different notions of "has SAM data": the geometry needs `mask_areas` (always present), the overlay needs non-empty `sam_output` (absent under the mock). `track_is_current` gates on the latter's key, not its emptiness.
+- **Fix:** Re-verify reads `mask_areas` for the recompute and hashes whatever `segments` exist (sentinel when empty), so it works for both mock and live. The test ingests under the mock and asserts `reproducible=True` with a 64-char receipt; a seeded ticket with no evidence row returns `reproducible=False` (not an exception).
+- **Rule going forward:** When replaying a stored AI result, separate "enough to recompute the number" (mask areas) from "enough to redraw the evidence" (raw masks). Don't gate the recompute on the overlay's data. Keep the receipt hash defined even when optional inputs are empty, so it is always comparable.
+
+### 2026-10-28 — `NEXT_PUBLIC_*` is baked at build time, so judge mode is a build arg, not a runtime env
+
+- **What happened:** Judge mode reads `NEXT_PUBLIC_APP_MODE`. Setting it only in the backend/runtime environment would not work: Next.js inlines `NEXT_PUBLIC_*` into the client bundle during `next build`, so a value set at container runtime is ignored.
+- **Fix:** Added `NEXT_PUBLIC_APP_MODE` and `NEXT_PUBLIC_JUDGE_TICKET_ID` as `ARG`/`ENV` in the frontend Dockerfile (before `npm run build`) and as compose build `args`. A judge build is `NEXT_PUBLIC_APP_MODE=judge docker compose up -d --build frontend`.
+- **Rule going forward:** Any `NEXT_PUBLIC_*` toggle must be present during `next build`. Thread it through the Dockerfile build stage and compose `args`, not just `environment`.

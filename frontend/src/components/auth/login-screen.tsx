@@ -13,12 +13,61 @@ import {
   SparklesIcon,
 } from "lucide-react";
 
+import {
+  CircleUserRoundIcon,
+  ContactRoundIcon,
+  SmileIcon,
+  UserRoundIcon,
+  UserStarIcon,
+} from "lucide-react";
+
 import { getDirectory, type DirectoryMember, type Role } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { LogoMark } from "@/components/ui/logo";
 import { Button } from "@/components/ui/shadcn/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
+
+// A small set of friendly, non-gendered person glyphs and a colorful palette.
+// Each member gets a deterministic glyph + color from a hash of their email, so
+// the list looks varied and human without labeling anyone by gender.
+const AVATAR_GLYPHS = [
+  UserRoundIcon,
+  CircleUserRoundIcon,
+  ContactRoundIcon,
+  SmileIcon,
+  UserStarIcon,
+];
+const AVATAR_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "var(--color-brand)",
+];
+
+function avatarIndex(key: string, mod: number): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return h % mod;
+}
+
+function MemberAvatar({ seed, size = 18 }: { seed: string; size?: number }) {
+  const Glyph = AVATAR_GLYPHS[avatarIndex(seed, AVATAR_GLYPHS.length)]!;
+  const color = AVATAR_COLORS[avatarIndex(`${seed}c`, AVATAR_COLORS.length)]!;
+  return (
+    <span
+      className="grid size-9 shrink-0 place-items-center rounded-full"
+      style={{
+        backgroundColor: `color-mix(in srgb, ${color} 20%, transparent)`,
+        color,
+      }}
+      aria-hidden
+    >
+      <Glyph size={size} />
+    </span>
+  );
+}
 
 const ROLE_LABEL: Record<Role, string> = {
   monitor: "Field Monitor",
@@ -120,7 +169,7 @@ export function LoginScreen() {
             <Feature
               icon={<ShieldAlertIcon className="size-4" />}
               title="Anomaly detection"
-              body="Over-calls, hollow loads, and unreadable placards flagged automatically."
+              body="Over-calls, surface-versus-depth gaps, and unreadable placards flagged automatically."
             />
             <Feature
               icon={<SparklesIcon className="size-4" />}
@@ -140,9 +189,18 @@ export function LoginScreen() {
           </ul>
         </div>
 
-        <div className="relative flex items-center gap-2 text-[12px] text-sidebar-muted">
-          <span className="size-1.5 rounded-full bg-[var(--color-brand-strong)]" aria-hidden />
-          Powered by Meta SAM 3.1 and Muse Spark
+        <div className="relative flex items-center justify-between gap-3 text-[12px] text-sidebar-muted">
+          <span className="flex items-center gap-2">
+            <span className="size-1.5 rounded-full bg-[var(--color-brand-strong)]" aria-hidden />
+            Powered by Meta SAM 3.1 and Muse Spark
+          </span>
+          <a
+            href="/showcase"
+            className="inline-flex items-center gap-1 font-medium text-[var(--color-brand-strong)] underline-offset-4 hover:underline"
+          >
+            View the public showcase
+            <ArrowRightIcon className="size-3.5" />
+          </a>
         </div>
       </div>
 
@@ -187,9 +245,8 @@ export function LoginScreen() {
                         : "border-border hover:border-[var(--color-border-strong)] hover:bg-accent",
                     )}
                   >
-                    <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--color-brand-fill)] text-[12px] font-bold text-white">
-                      {(m.full_name ?? m.email).slice(0, 2).toUpperCase()}
-                    </span>
+                    <MemberAvatar seed={m.email} />
+
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-[14px] font-semibold">
                         {m.full_name ?? m.email}
@@ -218,6 +275,17 @@ export function LoginScreen() {
             {submitting ? <Loader2Icon className="animate-spin" /> : null}
             {submitting ? "Signing in" : "Continue"}
           </Button>
+
+          <p className="mt-4 text-center text-[12px] text-muted-foreground">
+            New here?{" "}
+            <a
+              href="/showcase"
+              className="inline-flex items-center gap-1 font-medium text-[var(--color-brand)] underline-offset-4 hover:underline"
+            >
+              See the public showcase
+              <ArrowRightIcon className="size-3.5" />
+            </a>
+          </p>
         </div>
       </div>
     </div>

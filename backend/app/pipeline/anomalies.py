@@ -23,7 +23,7 @@ class AnomalyType(StrEnum):
     CAPACITY_EXCEEDED = "capacity_exceeded"
     IMPOSSIBLE_CYCLE = "impossible_cycle"
     DUPLICATE_TRUCK = "duplicate_truck"
-    HOLLOW_LOAD = "hollow_load"
+    SURFACE_DEPTH_MISMATCH = "surface_depth_mismatch"
     LOW_CONFIDENCE = "low_confidence"
 
 
@@ -59,10 +59,11 @@ class AnomalyInput:
 
 # Minimum realistic minutes between two loads from the same truck at one site.
 _MIN_CYCLE_MINUTES = 20.0
-# A load reads "hollow/fluffed" when the surface covers most of the opening but
-# the credited fill is low — high coverage, low volume.
-_HOLLOW_COVERAGE = 0.80
-_HOLLOW_FILL_PCT = Decimal(45)
+# The load surface reaches across most of the bed opening, yet the credited fill
+# is low: high planar coverage with low measured depth. We report exactly what we
+# measured (surface high, depth low); we do not claim to see interior voids.
+_SURFACE_COVERAGE = 0.80
+_LOW_DEPTH_FILL_PCT = Decimal(45)
 _LOW_CONFIDENCE = 0.45
 _CAPACITY_TOLERANCE = Decimal("1.02")  # allow 2% measurement slack
 
@@ -110,13 +111,13 @@ def evaluate(
             )
         )
 
-    if load.planar_coverage >= _HOLLOW_COVERAGE and load.est_fill_pct <= _HOLLOW_FILL_PCT:
+    if load.planar_coverage >= _SURFACE_COVERAGE and load.est_fill_pct <= _LOW_DEPTH_FILL_PCT:
         flags.append(
             Anomaly(
-                AnomalyType.HOLLOW_LOAD,
+                AnomalyType.SURFACE_DEPTH_MISMATCH,
                 Severity.WARN,
-                "Load covers most of the bed opening but credits a low fill — possible "
-                "hollow or 'fluffed' load; review the surface against the depth.",
+                "The load surface spans most of the bed opening, but the measured depth is "
+                "low. Review the surface against the depth before crediting the volume.",
                 ev,
             )
         )

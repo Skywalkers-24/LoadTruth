@@ -16,7 +16,7 @@ export interface ChatMessage {
 /** Human-readable labels for the analyst's grounded tool calls. */
 export const TOOL_LABEL: Record<string, string> = {
   event_summary: "Read event totals",
-  accuracy_stats: "Checked fill accuracy",
+  accuracy_stats: "Checked monitor agreement",
   query_tickets: "Queried tickets",
   query_anomalies: "Queried anomaly flags",
   disputes: "Looked up disputes",

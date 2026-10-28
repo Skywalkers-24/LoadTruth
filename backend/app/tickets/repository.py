@@ -8,12 +8,14 @@ dataclasses from `app.tickets.domain`, so the API/serializers are unchanged.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.db import models
 from app.pipeline.registry import CertifiedTruck, TruckRegistry
 from app.tickets.domain import Event, Ticket
@@ -141,6 +143,24 @@ class ReportsSummaryData:
         # Denominator behind the accuracy fraction — the number of tickets with a
         # monitor call. Lets the "All events" view weight combined accuracy exactly.
         self.benchmarked_count = benchmarked_count
+
+
+@dataclass(frozen=True, slots=True)
+class ReverifyResult:
+    """Outcome of replaying a ticket's measurement from its stored evidence.
+
+    ``reproducible`` is True when the fill % recomputed from the stored SAM masks
+    equals the ticket's stored fill %. ``receipt_hash`` is the SHA-256 fingerprint
+    of every pinned input; ``receipt_inputs`` is the canonical input record behind
+    that hash (shown to an auditor and encoded in the ticket/packet QR).
+    """
+
+    reproducible: bool
+    reason: str
+    stored_fill_pct: Decimal
+    recomputed_fill_pct: Decimal | None
+    receipt_hash: str | None
+    receipt_inputs: dict[str, object]
 
 
 def _to_event(row: models.Event) -> Event:
@@ -455,6 +475,119 @@ class SqlTicketRepository:
                 .where(models.TicketEvidence.ticket_id == ticket_id)
             )
         ).scalar_one_or_none()
+
+    async def reverify_ticket(self, tenant_id: UUID, ticket_id: UUID) -> ReverifyResult:
+        """Recompute a ticket's fill % from its stored SAM masks and rebuild its
+        receipt, proving the number is reproducible from the evidence.
+
+        Deterministic and offline: it reads the persisted SAM track result (the
+        exact masks the model returned for this clip), re-runs the Stage-5
+        geometry over those masks, and compares the recomputed fill % to the
+        stored one. It also rebuilds the evidence receipt (a SHA-256 over every
+        pinned input) so an auditor gets both a matching number and a matching
+        fingerprint. Raises ``TicketNotFoundError`` if the ticket is absent and
+        returns ``reproducible=False`` (never an exception) when the stored
+        evidence is insufficient to replay.
+        """
+        from app.ai import serde
+        from app.ai.sam_measure import BED_LABEL, LOAD_LABEL
+        from app.pipeline.geometry import MaskMeasurement, estimate_fill
+        from app.pipeline.receipt import ReceiptInputs, compute_receipt, sam_output_hash
+
+        ticket = await self.get_ticket(tenant_id, ticket_id)
+        evidence = await self.get_ticket_evidence(tenant_id, ticket_id)
+        settings = get_settings()
+
+        track_json = (
+            await self.get_ai_stage_result(tenant_id, evidence.content_hash, serde.STAGE_TRACK)
+            if evidence is not None
+            else None
+        )
+        if evidence is None or track_json is None or not serde.track_is_current(track_json):
+            return ReverifyResult(
+                reproducible=False,
+                reason="No stored segmentation is available to replay for this ticket.",
+                stored_fill_pct=ticket.est_fill_pct,
+                recomputed_fill_pct=None,
+                receipt_hash=None,
+                receipt_inputs={},
+            )
+
+        track = serde.track_from_json(track_json)
+        bed = track.by_label(BED_LABEL)
+        debris = track.by_label(LOAD_LABEL)
+        if bed is None or debris is None or not bed.mask_areas:
+            return ReverifyResult(
+                reproducible=False,
+                reason="The stored segmentation does not contain both the bed and the load.",
+                stored_fill_pct=ticket.est_fill_pct,
+                recomputed_fill_pct=None,
+                receipt_hash=None,
+                receipt_inputs={},
+            )
+
+        bed_area = sum(bed.mask_areas) / len(bed.mask_areas)
+        load_area = sum(debris.mask_areas) / len(debris.mask_areas) if debris.mask_areas else 0.0
+        body_type = await self._body_type_for(tenant_id, ticket.truck_id)
+
+        recomputed = estimate_fill(
+            [
+                MaskMeasurement(
+                    bed_area=bed_area,
+                    load_area=load_area,
+                    load_height_ratio=debris.load_height_ratio,
+                )
+            ],
+            body_type=body_type,
+        )
+
+        receipt = compute_receipt(
+            ReceiptInputs(
+                content_hash=evidence.content_hash,
+                sam_output_hash=sam_output_hash(
+                    {str(k): str(v) for k, v in (evidence.segments or {}).items()}
+                ),
+                bed_area=bed_area,
+                load_area=load_area,
+                load_height_ratio=debris.load_height_ratio,
+                body_type=body_type,
+                truck_id=ticket.truck_id,
+                debris_class=ticket.debris_class.value,
+                certified_cubic_yards=str(ticket.certified_cubic_yards),
+                rate_per_cy=str(ticket.rate_per_cy),
+                est_fill_pct=str(ticket.est_fill_pct),
+                est_cubic_yards=str(ticket.est_cubic_yards),
+                est_dollar_value=str(ticket.est_dollar_value),
+                sam_model=settings.sam_model,
+                spark_model=settings.spark_model,
+            )
+        )
+        reproducible = recomputed.fill_pct == ticket.est_fill_pct
+        return ReverifyResult(
+            reproducible=reproducible,
+            reason=(
+                "Recomputed fill matches the stored ticket."
+                if reproducible
+                else "Recomputed fill differs from the stored ticket."
+            ),
+            stored_fill_pct=ticket.est_fill_pct,
+            recomputed_fill_pct=recomputed.fill_pct,
+            receipt_hash=receipt.receipt_hash,
+            receipt_inputs=receipt.inputs,
+        )
+
+    async def _body_type_for(self, tenant_id: UUID, truck_id: str | None) -> str | None:
+        """The matched truck's body type (drives the geometry depth prior), or None."""
+        if not truck_id:
+            return None
+        registry = TruckRegistry(
+            [
+                CertifiedTruck(number, cap, body_type or "")
+                for number, body_type, cap in await self.get_registry(tenant_id)
+            ]
+        )
+        match = registry.lookup(truck_id)
+        return match.truck.body_type if match.truck else None
 
     async def list_pipeline_stages(
         self, tenant_id: UUID, ticket_id: UUID
@@ -1007,7 +1140,11 @@ class SqlTicketRepository:
         if "name" in fields_set and name is not None:
             row.name = name
         if "config" in fields_set and config is not None:
-            row.config = config
+            # Shallow-merge so a PATCH that omits a write-only secret (the UI
+            # cannot resend one it never received) preserves the stored value.
+            # An empty-string value explicitly clears that key.
+            merged = {**(row.config or {}), **config}
+            row.config = {k: v for k, v in merged.items() if v != ""}
         if "status" in fields_set and status is not None:
             row.status = status
         await self._s.flush()

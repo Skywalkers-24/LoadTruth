@@ -73,7 +73,7 @@ STARTER_PROMPTS = [
     "Which trucks over-called the most?",
     "How many tickets still need review?",
     "Are there any open disputes?",
-    "How accurate are our fill estimates?",
+    "How often do we agree with the monitor?",
     "Summarize this event for an audit.",
 ]
 
@@ -92,8 +92,8 @@ _FOLLOW_UPS: dict[str, list[str]] = {
         "Summarize the open disputes for an audit.",
         "How many tickets still need review?",
     ],
-    "accuracy": [
-        "Which tickets fell outside the 10% band?",
+    "agreement": [
+        "Which tickets fell outside the 10 point band?",
         "Which trucks over-called the most?",
         "Summarize this event for an audit.",
     ],
@@ -238,22 +238,27 @@ async def _compose(question: str, tools: AnalystTools, event_name: str) -> Analy
             text = lead + "\n\n" + "\n".join(lines)
         return AnalystReply(text, used, _follow_ups("disputes", question))
 
-    # Accuracy
-    if _mentions(q, "accurate", "accuracy", "benchmark", "confidence"):
+    # Agreement with the monitor
+    if _mentions(q, "accurate", "accuracy", "agree", "agreement", "benchmark", "confidence"):
         a = await tools.accuracy_stats()
         used.append(a)
         acc = a.evidence.get("accuracy_within_10pct")
         reviewed = _int(a.evidence.get("reviewed_count"))
         total = _int(a.evidence.get("ticket_count"))
         if acc is None:
-            text = f"No accuracy benchmark is recorded for {event_name} yet."
+            text = (
+                f"No monitor calls are recorded for {event_name} yet, so agreement cannot be "
+                "reported."
+            )
         else:
             pct = round(_num(acc) * 100)
             text = (
-                f"In {event_name}, {pct}% of tickets have a measured fill within 10 percentage "
-                f"points of the monitor's call. {reviewed} of {total} tickets have been reviewed."
+                f"In {event_name}, the measured fill agrees with the monitor's call within 10 "
+                f"points on {pct}% of reviewed tickets. {reviewed} of {total} tickets have been "
+                "reviewed. This is agreement with the human reviewer, not benchmark accuracy "
+                "against a known volume."
             )
-        return AnalystReply(text, used, _follow_ups("accuracy", question))
+        return AnalystReply(text, used, _follow_ups("agreement", question))
 
     # Top over-callers / trucks
     if _mentions(q, "over-call", "overcall", "over call", "truck", "worst", "highest", "top"):
@@ -310,7 +315,7 @@ async def _compose(question: str, tools: AnalystTools, event_name: str) -> Analy
         e = s.evidence
         acc = a.evidence.get("accuracy_within_10pct")
         acc_line = (
-            f" Fill accuracy is {round(_num(acc) * 100)}% within 10 points of the monitor."
+            f" Agreement with the monitor is {round(_num(acc) * 100)}% within 10 points."
             if acc is not None
             else ""
         )

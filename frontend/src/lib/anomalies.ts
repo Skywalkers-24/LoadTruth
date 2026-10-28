@@ -66,7 +66,7 @@ export function deriveAnomalies(ticket: Ticket): DerivedAnomaly[] {
       title: `${remainder} additional flag${remainder > 1 ? "s" : ""}`,
       severity: "info",
       explanation:
-        "Additional checks flagged this load, such as low confidence, a hollow load, or cycle time. The audit packet has the full breakdown.",
+        "Additional checks flagged this load, such as low confidence, a surface-versus-depth mismatch, or cycle time. The audit packet has the full breakdown.",
       itemized: false,
     });
   }

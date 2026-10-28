@@ -8,6 +8,7 @@ does the math itself.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
@@ -227,6 +228,46 @@ async def ticket_evidence_media(
         media_type=stored.mime,
         filename=f"evidence-{ticket_id}.{evidence_store.extension(stored.mime)}",
         content_disposition_type="inline",
+    )
+
+
+class ReverifyOut(BaseModel):
+    """The result of reproducing a ticket's number from its stored evidence.
+
+    ``reproducible`` is true when the fill % recomputed from the stored SAM masks
+    matches the ticket. ``receipt_hash`` is the SHA-256 fingerprint of every
+    pinned input; ``receipt_inputs`` is the canonical record behind it.
+    """
+
+    ticket_id: UUID
+    reproducible: bool
+    reason: str
+    stored_fill_pct: Decimal
+    recomputed_fill_pct: Decimal | None = None
+    receipt_hash: str | None = None
+    receipt_inputs: dict[str, object] = Field(default_factory=dict)
+
+
+@router.post("/tickets/{ticket_id}/reverify", response_model=ReverifyOut)
+async def reverify_ticket(repo: Repository, tenant: ActiveTenant, ticket_id: UUID) -> ReverifyOut:
+    """Reproduce the ticket's measured fill % from its stored evidence.
+
+    Deterministic and offline: re-runs the geometry over the SAM masks saved for
+    this clip and rebuilds the evidence receipt, so an auditor sees both a
+    matching number and a matching fingerprint without any model call.
+    """
+    try:
+        r = await repo.reverify_ticket(tenant, ticket_id)
+    except TicketNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
+    return ReverifyOut(
+        ticket_id=ticket_id,
+        reproducible=r.reproducible,
+        reason=r.reason,
+        stored_fill_pct=r.stored_fill_pct,
+        recomputed_fill_pct=r.recomputed_fill_pct,
+        receipt_hash=r.receipt_hash,
+        receipt_inputs=r.receipt_inputs,
     )
 
 

@@ -87,6 +87,35 @@ def test_patch_source(client: TestClient) -> None:
     assert body["config"] == {"url": "rtsp://a/b"}  # unchanged
 
 
+def test_patch_source_merges_config_preserving_untouched_keys(client: TestClient) -> None:
+    """A config PATCH shallow-merges, so a write-only secret the UI cannot
+    resend survives, and an empty string clears a key."""
+    created = client.post(
+        f"/events/{DEMO_EVENT_ID}/sources",
+        json={
+            "kind": "webhook",
+            "name": "Hook",
+            "config": {"endpoint": "https://a/hook", "signing_secret": "kept-value"},  # noqa: S106
+        },
+    ).json()
+    # Edit only the endpoint; the secret is omitted and must be preserved.
+    resp = client.patch(
+        f"/sources/{created['id']}",
+        json={"config": {"endpoint": "https://b/hook"}},
+    )
+    assert resp.status_code == 200
+    cfg = resp.json()["config"]
+    assert cfg["endpoint"] == "https://b/hook"
+    assert cfg["signing_secret"] == "kept-value"  # untouched secret preserved  # noqa: S105
+    # An explicit empty string clears the key.
+    resp2 = client.patch(
+        f"/sources/{created['id']}",
+        json={"config": {"signing_secret": ""}},
+    )
+    assert "signing_secret" not in resp2.json()["config"]
+    assert resp2.json()["config"]["endpoint"] == "https://b/hook"
+
+
 def test_patch_source_404(client: TestClient) -> None:
     resp = client.patch(f"/sources/{_MISSING}", json={"status": "paused"})
     assert resp.status_code == 404

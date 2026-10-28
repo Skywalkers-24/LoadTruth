@@ -23,9 +23,9 @@ import { Card } from "@/components/ui/shadcn/card";
  */
 export default function GuidePage() {
   return (
-    <AppShell section="Guide">
+    <AppShell section="Guide" fluid>
       <div className="lt-scroll lt-fab-safe min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-4xl flex-col gap-5">
+        <div className="mx-auto flex max-w-6xl flex-col gap-5">
           <header className="flex flex-col gap-1">
             <h1 className="lt-page-title">Operating LoadTruth</h1>
             <p className="text-[13px] leading-relaxed text-muted-foreground">
@@ -133,9 +133,10 @@ export default function GuidePage() {
               </li>
             </ul>
             <p>
-              <B>Fill accuracy</B> on the Overview is the share of monitor-reviewed tickets whose
-              machine estimate landed within 10 percentage points of the monitor&apos;s call. It is
-              computed from your own data.
+              <B>Agreement with monitor</B> on the Overview is the share of monitor-reviewed tickets
+              whose machine estimate landed within 10 percentage points of the monitor&apos;s call.
+              It is computed from your own data and measures agreement with the human reviewer, not
+              benchmark accuracy against a known volume.
             </p>
           </Section>
 
@@ -197,8 +198,8 @@ export default function GuidePage() {
                   />
                   <FlagRow
                     sev="Warn"
-                    flag="Hollow load"
-                    meaning="The load covers most of the bed opening but credits a low fill, a possible hollow or fluffed load."
+                    flag="Surface high, depth low"
+                    meaning="The load surface spans most of the bed opening but the measured depth is low. Review the surface against the depth before crediting the volume."
                   />
                   <FlagRow
                     sev="Info"
@@ -259,7 +260,7 @@ export default function GuidePage() {
             <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
               <Term
                 t="Overview"
-                d="The event's money frame at a glance: flagged exposure, measured value, review progress, fill accuracy, and the highest-value tickets still to review."
+                d="The event's money frame at a glance: flagged exposure, measured value, review progress, agreement with the monitor, and the highest-value tickets still to review."
               />
               <Term
                 t="Review"

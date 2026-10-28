@@ -109,7 +109,7 @@ export function AssistantChat({
                   compact ? "text-[12px]" : full ? "text-[14px]" : "text-[13px]",
                 )}
               >
-                Exposure, over-calls, disputes, anomalies, accuracy, or a summary for an audit.
+                Exposure, over-calls, disputes, anomalies, monitor agreement, or a summary for an audit.
               </p>
             </div>
             <div

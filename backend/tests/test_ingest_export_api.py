@@ -52,7 +52,7 @@ def test_export_audit_packet_html(client: TestClient) -> None:
     resp = client.get(f"/events/{DEMO_EVENT_ID}/audit-packet.html")
     assert resp.status_code == 200
     assert "Disputed volume flagged" in resp.text
-    assert "Accuracy statement" in resp.text
+    assert "Agreement with monitor" in resp.text
 
 
 # ── Mock scenario steering via filename prefix (positive + negative paths) ──

@@ -22,7 +22,7 @@ import { Skeleton } from "@/components/ui/shadcn/skeleton";
 import { FadeIn } from "@/components/ui/motion";
 import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
-import { useIngest, useTickets } from "@/lib/hooks";
+import { useDashboard, useIngest, useTickets } from "@/lib/hooks";
 import { debrisLabel, money, relativeTime, signedMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +64,7 @@ export default function NewTicketPage() {
   const [result, setResult] = useState<Ticket | null>(null);
   const [error, setError] = useState<string | null>(null);
   const tickets = useTickets({ eventId, limit: 100, offset: 0 });
+  const dashboard = useDashboard(eventId);
   const recent = (tickets.data?.items ?? [])
     .slice()
     .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
@@ -177,6 +178,72 @@ export default function NewTicketPage() {
               </Card>
             </FadeIn>
 
+            {/* What happens to the clip — fills the column with context */}
+            {!result && !error && (
+              <FadeIn delay={0.05}>
+                <Card className="gap-0 p-4">
+                  <h2 className="text-[13px] font-semibold">What happens to your clip</h2>
+                  <ol className="mt-3 flex flex-col gap-3">
+                    <HowStep
+                      n={1}
+                      title="SAM 3.1 segments the load"
+                      body="The truck bed and the debris pile are tracked across frames, so the fill is measured from pixels, not guessed."
+                    />
+                    <HowStep
+                      n={2}
+                      title="Muse Spark reads and classifies"
+                      body="The ID placard is read and the debris is classified, which ties the load to a certified truck and the right rate."
+                    />
+                    <HowStep
+                      n={3}
+                      title="Deterministic math values it"
+                      body="Fill percent times certified capacity gives cubic yards; cubic yards times the class rate gives the dollar value. No model sets the price."
+                    />
+                    <HowStep
+                      n={4}
+                      title="You review the draft"
+                      body="Nothing is final until a monitor confirms, overrides, or disputes it. Every number links back to its evidence frame."
+                    />
+                  </ol>
+                </Card>
+              </FadeIn>
+            )}
+
+            {/* Event at a glance — real numbers, keeps the column balanced */}
+            <FadeIn delay={0.1}>
+              <Card className="gap-0 p-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-[13px] font-semibold">Event at a glance</h2>
+                  <span className="truncate text-[11px] text-muted-foreground">
+                    {selected?.name ?? "This event"}
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                  <Glance
+                    label="Tickets"
+                    value={dashboard.data ? String(dashboard.data.ticket_count) : "—"}
+                  />
+                  <Glance
+                    label="Awaiting review"
+                    value={
+                      dashboard.data
+                        ? String(dashboard.data.ticket_count - dashboard.data.reviewed_count)
+                        : "—"
+                    }
+                  />
+                  <Glance
+                    label="Over-called"
+                    value={dashboard.data ? String(dashboard.data.overbill_ticket_count) : "—"}
+                  />
+                  <Glance
+                    label="Flagged exposure"
+                    value={dashboard.data ? money(dashboard.data.total_delta_dollar_value) : "—"}
+                    tone="money"
+                  />
+                </div>
+              </Card>
+            </FadeIn>
+
             {error && (
               <Card className="border-[var(--color-destructive)]/40 bg-[var(--color-danger-soft)] p-4">
                 <p className="text-[13px] text-[var(--color-destructive)]">{error}</p>
@@ -217,6 +284,10 @@ export default function NewTicketPage() {
                 </Card>
               </FadeIn>
             )}
+
+            {/* Absorbs any leftover height on very tall screens so the column
+                does not leave a white gap below its content. */}
+            <div aria-hidden className="hidden flex-1 lg:block" />
           </div>
 
           {/* Right: tickets in this event */}
@@ -286,6 +357,36 @@ function Step({ icon, label }: { icon: React.ReactNode; label: string }) {
         {icon}
       </span>
       <span className="text-[11px] font-medium leading-tight">{label}</span>
+    </div>
+  );
+}
+
+function HowStep({ n, title, body }: { n: number; title: string; body: string }) {
+  return (
+    <li className="flex gap-3">
+      <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-brand-soft)] text-[11px] font-bold text-[var(--color-brand)]">
+        {n}
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <span className="text-[13px] font-semibold">{title}</span>
+        <span className="text-[12px] leading-snug text-muted-foreground">{body}</span>
+      </span>
+    </li>
+  );
+}
+
+function Glance({ label, value, tone }: { label: string; value: string; tone?: "money" }) {
+  return (
+    <div className="flex flex-col rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+      <span className="text-[11px] text-muted-foreground">{label}</span>
+      <span
+        className={cn(
+          "mt-0.5 text-[16px] font-bold tabular-nums",
+          tone === "money" ? "text-[var(--color-money)]" : "text-foreground",
+        )}
+      >
+        {value}
+      </span>
     </div>
   );
 }

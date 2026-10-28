@@ -121,9 +121,9 @@ class MockAIClient:
                 f"The measured load ({cy} CY) exceeds this truck's certified capacity. "
                 "Check the evidence for an overfilled or misidentified truck."
             ),
-            "hollow_load": (
-                f"The load covers most of the bed opening but credits only {fill}% fill, "
-                "which can indicate a hollow or fluffed load. Review the surface against the depth."
+            "surface_depth_mismatch": (
+                f"The load surface spans most of the bed opening but credits only {fill}% fill, "
+                "so the measured depth is low. Review the surface against the depth."
             ),
             "low_confidence": (
                 f"Fill-estimate confidence is low for this load (measured near {fill}%), "

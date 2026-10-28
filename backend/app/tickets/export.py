@@ -2,7 +2,7 @@
 
 Generates a CSV of an event's tickets (the money frame per truck) and a
 self-contained printable HTML packet (tickets + evidence refs + anomaly log +
-accuracy statement). HTML is used instead of a PDF dependency so the export is
+a monitor-agreement statement). HTML is used instead of a PDF dependency so the export is
 zero-dependency; the browser's "Print to PDF" produces the filable document, and
 a real PDF renderer can slot in later behind the same function.
 """
@@ -70,9 +70,10 @@ def audit_packet_html(
     rows = "\n".join(_ticket_row(t) for t in tickets)
     accuracy = (
         f"{round(accuracy_within_10pct * 100)}% of monitor-reviewed loads had the machine "
-        "estimate within ±10 points of the monitor's own call."
+        "estimate within 10 points of the monitor's own call. This figure is agreement with "
+        "the human monitor, not a benchmark against an independently known volume."
         if accuracy_within_10pct is not None
-        else "No monitor calls recorded yet, so no accuracy benchmark is available."
+        else "No monitor calls recorded yet, so monitor agreement cannot be reported."
     )
     loc = html.escape(event_location or "")
     return f"""<!doctype html>
@@ -102,7 +103,7 @@ def audit_packet_html(
 {rows}
   </tbody>
 </table>
-<p class="stmt"><strong>Accuracy statement.</strong> {accuracy} Every estimate links to its
+<p class="stmt"><strong>Agreement with monitor.</strong> {accuracy} Every estimate links to its
 evidence frame, and a human monitor confirms or overrides each ticket. LoadTruth produces
 evidence and flags inconsistencies; the responsible monitor retains authority over the
 official record. This packet is formatted for a Federal Emergency Management Agency (FEMA)

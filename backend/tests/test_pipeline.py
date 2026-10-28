@@ -78,9 +78,9 @@ def test_capacity_exceeded_flagged() -> None:
     assert any(f.type is AnomalyType.CAPACITY_EXCEEDED for f in flags)
 
 
-def test_hollow_load_flagged() -> None:
+def test_surface_depth_mismatch_flagged() -> None:
     flags = evaluate(_base(planar_coverage=0.9, est_fill_pct=Decimal(30)))
-    assert any(f.type is AnomalyType.HOLLOW_LOAD for f in flags)
+    assert any(f.type is AnomalyType.SURFACE_DEPTH_MISMATCH for f in flags)
 
 
 def test_unreadable_identity_flagged() -> None:
