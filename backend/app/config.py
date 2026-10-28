@@ -127,10 +127,12 @@ class Settings(BaseSettings):
     model_api_log_max_chars: int = Field(default=200_000)
     # Processed evidence media (the exact clip the models saw), by content hash.
     evidence_dir: str = Field(default=str(_REPO_ROOT / "media" / "evidence"), alias="EVIDENCE_DIR")
-    # Hard cap on keyframes sampled from any one clip (bounds SAM frame cost and
-    # memory for a long video, regardless of fps/duration). Capped at 60 so the
-    # Review console's per-frame overlay scrubs smoothly (fewer, evenly spaced
-    # frames keep the canvas responsive).
+    # Target number of frames sampled from any clip, whatever its length. The
+    # transcode step picks the fps per clip (target / duration) so a 10s clip and
+    # a 40s clip both yield ~60 evenly spaced frames. `max_sampled_frames` is the
+    # hard ceiling SAM's output is downsampled to; kept equal to the target so the
+    # Review overlay always steps through the same count and scrubs smoothly.
+    target_sampled_frames: int = Field(default=60)
     max_sampled_frames: int = Field(default=60)
     # Longest edge (px) to downscale a frame to before sending to a VLM. Keeps
     # the base64 payload small and the per-call token cost down (LEARNINGS §1).

@@ -91,14 +91,14 @@ class MockAIClient:
         confidence = float(o["confidence"])
         if truck_id:
             analysis = (
-                f"I located the truck's rear placard and read its ID as {truck_id} from the "
-                f"clearest frame, with {confidence:.0%} confidence. This ID keys the certified "
-                "capacity lookup, so the whole valuation hangs on reading it right."
+                f"Muse Spark read the rear placard as {truck_id} from the clearest frame at "
+                f"{confidence:.0%} confidence. This ID keys the certified capacity lookup, so the "
+                "whole valuation depends on reading it right."
             )
         else:
             analysis = (
-                "I could not read the truck's rear placard confidently: the panel was too blurred "
-                "or angled in every sampled frame. The ticket is flagged for manual identification "
+                "The rear placard could not be read confidently; the panel was too blurred or "
+                "angled in every sampled frame. The ticket is flagged for manual identification "
                 "before it can be certified."
             )
         return OCRResult(
@@ -114,9 +114,9 @@ class MockAIClient:
         confidence = float(c["confidence"])
         label = debris_class.replace("_", " ")
         analysis = (
-            f"I classified the load in the bed as {label} with {confidence:.0%} confidence, based "
-            "on the material's shape, color, and texture across the sampled frames. This class "
-            "selects the per-cubic-yard rate the valuation applies."
+            f"Muse Spark classified the load as {label} at {confidence:.0%} confidence, from the "
+            "material's shape, color, and texture across the sampled frames. This class selects "
+            "the per-cubic-yard rate the valuation applies."
         )
         return ClassifyResult(
             debris_class=debris_class,
@@ -156,26 +156,27 @@ class MockAIClient:
 
         out: dict[str, str] = {
             "sam_track": (
-                f"I tracked the truck, its bed, and the debris pile across {frame_count} frames "
-                "and returned a segmentation mask for each in every frame. These masks are the "
-                "pixel evidence every downstream measurement is derived from, so the rest of the "
-                "pipeline reads from what I saw, not from an assumption."
+                f"SAM 3.1 tracked the truck, its bed, and the load across {frame_count} frames "
+                "and returned a segmentation mask for each. These masks are the pixel evidence "
+                "every downstream measurement reads from, so the rest of the pipeline works from "
+                "what was segmented, not from an assumption."
             ),
             "capacity": (
                 f"Truck {truck} matched a certified record carrying {certified} cubic yards of "
-                "registered capacity, which I hand to the volume math as the bed's full-load size."
+                "registered capacity, which the volume math uses as the bed's full-load size. "
+                "This is a deterministic registry lookup, not a model judgement."
                 if certified_truck
                 else f"Truck {truck} was not found in the certified registry, so no certified "
                 "capacity could be applied. The load still measures, but it is flagged for "
                 "verification before it can be certified."
             ),
             "geometry": (
-                f"I measured the bed at {fill}% full. The load surface covers {coverage} of the "
-                "bed opening, and I weighted that by how high the pile sits against the rails and "
-                "by a body-type depth prior, so the number traces to the masks rather than a guess."
+                f"The deterministic estimator measured the bed at {fill}% full. The load covers "
+                f"{coverage} of the bed opening above the tailgate rim, and the fill is that "
+                "opening coverage, so the number traces to the masks rather than a guess."
             ),
             "dollar_math": (
-                f"I valued the load at ${value} by exact arithmetic: {fill}% of {certified} cubic "
+                f"Exact arithmetic valued the load at ${value}: {fill}% of {certified} cubic "
                 f"yards is {est_cy} cubic yards, and at the {debris} rate of ${rate} per cubic "
                 "yard that is the measured dollar value. No model opinion enters this step."
             ),
@@ -184,10 +185,10 @@ class MockAIClient:
             count = len(anomaly_list)
             noun = "anomaly" if count == 1 else "anomalies"
             out["anomalies"] = (
-                f"Deterministic rules checked the measured facts against this truck's "
-                f"certification, capacity, and the surface-versus-depth relationship, and raised "
-                f"{count} {noun} for review. The rules decide whether a flag fires; I only phrase "
-                "each one in plain language for the monitor."
+                "Deterministic rules checked the measured facts against this truck's "
+                "certification, capacity, and the surface-versus-depth relationship, and raised "
+                f"{count} {noun} for review. The rules decide whether a flag fires; the model only "
+                "phrases each one in plain language for the monitor."
             )
         else:
             out["anomalies"] = (

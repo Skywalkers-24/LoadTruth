@@ -82,6 +82,16 @@ DEBRIS_CLASSES = (
     "other",
 )
 
+# Shared voice for every "analysis" field shown on the console. Impersonal and
+# declarative, like an audit report, never a chatbot narrating itself ("I ...").
+_ANALYSIS_STYLE = (
+    "Write it for an operations console in an impersonal, declarative voice, the way a "
+    "monitoring report reads. State what was found and what it means. Never use first "
+    "person ('I', 'my', 'we') and do not address the reader. Name the stage or model "
+    "doing the work when it helps (for example 'SAM 3.1 segmented ...', 'Muse Spark "
+    "read ...'). Be concise and confident and do not use dashes or parentheses."
+)
+
 _OCR_PROMPT = (
     "This is evidence footage of a disaster-debris haul truck at a monitoring site. "
     "Find the truck's identification placard: the truck number painted or posted on "
@@ -90,8 +100,7 @@ _OCR_PROMPT = (
     "truck_id to an empty string. confidence is your probability, from 0 to 1, that "
     "truck_id is exactly right. seconds is the time in the video of the clearest view "
     "of the placard; use 0 for a still image. analysis is two or three plain sentences "
-    "for an operations console explaining what you read and why it matters; write in "
-    "the first person, be concise and confident, and do not use dashes or parentheses."
+    f"explaining what the placard read was and why it matters. {_ANALYSIS_STYLE}"
 )
 
 _CLASSIFY_PROMPT = (
@@ -106,9 +115,8 @@ _CLASSIFY_PROMPT = (
     "your visual estimate, from 0 to 100, of how full the truck bed is by volume: 0 is "
     "an empty bed, 100 is a load level with the top of the side walls across the whole "
     "bed; judge it on the frames where the bed is closest and most visible. analysis is "
-    "two or three plain sentences for an operations console explaining what the load is "
-    "and why that class was chosen; write in the first person, be concise and confident, "
-    "and do not use dashes or parentheses."
+    "two or three plain sentences explaining what the load is and why that class was "
+    f"chosen. {_ANALYSIS_STYLE}"
 )
 
 _NAME_LOAD_PROMPT = (
@@ -144,23 +152,22 @@ _NARRATE_PROMPT = (
 _EXPLAIN_STAGES = ("sam_track", "capacity", "geometry", "anomalies", "dollar_math")
 
 _EXPLAIN_PROMPT = (
-    "You are the AI narrator for a disaster-debris measurement pipeline, writing the "
-    "'AI analysis' shown on an operations console beside each processing stage. Below "
-    "are the measured facts for one truckload, already computed by the pipeline. For "
-    "each stage, write two or three plain sentences explaining what that stage did and "
-    "what its result means for this load. Rules: use only the facts given and never "
-    "invent numbers; write in the first person ('I tracked', 'I measured'); be concise, "
-    "confident, and plain, like a polished enterprise product; do not use dashes or "
-    "parentheses. The stages are: sam_track (I segmented and tracked the truck, bed, and "
-    "debris pile across the frames, producing the masks every later measurement reads); "
-    "capacity (the identified truck was looked up in the certified registry for its "
-    "registered cubic-yard capacity); geometry (a deterministic estimator turned the "
-    "masks into a fill percentage from surface coverage, load height, and a body-type "
-    "depth prior); anomalies (deterministic rules checked the facts and raised any "
-    "flags, which I phrase in plain language); dollar_math (exact arithmetic multiplies "
-    "fill percent by certified capacity for cubic yards, then by the rate for the dollar "
-    "value). Make clear that capacity, geometry, and dollar_math are deterministic and "
-    "that I only narrate them; sam_track is my own visual work."
+    "Write the 'AI analysis' shown on an operations console beside each stage of a "
+    "disaster-debris measurement pipeline. Below are the measured facts for one "
+    "truckload, already computed by the pipeline. For each stage, write two or three "
+    "plain sentences explaining what that stage did and what its result means for this "
+    "load. Use only the facts given and never invent numbers. "
+    f"{_ANALYSIS_STYLE} "
+    "The stages are: sam_track (SAM 3.1 segmented and tracked the truck, bed, and load "
+    "across the frames, producing the masks every later measurement reads); capacity "
+    "(the identified truck was looked up in the certified registry for its registered "
+    "cubic-yard capacity); geometry (a deterministic estimator turned the masks into a "
+    "fill percentage from the bed opening coverage); anomalies (deterministic rules "
+    "checked the facts and raised any flags); dollar_math (exact arithmetic multiplies "
+    "fill percent by certified capacity for cubic yards, then by the rate for the "
+    "dollar value). State plainly that capacity, geometry, anomalies, and dollar_math "
+    "are deterministic steps, not model judgements, while sam_track is the vision "
+    "model's own work."
 )
 
 _EXPLAIN_SCHEMA: dict[str, Any] = {
@@ -398,7 +405,7 @@ class LiveAIClient:
         # under SAM's per-frame boxes and masks (a resampled video's fps maps
         # SAM frame indexes to playback time).
         is_video = clip.media_kind == "video"
-        video_fps = s.frame_sample_fps if prepared.transcoded and is_video else None
+        video_fps = prepared.fps if prepared.transcoded and is_video else None
         await evidence_store.save(
             clip.content_hash, prepared.data, mime=prepared.mime, fps=video_fps
         )
