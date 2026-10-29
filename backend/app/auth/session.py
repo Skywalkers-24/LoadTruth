@@ -20,7 +20,7 @@ _ISSUER = "loadtruth"
 _TTL_SECONDS = 60 * 60 * 12  # 12 hours
 # Dev fallback secret. Fine for the local/demo build; production sets a real
 # SUPABASE_JWT_SECRET in the environment.
-_DEV_SECRET = "loadtruth-dev-session-secret-change-me"  # noqa: S105 (dev fallback, not a password)
+_DEV_SECRET = "loadtruth-dev-session-secret-change-me"  # noqa: S105  # nosec B105
 
 
 class SessionError(Exception):
