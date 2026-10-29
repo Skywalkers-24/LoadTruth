@@ -9,14 +9,7 @@ import {
   UploadCloudIcon,
   Loader2Icon,
   SparklesIcon,
-  CameraIcon,
-  SearchIcon,
-  FilterIcon,
-  SlidersHorizontalIcon,
-  CheckCircle2Icon,
   VideoIcon,
-  PlusCircleIcon,
-  PlayIcon,
 } from "lucide-react";
 
 import {
@@ -26,25 +19,22 @@ import {
   listDemoVideos,
   uploadDemoVideo,
   SHOWCASE_EVENT_ID,
-  type DebrisClass,
   type DemoVideo,
 } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
 import { Card } from "@/components/ui/shadcn/card";
-import { Badge } from "@/components/ui/shadcn/badge";
 import { Pagination } from "@/components/pagination";
 import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
 import {
   BENCHMARK_PAIRS,
   VideoPairCard,
-  type BenchmarkPairDef,
 } from "@/components/demos/video-pair-card";
 
 const button =
-  "inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-40";
+  "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-40";
 const input =
-  "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground";
+  "h-9 w-full rounded-md border border-border bg-background px-3 text-xs text-foreground";
 
 export default function DemoVideosPage() {
   const { can, member } = useAuth();
@@ -61,7 +51,7 @@ export default function DemoVideosPage() {
 
   // Filtering state
   const [selectedDebris, setSelectedDebris] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showUpload, setShowUpload] = useState(false);
 
   // Upload state (SuperAdmin)
   const [files, setFiles] = useState<File[]>([]);
@@ -160,185 +150,153 @@ export default function DemoVideosPage() {
     return videoItems.filter((v) => !matchedIds.has(v.id));
   }, [videoItems, pairVideoMap]);
 
-  // Filter benchmark pairs based on search and category
+  // Filter benchmark pairs based on category
   const filteredPairs = useMemo(() => {
     return BENCHMARK_PAIRS.filter((pair) => {
-      const matchesCategory =
-        selectedDebris === "all" || pair.debrisClass === selectedDebris;
-
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
-        pair.truckId.toLowerCase().includes(q) ||
-        pair.debrisLabel.toLowerCase().includes(q) ||
-        pair.notes.toLowerCase().includes(q) ||
-        pair.debrisDescription.toLowerCase().includes(q);
-
-      return matchesCategory && matchesSearch;
+      return selectedDebris === "all" || pair.debrisClass === selectedDebris;
     });
-  }, [selectedDebris, searchQuery]);
+  }, [selectedDebris]);
 
   return (
     <AppShell section="Demo Videos">
-      <div className="lt-scroll lt-fab-safe flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pb-8">
-        {/* ── SECTION HEADER ── */}
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-5">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="grid size-7 place-items-center rounded-lg bg-primary/10 text-primary">
-                <FilmIcon className="size-4" />
-              </span>
-              <h1 className="lt-page-title">
-                CCTV Demo Pairs · Real vs. AI-Analyzed Footage
-              </h1>
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Side-by-side video evidence comparing original CCTV camera feeds with synchronized Meta SAM 3.1 AI segmentation outlines and volumetric load analysis.
-            </p>
-
-            {/* AI Models & Cloud Inference Platforms */}
-            <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/25 bg-primary/10 px-2.5 py-1 font-semibold text-primary">
-                <SparklesIcon className="size-3.5 text-primary" />
-                Powered by Meta SAM 3.1 and Muse Spark
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-muted-foreground">
-                Inference infrastructure served on <strong className="font-medium text-foreground">Modal</strong>, <strong className="font-medium text-foreground">Fireworks AI</strong>, and <strong className="font-medium text-foreground">Baseten</strong>
-              </span>
-            </div>
+      <div className="lt-scroll lt-fab-safe flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-6">
+        {/* ── ULTRA-COMPACT HEADER (ZERO BLOAT) ── */}
+        <header className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border/60 pb-2.5 pt-0.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-sm sm:text-base font-bold tracking-tight text-foreground flex items-center gap-1.5">
+              <FilmIcon className="size-4 text-primary" />
+              CCTV Demo Pairs
+            </h1>
+            <span className="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+              Powered by Meta SAM 3.1 &amp; Muse Spark
+            </span>
+            <span className="text-[11px] text-muted-foreground hidden lg:inline">
+              · Hosted on <strong className="font-medium text-foreground">Modal</strong>, <strong className="font-medium text-foreground">Fireworks AI</strong>, and <strong className="font-medium text-foreground">Baseten</strong>
+            </span>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
+            {/* Category filter pills right in header */}
+            <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-xs">
+              {[
+                { id: "all", label: "All (5)" },
+                { id: "white_goods", label: "White Goods" },
+                { id: "hazardous", label: "Hazardous" },
+                { id: "construction_demolition", label: "C&D" },
+                { id: "vegetative", label: "Vegetative" },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedDebris(cat.id)}
+                  className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                    selectedDebris === cat.id
+                      ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
             <Link
               href={`/console?event=${SHOWCASE_EVENT_ID}`}
-              className={button}
+              className="hidden sm:inline-flex text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
             >
-              Open Review Console →
+              Console →
             </Link>
             <Link
               href="/pipeline"
-              className={`${button} border-primary/30 text-primary bg-primary/5 hover:bg-primary/10`}
+              className="text-xs font-medium text-primary hover:underline"
             >
-              <SparklesIcon className="size-3.5" />
-              View AI Pipeline Runs →
+              Pipeline →
             </Link>
+
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowUpload((prev) => !prev)}
+                className="inline-flex h-7 items-center gap-1 rounded border border-border bg-background px-2 text-xs font-medium text-foreground hover:bg-accent"
+              >
+                <UploadCloudIcon className="size-3" />
+                <span>{showUpload ? "Close" : "Upload"}</span>
+              </button>
+            )}
           </div>
         </header>
 
-        {/* ── SUPERADMIN PERMISSION BANNER / UPLOAD ── */}
-        {!isSuperAdmin ? (
-          <Card className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border-dashed bg-muted/20">
-            <div className="flex items-start sm:items-center gap-3">
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                <CameraIcon className="size-4" />
+        {/* ── OPTIONAL SUPERADMIN UPLOAD DRAWER ── */}
+        {isSuperAdmin && showUpload && (
+          <Card className="gap-3 p-4 border-dashed bg-muted/10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UploadCloudIcon className="size-4 text-primary" />
+                <h2 className="text-xs font-semibold">Upload Footage to Library</h2>
+              </div>
+              <span className="text-[11px] text-muted-foreground">
+                Max {Math.round(uploadMax / 1024 ** 2)} MiB per clip
               </span>
-              <div>
-                <p className="text-xs font-semibold text-foreground">
-                  Demo Pair Library: View, Synchronize & Pipeline Replay Access
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  You can inspect all paired CCTV and Meta SAM 3.1 feeds, synchronize playback, and replay AI analysis pipelines. SuperAdmin login is required to upload new video pairs.
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/superadmin"
-              className="shrink-0 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
-            >
-              SuperAdmin Login →
-            </Link>
-          </Card>
-        ) : (
-          <Card className="gap-4 p-5">
-            <div className="flex items-start gap-3">
-              <UploadCloudIcon className="mt-1 size-5 shrink-0 text-primary" />
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold">Upload CCTV Footage to Pair Library</h2>
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                    SuperAdmin
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Upload raw truck clips to your library. Each uploaded clip can be analyzed with Meta SAM 3.1 to create an AI-analyzed comparison pair.
-                </p>
-              </div>
             </div>
 
-            <div className="grid gap-3 lg:grid-cols-3">
-              <label className="flex flex-col gap-2 text-xs font-medium">
-                Video clips
-                <input
-                  ref={fileInput}
-                  type="file"
-                  accept="video/mp4,video/quicktime,video/webm"
-                  multiple
-                  disabled={uploading}
-                  onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-                  className="w-full rounded-lg border border-border bg-background p-2 text-xs file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1 file:text-foreground"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-xs font-medium">
-                Reference fill % (optional, one clip)
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
-                  disabled={uploading || files.length !== 1}
-                  className={input}
-                  placeholder="Known measured fill, e.g. 50"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-xs font-medium">
-                Notes (optional)
-                <input
-                  maxLength={2000}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  disabled={uploading}
-                  className={input}
-                  placeholder="Material, camera angle, lighting condition"
-                />
-              </label>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <input
+                ref={fileInput}
+                type="file"
+                accept="video/mp4,video/quicktime,video/webm"
+                multiple
+                disabled={uploading}
+                onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+                className="w-full rounded border border-border bg-background p-1.5 text-xs file:mr-2 file:rounded file:border-0 file:bg-secondary file:px-2 file:py-0.5 file:text-xs"
+              />
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                disabled={uploading || files.length !== 1}
+                className={input}
+                placeholder="Reference fill % (optional)"
+              />
+              <input
+                maxLength={2000}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                disabled={uploading}
+                className={input}
+                placeholder="Notes (optional)"
+              />
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">
-                Library: up to {Math.round(uploadMax / 1024 ** 2)} MiB per clip. Analysis: up
-                to {Math.round(analysisMax / 1024 ** 2)} MiB, one clip at a time.
-              </p>
+            <div className="flex items-center justify-between gap-2">
+              {progress ? (
+                <p className="text-xs text-muted-foreground">{progress}</p>
+              ) : (
+                <div />
+              )}
               <button
-                className={`${button} bg-primary text-primary-foreground hover:bg-primary/90`}
+                className={`${button} bg-primary text-primary-foreground hover:bg-primary/90 h-7 text-xs`}
                 onClick={() => void upload()}
                 disabled={uploading || !files.length}
               >
                 {uploading ? (
-                  <Loader2Icon className="size-4 animate-spin" />
+                  <Loader2Icon className="size-3 animate-spin" />
                 ) : (
-                  <UploadCloudIcon className="size-4" />
+                  <UploadCloudIcon className="size-3" />
                 )}
-                {uploading
-                  ? "Uploading…"
-                  : `Upload${files.length ? ` ${files.length} clip${files.length > 1 ? "s" : ""}` : " clips"}`}
+                {uploading ? "Uploading…" : "Upload Clip"}
               </button>
             </div>
-
-            {progress && (
-              <p role="status" className="text-xs text-muted-foreground">
-                {progress}
-              </p>
-            )}
           </Card>
         )}
 
-        {/* ── ERRORS ── */}
+        {/* ── ERRORS (IF ANY) ── */}
         {(errors.length > 0 || analyze.isError || verify.isError) && (
           <div
             role="alert"
-            className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive"
+            className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive"
           >
             {errors.map((error, i) => (
               <p key={i}>{error}</p>
@@ -348,93 +306,20 @@ export default function DemoVideosPage() {
           </div>
         )}
 
-        {/* ── SECTION TITLE & FILTER CONTROLS ── */}
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-foreground">
-                  Verified Video Comparison Pairs
-                </h2>
-                <Badge variant="secondary" className="font-mono text-xs">
-                  {filteredPairs.length} of {BENCHMARK_PAIRS.length} Sets
-                </Badge>
-              </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Each set pairs the unaltered CCTV camera recording with its matching Meta SAM 3.1 spatial segmentation mask (truck bed, debris volume) and Muse Spark load analysis.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground">
-                <CameraIcon className="size-3 text-slate-500" />
-                Raw CCTV Feed
-                <span className="font-semibold text-foreground">⟷</span>
-                <SparklesIcon className="size-3 text-primary" />
-                Meta SAM 3.1 Active
-              </span>
-            </div>
-          </div>
-
-          {/* Filter Pills & Search */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-2.5">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-xs font-medium text-muted-foreground">Category:</span>
-              {[
-                { id: "all", label: "All Pairs" },
-                { id: "white_goods", label: "White Goods" },
-                { id: "hazardous", label: "Hazardous" },
-                { id: "construction_demolition", label: "Construction & Demolition" },
-                { id: "vegetative", label: "Vegetative" },
-              ].map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedDebris(cat.id)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                    selectedDebris === cat.id
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="relative min-w-48 sm:w-64">
-              <SearchIcon className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search truck ID or material…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* ── VIDEO PAIRS LIST ── */}
+        {/* ── 2x2 COMPACT GRID OF VIDEO PAIRS (FITS 4 PAIRS ON ONE SCREEN) ── */}
         {filteredPairs.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border p-10 text-center">
-            <FilmIcon className="size-8 text-muted-foreground" />
-            <h3 className="font-semibold">No video pairs match your filter</h3>
-            <p className="max-w-md text-sm text-muted-foreground">
-              Try adjusting your category filter or search query to view available demo video pairs.
-            </p>
+          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border p-8 text-center">
+            <FilmIcon className="size-6 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">No video pairs match your category filter.</p>
             <button
-              className={button}
-              onClick={() => {
-                setSelectedDebris("all");
-                setSearchQuery("");
-              }}
+              className={`${button} h-7 text-xs`}
+              onClick={() => setSelectedDebris("all")}
             >
-              Reset Filters
+              Reset to All
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {filteredPairs.map((pair) => (
               <VideoPairCard
                 key={pair.id}
@@ -450,66 +335,47 @@ export default function DemoVideosPage() {
 
         {/* ── ADDITIONAL / CUSTOM UPLOADED CLIPS (IF ANY) ── */}
         {customVideos.length > 0 && (
-          <div className="mt-4 flex flex-col gap-4 border-t border-border/80 pt-6">
-            <div>
-              <div className="flex items-center gap-2">
-                <VideoIcon className="size-4 text-primary" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Additional Uploaded Feeds ({customVideos.length})
-                </h3>
-              </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Custom clips uploaded to your library. You can run the Meta AI pipeline to generate paired SAM segmentation footage.
-              </p>
+          <div className="mt-2 flex flex-col gap-2 border-t border-border/80 pt-3">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+              <VideoIcon className="size-3.5 text-primary" />
+              <span>Additional Uploaded Feeds ({customVideos.length})</span>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {customVideos.map((video) => (
-                <Card key={video.id} className="gap-4 p-4">
+                <Card key={video.id} className="gap-2 p-3">
                   {video.status === "ready" && <CustomClipPreview video={video} />}
-                  <div className="flex items-start gap-3">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                      <FilmIcon className="size-5" />
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold truncate">{video.title}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {(video.size_bytes / 1024 ** 2).toFixed(1)} MiB
                     </span>
-                    <div className="min-w-0">
-                      <h4 className="truncate text-sm font-semibold" title={video.title}>
-                        {video.title}
-                      </h4>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {(video.size_bytes / 1024 ** 2).toFixed(1)} MiB ·{" "}
-                        {video.status === "ready" ? "Ready" : "Upload incomplete"}
-                      </p>
-                    </div>
                   </div>
 
-                  {video.notes && (
-                    <p className="line-clamp-2 text-xs text-muted-foreground">{video.notes}</p>
-                  )}
+                  <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+                    {video.reference_fill_pct !== null && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Ref: {Number(video.reference_fill_pct)}%
+                      </span>
+                    )}
 
-                  {video.reference_fill_pct !== null && (
-                    <p className="text-xs">
-                      Reference fill: <strong>{Number(video.reference_fill_pct)}%</strong>
-                    </p>
-                  )}
-
-                  <div className="mt-auto flex flex-wrap gap-2">
                     {video.status === "ready" ? (
                       <button
-                        className={`${button} border-primary/40 text-primary`}
+                        className={`${button} h-6 px-2 text-[10px] border-primary/40 text-primary`}
                         disabled={!writable || analyze.isPending || video.size_bytes > analysisMax}
                         onClick={() => analyze.mutate(video.id)}
                       >
-                        <SparklesIcon className="size-3.5" />
-                        Analyze with Meta SAM 3.1
+                        <SparklesIcon className="size-2.5" />
+                        Analyze SAM
                       </button>
                     ) : (
                       isSuperAdmin && (
                         <button
-                          className={button}
+                          className={`${button} h-6 px-2 text-[10px]`}
                           disabled={verify.isPending}
                           onClick={() => verify.mutate(video.id)}
                         >
-                          Check completed upload
+                          Verify
                         </button>
                       )
                     )}
@@ -522,12 +388,6 @@ export default function DemoVideosPage() {
 
         {videos.data && videos.data.total > 24 && (
           <Pagination total={videos.data.total} limit={24} offset={offset} onOffset={setOffset} />
-        )}
-
-        {!writable && (
-          <p className="text-xs text-muted-foreground">
-            Select an active event from the top switcher to start pipeline analysis on any demo clip.
-          </p>
         )}
       </div>
     </AppShell>
@@ -545,16 +405,16 @@ function CustomClipPreview({ video }: { video: DemoVideo }) {
 
   if (playback.isError || failed) {
     return (
-      <div className="flex aspect-video flex-col items-center justify-center gap-2 rounded-lg bg-secondary text-xs">
-        <p>Preview could not load.</p>
+      <div className="flex aspect-video flex-col items-center justify-center gap-1 rounded bg-secondary text-[10px]">
+        <p>Preview failed.</p>
         <button
-          className={button}
+          className={`${button} h-6 text-[10px]`}
           onClick={() => {
             setFailed(false);
             void playback.refetch();
           }}
         >
-          Reload preview
+          Reload
         </button>
       </div>
     );
@@ -564,10 +424,9 @@ function CustomClipPreview({ video }: { video: DemoVideo }) {
     return (
       <div
         role="status"
-        className="flex aspect-video items-center justify-center rounded-lg bg-secondary"
+        className="flex aspect-video items-center justify-center rounded bg-secondary"
       >
-        <Loader2Icon className="size-5 animate-spin" />
-        <span className="sr-only">Loading preview</span>
+        <Loader2Icon className="size-4 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -585,7 +444,7 @@ function CustomClipPreview({ video }: { video: DemoVideo }) {
         if (player.duration > 0.1) player.currentTime = 0.1;
       }}
       onError={() => setFailed(true)}
-      className="aspect-video w-full rounded-lg bg-black object-contain"
+      className="aspect-video w-full rounded bg-black object-contain"
     />
   );
 }
