@@ -1,29 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ClockIcon,
-  PanelRightOpenIcon,
-  SparklesIcon,
-} from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, PanelRightOpenIcon, SparklesIcon } from "lucide-react";
 
 import type { Ticket } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/badge";
-import { AlertIcon, TruckIcon } from "@/components/ui/icons";
+import { AlertIcon } from "@/components/ui/icons";
 import { AnomalyList } from "@/components/console/anomaly-list";
 import { EvidenceCanvas } from "@/components/console/evidence-canvas";
-import { MoneyFrame } from "@/components/console/money-frame";
 import { ReviewActions } from "@/components/console/review-actions";
 import { ReproducibilityCard } from "@/components/console/reproducibility-card";
-import { CollapsibleSectionCard, SectionCard } from "@/components/console/section-card";
+import { CollapsibleSectionCard } from "@/components/console/section-card";
 import { TicketMetadata, shortId } from "@/components/console/ticket-metadata";
 import { PipelineTrace } from "@/components/ai/pipeline-trace";
 import { StageInspectorDrawer } from "@/components/ai/stage-inspector-drawer";
 import { Skeleton } from "@/components/ui/shadcn/skeleton";
 import { useTicketPipeline } from "@/lib/hooks";
-import { debrisLabel, relativeTime } from "@/lib/format";
 
 /** Previous/next stepping through the current queue page. */
 export interface TicketNav {
@@ -38,15 +30,14 @@ export interface TicketNav {
  *
  * Wide pane (a container query, so it tracks the pane, not the window): two
  * columns that each scroll on their own. The center holds what the reviewer
- * reads and decides on, top to bottom: ticket header, money frame, evidence,
- * truck record, and the decision bar pinned to the bottom. The right rail holds
- * the AI analysis, then the anomaly flags.
+ * reads and decides on, top to bottom: ticket header, evidence, truck record,
+ * and the decision bar. The right rail holds the AI analysis, then anomaly
+ * flags and reproducibility details.
  *
  * Narrow pane: a single scrolling column in reading order, with the decision
  * bar still pinned to the bottom of the view.
  */
 export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketNav }) {
-  const reviewed = ticket.status !== "draft";
   return (
     <div className="lt-fade-in @container h-full min-h-0">
       {/* Narrow pane on desktop: this element is the one scroll area. Wide
@@ -55,12 +46,8 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
         {/* Center column. On a narrow pane its wrapper is `display: contents`
             so the decision bar can sit after the rail. */}
         <div className="lt-scroll contents [&>*]:shrink-0 @[42rem]:flex @[42rem]:min-h-0 @[42rem]:min-w-0 @[42rem]:flex-col @[42rem]:gap-3 @[42rem]:overflow-y-auto">
-          <TicketHeader ticket={ticket} nav={nav} />
-          <MoneyFrame v={ticket.valuation} reviewed={reviewed} />
+          <TicketSummary ticket={ticket} nav={nav} />
           <EvidenceCanvas ticket={ticket} />
-          <SectionCard title="Truck and ticket" icon={<TruckIcon size={15} />}>
-            <TicketMetadata ticket={ticket} />
-          </SectionCard>
 
           {/* Decision bar stays in the document flow so it cannot cover details. */}
           {/* In the single-column layout on tablets the bar spans to the right
@@ -104,55 +91,49 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
   );
 }
 
-function TicketHeader({ ticket, nav }: { ticket: Ticket; nav?: TicketNav }) {
+function TicketSummary({ ticket, nav }: { ticket: Ticket; nav?: TicketNav }) {
   return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex items-center gap-2.5">
-          <h2 className="lt-page-title tabular-nums" style={{ fontSize: "var(--lt-ticket-title)" }}>
+    <section className="lt-card-shadow shrink-0 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <header className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <h2
+            className="lt-page-title shrink-0 tabular-nums"
+            style={{ fontSize: "var(--lt-ticket-title)" }}
+          >
             {shortId(ticket.id)}
           </h2>
           <StatusBadge status={ticket.status} />
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[var(--color-muted-foreground)]">
-          <span className="flex items-center gap-1.5">
-            <ClockIcon className="size-3.5 text-[var(--color-subtle)]" />
-            Captured {relativeTime(ticket.created_at)}
-          </span>
-          <span className="flex items-center gap-1.5 tabular-nums">
-            <TruckIcon size={14} className="text-[var(--color-subtle)]" />
-            {ticket.truck_id ?? "Unidentified truck"}
-          </span>
-          <span>{debrisLabel(ticket.debris_class)}</span>
-        </div>
+        {nav && nav.total > 1 && (
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={nav.onPrev}
+              disabled={nav.index <= 0}
+              aria-label="Previous ticket"
+              className="grid size-7 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)] disabled:opacity-40"
+            >
+              <ChevronLeftIcon className="size-4" />
+            </button>
+            <span className="min-w-[3.25rem] text-center text-[12px] tabular-nums text-[var(--color-muted-foreground)]">
+              {nav.index + 1} of {nav.total}
+            </span>
+            <button
+              type="button"
+              onClick={nav.onNext}
+              disabled={nav.index >= nav.total - 1}
+              aria-label="Next ticket"
+              className="grid size-7 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)] disabled:opacity-40"
+            >
+              <ChevronRightIcon className="size-4" />
+            </button>
+          </div>
+        )}
+      </header>
+      <div className="px-3 py-2">
+        <TicketMetadata ticket={ticket} />
       </div>
-
-      {nav && nav.total > 1 && (
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            onClick={nav.onPrev}
-            disabled={nav.index <= 0}
-            aria-label="Previous ticket"
-            className="grid size-7 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)] disabled:opacity-40"
-          >
-            <ChevronLeftIcon className="size-4" />
-          </button>
-          <span className="min-w-[3.25rem] text-center text-[12px] tabular-nums text-[var(--color-muted-foreground)]">
-            {nav.index + 1} of {nav.total}
-          </span>
-          <button
-            type="button"
-            onClick={nav.onNext}
-            disabled={nav.index >= nav.total - 1}
-            aria-label="Next ticket"
-            className="grid size-7 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)] disabled:opacity-40"
-          >
-            <ChevronRightIcon className="size-4" />
-          </button>
-        </div>
-      )}
-    </div>
+    </section>
   );
 }
 
