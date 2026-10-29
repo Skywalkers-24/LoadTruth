@@ -195,6 +195,17 @@ export default function DemoVideosPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Side-by-side video evidence comparing original CCTV camera feeds with synchronized Meta SAM 3.1 AI segmentation outlines and volumetric load analysis.
             </p>
+
+            {/* AI Models & Cloud Inference Platforms */}
+            <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/25 bg-primary/10 px-2.5 py-1 font-semibold text-primary">
+                <SparklesIcon className="size-3.5 text-primary" />
+                Powered by Meta SAM 3.1 and Muse Spark
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-muted-foreground">
+                Inference infrastructure served on <strong className="font-medium text-foreground">Modal</strong>, <strong className="font-medium text-foreground">Fireworks AI</strong>, and <strong className="font-medium text-foreground">Baseten</strong>
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -423,7 +434,7 @@ export default function DemoVideosPage() {
             </button>
           </div>
         ) : (
-          <div className="flex flex-col gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {filteredPairs.map((pair) => (
               <VideoPairCard
                 key={pair.id}

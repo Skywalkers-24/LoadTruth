@@ -257,9 +257,9 @@ export function VideoPairCard({
   return (
     <Card className="flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all hover:shadow-md">
       {/* ── PAIR HEADER ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-muted/20 px-5 py-3.5">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border/80 bg-muted/20 px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
             <span className="size-1.5 rounded-full bg-primary" />
             PAIR 0{pair.pairNumber}
           </span>
@@ -271,7 +271,7 @@ export function VideoPairCard({
           </Badge>
           <span className="hidden sm:inline text-xs text-muted-foreground">·</span>
           <span className="text-xs font-medium text-muted-foreground">
-            {pair.certifiedCubicYards.toFixed(1)} CY Bed
+            {pair.certifiedCubicYards.toFixed(1)} CY
           </span>
           <span className="hidden sm:inline text-xs text-muted-foreground">·</span>
           <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
@@ -287,98 +287,98 @@ export function VideoPairCard({
             type="button"
             onClick={toggleSyncPlay}
             disabled={!videoUrl}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-40"
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-40"
             title="Play or pause both camera and AI feeds simultaneously"
           >
             {isPlaying ? (
               <>
-                <PauseIcon className="size-3.5 fill-current" />
-                <span>Pause Both</span>
+                <PauseIcon className="size-3 fill-current" />
+                <span>Pause</span>
               </>
             ) : (
               <>
-                <PlayIcon className="size-3.5 fill-current" />
+                <PlayIcon className="size-3 fill-current" />
                 <span>Sync Play</span>
               </>
             )}
           </button>
 
           {/* View Mode Toggle */}
-          <div className="inline-flex rounded-lg border border-border bg-background p-0.5 text-xs">
+          <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-[11px]">
             <button
               type="button"
               onClick={() => setViewMode("side-by-side")}
-              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-colors ${
+              className={`inline-flex items-center gap-1 rounded px-2 py-0.5 font-medium transition-colors ${
                 viewMode === "side-by-side"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               title="Side-by-side comparison"
             >
-              <Columns2Icon className="size-3.5" />
-              <span className="hidden md:inline">Side-by-Side</span>
+              <Columns2Icon className="size-3" />
+              <span className="hidden sm:inline">Side-by-Side</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode("real")}
-              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-colors ${
+              className={`inline-flex items-center gap-1 rounded px-2 py-0.5 font-medium transition-colors ${
                 viewMode === "real"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               title="Real footage only"
             >
-              <CameraIcon className="size-3.5" />
-              <span className="hidden md:inline">Real Only</span>
+              <CameraIcon className="size-3" />
+              <span className="hidden sm:inline">Real</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode("analyzed")}
-              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-colors ${
+              className={`inline-flex items-center gap-1 rounded px-2 py-0.5 font-medium transition-colors ${
                 viewMode === "analyzed"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               title="AI-Analyzed footage only"
             >
-              <SparklesIcon className="size-3.5" />
-              <span className="hidden md:inline">AI Analyzed</span>
+              <SparklesIcon className="size-3" />
+              <span className="hidden sm:inline">AI Analyzed</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── VIDEO COMPARISON STAGE ── */}
+      {/* ── VIDEO COMPARISON STAGE (COMPACT) ── */}
       <div
-        className={`p-4 ${
+        className={`p-3 ${
           viewMode === "side-by-side"
-            ? "grid gap-4 lg:grid-cols-2"
-            : "grid grid-cols-1 max-w-4xl mx-auto w-full"
+            ? "grid gap-3 grid-cols-1 sm:grid-cols-2"
+            : "grid grid-cols-1 max-w-2xl mx-auto w-full"
         }`}
       >
         {/* ── LEFT: REAL FOOTAGE (RAW CCTV CAMERA FEED) ── */}
         {(viewMode === "side-by-side" || viewMode === "real") && (
-          <div className="flex flex-col overflow-hidden rounded-lg border border-border/70 bg-black/5 dark:bg-black/30">
+          <div className="flex flex-col overflow-hidden rounded-md border border-border/70 bg-black/5 dark:bg-black/30">
             {/* Feed Header */}
-            <div className="flex items-center justify-between border-b border-border/50 bg-background/90 px-3 py-2 text-xs backdrop-blur">
-              <div className="flex items-center gap-2">
-                <span className="grid size-5 place-items-center rounded bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                  <CameraIcon className="size-3" />
+            <div className="flex items-center justify-between border-b border-border/50 bg-background/90 px-2.5 py-1 text-xs backdrop-blur">
+              <div className="flex items-center gap-1.5">
+                <span className="grid size-4 place-items-center rounded bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  <CameraIcon className="size-2.5" />
                 </span>
-                <span className="font-semibold text-foreground">
-                  Real Footage (Raw CCTV Feed)
+                <span className="text-[11px] font-semibold text-foreground">
+                  Real Footage (Raw CCTV)
                 </span>
               </div>
-              <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                Original Optical Sensor
+              <span className="rounded bg-muted px-1.5 py-0.2 text-[9px] font-medium text-muted-foreground">
+                Unaltered
               </span>
             </div>
 
-            {/* Video Player */}
-            <div className="relative aspect-video w-full bg-black">
+            {/* Compact Video Player */}
+            <div className="relative h-44 sm:h-48 w-full bg-black">
               {!videoUrl ? (
                 <div className="flex size-full flex-col items-center justify-center gap-2 text-xs text-muted-foreground">
-                  <Loader2Icon className="size-5 animate-spin" />
+                  <Loader2Icon className="size-4 animate-spin" />
                   <span>Loading CCTV footage…</span>
                 </div>
               ) : (
@@ -399,16 +399,16 @@ export function VideoPairCard({
               )}
 
               {/* Watermark badge */}
-              <div className="pointer-events-none absolute left-2.5 top-2.5 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium tracking-wide text-white/90 backdrop-blur">
+              <div className="pointer-events-none absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[9px] font-medium tracking-wide text-white/90 backdrop-blur">
                 LIVE CCTV · {pair.lane}
               </div>
             </div>
 
             {/* Feed Footer / Specs */}
-            <div className="flex items-center justify-between bg-muted/30 px-3 py-1.5 text-[11px] text-muted-foreground">
+            <div className="flex items-center justify-between bg-muted/30 px-2.5 py-1 text-[10px] text-muted-foreground">
               <span>{pair.resolution} · {pair.fps.toFixed(1)} FPS</span>
               <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                Unaltered Camera Feed
+                Camera Sensor
               </span>
             </div>
           </div>
@@ -416,70 +416,67 @@ export function VideoPairCard({
 
         {/* ── RIGHT: AI-ANALYZED FOOTAGE (META SAM 3.1 & MUSE SPARK) ── */}
         {(viewMode === "side-by-side" || viewMode === "analyzed") && (
-          <div className="flex flex-col overflow-hidden rounded-lg border border-primary/20 bg-primary/5">
+          <div className="flex flex-col overflow-hidden rounded-md border border-primary/20 bg-primary/5">
             {/* Feed Header & SAM Mask Toggles */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 bg-background/90 px-3 py-2 text-xs backdrop-blur">
-              <div className="flex items-center gap-2">
-                <span className="grid size-5 place-items-center rounded bg-primary/10 text-primary">
-                  <SparklesIcon className="size-3" />
+            <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-border/50 bg-background/90 px-2.5 py-1 text-xs backdrop-blur">
+              <div className="flex items-center gap-1.5">
+                <span className="grid size-4 place-items-center rounded bg-primary/10 text-primary">
+                  <SparklesIcon className="size-2.5" />
                 </span>
-                <span className="font-semibold text-foreground">
+                <span className="text-[11px] font-semibold text-foreground">
                   AI-Analyzed Footage
-                </span>
-                <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                  Meta SAM 3.1 Active
                 </span>
               </div>
 
               {/* Interactive Mask Layer Toggles */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setShowLayers((prev) => ({ ...prev, bed: !prev.bed }))}
-                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-medium transition-colors ${
                     showLayers.bed
                       ? "bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-400/40"
                       : "bg-muted text-muted-foreground opacity-50"
                   }`}
                   title="Toggle Truck Bed rail outline"
                 >
-                  <span className="size-1.5 rounded-full bg-sky-500" />
-                  Bed Outline
+                  <span className="size-1 rounded-full bg-sky-500" />
+                  Bed
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowLayers((prev) => ({ ...prev, load: !prev.load }))}
-                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-medium transition-colors ${
                     showLayers.load
                       ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-400/40"
                       : "bg-muted text-muted-foreground opacity-50"
                   }`}
                   title="Toggle Debris Pile segmentation mask"
                 >
-                  <span className="size-1.5 rounded-full bg-amber-500" />
-                  Debris Mask
+                  <span className="size-1 rounded-full bg-amber-500" />
+                  Debris
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowLayers((prev) => ({ ...prev, body: !prev.body }))}
-                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-medium transition-colors ${
                     showLayers.body
                       ? "bg-slate-500/20 text-slate-700 dark:text-slate-300 border border-slate-400/40"
                       : "bg-muted text-muted-foreground opacity-50"
                   }`}
                   title="Toggle Truck Body & tailgate tracking"
                 >
-                  <span className="size-1.5 rounded-full bg-slate-400" />
-                  Body/Rim
+                  <span className="size-1 rounded-full bg-slate-400" />
+                  Body
                 </button>
               </div>
             </div>
 
             {/* SAM Segmentation Video Player */}
-            <div className="relative aspect-video w-full bg-black">
+            <div className="relative h-44 sm:h-48 w-full bg-black">
               {!videoUrl || evidence.isLoading ? (
                 <div className="flex size-full flex-col items-center justify-center gap-2 text-xs text-muted-foreground">
-                  <Loader2Icon className="size-5 animate-spin text-primary" />
+                  <Loader2Icon className="size-4 animate-spin text-primary" />
                   <span>Loading Meta SAM 3.1 segmentation…</span>
                 </div>
               ) : evidence.data ? (
@@ -492,7 +489,6 @@ export function VideoPairCard({
                   className="absolute inset-0 flex flex-col bg-black"
                 />
               ) : (
-                /* Fallback if evidence endpoint is unreachable */
                 <video
                   ref={analyzedVideoRef}
                   src={`${videoUrl}#t=0.1`}
@@ -506,72 +502,65 @@ export function VideoPairCard({
               )}
 
               {/* Real-time HUD overlay */}
-              <div className="pointer-events-none absolute right-2.5 top-2.5 flex items-center gap-1.5 rounded bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 backdrop-blur">
-                <CheckCircle2Icon className="size-3" />
+              <div className="pointer-events-none absolute right-2 top-2 flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-400 backdrop-blur">
+                <CheckCircle2Icon className="size-2.5" />
                 <span>Fill: {pair.measuredFillPct.toFixed(1)}%</span>
               </div>
             </div>
 
             {/* Feed Footer / Model Info */}
-            <div className="flex items-center justify-between bg-muted/30 px-3 py-1.5 text-[11px] text-muted-foreground">
-              <span>Meta SAM 3.1 (Geometry) + Muse Spark 1.3</span>
+            <div className="flex items-center justify-between bg-muted/30 px-2.5 py-1 text-[10px] text-muted-foreground">
+              <span>Meta SAM 3.1 + Muse Spark</span>
               <span className="font-semibold text-primary">
-                ${pair.dollarValue.toFixed(2)} Verified Value
+                ${pair.dollarValue.toFixed(2)} Value
               </span>
             </div>
           </div>
         )}
       </div>
 
-      {/* ── PAIR DETAILS & ACTION BAR ── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-border/80 bg-card px-5 py-3.5">
-        <div className="min-w-0 max-w-2xl">
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            <strong className="text-foreground font-medium">Analysis Summary: </strong>
-            {pair.notes}
-          </p>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-            <span>Material: <strong className="text-foreground">{pair.debrisDescription}</strong></span>
-            <span>·</span>
-            <span>Rate: <strong className="text-foreground">${pair.ratePerCy.toFixed(2)}/CY</strong></span>
-            <span>·</span>
-            <span>Truck ID Confidence: <strong className="text-foreground">0.99 (Verified)</strong></span>
-          </div>
+      {/* ── COMPACT ACTION BAR (BULKY TEXT REMOVED) ── */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/80 bg-card px-4 py-2">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Rate: <strong className="font-medium text-foreground">${pair.ratePerCy.toFixed(2)}/CY</strong></span>
+          <span>·</span>
+          <span>Certified Bed: <strong className="font-medium text-foreground">{pair.certifiedCubicYards.toFixed(1)} CY</strong></span>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           {videoRecord && (
             <button
               type="button"
               disabled={!canAnalyze || isAnalyzing}
               onClick={() => onAnalyze?.(videoRecord.id)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-40"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-primary bg-primary px-2.5 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-40"
             >
               {isAnalyzing ? (
-                <Loader2Icon className="size-3.5 animate-spin" />
+                <Loader2Icon className="size-3 animate-spin" />
               ) : (
-                <SparklesIcon className="size-3.5" />
+                <SparklesIcon className="size-3" />
               )}
-              Analyze in selected event
+              Analyze in event
             </button>
           )}
 
           <Link
             href={`/console?event=${SHOWCASE_EVENT_ID}&ticket=${pair.ticketId}`}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
           >
-            <EyeIcon className="size-3.5" />
-            Inspect in Console
+            <EyeIcon className="size-3" />
+            Inspect
           </Link>
 
           <Link
             href="/pipeline"
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
-            Pipeline Stages →
+            Stages →
           </Link>
         </div>
       </div>
     </Card>
   );
 }
+
