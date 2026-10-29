@@ -71,6 +71,10 @@ interface Props {
   evidence: TicketEvidence;
   show: { body: boolean; bed: boolean; load: boolean };
   onFrame?: (frame: number, total: number) => void;
+  videoUrl?: string | null;
+  videoRef?: React.RefObject<HTMLVideoElement | null>;
+  hideControls?: boolean;
+  className?: string;
 }
 
 /**
@@ -78,8 +82,17 @@ interface Props {
  * frame as it plays. Masks are drawn in the video's own pixel space and the SVG
  * letterboxes exactly like the video, so the overlay stays aligned at any size.
  */
-export function SamPlayer({ ticketId, evidence, show, onFrame }: Props) {
-  const [url, setUrl] = useState<string | null>(null);
+export function SamPlayer({
+  ticketId,
+  evidence,
+  show,
+  onFrame,
+  videoUrl,
+  videoRef: externalVideoRef,
+  hideControls,
+  className,
+}: Props) {
+  const [url, setUrl] = useState<string | null>(videoUrl ?? null);
   const [failed, setFailed] = useState(false);
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -87,11 +100,17 @@ export function SamPlayer({ ticketId, evidence, show, onFrame }: Props) {
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playError, setPlayError] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const internalVideoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = externalVideoRef ?? internalVideoRef;
   const loadClipId = useId().replaceAll(":", "");
   const isImage = evidence.media_kind === "image";
 
   useEffect(() => {
+    if (videoUrl) {
+      setUrl(videoUrl);
+      setFailed(false);
+      return;
+    }
     setUrl(null);
     setFailed(false);
     setFrame(0);
@@ -112,7 +131,7 @@ export function SamPlayer({ ticketId, evidence, show, onFrame }: Props) {
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [ticketId]);
+  }, [ticketId, videoUrl]);
 
   const tracks = useMemo(() => {
     const media = isImage ? "image" : "video";
@@ -198,7 +217,7 @@ export function SamPlayer({ ticketId, evidence, show, onFrame }: Props) {
   }
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-black">
+    <div className={className ?? "absolute inset-0 flex flex-col bg-black"}>
       <div className="relative min-h-0 flex-1">
         {!url && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-black text-xs text-white/80">
@@ -311,7 +330,7 @@ export function SamPlayer({ ticketId, evidence, show, onFrame }: Props) {
           </svg>
         )}
       </div>
-      {!isImage && url && (
+      {!isImage && url && !hideControls && (
         <div className="flex shrink-0 items-center gap-2 bg-black px-3 py-2 text-white">
           <button
             type="button"
