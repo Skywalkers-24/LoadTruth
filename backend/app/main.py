@@ -45,9 +45,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     from app.api.ingest import close_pipeline_cache, initialize_pipeline_cache
 
     try:
-        if settings.redis_url != "redis://localhost:6379/0":
-            if await initialize_pipeline_cache():
-                log.info("redis_cache_ready")
+        if settings.redis_url != "redis://localhost:6379/0" and await initialize_pipeline_cache():
+            log.info("redis_cache_ready")
         # Create tables and seed the demo tenant unless startup DB work is
         # explicitly disabled (as it is in isolated tests).
         if os.environ.get("LOADTRUTH_SKIP_STARTUP_DB") != "1":

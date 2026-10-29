@@ -1,13 +1,13 @@
 /**
- * Thin typed client for the FastAPI backend. Production browser requests go
- * directly to Render (NEXT_PUBLIC_API_URL); local dev can use the Next rewrite.
+ * Thin typed client for the FastAPI backend. Browser requests use the same-origin
+ * /api rewrite; server components call Render directly via BACKEND_URL.
  */
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 
 /**
- * Browser traffic avoids proxying large evidence uploads through the Worker.
+ * The same-origin rewrite keeps browser requests off cross-origin CORS paths.
  * Server components call the backend directly via BACKEND_URL.
  */
 function baseUrl(): string {

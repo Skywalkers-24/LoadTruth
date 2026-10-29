@@ -45,8 +45,8 @@ the database remains the system of record.
 
 The frontend is Next.js with server rendering, so it deploys as a Cloudflare
 Worker through `@opennextjs/cloudflare`, not as the reference repo's static Vite
-asset bundle. Browser API calls go directly to Render so large uploads do not
-pass through the Worker. The public API URL is embedded at build time.
+asset bundle. Browser API calls use the Worker's same-origin `/api` rewrite to
+reach Render, so sign-in works without cross-origin CORS settings.
 
 Manual build and deploy from the repo root:
 
@@ -54,7 +54,6 @@ Manual build and deploy from the repo root:
 cd frontend
 npm ci
 export BACKEND_URL=https://loadtruth-api.onrender.com
-export NEXT_PUBLIC_API_URL=https://loadtruth-api.onrender.com
 npm run cf:build                 # Cloudflare-compatible Next build
 npm run preview                  # optional local Workers-runtime preview
 npx wrangler login               # one-time local authentication
@@ -76,20 +75,19 @@ settings so commands run in the Next.js project directory:
 | Build command | `npm run cf:build` |
 | Deploy command | `npx wrangler deploy` |
 
-Add these **build variables** (the public URL is embedded in the browser bundle;
-neither value is a secret):
+Add this **build variable** so Next.js bakes the correct rewrite destination:
 
 ```text
 BACKEND_URL=https://loadtruth-api.onrender.com
-NEXT_PUBLIC_API_URL=https://loadtruth-api.onrender.com
 ```
 
 With root directory set to `frontend`, Cloudflare detects `package-lock.json`,
 installs dependencies, and finds `wrangler.jsonc`. Leaving the root directory at
 `/` makes npm look for `/package.json`, which fails before the build starts.
 
-If your Cloudflare Worker URL differs from the `CORS_ORIGINS` value in Render,
-update that Render variable to the exact deployed origin and redeploy the API.
+The production build defaults `BACKEND_URL` to the Render API if the Cloudflare
+build variable is unset. The Render CORS allowlist is not used for browser API
+requests because they stay on the Worker's origin.
 
 ## Caching strategy (this is what makes it fast *and* cheap)
 

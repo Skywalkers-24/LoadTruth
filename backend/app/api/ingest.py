@@ -8,7 +8,11 @@ is found in the footage).
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
+from dataclasses import asdict, replace
+from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
@@ -28,6 +32,7 @@ from app.auth.roles import can_ingest
 from app.config import get_settings
 from app.log import get_logger
 from app.pipeline import evidence_store
+from app.pipeline.anomalies import Anomaly, AnomalyType, Severity
 from app.pipeline.cache import InMemoryResultCache, RedisResultCache, ResultCache
 from app.pipeline.frames import sample_frames
 from app.pipeline.ingest import ingest_upload
@@ -36,7 +41,8 @@ from app.pipeline.media import MediaTooLargeError, guess_mime, plan_transport
 from app.pipeline.orchestrator import PipelineResult, run_pipeline
 from app.pipeline.registry import CertifiedTruck, TruckRegistry
 from app.pipeline.trace import StageRecord, get_job_store, get_progress_store
-from app.tickets.schemas import TicketOut, ticket_to_out
+from app.tickets.domain import Ticket
+from app.tickets.schemas import DebrisClass, TicketOut, TicketStatus, ticket_to_out
 
 router = APIRouter(tags=["ingest"])
 log = get_logger("ingest")
@@ -44,9 +50,67 @@ log = get_logger("ingest")
 # Use Render Key Value (Redis-compatible) when REDIS_URL is configured. Keep
 # the local in-memory cache for development and as a fallback during outages.
 _local_pipeline_cache: InMemoryResultCache[PipelineResult] = InMemoryResultCache()
-_redis_client: Redis[bytes] | None = None
+_redis_client: Redis | None = None
 _pipeline_cache: ResultCache[PipelineResult] | None = None
 _cost_ledger = CostLedger()
+
+
+def _encode_pipeline_result(value: PipelineResult) -> bytes:
+    """Encode the shared cache value as JSON without request-local trace callbacks."""
+    result = replace(value, trace=None)
+
+    def encode_scalar(item: object) -> str:
+        if isinstance(item, (UUID, Decimal)):
+            return str(item)
+        if isinstance(item, datetime):
+            return item.isoformat()
+        raise TypeError(f"Unsupported cache value: {type(item).__name__}")
+
+    return json.dumps(asdict(result), default=encode_scalar, separators=(",", ":")).encode()
+
+
+def _decode_pipeline_result(payload: bytes) -> PipelineResult:
+    """Rebuild pipeline domain records from their shared JSON cache form."""
+    data = json.loads(payload)
+    ticket_data = data["ticket"]
+    for field in ("tenant_id", "event_id", "clip_id", "id"):
+        if ticket_data[field] is not None:
+            ticket_data[field] = UUID(ticket_data[field])
+    for field in (
+        "certified_cubic_yards",
+        "rate_per_cy",
+        "est_fill_pct",
+        "est_cubic_yards",
+        "est_dollar_value",
+        "monitor_call_fill_pct",
+        "monitor_cubic_yards",
+        "monitor_dollar_value",
+        "delta_cubic_yards",
+        "delta_dollar_value",
+        "confirmed_fill_pct",
+    ):
+        if ticket_data[field] is not None:
+            ticket_data[field] = Decimal(ticket_data[field])
+    ticket_data["debris_class"] = DebrisClass(ticket_data["debris_class"])
+    ticket_data["status"] = TicketStatus(ticket_data["status"])
+    ticket_data["created_at"] = datetime.fromisoformat(ticket_data["created_at"])
+    anomalies = [
+        Anomaly(
+            type=AnomalyType(row["type"]),
+            severity=Severity(row["severity"]),
+            explanation=row["explanation"],
+            evidence_frame=row["evidence_frame"],
+        )
+        for row in data["anomalies"]
+    ]
+    return PipelineResult(
+        ticket=Ticket(**ticket_data),
+        anomalies=anomalies,
+        identity_confidence=data["identity_confidence"],
+        fill_confidence=data["fill_confidence"],
+        no_truck=data["no_truck"],
+        segments=data["segments"],
+    )
 
 
 def get_pipeline_cache() -> ResultCache[PipelineResult]:
@@ -61,7 +125,12 @@ def get_pipeline_cache() -> ResultCache[PipelineResult]:
                 socket_timeout=3,
                 health_check_interval=30,
             )
-            _pipeline_cache = RedisResultCache(_redis_client, fallback=_local_pipeline_cache)
+            _pipeline_cache = RedisResultCache(
+                _redis_client,
+                fallback=_local_pipeline_cache,
+                encode=_encode_pipeline_result,
+                decode=_decode_pipeline_result,
+            )
         else:
             _pipeline_cache = _local_pipeline_cache
     return _pipeline_cache

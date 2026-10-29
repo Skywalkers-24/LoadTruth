@@ -24,6 +24,7 @@ from app.config import get_settings
 from app.log import get_logger
 
 log = get_logger("db.engine")
+_ALEMBIC_CONFIG_PATH = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 
 @lru_cache
@@ -67,7 +68,7 @@ async def init_db() -> None:
 
     engine = get_engine()
     async with engine.begin() as conn:
-        config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
+        config = Config(str(_ALEMBIC_CONFIG_PATH))
 
         def upgrade(sync_conn: Connection) -> None:
             config.attributes["connection"] = sync_conn

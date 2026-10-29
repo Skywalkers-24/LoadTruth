@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import pickle
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Protocol
@@ -25,6 +24,8 @@ from redis.asyncio import Redis
 
 # A zero-argument async factory that produces the value to cache on a miss.
 type Compute[T] = Callable[[], Awaitable[T]]
+type Encoder[T] = Callable[[T], bytes]
+type Decoder[T] = Callable[[bytes], T]
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,22 +85,26 @@ class InMemoryResultCache[T]:
 class RedisResultCache[T]:
     """Shared cache backed by Redis-compatible services such as Render Key Value.
 
-    Values are pickled because the pipeline result is a nested graph of domain
-    dataclasses, UUIDs, and Decimals. Keep this cache on Render's private
-    network; never enable external connections for the Key Value instance.
+    The caller supplies a typed serializer so cached domain values use a safe,
+    versionable format. Keep this cache on Render's private network; never
+    enable external connections for the Key Value instance.
     ``fallback`` keeps requests working if the optional cache is unavailable.
     """
 
     def __init__(
         self,
-        client: Redis[bytes],
+        client: Redis,
         *,
         fallback: InMemoryResultCache[T],
+        encode: Encoder[T],
+        decode: Decoder[T],
         namespace: str = "loadtruth:pipeline",
         ttl_seconds: int = 7 * 24 * 60 * 60,
     ) -> None:
         self._client = client
         self._fallback = fallback
+        self._encode = encode
+        self._decode = decode
         self._namespace = namespace
         self._ttl_seconds = ttl_seconds
         self._log = logging.getLogger(__name__)
@@ -116,24 +121,15 @@ class RedisResultCache[T]:
         if payload is None:
             return await self._fallback.get(content_hash)
         try:
-            return pickle.loads(payload)  # noqa: S301 — private Render Key Value cache only
+            return self._decode(payload)
         except Exception:  # noqa: BLE001 — discard invalid cache data and recompute.
             self._log.warning("redis_cache_entry_invalid; deleting entry", exc_info=True)
             await self._client.delete(self._key(content_hash))
             return None
 
     async def set(self, content_hash: str, value: T) -> None:
-        # PipelineResult.trace carries a request-local callback and is rebuilt
-        # by the orchestrator on a cache hit, so it must not cross processes.
-        from app.pipeline.orchestrator import PipelineResult
-
-        cached_value = value
-        if isinstance(value, PipelineResult):
-            from dataclasses import replace
-
-            cached_value = replace(value, trace=None)  # type: ignore[assignment]
         try:
-            payload = pickle.dumps(cached_value, protocol=pickle.HIGHEST_PROTOCOL)
+            payload = self._encode(value)
             await self._client.set(self._key(content_hash), payload, ex=self._ttl_seconds)
         except Exception:
             self._log.warning("redis_cache_write_failed; using local cache", exc_info=True)

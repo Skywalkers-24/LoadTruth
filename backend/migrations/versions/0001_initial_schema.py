@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import re
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "0001_initial"
 down_revision = None
@@ -2531,6 +2531,7 @@ def _statements(sql: str) -> list[str]:
         result.append(tail)
     return result
 
+
 def _execute_script(sql: str) -> None:
     for statement in _statements(sql):
         op.execute(statement)
@@ -2549,9 +2550,11 @@ def _is_supabase() -> bool:
         ).scalar()
     )
 
+
 def upgrade() -> None:
     from app.db import models  # noqa: F401 — register the ORM tables
     from app.db.base import Base
+
     if not _is_supabase():
         Base.metadata.create_all(bind=op.get_bind())
         return
@@ -2622,6 +2625,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     from app.db import models  # noqa: F401
     from app.db.base import Base
+
     bind = op.get_bind()
     if _is_supabase():
         for table in ("audit_log", "reports", "benchmarks", "tracks", "pipeline_runs", "clips"):

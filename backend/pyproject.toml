@@ -63,6 +63,7 @@ known-first-party = ["app"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101"]
+"migrations/versions/0001_initial_schema.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"
