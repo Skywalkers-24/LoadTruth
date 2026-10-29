@@ -138,6 +138,7 @@ def get_pipeline_cache() -> ResultCache[PipelineResult]:
 
 async def initialize_pipeline_cache() -> bool:
     """Check the configured shared cache at startup; cache failure is non-fatal."""
+    global _pipeline_cache
     get_pipeline_cache()
     if _redis_client is None:
         return False
@@ -146,7 +147,25 @@ async def initialize_pipeline_cache() -> bool:
         return True
     except Exception:  # noqa: BLE001 — Redis is optional; local fallback remains usable.
         log.warning("redis_cache_unavailable; using process-local fallback", exc_info=True)
+        _pipeline_cache = _local_pipeline_cache
         return False
+
+
+async def get_cache_status() -> dict[str, object]:
+    """Report the current pipeline cache status for diagnostics and health checks."""
+    settings = get_settings()
+    is_configured = settings.redis_url != "redis://localhost:6379/0"
+    connected = False
+    if is_configured and _redis_client is not None:
+        try:
+            connected = bool(await _redis_client.ping())
+        except Exception:
+            connected = False
+    return {
+        "backend": "redis" if connected else "memory",
+        "redis_configured": is_configured,
+        "redis_connected": connected,
+    }
 
 
 async def close_pipeline_cache() -> None:
