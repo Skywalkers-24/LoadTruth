@@ -28,8 +28,9 @@
 .DS_Store
 **/.DS_Store
 
-# Large demo video exports (keep out of git; share separately)
+# Large demo video exports; login background clips are deployed with the frontend.
 *.mp4
+!frontend/public/login-*.mp4
 
 # Local review/scratch artifacts
 semantic-review/

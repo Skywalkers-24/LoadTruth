@@ -149,7 +149,7 @@ export function LoginScreen() {
         <div className="absolute right-5 top-5 z-10">
           <ThemeToggle />
         </div>
-        <div className="flex w-full max-w-md flex-col gap-4">
+        <div className="login-screen-content flex w-full max-w-md flex-col gap-4">
           <div className="login-screen-card w-full rounded-2xl border border-border bg-[var(--color-surface)]/90 p-6 shadow-xl backdrop-blur-xl sm:p-7">
             <div className="mb-6 flex items-center gap-3 lg:hidden">
               <LogoMark size={40} />
