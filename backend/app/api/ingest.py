@@ -32,7 +32,7 @@ from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_ingest
 from app.config import get_settings
 from app.log import get_logger
-from app.pipeline import evidence_store
+from app.pipeline import b2_store, evidence_store
 from app.pipeline.anomalies import Anomaly, AnomalyType, Severity
 from app.pipeline.cache import InMemoryResultCache, RedisResultCache, ResultCache
 from app.pipeline.frames import sample_frames
@@ -114,9 +114,11 @@ def _decode_pipeline_result(payload: bytes) -> PipelineResult:
     )
 
 
-def get_pipeline_cache() -> ResultCache[PipelineResult]:
+def get_pipeline_cache() -> ResultCache[PipelineResult] | None:
     """Return the shared result cache, using Render Key Value when configured."""
     global _pipeline_cache, _redis_client
+    if not get_settings().pipeline_result_cache_enabled:
+        return None
     if _pipeline_cache is None:
         settings = get_settings()
         if settings.redis_url != "redis://localhost:6379/0":
@@ -163,7 +165,9 @@ async def get_cache_status() -> dict[str, object]:
         except Exception:
             connected = False
     return {
-        "backend": "redis" if connected else "memory",
+        "backend": ("redis" if connected else "memory")
+        if settings.pipeline_result_cache_enabled
+        else "database-stage-cache",
         "redis_configured": is_configured,
         "redis_connected": connected,
     }
@@ -216,7 +220,10 @@ async def ingest_clip(
             "to upload clips.",
         )
 
-    data = await file.read()
+    limit = get_settings().analysis_max_bytes
+    data = await file.read(limit + 1)
+    if len(data) > limit:
+        raise HTTPException(413, "Trim this clip below the configured analysis size limit.")
     filename = file.filename or "upload.mp4"
     settings = get_settings()
     try:
@@ -307,6 +314,11 @@ async def ingest_clip(
                 data=data,
                 on_stage=_on_stage,
             )
+    except b2_store.StorageUnavailableError as exc:
+        await progress.finish(event_id, ch, outcome="failed", detail="B2 storage is unavailable.")
+        raise HTTPException(
+            503, "B2 storage is unavailable. The saved input can be retried later."
+        ) from exc
     except BudgetExceededError as exc:
         await progress.finish(event_id, ch, outcome="failed", detail="AI spending limit reached.")
         log.warning("ingest_budget_cap_reached", spent_usd=exc.spent_usd)
@@ -348,10 +360,12 @@ async def ingest_clip(
         # Keep the clip for the Review console. The live client already stored
         # the exact media the models saw; otherwise (fixtures, or a cached
         # replay of an older clip) store the upload itself.
-        await evidence_store.save(
-            artifact.content_hash, data, mime=guess_mime(filename, artifact.media_kind)
-        )
         stored = await evidence_store.load(artifact.content_hash)
+        if stored is None:
+            await evidence_store.save(
+                artifact.content_hash, data, mime=guess_mime(filename, artifact.media_kind)
+            )
+            stored = await evidence_store.load(artifact.content_hash)
         await repo.save_ticket_evidence(
             tenant,
             saved.id,

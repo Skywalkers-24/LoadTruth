@@ -230,6 +230,11 @@ class SqlTicketRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
 
+    @property
+    def session(self) -> AsyncSession:
+        """Request-scoped session for adjacent tenant-scoped library operations."""
+        return self._s
+
     async def _anomaly_counts(self, tenant_id: UUID, ticket_ids: list[UUID]) -> dict[UUID, int]:
         if not ticket_ids:
             return {}

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from uuid import UUID
 
 import pytest
@@ -35,10 +34,11 @@ def test_ingest_stores_the_clip_and_serves_it(client: TestClient) -> None:
     assert body["media_kind"] == "video" and body["mime"] == "video/mp4"
     assert body["segments"] == {}  # fixtures carry no raw SAM output
 
-    media = client.get(f"/tickets/{ticket_id}/evidence/media")
-    assert media.status_code == 200
-    assert media.content == CLIP
-    assert media.headers["content-type"] == "video/mp4"
+    media = client.get(f"/tickets/{ticket_id}/evidence/media", follow_redirects=False)
+    assert media.status_code == 307
+    assert media.headers["location"].startswith("https://private-b2.test/")
+    signed = client.get(f"/tickets/{ticket_id}/evidence/url")
+    assert signed.status_code == 200 and signed.json()["url"] == media.headers["location"]
 
 
 def test_seeded_ticket_without_evidence_is_404(client: TestClient) -> None:
@@ -70,15 +70,12 @@ async def test_evidence_is_tenant_scoped(
 
 
 @pytest.mark.asyncio
-async def test_store_rejects_unsafe_keys_and_keeps_first_copy() -> None:
-    await evidence_store.save("../escape", b"x", mime="video/mp4")
+async def test_store_rejects_unsafe_keys_and_keeps_first_copy(b2_objects) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(ValueError):
+        await evidence_store.save("../escape", b"x", mime="video/mp4")
     assert await evidence_store.load("../escape") is None
     await evidence_store.save("b" * 64, b"first", mime="video/mp4", fps=3.0)
     await evidence_store.save("b" * 64, b"second", mime="video/mp4")
     stored = await evidence_store.load("b" * 64)
     assert stored is not None and stored.fps == 3.0
-    assert _read(stored.path) == b"first"
-
-
-def _read(path: Path) -> bytes:
-    return path.read_bytes()
+    assert b2_objects[stored.object_key][0] == b"first"

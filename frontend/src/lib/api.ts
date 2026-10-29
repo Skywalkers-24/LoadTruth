@@ -543,12 +543,8 @@ export function reverifyTicket(ticketId: string): Promise<Reverify> {
  * URL for a <video> or <img>. The caller revokes it when done.
  */
 export async function fetchEvidenceMediaUrl(ticketId: string): Promise<string> {
-  const res = await fetch(`${baseUrl()}/tickets/${ticketId}/evidence/media`, {
-    cache: "no-store",
-    headers: authToken ? { authorization: `Bearer ${authToken}` } : undefined,
-  });
-  if (!res.ok) throw new ApiError(res.status, "");
-  return URL.createObjectURL(await res.blob());
+  const result = await request<{ url: string }>(`/tickets/${ticketId}/evidence/url`);
+  return result.url;
 }
 
 // ── AI model & reasoning-effort configuration (admin) ──
@@ -703,8 +699,80 @@ export interface IngestJob {
   ticket: Ticket | null;
 }
 
-export function submitIngestJob(eventId: string, file: File): Promise<IngestJob> {
-  return upload<IngestJob>(`/events/${eventId}/ingest-jobs`, file);
+export interface DemoVideo {
+  id: string;
+  title: string;
+  filename: string;
+  mime: string;
+  size_bytes: number;
+  status: "uploading" | "ready";
+  notes: string | null;
+  reference_fill_pct: string | null;
+  created_at: string;
+}
+export interface DemoVideoPage {
+  items: DemoVideo[];
+  total: number;
+  analysis_max_bytes: number;
+  upload_max_bytes: number;
+}
+export function listDemoVideos(offset = 0): Promise<DemoVideoPage> {
+  return request(`/demo-videos?limit=24&offset=${offset}`);
+}
+export function completeDemoUpload(id: string): Promise<DemoVideo> {
+  return request(`/demo-videos/${id}/complete`, { method: "POST" });
+}
+export function demoPlayback(id: string): Promise<{ url: string }> {
+  return request(`/demo-videos/${id}/playback`);
+}
+export function analyzeDemoVideo(eventId: string, videoId: string): Promise<IngestJob> {
+  return request(`/events/${eventId}/demo-videos/${videoId}/analyze`, { method: "POST" });
+}
+export async function uploadDemoVideo(
+  file: File,
+  metadata?: { title?: string; notes?: string; reference_fill_pct?: number | null },
+  onProgress?: (pct: number) => void,
+): Promise<DemoVideo> {
+  const mime =
+    file.type || (file.name.toLowerCase().endsWith(".mov") ? "video/quicktime" : "video/mp4");
+  const init = await request<{
+    video: DemoVideo;
+    upload_url: string;
+    headers: Record<string, string>;
+  }>("/demo-videos/uploads", {
+    method: "POST",
+    body: JSON.stringify({
+      title: (metadata?.title?.trim() || file.name).slice(0, 160),
+      filename: file.name,
+      mime,
+      size_bytes: file.size,
+      notes: metadata?.notes || null,
+      reference_fill_pct: metadata?.reference_fill_pct ?? null,
+    }),
+  });
+  // The application token is NEVER sent to the signed bucket URL.
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", init.upload_url);
+    Object.entries(init.headers).forEach(([key, value]) => xhr.setRequestHeader(key, value));
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () =>
+      xhr.status >= 200 && xhr.status < 300
+        ? resolve()
+        : reject(new Error("B2 upload failed. Check the saved clip or retry the upload."));
+    xhr.onerror = () =>
+      reject(new Error("B2 could not be reached. Check the connection and bucket CORS settings."));
+    xhr.onabort = () =>
+      reject(new Error("Upload interrupted. Only verified clips can be analyzed."));
+    xhr.send(file);
+  });
+  return completeDemoUpload(init.video.id);
+}
+export async function submitIngestJob(eventId: string, file: File): Promise<IngestJob> {
+  const video = await uploadDemoVideo(file);
+  return analyzeDemoVideo(eventId, video.id);
 }
 
 export function getLatestIngestJob(eventId: string): Promise<IngestJob | null> {

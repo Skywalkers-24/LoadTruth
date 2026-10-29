@@ -30,8 +30,22 @@ services:
         sync: false # The deployed Cloudflare Worker origin, e.g. https://loadtruth-console.example.workers.dev
       - key: SUPABASE_JWT_SECRET
         sync: false
-      - key: EVIDENCE_DIR
-        value: /tmp/loadtruth/evidence
+      - key: B2_KEY_ID
+        sync: false
+      - key: B2_APPLICATION_KEY
+        sync: false
+      - key: B2_BUCKET_NAME
+        sync: false
+      - key: B2_S3_ENDPOINT
+        sync: false
+      - key: B2_REGION
+        sync: false
+      - key: PIPELINE_RESULT_CACHE_ENABLED
+        value: "false"
+      - key: ANALYSIS_MAX_BYTES
+        value: "20971520"
+      - key: DEMO_UPLOAD_MAX_BYTES
+        value: "104857600"
       - key: MODEL_API_LOG_PATH
         value: /tmp/loadtruth/meta_api.jsonl
   - type: keyvalue

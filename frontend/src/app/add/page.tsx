@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -14,7 +14,7 @@ import {
   UploadCloudIcon,
 } from "lucide-react";
 
-import { ApiError, type PipelineProgress } from "@/lib/api";
+import { ApiError, listDemoVideos, type PipelineProgress } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
 import { LivePipelineFlow } from "@/components/ai/live-pipeline-flow";
 import { shortId } from "@/components/console/ticket-metadata";
@@ -67,6 +67,12 @@ function CaptureWorkspace() {
   const ingest = useSubmitIngestJob();
   const latest = useLatestIngestJob(eventId);
   const queryClient = useQueryClient();
+  const library = useQuery({
+    queryKey: ["demo-videos", 0],
+    queryFn: () => listDemoVideos(0),
+    staleTime: 60_000,
+  });
+  const analysisLimit = library.data?.analysis_max_bytes ?? 20 * 1024 ** 2;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const result = ingest.isPending ? null : (latest.data?.ticket ?? null);
@@ -93,8 +99,10 @@ function CaptureWorkspace() {
       setError("This file is empty. Choose a truck video or image.");
       return;
     }
-    if (file.size > 1024 ** 3) {
-      setError("This file exceeds 1 GiB. Choose a shorter clip.");
+    if (file.size > analysisLimit) {
+      setError(
+        `Analysis on this instance accepts clips up to ${Math.round(analysisLimit / 1024 ** 2)} MiB. Trim this clip, or save it in Demo Videos for later.`,
+      );
       return;
     }
     if (file.type && !file.type.startsWith("video/") && !file.type.startsWith("image/")) {
@@ -145,6 +153,12 @@ function CaptureWorkspace() {
             ← All tickets
           </Link>
           <h1 className="lt-page-title">New Ticket</h1>
+          <Link
+            href="/demos"
+            className="mt-2 self-start text-sm font-medium text-primary hover:underline"
+          >
+            Choose a saved demo video →
+          </Link>
           <p className="text-[12px] text-muted-foreground">
             Upload evidence for{" "}
             <span className="font-medium text-foreground">{selected?.name ?? "this event"}</span>{" "}
@@ -206,9 +220,9 @@ function CaptureWorkspace() {
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[15px] font-semibold">
                       {ingest.isPending
-                        ? "Uploading — keep this tab open"
+                        ? "Uploading to B2 — keep this tab open"
                         : processing
-                          ? "Upload received — analyzing on server"
+                          ? "Saved in B2 — queued or analyzing"
                           : showcaseReadOnly
                             ? "Preprocessed showcase event"
                             : "Drop a clip here, or click to browse"}
@@ -220,7 +234,7 @@ function CaptureWorkspace() {
                           ? "You can refresh or return later to follow this run."
                           : showcaseReadOnly
                             ? "Stored Meta results are shown read-only. Browsing them makes no Meta calls."
-                            : "Upload a short truck video or image"}
+                            : `Uploads go directly to B2. Analyze clips up to ${Math.round(analysisLimit / 1024 ** 2)} MiB.`}
                     </span>
                   </div>
                 </label>
@@ -238,7 +252,7 @@ function CaptureWorkspace() {
           <div className="flex min-w-0 flex-col gap-3">
             <LivePipelineFlow
               eventId={eventId}
-              active={busy}
+              active={latest.data?.status === "running"}
               showIdle
               ignoredAttempt={ignoredAttempt}
               detailed
@@ -248,7 +262,7 @@ function CaptureWorkspace() {
               <Card className="gap-2 p-4" role="status">
                 <p className="text-sm font-medium">
                   {processing
-                    ? "Upload received. Processing continues on the server."
+                    ? "Clip saved in B2. Analysis is queued or running."
                     : latest.data.status === "failed"
                       ? "Analysis did not complete"
                       : "Latest upload completed"}

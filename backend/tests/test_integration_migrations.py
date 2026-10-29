@@ -28,5 +28,6 @@ def test_migrate_to_provider_evidence_namespace(existing: bool) -> None:
         command.upgrade(config, "head")
         columns = {col["name"] for col in inspect(connection).get_columns("ticket_evidence")}
         assert "ai_cache_namespace" in columns
+        assert {"demo_videos", "analysis_jobs"}.issubset(inspect(connection).get_table_names())
         assert "tags" in {col["name"] for col in inspect(connection).get_columns("events")}
     engine.dispose()

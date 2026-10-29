@@ -12,7 +12,6 @@ import asyncio
 import hashlib
 import json
 import struct
-import tempfile
 import uuid
 import zlib
 from contextlib import closing
@@ -44,65 +43,49 @@ async def check_b2() -> dict[str, object]:
     s = get_settings()
     if not s.b2_configured:
         return {"status": "not_configured"}
-    original = s.evidence_dir, s.b2_key_prefix, s.evidence_storage
     key = hashlib.sha256(uuid.uuid4().bytes).hexdigest()
     version: str | None = None
     report: dict[str, object] = {}
     try:
-        s.b2_key_prefix = original[1].strip("/") + "/integration-checks"
-        s.evidence_storage = "b2"
         data = _red_png()
-        with tempfile.TemporaryDirectory(prefix="loadtruth-b2-upload-") as first:
-            s.evidence_dir = first
-            await evidence_store.save(key, data, mime="image/png")
-            # Explicitly confirm remote persistence; a local-only fallback is not a cloud pass.
-            with closing(b2_store.client()) as client:
-                head = await asyncio.to_thread(
-                    client.head_object, Bucket=s.b2_bucket_name, Key=b2_store.object_key(key)
-                )
-                version = head.get("VersionId")
-            report["remote_upload"] = (
-                head.get("Metadata", {}).get("sha256") == hashlib.sha256(data).hexdigest()
-            )
-        with tempfile.TemporaryDirectory(prefix="loadtruth-b2-restore-") as second:
-            s.evidence_dir = second
-            restored = await evidence_store.load(key)
-            report["restore_after_disk_loss"] = (
-                restored is not None and restored.path.read_bytes() == data
-            )
-            original_put = b2_store.put
+        await evidence_store.save(key, data, mime="image/png")
+        head = await asyncio.to_thread(b2_store.head_key, b2_store.object_key(key))
+        if head is None:
+            raise RuntimeError("B2 did not retain the test object.")
+        version = head.get("VersionId")
+        downloaded = await asyncio.to_thread(b2_store.get, key)
+        report = {
+            "status": "passed",
+            "remote_round_trip": downloaded is not None and downloaded[0] == data,
+        }
+        original_put = b2_store.put
+        try:
+
+            def outage(content_hash: str, data: bytes, mime: str, fps: float | None) -> None:
+                raise OSError("simulated outage")
+
+            b2_store.put = outage
             try:
-
-                def outage(content_hash: str, data: bytes, mime: str, fps: float | None) -> None:
-                    raise OSError("simulated cloud outage")
-
-                b2_store.put = outage
-                local_key = hashlib.sha256(b"fallback" + uuid.uuid4().bytes).hexdigest()
-                await evidence_store.save(local_key, data, mime="image/png")
-                local = await evidence_store.load(local_key)
-                report["local_fallback"] = local is not None and local.path.read_bytes() == data
-            finally:
-                b2_store.put = original_put
-        report["status"] = "passed" if all(report.values()) else "failed"
-    except Exception as exc:  # noqa: BLE001 — never print provider exceptions containing URLs/keys
+                await evidence_store.save(
+                    hashlib.sha256(uuid.uuid4().bytes).hexdigest(), data, mime="image/png"
+                )
+            except b2_store.StorageUnavailableError:
+                report["no_local_fallback"] = True
+            else:
+                report["status"] = "failed"
+        finally:
+            b2_store.put = original_put
+    except Exception as exc:
         report = {"status": "failed", "error_type": type(exc).__name__}
-        response = getattr(exc, "response", None)
-        if isinstance(response, dict):
-            report["error_code"] = response.get("Error", {}).get("Code")
     finally:
         if version:
-            try:
-                with closing(b2_store.client()) as client:
-                    await asyncio.to_thread(
-                        client.delete_object,
-                        Bucket=s.b2_bucket_name,
-                        Key=b2_store.object_key(key),
-                        VersionId=version,
-                    )
-                report["test_object_cleanup"] = "completed"
-            except Exception:  # noqa: BLE001 — a restricted key may not permit deleting versions
-                report["test_object_cleanup"] = "not_permitted; test object retained"
-        s.evidence_dir, s.b2_key_prefix, s.evidence_storage = original
+            with closing(b2_store.client()) as client:
+                await asyncio.to_thread(
+                    client.delete_object,
+                    Bucket=s.b2_bucket_name,
+                    Key=b2_store.object_key(key),
+                    VersionId=version,
+                )
     return report
 
 

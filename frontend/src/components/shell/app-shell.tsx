@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/icons";
 import {
   ActivityIcon,
+  FilmIcon,
   BookOpenIcon,
   CircleDollarSignIcon,
   LogOutIcon,
@@ -60,6 +61,7 @@ const NAV: NavItem[] = [
   { href: "/console", label: "Review Console", short: "Review", icon: ClipboardIcon, badge: true },
   { href: "/trucks", label: "Trucks", short: "Trucks", icon: TruckIcon, cap: "manage_trucks" },
   { href: "/assistant", label: "AI Analyst", short: "Analyst", icon: SparklesIcon },
+  { href: "/demos", label: "Demo Videos", short: "Demos", icon: FilmIcon },
   { href: "/pipeline", label: "Pipeline Runs", short: "Pipeline", icon: ActivityIcon },
   { href: "/reports", label: "Reports", short: "Reports", icon: ChartIcon },
   { href: "/billing", label: "Billing", short: "Billing", icon: CircleDollarSignIcon },

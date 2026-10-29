@@ -13,7 +13,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import FileResponse
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from app.api.deps import require
@@ -247,18 +247,27 @@ async def ticket_evidence(repo: Repository, tenant: ActiveTenant, ticket_id: UUI
 @router.get("/tickets/{ticket_id}/evidence/media")
 async def ticket_evidence_media(
     repo: Repository, tenant: ActiveTenant, ticket_id: UUID
-) -> FileResponse:
-    """The stored clip itself (tenant-checked through the ticket's evidence row)."""
+) -> RedirectResponse:
+    """Authorize once, then play private B2 evidence without proxying video bytes."""
     row = await repo.get_ticket_evidence(tenant, ticket_id)
     stored = await evidence_store.load(row.content_hash) if row is not None else None
     if row is None or stored is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "no evidence media for this ticket")
-    return FileResponse(
-        stored.path,
-        media_type=stored.mime,
-        filename=f"evidence-{ticket_id}.{evidence_store.extension(stored.mime)}",
-        content_disposition_type="inline",
+        raise HTTPException(404, "no evidence media for this ticket")
+    return RedirectResponse(
+        await evidence_store.media_url(row.content_hash),
+        status_code=307,
+        headers={"Cache-Control": "no-store"},
     )
+
+
+@router.get("/tickets/{ticket_id}/evidence/url")
+async def ticket_evidence_url(
+    repo: Repository, tenant: ActiveTenant, ticket_id: UUID
+) -> dict[str, str]:
+    row = await repo.get_ticket_evidence(tenant, ticket_id)
+    if row is None or await evidence_store.load(row.content_hash) is None:
+        raise HTTPException(404, "no evidence media for this ticket")
+    return {"url": await evidence_store.media_url(row.content_hash)}
 
 
 class ReverifyOut(BaseModel):

@@ -2,11 +2,26 @@
 
 Implemented 2026-10-29. Existing Meta SAM segmentation remains the measurement input. Muse Spark tasks can select Meta, Baseten, or Modal independently. Fireworks is prepared but needs the operator's model/deployment details.
 
-## Backblaze B2
+## B2-only demo videos and evidence
 
-The backend uses the bucket's S3-compatible endpoint through boto3. It keeps a local working copy for playback and fallback, uploads processed evidence with MIME type, frame rate, and a SHA-256 checksum, and restores missing local files from B2 on demand. The ticket evidence endpoint still checks the signed-in user's tenant before serving media. No bucket credentials or public bucket URLs are exposed to the browser. Backend-only access needs no CORS changes.
+B2 is required for video uploads and processed evidence. There is **no persistent local copy, filesystem cache, or local storage fallback**. When B2 is unavailable, uploads/verification fail visibly rather than claiming a file was saved. Temporary files exist only while a clip is being decoded and are deleted afterward.
 
-Required server secrets/configuration:
+The **Demo Videos** screen (`/demos`) is an authenticated, tenant-scoped library. Select one or several videos to upload, add optional notes, and optionally label a single clip's reference fill. Each card supports private playback and analysis in the selected writable event. Pending uploads can be verified again after a refresh. The five packaged showcase clips are registered automatically when B2 is available. Reference labels are user-supplied; they do not establish independently measured benchmark accuracy.
+
+### Upload and analysis flow
+
+1. Backend creates a pending library record and a short-lived signed B2 PUT URL.
+2. Browser sends the file **directly to B2**, without the application's bearer token.
+3. Backend verifies object size/type and pins the B2 object version before marking the clip ready.
+4. Analyze creates a durable Postgres job referencing that version. No uploaded bytes are held in the job queue.
+5. A single backend worker streams the object into a temporary processing file, runs the existing pipeline, and commits the ticket and completed-job status together.
+6. Ticket and library playback use short-lived signed B2 GET URLs, so Render does not proxy video playback bytes.
+
+On this small Render deployment, library uploads default to **100 MiB per clip** and analysis to **20 MiB per clip**, with one job processed at a time across events. Larger clips may be stored but need a trimmed copy for analysis. Inference still uses bounded in-memory representations of the currently processed clip; this is not a claim of zero RAM use or a measured production memory ceiling. Moving preprocessing to Modal remains an option for larger workloads.
+
+Interrupted `running` jobs are requeued on backend startup. The original B2 video remains available, so retry does not require re-uploading. Recovery is at least once: a backend kill before transaction commit can repeat an inference request. Live stage telemetry is process-local; durable job status and finished stage traces survive. Full pipeline-result caching is disabled by default (`PIPELINE_RESULT_CACHE_ENABLED=false`) to avoid retaining large mask results in RAM/Redis; the tenant-scoped AI stage cache remains in Postgres.
+
+Required Render secrets/configuration (local `.env` is never pushed):
 
 ```dotenv
 B2_KEY_ID=...
@@ -14,14 +29,26 @@ B2_APPLICATION_KEY=...
 B2_BUCKET_NAME=...
 B2_S3_ENDPOINT=https://s3.<region>.backblazeb2.com
 B2_REGION=...
-EVIDENCE_STORAGE=auto
-EVIDENCE_LOCAL_FALLBACK=true
 B2_KEY_PREFIX=loadtruth/evidence
+DEMO_UPLOAD_MAX_BYTES=104857600
+ANALYSIS_MAX_BYTES=20971520
+B2_SIGNED_URL_TTL_S=900
+PIPELINE_RESULT_CACHE_ENABLED=false
 ```
 
-`auto` selects B2 when all its required settings are present, otherwise local storage. `local` disables bucket access. `b2` requires complete bucket configuration. With local fallback enabled, a failed remote write is logged and local evidence stays available. A missing local file plus an unavailable remote object is reported as unavailable evidence. `EVIDENCE_LOCAL_FALLBACK=false` makes remote errors fail instead of silently continuing. Local fallback files alone are not durable on ephemeral hosts; cloud errors must be resolved before relying on long-term retention.
+`EVIDENCE_STORAGE`, `EVIDENCE_LOCAL_FALLBACK`, and `EVIDENCE_DIR` no longer select a storage backend. Existing local files are not automatically migrated. Upload clips through Demo Videos to create verified library entries; arbitrary files added through the B2 console are not automatically indexed into a tenant's library.
 
-Existing local files are not bulk migrated automatically. A future save of a clip replicates its existing processed copy. No remote bucket-wide cleanup, CORS change, or public-access change is performed.
+### Browser CORS
+
+The private bucket needs GET, HEAD, and PUT CORS access from the exact frontend origin. This setup adds the `loadtruth-direct-uploads` rule for `https://loadtruth.tiwabhay800.workers.dev` and `http://localhost:3000`, preserving other S3 rules and leaving bucket visibility unchanged. Credentials stay server-side; signed URLs are short-lived bearer capabilities. Inspect/apply with:
+
+```bash
+cd backend
+.venv/bin/python -m app.configure_b2_cors
+.venv/bin/python -m app.configure_b2_cors --apply
+```
+
+Schema migration `0004_demo_videos_jobs` creates the demo-library and durable-job tables. Normal backend startup applies it. The old synchronous ingest endpoint is retained for compatibility, with the same 20 MiB analysis ceiling; New Ticket and Demo Videos use the direct-upload flow.
 
 ## Provider configuration
 
@@ -78,20 +105,24 @@ cd backend
 .venv/bin/python -m app.integrations_check --b2 --providers
 ```
 
-The live checker uses a generated red square, not private truck footage. It explicitly verifies remote persistence, restores from a new empty local directory, simulates a cloud outage for local fallback, and attempts to delete only its uniquely created remote object version.
+The live checker uses a generated red square, not private truck footage. It verifies a B2 round trip, checks that a simulated storage outage is not accepted locally, and attempts to delete only its own test object version.
 
 Observed in this session:
 
 | Check | Result |
 |---|---|
-| B2 upload, checksum/metadata, restore after local disk loss | Passed live |
-| Local fallback with a simulated B2 outage | Passed |
+| B2 upload and checksum/metadata round trip | Passed live |
+| Direct signed upload, exact-origin browser preflight, verified library entry, private range playback | Passed live |
+| Durable job to completed ticket with mock inference and real B2 | Passed live (isolated test database) |
+| B2 outage fails without local fallback | Covered by regression tests |
 | Removal of the test object version | Completed |
 | Baseten exact hackathon route, structured output, 256×256 image understanding | Passed live |
 | Modal configured endpoint, combined proxy token, structured output, 256×256 image understanding | Passed live |
 | Fireworks | Adapter/unit tests only; no configured key/model found |
 
-A 32×32 synthetic image initially produced inconsistent color answers across the endpoints; a standard 256×256 image passed. These smoke checks establish connectivity and request compatibility, not truck-measurement accuracy, end-to-end SAM performance, or production load handling. No production deployment was made. Backblaze now preserves saved media; in-flight ingest jobs are still process-local and do not automatically resume after backend replacement.
+A 32×32 synthetic image initially produced inconsistent color answers across the endpoints; a standard 256×256 image passed. These smoke checks establish connectivity and request compatibility, not truck-measurement accuracy, end-to-end SAM performance, or production load handling. The B2-only demo-library follow-up is local until deployed. Videos live in B2 and analysis jobs are now durable in Postgres; interrupted jobs are recovered at backend startup.
+
+Backend verification: 315 tests pass; Ruff and strict mypy pass. Frontend TypeScript and eight upload/reload/live-stage regressions pass. Authenticated visual QA and production RAM profiling remain unverified. To repeat the isolated cloud smoke check, run `cd backend && .venv/bin/python -m app.demo_check --live`; it uses a temporary SQLite database and removes its own B2 test-object versions.
 
 ## Primary references
 

@@ -79,3 +79,73 @@ def get(content_hash: str) -> tuple[bytes, str, float | None] | None:
             raise ValueError("Evidence object checksum did not match.")
         fps = metadata.get("fps")
         return data, response.get("ContentType") or "video/mp4", float(fps) if fps else None
+
+
+class StorageUnavailableError(RuntimeError):
+    """B2 storage could not complete an operation; there is no local fallback."""
+
+
+def require_configured() -> None:
+    if not get_settings().b2_configured:
+        raise StorageUnavailableError(
+            "Configure Backblaze B2 before uploading or reading evidence."
+        )
+
+
+def head_key(key: str, version: str | None = None) -> dict[str, Any] | None:
+    require_configured()
+    s = get_settings()
+    with closing(client()) as s3:
+        try:
+            return dict(
+                s3.head_object(
+                    Bucket=s.b2_bucket_name, Key=key, **({"VersionId": version} if version else {})
+                )
+            )
+        except ClientError as exc:
+            if str(exc.response["Error"]["Code"]) in ("404", "NoSuchKey", "NotFound"):
+                return None
+            raise
+
+
+def signed_url(key: str, *, upload_mime: str | None = None, version: str | None = None) -> str:
+    require_configured()
+    s = get_settings()
+    params = {"Bucket": s.b2_bucket_name, "Key": key}
+    if upload_mime:
+        params["ContentType"] = upload_mime
+    if version:
+        params["VersionId"] = version
+    with closing(client()) as s3:
+        return str(
+            s3.generate_presigned_url(
+                "put_object" if upload_mime else "get_object",
+                Params=params,
+                ExpiresIn=s.b2_signed_url_ttl_s,
+            )
+        )
+
+
+def download_to(key: str, file: Any, max_bytes: int, version: str | None = None) -> str:
+    """Stream into a temporary processing file, with a hard size ceiling."""
+    require_configured()
+    digest = hashlib.sha256()
+    total = 0
+    with closing(client()) as s3:
+        response = s3.get_object(
+            Bucket=get_settings().b2_bucket_name,
+            Key=key,
+            **({"VersionId": version} if version else {}),
+        )
+        if int(response.get("ContentLength", 0)) > max_bytes:
+            response["Body"].close()
+            raise ValueError("This clip exceeds the analysis size limit. Trim it before analysis.")
+        with closing(response["Body"]) as body:
+            for chunk in body.iter_chunks(chunk_size=1024 * 1024):
+                total += len(chunk)
+                if total > max_bytes:
+                    raise ValueError("This clip exceeds the analysis size limit.")
+                file.write(chunk)
+                digest.update(chunk)
+    file.seek(0)
+    return digest.hexdigest()

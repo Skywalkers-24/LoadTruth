@@ -19,12 +19,13 @@ from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import models
+from app.log import get_logger
 from app.tickets.domain import new_ticket
 from app.tickets.schemas import DebrisClass
 
@@ -285,15 +286,50 @@ async def _seed_showcase(session: AsyncSession, tenant_id: UUID) -> None:
     # Store the packaged source clips under their content hashes. The endpoint
     # serves these files on review; it never needs to call Meta to reconstruct
     # the recorded analysis.
-    for media in data["media"]:
+    for index, media in enumerate(data["media"]):
         source = _SHOWCASE_MEDIA_DIR / media["filename"]
-        if source.is_file():
+        if not source.is_file():
+            continue
+        try:
             await evidence_store.save(
                 media["content_hash"],
                 source.read_bytes(),
                 mime=media["mime"],
                 fps=float(media["fps"]) if media.get("fps") is not None else None,
             )
+            stored = await evidence_store.load(media["content_hash"])
+        except RuntimeError:
+            # The app must still start so an admin can diagnose unavailable B2.
+            # No local file is exposed as fallback media.
+            get_logger("seed").warning("showcase_b2_unavailable", clip=index + 1)
+            continue
+        if stored is not None and stored.object_version:
+            video_id = uuid5(NAMESPACE_URL, f"loadtruth-demo:{tenant_id}:{media['content_hash']}")
+            existing = await session.get(models.DemoVideo, video_id)
+            if existing is None:
+                sample: dict[str, object] = next(
+                    (
+                        item
+                        for item in data["tickets"]
+                        if item["content_hash"] == media["content_hash"]
+                    ),
+                    {},
+                )
+                label = str(sample.get("debris_class") or "truck load").replace("_", " ").title()
+                session.add(
+                    models.DemoVideo(
+                        id=video_id,
+                        tenant_id=tenant_id,
+                        title=f"Showcase {index + 1} · {label}",
+                        filename=f"showcase-{index + 1}.mp4",
+                        mime=stored.mime,
+                        size_bytes=stored.size_bytes,
+                        object_key=stored.object_key,
+                        object_version=stored.object_version,
+                        status="ready",
+                        notes="Packaged Meta-processed showcase clip. No independently measured reference fill.",
+                    )
+                )
 
     for item in data["tickets"]:
         ticket_id = UUID(str(item["id"]))

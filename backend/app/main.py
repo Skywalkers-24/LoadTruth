@@ -1,7 +1,7 @@
 """FastAPI application entry point.
 
 Wires configuration, logging, and the versioned API router. Heavy video work is
-delegated to the ARQ worker (see PLAN.md §4); routes stay fast and stream progress.
+queued in the database and processed serially by a background task.
 """
 
 from __future__ import annotations
@@ -12,11 +12,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.api.auth_context import router as auth_context_router
 from app.api.auth_session import router as auth_session_router
 from app.api.billing import router as billing_router
 from app.api.chat import router as chat_router
+from app.api.demo_videos import router as demo_videos_router
 from app.api.ingest import router as ingest_router
 from app.api.ingest_jobs import router as ingest_jobs_router
 from app.api.reports import router as reports_router
@@ -27,6 +29,7 @@ from app.api.trucks import router as trucks_router
 from app.api.users import router as users_router
 from app.config import get_settings
 from app.log import configure_logging, get_logger
+from app.pipeline.b2_store import StorageUnavailableError
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -57,6 +60,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             await init_db()
             async with get_sessionmaker()() as session:
                 await seed_demo(session)
+            from app.api.ingest_jobs import recover_ingest_jobs
+
+            await recover_ingest_jobs()
         yield
     finally:
         from app.api.ingest_jobs import stop_ingest_jobs
@@ -72,6 +78,14 @@ app = FastAPI(
     summary="Video-verified load tickets — multi-tenant backend.",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(StorageUnavailableError)
+async def storage_unavailable(_: Request, __: StorageUnavailableError) -> JSONResponse:
+    return JSONResponse(
+        status_code=503, content={"detail": "B2 storage is unavailable. Please try again shortly."}
+    )
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -106,6 +120,7 @@ app.include_router(users_router)
 app.include_router(sources_router)
 app.include_router(ingest_router)
 app.include_router(ingest_jobs_router)
+app.include_router(demo_videos_router)
 app.include_router(reports_router)
 app.include_router(billing_router)
 app.include_router(chat_router)

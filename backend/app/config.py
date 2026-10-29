@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     )
 
     # Meta Model API
-    model_api_key: str = Field(default="TO_BE_UPDATED_LATER", alias="MODEL_API_KEY")
+    model_api_key: str = Field(default="TO_BE_UPDATED_LATER", alias="MODEL_API_KEY", repr=False)
     model_api_base_url: str = Field(default="https://api.meta.ai/v1")
     sam_model: str = Field(default="sam-3.1")
     spark_model: str = Field(default="muse-spark-1.3")
@@ -74,14 +74,15 @@ class Settings(BaseSettings):
         return ",".join(dict.fromkeys(providers))
 
     # Private Backblaze evidence storage with a local working copy/fallback.
-    evidence_storage: Literal["auto", "local", "b2"] = "auto"
-    evidence_local_fallback: bool = True
     b2_key_id: str = Field(default="", alias="B2_KEY_ID", repr=False)
     b2_application_key: str = Field(default="", alias="B2_APPLICATION_KEY", repr=False)
     b2_bucket_name: str = Field(default="", alias="B2_BUCKET_NAME")
     b2_s3_endpoint: str = Field(default="", alias="B2_S3_ENDPOINT")
     b2_region: str = Field(default="", alias="B2_REGION")
     b2_key_prefix: str = "loadtruth/evidence"
+    demo_upload_max_bytes: int = 100 * 1024 * 1024
+    analysis_max_bytes: int = 20 * 1024 * 1024
+    b2_signed_url_ttl_s: int = 900
 
     @property
     def b2_configured(self) -> bool:
@@ -97,7 +98,9 @@ class Settings(BaseSettings):
 
     # Database. Defaults to a local SQLite file (async aiosqlite) until Supabase
     # Postgres is wired; then set DATABASE_URL to the postgresql+asyncpg URL.
-    database_url: str = Field(default="sqlite+aiosqlite:///./loadtruth.db", alias="DATABASE_URL")
+    database_url: str = Field(
+        default="sqlite+aiosqlite:///./loadtruth.db", alias="DATABASE_URL", repr=False
+    )
     supabase_url: str = Field(default="", alias="SUPABASE_URL")
     supabase_anon_key: str = Field(default="", alias="SUPABASE_ANON_KEY")
     supabase_service_role_key: str = Field(default="", alias="SUPABASE_SERVICE_ROLE_KEY")
@@ -105,6 +108,7 @@ class Settings(BaseSettings):
     supabase_jwt_secret: str = Field(default="", alias="SUPABASE_JWT_SECRET")
 
     # Redis / background worker
+    pipeline_result_cache_enabled: bool = False
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
 
     # Runtime
@@ -195,7 +199,6 @@ class Settings(BaseSettings):
     )
     model_api_log_max_chars: int = Field(default=200_000)
     # Processed evidence media (the exact clip the models saw), by content hash.
-    evidence_dir: str = Field(default=str(_REPO_ROOT / "media" / "evidence"), alias="EVIDENCE_DIR")
     # Target number of frames sampled from any clip, whatever its length. The
     # transcode step picks the fps per clip (target / duration) so a 10s clip and
     # a 40s clip both yield ~60 evenly spaced frames. `max_sampled_frames` is the
