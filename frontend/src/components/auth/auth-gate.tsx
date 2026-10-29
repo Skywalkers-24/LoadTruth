@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { Loader2Icon } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { useAuth } from "@/lib/auth";
 import { LoginScreen } from "@/components/auth/login-screen";
@@ -20,11 +21,18 @@ function isPublicPath(pathname: string | null): boolean {
  * Renders the login screen until a member is signed in, then the app. While the
  * stored session is being verified on first load, shows a minimal spinner so
  * there is no flash of the login screen for an already-signed-in user. Public
- * routes (the showcase) render for everyone, signed in or not.
+ * routes (the showcase and /login) render for everyone, signed in or not.
  */
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { member, loading } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !member && !isPublicPath(pathname)) {
+      router.replace("/login");
+    }
+  }, [loading, member, pathname, router]);
 
   if (isPublicPath(pathname)) return <>{children}</>;
 

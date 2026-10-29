@@ -262,14 +262,16 @@ export class ApiError extends Error {
   }
 }
 
-// ── Session token. Held in memory and mirrored to localStorage so a reload
-// keeps the session. The provider calls setAuthToken on login/logout. ──
+// ── Session token. Stored in sessionStorage for per-session login, ensuring
+// visitors on new visits or fresh tabs start at the login screen.
+// Legacy localStorage tokens are proactively cleared. ──
 const TOKEN_KEY = "loadtruth-token";
 
-/** Read the stored token defensively (some test envs lack localStorage). */
+/** Read the stored session token defensively. */
 function readStoredToken(): string | null {
   try {
-    return globalThis.localStorage?.getItem(TOKEN_KEY) ?? null;
+    globalThis.localStorage?.removeItem(TOKEN_KEY);
+    return globalThis.sessionStorage?.getItem(TOKEN_KEY) ?? null;
   } catch {
     return null;
   }
@@ -280,8 +282,12 @@ let authToken: string | null = readStoredToken();
 export function setAuthToken(token: string | null): void {
   authToken = token;
   try {
-    if (token) globalThis.localStorage?.setItem(TOKEN_KEY, token);
-    else globalThis.localStorage?.removeItem(TOKEN_KEY);
+    if (token) {
+      globalThis.sessionStorage?.setItem(TOKEN_KEY, token);
+    } else {
+      globalThis.sessionStorage?.removeItem(TOKEN_KEY);
+    }
+    globalThis.localStorage?.removeItem(TOKEN_KEY);
   } catch {
     /* no storage in this environment */
   }
