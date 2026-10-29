@@ -17,9 +17,9 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SHOWCASE_EVENT_ID } from "@/lib/api";
 
 export const metadata: Metadata = {
-  title: "LoadTruth — a load ticket anyone can reproduce",
+  title: "LoadTruth — a load ticket anyone can verify",
   description:
-    "Every debris load ticket is a number nobody can reproduce. LoadTruth makes it a number anyone can reproduce, from the video, in one click.",
+    "Every debris load ticket used to be a guess nobody could verify. LoadTruth makes it an exact measurement anyone can verify, from the video, in one click.",
 };
 
 /**
@@ -80,8 +80,7 @@ function Hero() {
           Disaster-debris load auditing
         </p>
         <h1 className="text-balance text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl">
-          Every debris load ticket is a number nobody can reproduce. LoadTruth makes it a number
-          anyone can reproduce, from the video, in one click.
+          Every debris load ticket used to be a guess nobody could verify. LoadTruth makes it an exact measurement anyone can verify, from the video, in one click.
         </h1>
         <p className="mt-6 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
           After a hurricane, a monitor in a tower eyeballs each dump truck&apos;s fill percentage,
@@ -143,7 +142,7 @@ function HeroVisual() {
             Load ticket LT-2C707D
           </span>
           <span className="rounded-full bg-[var(--color-ok-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-ok)]">
-            Reproducible
+            Verified from video
           </span>
         </div>
         <dl className="flex flex-col divide-y divide-[var(--color-border)]">
@@ -167,8 +166,7 @@ function HeroVisual() {
           </span>
         </div>
         <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
-          Every figure traces to a pixel, a registry row, or a rate. Re-verify recomputes it from
-          the stored masks and matches the receipt hash.
+          Every figure traces directly to the video footage, official county registry, or contract rate. Anyone can re-verify the numbers from the footage in one click.
         </p>
       </div>
     </div>
@@ -248,7 +246,7 @@ const STAGES: { n: number; title: string; body: string; icon: React.ReactNode }[
   {
     n: 5,
     title: "Measure fill and classify",
-    body: "Deterministic geometry turns the masks into a fill %. Muse Spark classifies the debris.",
+    body: "Direct measurement math calculates the bed fill % from the outlines. Meta Muse Spark classifies the debris type.",
     icon: <GaugeIcon size={18} />,
   },
   {
@@ -270,8 +268,7 @@ function Anatomy() {
     <section className="mx-auto max-w-7xl px-6 py-12">
       <h2 className="text-xl font-semibold">One clip, seven stages</h2>
       <p className="mt-2 max-w-2xl text-[14px] text-muted-foreground">
-        The model proposes, deterministic code decides. Every number on the ticket traces to a
-        pixel, a registry row, or a rate, and each stage records what it did.
+        Meta AI models outline the load and identify debris, and exact math calculates the billing. Every number on the ticket traces directly to the video, county records, or contract rates.
       </p>
       <ol className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {STAGES.map((s) => (
@@ -328,8 +325,8 @@ const FEATURES: { title: string; body: string; icon: React.ReactNode; color: str
     color: "var(--color-brand)",
   },
   {
-    title: "Evidence receipt and re-verify",
-    body: "A SHA-256 over the clip, the SAM output, the measured inputs, and the result. One click re-derives the fill % from the stored masks and matches the fingerprint.",
+    title: "One-click verification and audit trail",
+    body: "Every video clip, Meta SAM outline, and measurement is permanently saved. An auditor or monitor can re-verify the exact fill % from the footage anytime.",
     icon: <ShieldCheckIcon size={18} />,
     color: "var(--chart-5)",
   },
@@ -551,7 +548,7 @@ function WhereItStands() {
     "Dollar difference per ticket and per event",
     "Confirm, override, and dispute with a human in the loop",
     "FEMA-format audit packet and CSV export",
-    "Re-verify: reproduce the fill % from stored evidence with a matching receipt",
+    "Re-verify: recalculate the fill % from the saved video in one click",
     "Per-clip cost ledger with a spend cap",
   ];
   const inProgress = [

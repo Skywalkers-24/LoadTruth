@@ -58,8 +58,8 @@ function ReverifyPanel({ ticket }: { ticket: Ticket }) {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-[12px] leading-snug text-muted-foreground">
-        Recompute this fill % from the stored segmentation and rebuild the evidence receipt. Nothing
-        is sent to a model; the number is re-derived from the saved masks.
+        Recalculate this fill % from the stored video outlines to verify the measurement. Nothing
+        is sent to a model; the number is calculated directly from the saved video.
       </p>
       <Button
         type="button"
@@ -68,7 +68,7 @@ function ReverifyPanel({ ticket }: { ticket: Ticket }) {
         onClick={run}
         disabled={state === "running"}
       >
-        {state === "running" ? "Re-verifying…" : "Re-verify from evidence"}
+        {state === "running" ? "Re-verifying…" : "Re-verify calculation"}
       </Button>
       {error && <p className="text-[12px] text-[var(--color-destructive)]">{error}</p>}
       {result && <ReverifyResult result={result} />}
@@ -104,9 +104,9 @@ function ReverifyResult({ result }: { result: Reverify }) {
       </dl>
       {result.receipt_hash && (
         <div className="flex flex-col gap-1">
-          <Tooltip content="A SHA-256 over the clip, the SAM output, the measured inputs, and the result. Same evidence, same hash.">
+          <Tooltip content="Permanent digital verification code for this video clip, Meta SAM outlines, and calculations. Same footage, same verified result.">
             <span className="w-fit text-[11px] font-medium text-muted-foreground underline decoration-dotted">
-              Evidence receipt
+              Verification receipt
             </span>
           </Tooltip>
           <code className="block break-all rounded bg-[var(--color-surface-2)] px-2 py-1 font-mono text-[11px] text-foreground">

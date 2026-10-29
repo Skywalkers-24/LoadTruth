@@ -59,8 +59,7 @@ export default function SuperAdminPage() {
           </div>
           <h2 className="mt-2 text-lg font-bold text-white">SuperAdmin Administration</h2>
           <p className="mt-2 text-xs leading-relaxed text-white/80">
-            This portal is restricted to authorized developers and system owners. Credentials are
-            cryptographically verified against SHA-256 hashes configured in the environment.
+            This portal is restricted to authorized developers and system administrators with secure credentials configured in the environment.
           </p>
           <div className="mt-4 flex flex-col gap-1.5 text-[11px] text-white/70">
             <div className="flex items-center gap-2">
@@ -73,7 +72,7 @@ export default function SuperAdminPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="size-1.5 rounded-full bg-emerald-400" />
-              <span>Rest of staff have view & pipeline replay permissions</span>
+              <span>Other team members have standard review and ticket permissions</span>
             </div>
           </div>
         </div>
