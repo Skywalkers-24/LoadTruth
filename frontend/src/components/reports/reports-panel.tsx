@@ -160,7 +160,7 @@ export function ReportsPanel({
         </Card>
         <Card className="gap-0 py-0">
           <div className="flex items-baseline justify-between px-4 pt-3">
-            <h3 className="text-[13px] font-semibold">Status mix</h3>
+            <h3 className="text-[13px] font-semibold">Ticket status breakdown</h3>
           </div>
           <div className="px-2 pb-4">
             <DonutChart

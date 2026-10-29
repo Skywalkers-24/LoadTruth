@@ -30,7 +30,7 @@ export default function SuperAdminPage() {
     setError(null);
     try {
       await superAdminSignIn(username.trim(), password);
-      router.push("/admin");
+      router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid username or password. Check .env hashed credentials.");
       setSubmitting(false);

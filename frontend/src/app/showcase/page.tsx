@@ -14,10 +14,11 @@ import {
 } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LogoLockup, LogoMark } from "@/components/ui/logo";
 import { SHOWCASE_EVENT_ID } from "@/lib/api";
 
 export const metadata: Metadata = {
-  title: "LoadTruth — a load ticket anyone can verify",
+  title: "LoadTruth: Verifiable Debris Load Tickets",
   description:
     "Every debris load ticket used to be a guess nobody could verify. LoadTruth makes it an exact measurement anyone can verify, from the video, in one click.",
 };
@@ -50,13 +51,10 @@ export default function ShowcasePage() {
 function Nav() {
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg)_90%,transparent)] backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-        <span className="flex items-center gap-2 font-semibold">
-          <span className="grid size-7 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
-            <TruckIcon size={16} />
-          </span>
-          LoadTruth
-        </span>
+      <div className="mx-auto flex w-full max-w-none items-center justify-between px-6 py-3 sm:px-10 lg:px-12 xl:px-16">
+        <Link href="/" className="transition hover:opacity-90">
+          <LogoLockup />
+        </Link>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Link
@@ -73,7 +71,7 @@ function Nav() {
 
 function Hero() {
   return (
-    <section className="mx-auto grid max-w-7xl items-center gap-10 px-6 pb-12 pt-16 lg:grid-cols-[1.15fr_0.85fr]">
+    <section className="mx-auto grid w-full max-w-none items-center gap-10 px-6 pb-12 pt-16 sm:px-10 lg:grid-cols-[1.15fr_0.85fr] lg:px-12 xl:px-16">
       {/* Left: the pitch */}
       <div className="min-w-0">
         <p className="mb-3 text-[13px] font-medium uppercase tracking-wide text-[var(--color-brand)]">
@@ -136,9 +134,7 @@ function HeroVisual() {
       <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xl">
         <div className="mb-3 flex items-center justify-between">
           <span className="flex items-center gap-2 text-[13px] font-semibold">
-            <span className="grid size-7 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
-              <TruckIcon size={15} />
-            </span>
+            <LogoMark size={20} className="shrink-0" />
             Load ticket LT-2C707D
           </span>
           <span className="rounded-full bg-[var(--color-ok-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-ok)]">
@@ -197,8 +193,8 @@ function StatsBand() {
     },
   ];
   return (
-    <section className="border-y border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-6 py-8 sm:grid-cols-4">
+    <section className="w-full border-y border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="mx-auto grid w-full max-w-none grid-cols-2 gap-4 px-6 py-8 sm:grid-cols-4 sm:px-10 lg:px-12 xl:px-16">
         {stats.map((s) => (
           <div
             key={s.label}
@@ -265,9 +261,9 @@ const STAGES: { n: number; title: string; body: string; icon: React.ReactNode }[
 
 function Anatomy() {
   return (
-    <section className="mx-auto max-w-7xl px-6 py-12">
+    <section className="mx-auto w-full max-w-none px-6 py-12 sm:px-10 lg:px-12 xl:px-16">
       <h2 className="text-xl font-semibold">One clip, seven stages</h2>
-      <p className="mt-2 max-w-2xl text-[14px] text-muted-foreground">
+      <p className="mt-2 text-[14px] text-muted-foreground">
         Meta AI models outline the load and identify debris, and exact math calculates the billing. Every number on the ticket traces directly to the video, county records, or contract rates.
       </p>
       <ol className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -334,10 +330,10 @@ const FEATURES: { title: string; body: string; icon: React.ReactNode; color: str
 
 function Features() {
   return (
-    <section className="border-t border-[var(--color-border)]">
-      <div className="mx-auto max-w-7xl px-6 py-12">
+    <section className="w-full border-t border-[var(--color-border)]">
+      <div className="mx-auto w-full max-w-none px-6 py-12 sm:px-10 lg:px-12 xl:px-16">
         <h2 className="text-xl font-semibold">A product, not a demo</h2>
-        <p className="mt-2 max-w-2xl text-[14px] text-muted-foreground">
+        <p className="mt-2 text-[14px] text-muted-foreground">
           The pipeline is the engine. Around it is the operator console an agency actually runs on:
           tenancy, money, reporting, billing, and an audit trail that holds up years later.
         </p>
@@ -431,10 +427,10 @@ const CASE_STUDIES: CaseStudy[] = [
 
 function CaseStudies() {
   return (
-    <section className="border-t border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="mx-auto max-w-7xl px-6 py-12">
+    <section className="w-full border-t border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="mx-auto w-full max-w-none px-6 py-12 sm:px-10 lg:px-12 xl:px-16">
         <h2 className="text-xl font-semibold">Why this is worth measuring</h2>
-        <p className="mt-2 max-w-2xl text-[14px] text-muted-foreground">
+        <p className="mt-2 text-[14px] text-muted-foreground">
           The problem is large, expensive, and already a known fraud surface. Every figure below
           links to its primary source. They frame the scale, not a claim of certification.
         </p>
@@ -469,8 +465,8 @@ function CaseStudies() {
 
 function Personas() {
   return (
-    <section className="border-t border-[var(--color-border)]">
-      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-12 sm:grid-cols-2">
+    <section className="w-full border-t border-[var(--color-border)]">
+      <div className="mx-auto grid w-full max-w-none gap-6 px-6 py-12 sm:grid-cols-2 sm:px-10 lg:px-12 xl:px-16">
         <Persona
           role="The tower monitor"
           side="Records the ticket"
@@ -500,16 +496,16 @@ function Persona({ role, side, body }: { role: string; side: string; body: strin
 
 function BenchmarkCard() {
   return (
-    <section className="mx-auto max-w-7xl px-6 py-12">
+    <section className="mx-auto w-full max-w-none px-6 py-12 sm:px-10 lg:px-12 xl:px-16">
       <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
         <h2 className="text-xl font-semibold">How we measure accuracy</h2>
-        <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">
+        <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
           We benchmark the fill-% estimator against known volumes: a scale-model truck with a
           measured bed filled to marked levels, plus real loads bought by the cubic yard, filmed
           across angles and lighting. The harness reports the mean error, the share within 10
           points, and the error broken down by condition.
         </p>
-        <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">
+        <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
           This is separate from{" "}
           <span className="font-medium text-foreground">agreement with the monitor</span>, which
           measures how often the machine lands within 10 points of the human&apos;s own call. Both
@@ -526,10 +522,10 @@ function BenchmarkCard() {
 
 function Constraint() {
   return (
-    <section className="border-t border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="mx-auto max-w-7xl px-6 py-12">
+    <section className="w-full border-t border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="mx-auto w-full max-w-none px-6 py-12 sm:px-10 lg:px-12 xl:px-16">
         <h2 className="text-xl font-semibold">A constraint we hit</h2>
-        <p className="mt-2 max-w-4xl text-[14px] leading-relaxed text-muted-foreground">
+        <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
           SAM 3.1 takes one concept per request, so the bed and the load are two calls combined in
           our code. Muse Spark is a reasoning model whose hidden reasoning counts against the output
           budget, so a tight token cap returns an empty answer. We send a few downscaled keyframes,
@@ -561,7 +557,7 @@ function WhereItStands() {
     "Live camera feeds beyond direct upload",
   ];
   return (
-    <section className="mx-auto max-w-7xl px-6 py-12">
+    <section className="mx-auto w-full max-w-none px-6 py-12 sm:px-10 lg:px-12 xl:px-16">
       <h2 className="text-xl font-semibold">Where it stands</h2>
       <p className="mt-2 text-[14px] text-muted-foreground">An honest status, not a wish list.</p>
       <div className="mt-6 grid gap-6 sm:grid-cols-3">
@@ -593,8 +589,8 @@ function StatusColumn({ title, tone, items }: { title: string; tone: string; ite
 
 function Footer() {
   return (
-    <footer className="border-t border-[var(--color-border)]">
-      <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-8 text-[13px] text-muted-foreground">
+    <footer className="w-full border-t border-[var(--color-border)]">
+      <div className="mx-auto flex w-full max-w-none flex-col gap-2 px-6 py-8 text-[13px] text-muted-foreground sm:px-10 lg:px-12 xl:px-16">
         <p>
           Built in 10 days. LoadTruth produces evidence and flags inconsistencies; the responsible
           monitor keeps authority over the official record.

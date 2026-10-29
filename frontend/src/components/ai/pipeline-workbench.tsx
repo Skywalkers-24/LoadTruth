@@ -76,7 +76,7 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
     details: [
       ["Calculation Basis", "Visual load outline compared against bed rails"],
       ["Measurement Range", "0% (empty) to 100%+ (heaped load)"],
-      ["Transparency", "Calculated directly from video pixels — no guessing"],
+      ["Transparency", "Calculated directly from video pixels without guessing"],
       ["Live Status", "Ready to process on video upload"],
     ],
   },

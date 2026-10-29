@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import models
@@ -60,6 +60,7 @@ def _events() -> list[dict[str, Any]]:
 # Stable ids the frontend and tests reference directly (single seeded tenant).
 DEMO_TENANT_ID = UUID(str(_seed_data()["tenant_id"]))
 DEMO_EVENT_ID = UUID(str(_events()[0]["id"]))
+_LEGACY_DEMO_TENANT_ID = UUID("11111111-1111-1111-1111-111111111111")
 
 
 def _stage_rows(
@@ -402,6 +403,65 @@ async def _seed_showcase(session: AsyncSession, tenant_id: UUID) -> None:
     await session.flush()
 
 
+async def _migrate_legacy_demo_tenant(session: AsyncSession) -> None:
+    """Move the original placeholder demo tenant to the current seeded tenant."""
+    source_tenant = _LEGACY_DEMO_TENANT_ID
+    target_tenant = DEMO_TENANT_ID
+    if source_tenant == target_tenant:
+        return
+
+    showcase_video_ids = {
+        uuid5(NAMESPACE_URL, f"loadtruth-demo:{source_tenant}:{media['content_hash']}")
+        for media in _showcase_data().get("media", [])
+    }
+    movable_videos = list(
+        (
+            await session.scalars(
+                select(models.DemoVideo.id)
+                .where(models.DemoVideo.tenant_id == source_tenant)
+                .where(models.DemoVideo.id.not_in(showcase_video_ids))
+            )
+        ).all()
+    )
+
+    for model in (
+        models.Event,
+        models.Source,
+        models.Truck,
+        models.Ticket,
+        models.User,
+        models.Anomaly,
+        models.PipelineStageRow,
+        models.AIStageResult,
+        models.TicketEvidence,
+    ):
+        await session.execute(
+            update(model)
+            .where(model.tenant_id == source_tenant)
+            .values(tenant_id=target_tenant)
+        )
+
+    if movable_videos:
+        await session.execute(
+            update(models.DemoVideo)
+            .where(models.DemoVideo.tenant_id == source_tenant)
+            .where(models.DemoVideo.id.in_(movable_videos))
+            .values(tenant_id=target_tenant)
+        )
+        await session.execute(
+            update(models.AnalysisJob)
+            .where(models.AnalysisJob.tenant_id == source_tenant)
+            .where(models.AnalysisJob.video_id.in_(movable_videos))
+            .values(tenant_id=target_tenant)
+        )
+
+    get_logger("seed").info(
+        "legacy_demo_tenant_migrated",
+        source_tenant=str(source_tenant),
+        target_tenant=str(target_tenant),
+    )
+
+
 async def seed_demo(session: AsyncSession) -> None:
     """Idempotently seed the demo tenant from `seed.json`. Safe on every startup.
 
@@ -420,6 +480,10 @@ async def seed_demo(session: AsyncSession) -> None:
     existing = (
         await session.execute(select(models.Event).where(models.Event.id == DEMO_EVENT_ID))
     ).scalar_one_or_none()
+    if existing is not None and existing.tenant_id == _LEGACY_DEMO_TENANT_ID:
+        await _migrate_legacy_demo_tenant(session)
+        existing.tenant_id = tenant_id
+        await session.flush()
     if existing is not None:
         await _seed_showcase(session, tenant_id)
         await session.commit()

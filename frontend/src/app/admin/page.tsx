@@ -121,7 +121,7 @@ export default function AdminPage() {
           ) : (
             <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
               <ShieldCheckIcon className="size-4 shrink-0" />
-              <span>SuperAdmin Mode Active — You have full authorization to modify workspace settings.</span>
+              <span>SuperAdmin Mode Active. You have full authorization to modify workspace settings.</span>
             </div>
           )}
 

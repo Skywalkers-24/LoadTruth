@@ -160,7 +160,7 @@ function CaptureWorkspace() {
           </div>
           <p className="text-[12px] text-muted-foreground">
             Upload evidence for{" "}
-            <span className="font-medium text-foreground">{selected?.name ?? "this event"}</span> —
+            <span className="font-medium text-foreground">{selected?.name ?? "this event"}</span> to
             identify the truck, measure the load, and calculate its value automatically.
           </p>
         </div>
@@ -252,11 +252,6 @@ function CaptureWorkspace() {
                       : "Upload complete"}
                 </p>
                 <p className="break-words text-xs text-muted-foreground">{latest.data.filename}</p>
-                {processing && (
-                  <p className="text-xs text-muted-foreground">
-                    Your clip has been uploaded.
-                  </p>
-                )}
                 {latest.data.status === "failed" && (
                   <p className="text-sm text-[var(--color-destructive)]">
                     {latest.data.detail ?? "Upload again to retry."}
