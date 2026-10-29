@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRightIcon,
@@ -44,6 +45,7 @@ const ROLE_BLURB: Record<Role, string> = {
  * role travels with the session and is enforced server-side on every action.
  */
 export function LoginScreen() {
+  const router = useRouter();
   const { signIn } = useAuth();
   const directory = useQuery({ queryKey: ["directory"], queryFn: getDirectory, retry: false });
   const [selected, setSelected] = useState<string | null>(null);
@@ -62,6 +64,7 @@ export function LoginScreen() {
     setError(null);
     try {
       await signIn(selected);
+      router.push("/");
     } catch {
       setError("Could not sign in. Check that the backend is running and try again.");
       setSubmitting(false);

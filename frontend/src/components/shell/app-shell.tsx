@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { AssistantWidget } from "@/components/ai/assistant-widget";
@@ -352,9 +352,16 @@ const ROLE_LABEL: Record<string, string> = {
 
 function UserFooter({ collapsed }: { collapsed: boolean }) {
   const { member, signOut } = useAuth();
+  const router = useRouter();
+
   if (!member) return null;
   const name = member.full_name ?? member.email;
   const avatar = <MemberAvatar seed={member.email} />;
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/login");
+  };
 
   if (collapsed) {
     return (
@@ -371,7 +378,7 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
         </Tooltip>
         <button
           type="button"
-          onClick={() => void signOut()}
+          onClick={() => void handleSignOut()}
           aria-label="Sign out"
           title="Sign out"
           className="inline-flex size-8 items-center justify-center rounded-lg text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
@@ -393,7 +400,7 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
       </div>
       <button
         type="button"
-        onClick={() => void signOut()}
+        onClick={() => void handleSignOut()}
         aria-label="Sign out"
         title="Sign out"
         className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
