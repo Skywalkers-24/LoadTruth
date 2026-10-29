@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 
 import { AccessGate } from "@/components/auth/access-gate";
 import { AppShell } from "@/components/shell/app-shell";
-import { SlidersHorizontalIcon, SparklesIcon } from "lucide-react";
+import { LockIcon, ShieldCheckIcon, SlidersHorizontalIcon, SparklesIcon } from "lucide-react";
 
 import type { Capabilities } from "@/lib/api";
 import { AiModelsPanel } from "@/components/admin/ai-models";
@@ -73,7 +74,8 @@ const SECTIONS: {
 /** Admin: settings-style layout with a section list and a focused content pane. */
 export default function AdminPage() {
   const { selected: event, isLoading, isError } = useEventContext();
-  const { can } = useAuth();
+  const { can, member } = useAuth();
+  const isSuperAdmin = member?.role === "super_admin" || Boolean(can("manage_settings"));
   const sections = SECTIONS.filter((s) => !s.cap || can(s.cap));
   // Default to the first section this member can actually see.
   const [tab, setTab] = useState<Tab | null>(null);
@@ -102,6 +104,26 @@ export default function AdminPage() {
               {event ? `Configuration for ${event.name}.` : "Configuration for the active event."}
             </p>
           </div>
+
+          {!isSuperAdmin ? (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs">
+              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-semibold">
+                <LockIcon className="size-4 shrink-0" />
+                <span>Read-Only Mode · Settings can only be changed by SuperAdmin</span>
+              </div>
+              <Link
+                href="/superadmin"
+                className="shrink-0 rounded-lg border border-border bg-background px-3 py-1.5 font-medium text-foreground transition-colors hover:bg-accent"
+              >
+                Log in via SuperAdmin Portal →
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              <ShieldCheckIcon className="size-4 shrink-0" />
+              <span>SuperAdmin Mode Active — You have full authorization to modify workspace settings.</span>
+            </div>
+          )}
 
           {isError ? (
             <ErrorState

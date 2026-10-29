@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.api.deps import current_member
@@ -74,5 +75,51 @@ def test_logout_requires_auth_and_succeeds(client: TestClient) -> None:
         ok = client.post("/auth/logout", headers={"Authorization": f"Bearer {token}"})
         assert ok.status_code == 204
     finally:
+        if saved is not None:
+            app.dependency_overrides[current_member] = saved
+
+
+def test_superadmin_login_success(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import hashlib
+    from app.config import get_settings
+    monkeypatch.setenv("SUPERADMIN_USERNAME_HASH", hashlib.sha256(b"testdev").hexdigest())
+    monkeypatch.setenv("SUPERADMIN_PASSWORD_HASH", hashlib.sha256(b"TestDevPassword123!").hexdigest())
+    get_settings.cache_clear()
+    saved = _no_default_auth()
+    try:
+        resp = client.post(
+            "/auth/superadmin/login",
+            json={"username": "testdev", "password": "TestDevPassword123!"},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["token"]
+        assert body["member"]["role"] == "super_admin"
+        assert body["member"]["capabilities"]["manage_settings"] is True
+        assert body["member"]["capabilities"]["manage_demo_videos"] is True
+    finally:
+        get_settings.cache_clear()
+        if saved is not None:
+            app.dependency_overrides[current_member] = saved
+
+
+def test_superadmin_login_invalid_credentials_rejected(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import hashlib
+    from app.config import get_settings
+    monkeypatch.setenv("SUPERADMIN_USERNAME_HASH", hashlib.sha256(b"testdev").hexdigest())
+    monkeypatch.setenv("SUPERADMIN_PASSWORD_HASH", hashlib.sha256(b"TestDevPassword123!").hexdigest())
+    get_settings.cache_clear()
+    saved = _no_default_auth()
+    try:
+        resp = client.post(
+            "/auth/superadmin/login",
+            json={"username": "testdev", "password": "WrongPassword!"},
+        )
+        assert resp.status_code == 401
+        assert "Invalid" in resp.json()["detail"]
+    finally:
+        get_settings.cache_clear()
         if saved is not None:
             app.dependency_overrides[current_member] = saved

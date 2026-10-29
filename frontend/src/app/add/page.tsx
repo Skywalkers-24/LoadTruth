@@ -4,15 +4,7 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowRightIcon,
-  CameraIcon,
-  CheckCircle2Icon,
-  GaugeIcon,
-  Loader2Icon,
-  TicketIcon,
-  UploadCloudIcon,
-} from "lucide-react";
+import { ArrowRightIcon, CheckCircle2Icon, Loader2Icon, UploadCloudIcon } from "lucide-react";
 
 import { ApiError, listDemoVideos, type PipelineProgress } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
@@ -144,7 +136,7 @@ function CaptureWorkspace() {
 
   return (
     <AppShell section="New Ticket">
-      <div className="lt-scroll flex min-h-0 flex-1 flex-col gap-4 lg:overflow-y-auto">
+      <div className="lt-scroll lt-fab-safe flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto pb-6">
         <div className="flex min-w-0 shrink-0 flex-col">
           <Link
             href="/tickets"
@@ -152,21 +144,20 @@ function CaptureWorkspace() {
           >
             ← All tickets
           </Link>
-          <h1 className="lt-page-title">New Ticket</h1>
-          <Link
-            href="/demos"
-            className="mt-2 self-start text-sm font-medium text-primary hover:underline"
-          >
-            Choose a saved demo video →
-          </Link>
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="lt-page-title">New Ticket</h1>
+            <Link href="/demos" className="text-sm font-medium text-primary hover:underline">
+              Choose a demo video →
+            </Link>
+          </div>
           <p className="text-[12px] text-muted-foreground">
             Upload evidence for{" "}
-            <span className="font-medium text-foreground">{selected?.name ?? "this event"}</span>{" "}
-            and LoadTruth drafts a ticket from the measured load.
+            <span className="font-medium text-foreground">{selected?.name ?? "this event"}</span> —
+            identify the truck, measure the load, and calculate its value automatically.
           </p>
         </div>
 
-        <div className="grid shrink-0 items-start gap-4 lg:grid-cols-2">
+        <div className="flex shrink-0 flex-col gap-4">
           {/* Upload stays beside the live analysis and draft summary. */}
           <div className="min-w-0">
             <FadeIn>
@@ -194,7 +185,7 @@ function CaptureWorkspace() {
                     if (file) submit(file);
                   }}
                   className={cn(
-                    "flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors",
+                    "flex cursor-pointer flex-col items-center justify-center gap-3 min-h-40 flex-1 rounded-xl border border-dashed px-6 py-6 text-center transition-colors",
                     dragging
                       ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)]"
                       : "border-border hover:border-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]/40",
@@ -220,9 +211,9 @@ function CaptureWorkspace() {
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[15px] font-semibold">
                       {ingest.isPending
-                        ? "Uploading to B2 — keep this tab open"
+                        ? "Uploading — keep this tab open"
                         : processing
-                          ? "Saved in B2 — queued or analyzing"
+                          ? "Uploaded — queued or analyzing"
                           : showcaseReadOnly
                             ? "Preprocessed showcase event"
                             : "Drop a clip here, or click to browse"}
@@ -234,35 +225,20 @@ function CaptureWorkspace() {
                           ? "You can refresh or return later to follow this run."
                           : showcaseReadOnly
                             ? "Stored Meta results are shown read-only. Browsing them makes no Meta calls."
-                            : `Uploads go directly to B2. Analyze clips up to ${Math.round(analysisLimit / 1024 ** 2)} MiB.`}
+                            : `Choose a video or image up to ${Math.round(analysisLimit / 1024 ** 2)} MiB.`}
                     </span>
                   </div>
                 </label>
-
-                {/* How it works */}
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  <Step icon={<CameraIcon className="size-4" />} label="Capture" />
-                  <Step icon={<GaugeIcon className="size-4" />} label="Measure fill" />
-                  <Step icon={<TicketIcon className="size-4" />} label="Draft ticket" />
-                </div>
               </Card>
             </FadeIn>
           </div>
 
           <div className="flex min-w-0 flex-col gap-3">
-            <LivePipelineFlow
-              eventId={eventId}
-              active={latest.data?.status === "running"}
-              showIdle
-              ignoredAttempt={ignoredAttempt}
-              detailed
-            />
-
             {latest.data && !ingest.isPending && (
               <Card className="gap-2 p-4" role="status">
                 <p className="text-sm font-medium">
                   {processing
-                    ? "Clip saved in B2. Analysis is queued or running."
+                    ? "Clip uploaded. Analysis is queued or running."
                     : latest.data.status === "failed"
                       ? "Analysis did not complete"
                       : "Latest upload completed"}
@@ -326,19 +302,28 @@ function CaptureWorkspace() {
             )}
           </div>
         </div>
+        <section className="min-h-64 flex-1">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">Live analysis workspace</h2>
+            <Link href="/pipeline" className="text-xs font-medium text-primary hover:underline">
+              All AI pipeline runs →
+            </Link>
+          </div>
+          <LivePipelineFlow
+            eventId={eventId}
+            active={latest.data?.status === "running"}
+            showIdle
+            ignoredAttempt={ignoredAttempt}
+            detailed
+          />
+          {!busy && !result && (
+            <p className="mt-4 text-xs text-muted-foreground">
+              Upload a clip to reveal stage outputs, model responses, confidence, and timing here.
+            </p>
+          )}
+        </section>
       </div>
     </AppShell>
-  );
-}
-
-function Step({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-2.5 py-2">
-      <span className="grid size-7 shrink-0 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
-        {icon}
-      </span>
-      <span className="text-[11px] font-medium leading-tight">{label}</span>
-    </div>
   );
 }
 

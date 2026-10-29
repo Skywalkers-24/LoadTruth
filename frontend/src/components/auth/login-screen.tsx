@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -58,7 +59,7 @@ export function LoginScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const members = directory.data ?? [];
+  const members = (directory.data ?? []).filter((m) => m.role !== "super_admin");
   const wakingUp = directory.isError && isServerWakingUp(directory.error);
 
   useEffect(() => {
@@ -256,6 +257,15 @@ export function LoginScreen() {
               See the public showcase
               <ArrowRightIcon className="size-4" />
             </a>
+
+            <div className="mt-4 text-center">
+              <Link
+                href="/superadmin"
+                className="text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Developer / SuperAdmin Sign In →
+              </Link>
+            </div>
           </div>
         </div>
 

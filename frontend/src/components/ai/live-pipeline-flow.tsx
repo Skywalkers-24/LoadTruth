@@ -5,7 +5,7 @@ import { CheckIcon, LoaderIcon, TriangleAlertIcon } from "lucide-react";
 
 import type { PipelineProgress, PipelineStage } from "@/lib/api";
 import { usePipelineProgress } from "@/lib/hooks";
-import { PipelineTrace } from "@/components/ai/pipeline-trace";
+import { PipelineWorkbench } from "@/components/ai/pipeline-workbench";
 import { currentPipelineRun } from "@/lib/pipeline-progress";
 import { cn } from "@/lib/utils";
 
@@ -102,11 +102,11 @@ function Flow({
 }) {
   const failed = run?.outcome === "failed";
   const running = run?.status === "running" || (!run && active);
-  const stages = run?.stages ?? [];
+  const stages = (run?.stages ?? []).filter((s) => s.key !== "cache");
   const byKey = new Map(stages.map((s) => [s.key, s]));
   const lastKey = stages[stages.length - 1]?.key;
   const last = lastKey ? byKey.get(lastKey) : undefined;
-  const cached = byKey.has("cache");
+  const cached = run?.outcome === "cached" || run?.stages.some((s) => s.key === "cache");
 
   return (
     <section
@@ -143,6 +143,11 @@ function Flow({
                 ? outcomeTitle(run)
                 : "Analysis pending"}
         </h3>
+        {cached && (
+          <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            Cached
+          </span>
+        )}
         {run?.truck_id && (
           <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] font-medium tabular-nums text-[var(--color-muted-foreground)]">
             {run.truck_id}
@@ -150,12 +155,8 @@ function Flow({
         )}
       </header>
 
-      {cached ? (
-        <p className="text-[12px] text-[var(--color-muted-foreground)]">
-          Served from the result cache, no model call.
-        </p>
-      ) : (
-        <ol className="flex flex-wrap gap-x-1.5 gap-y-2 pb-1">
+      {detailed && stages.length > 0 ? null : (
+        <ol className="flex gap-2 overflow-x-auto pb-3">
           {STAGE_FLOW.map((s, i) => {
             const stage = byKey.get(s.key);
             // A received stage is a completed record, not an executing stage.
@@ -185,7 +186,7 @@ function Flow({
 
       {detailed && stages.length > 0 && (
         <div className="mt-4 border-t border-border pt-4">
-          <PipelineTrace stages={stages} />
+          <PipelineWorkbench stages={stages} />
         </div>
       )}
 
@@ -209,7 +210,7 @@ function outcomeTitle(run: PipelineProgress): string {
     case "drafted":
       return "Ticket drafted";
     case "cached":
-      return "Served from cache";
+      return "Ticket drafted";
     case "no_truck":
       return "No truck detected";
     case "failed":
@@ -235,7 +236,7 @@ function StageChip({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors",
+        "inline-flex min-h-14 shrink-0 items-center gap-2 rounded-lg border px-4 py-3 text-xs font-medium transition-colors",
         active &&
           "border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]",
         done &&

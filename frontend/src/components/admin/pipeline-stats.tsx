@@ -59,7 +59,7 @@ export function PipelineStats() {
       <div className="grid gap-3 sm:grid-cols-3">
         <Tile
           icon={<GaugeIcon className="size-4" />}
-          label="Pipeline runs"
+          label="AI Pipeline runs"
           value={String(s.total_runs)}
           sub={`${s.cache_hits} served from cache`}
         />

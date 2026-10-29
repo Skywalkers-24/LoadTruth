@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ActivityIcon, CpuIcon, TruckIcon } from "lucide-react";
@@ -7,7 +8,7 @@ import { ActivityIcon, CpuIcon, TruckIcon } from "lucide-react";
 import type { PipelineJob } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
 import { LivePipelineFlow } from "@/components/ai/live-pipeline-flow";
-import { PipelineTrace } from "@/components/ai/pipeline-trace";
+import { PipelineWorkbench } from "@/components/ai/pipeline-workbench";
 import { StatusChip } from "@/components/ui/status-chip";
 import { Card } from "@/components/ui/shadcn/card";
 import { Skeleton } from "@/components/ui/shadcn/skeleton";
@@ -63,27 +64,33 @@ export default function PipelinePage() {
   }, [pageRows, selected]);
 
   return (
-    <AppShell section="Pipeline Runs">
+    <AppShell section="AI Pipeline Run">
       <div className="lt-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <span className="grid size-9 place-items-center rounded-xl bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
             <ActivityIcon className="size-5" />
           </span>
           <div className="flex min-w-0 flex-col">
-            <h1 className="lt-page-title">Pipeline Runs</h1>
+            <h1 className="lt-page-title">AI Pipeline Run</h1>
             <p className="text-[12px] text-muted-foreground">
-              Follow current processing and inspect the analysis behind each completed run.
+              Meta SAM segmentation → Muse Spark understanding → measured load value.
             </p>
           </div>
+          <Link
+            href="/add"
+            className="ml-auto rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          >
+            New AI run →
+          </Link>
         </div>
 
         {/* Live run: lights up each stage left to right as a clip is analysed,
             then refreshes the jobs list when it finishes. */}
         <LivePipelineFlow eventId={eventId} detailed onlyActive onComplete={() => jobs.refetch()} />
 
-        <div className="grid min-h-[420px] flex-1 gap-4 lg:grid-cols-[minmax(260px,0.65fr)_minmax(0,1.35fr)]">
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
           {/* Jobs list */}
-          <Card className="flex min-h-0 flex-col gap-0 overflow-hidden py-0">
+          <Card className="flex max-h-56 shrink-0 flex-col gap-0 overflow-hidden py-0">
             <header className="flex items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-[14px] font-semibold">Run history</h2>
               <span className="text-[12px] tabular-nums text-muted-foreground">{total}</span>
@@ -111,7 +118,7 @@ export default function PipelinePage() {
                 </div>
               ) : total === 0 ? (
                 <p className="px-4 py-10 text-center text-[13px] text-muted-foreground">
-                  No pipeline runs yet. Capture a ticket to see the AI stages here.
+                  No AI pipeline runs yet. Capture a ticket to see the AI stages here.
                 </p>
               ) : (
                 <ul className="divide-y divide-border">
@@ -169,10 +176,12 @@ export default function PipelinePage() {
           </Card>
 
           {/* Selected trace */}
-          <Card className="flex min-h-0 flex-col gap-0 overflow-hidden py-0">
+          <Card className="flex min-h-[420px] flex-1 flex-col gap-0 overflow-hidden py-0">
             <header className="flex items-center gap-2 border-b border-border px-4 py-3">
               <CpuIcon className="size-4 text-[var(--color-brand)]" />
-              <h2 className="text-[14px] font-semibold">Stage analysis</h2>
+              <h2 className="text-[14px] font-semibold">
+                Run workspace · select a stage to inspect its output
+              </h2>
             </header>
             <div className="lt-scroll lt-fab-safe min-h-0 flex-1 overflow-y-auto p-4">
               {!active ? (
@@ -193,7 +202,10 @@ export default function PipelinePage() {
                     />
                     <Field label="Flags" value={String(active.anomaly_count)} />
                   </div>
-                  <PipelineTrace key={`${eventId}:${active.content_hash}`} stages={active.stages} />
+                  <PipelineWorkbench
+                    key={`${eventId}:${active.content_hash}`}
+                    stages={active.stages}
+                  />
                   {active.ticket_id && (
                     <button
                       type="button"

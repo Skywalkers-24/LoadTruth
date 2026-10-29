@@ -103,12 +103,27 @@ async def run_pipeline(
         if hit is not None:
             await _record_cached(ledger)
             # Rebuild a trace for the cached run so the UI still shows the work.
-            trace = PipelineTrace(content_hash=h, on_stage=on_stage)
+            trace = (
+                replace(hit.trace, stages=[], on_stage=on_stage)
+                if hit.trace is not None
+                else PipelineTrace(content_hash=h, on_stage=on_stage)
+            )
+            trace.started_at = datetime.now(UTC).timestamp()
             trace.cached = True
             trace.outcome = "cached" if not hit.no_truck else "no_truck"
-            trace.stage(
-                "cache", "Result cache", "cache", "Served from the result cache (no model call)."
-            )  # noqa: E501
+            for stage in hit.trace.stages if hit.trace is not None else []:
+                if stage.key != "cache":
+                    trace.stage(
+                        stage.key,
+                        stage.label,
+                        stage.model,
+                        stage.summary,
+                        status=stage.status,
+                        confidence=stage.confidence,
+                        details=stage.details,
+                        duration_ms=stage.duration_ms,
+                        analysis=stage.analysis,
+                    )
             # PipelineResult's cached ticket is the original run's persisted
             # ticket. Every ingest still creates a new ticket row, so copy the
             # cached measurement into a fresh ticket identity instead of
@@ -572,7 +587,7 @@ def _usage_details(usage: CallUsage | None) -> list[list[str]]:
     if usage is None:
         return []
     if usage.cached:
-        return [["Source", "Saved result from an earlier run, no model call"]]
+        return []
     rows: list[list[str]] = []
     if usage.provider_model:
         rows.append(["Provider model", usage.provider_model])

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FilmIcon, PlayIcon, UploadCloudIcon, Loader2Icon } from "lucide-react";
+import { FilmIcon, UploadCloudIcon, Loader2Icon } from "lucide-react";
 
 import {
   analyzeDemoVideo,
@@ -26,7 +26,8 @@ const input =
   "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground";
 
 export default function DemoVideosPage() {
-  const { can } = useAuth();
+  const { can, member } = useAuth();
+  const isSuperAdmin = member?.role === "super_admin" || Boolean(can("manage_demo_videos"));
   const { selected, selectedId: eventId } = useEventContext();
   const qc = useQueryClient();
   const router = useRouter();
@@ -42,8 +43,6 @@ export default function DemoVideosPage() {
   const [progress, setProgress] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<{ video: DemoVideo; url: string } | null>(null);
-  const [previewLoading, setPreviewLoading] = useState<string | null>(null);
   const analyze = useMutation({
     mutationFn: (id: string) => analyzeDemoVideo(eventId!, id),
     onSuccess: (job) => {
@@ -99,24 +98,12 @@ export default function DemoVideosPage() {
     setProgress(
       failures.length
         ? "Some uploads need attention. Check pending clips below."
-        : "All clips verified in B2.",
+        : "All clips uploaded.",
     );
     setFiles([]);
     if (fileInput.current) fileInput.current.value = "";
     setOffset(0);
     void qc.invalidateQueries({ queryKey: ["demo-videos"] });
-  }
-
-  async function play(video: DemoVideo) {
-    setPreviewLoading(video.id);
-    try {
-      const result = await demoPlayback(video.id);
-      setPreview({ video, url: result.url });
-    } catch (error) {
-      setErrors([error instanceof Error ? error.message : "Playback unavailable"]);
-    } finally {
-      setPreviewLoading(null);
-    }
   }
 
   return (
@@ -130,17 +117,44 @@ export default function DemoVideosPage() {
             </p>
           </div>
           <Link href="/pipeline" className={button}>
-            View Pipeline Runs →
+            View AI Pipeline Runs →
           </Link>
         </header>
-        {can("ingest") && (
+        {!isSuperAdmin ? (
+          <Card className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border-dashed bg-muted/20">
+            <div className="flex items-start sm:items-center gap-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                <FilmIcon className="size-4" />
+              </span>
+              <div>
+                <p className="text-xs font-semibold text-foreground">
+                  Demo Library: View & Pipeline Replay Access
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Uploading and managing demo clips requires Developer / SuperAdmin privileges. You can preview clips and replay pipelines below.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/superadmin"
+              className="shrink-0 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              SuperAdmin Login →
+            </Link>
+          </Card>
+        ) : (
           <Card className="gap-4 p-5">
             <div className="flex items-start gap-3">
               <UploadCloudIcon className="mt-1 size-5 shrink-0 text-primary" />
               <div>
-                <h2 className="text-sm font-semibold">Upload to the demo library</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-semibold">Upload to the demo library</h2>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                    SuperAdmin
+                  </span>
+                </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Files go straight to private B2 storage. Keep this tab open until verification
+                  Upload clips to your private library. Keep this tab open until the upload
                   finishes.
                 </p>
               </div>
@@ -223,35 +237,10 @@ export default function DemoVideosPage() {
             {verify.isError && <p>{verify.error.message}</p>}
           </div>
         )}
-        {preview && (
-          <Card className="gap-3 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="truncate text-sm font-semibold">{preview.video.title}</h2>
-              <button className={button} onClick={() => setPreview(null)}>
-                Close preview
-              </button>
-            </div>
-            <video
-              key={preview.url}
-              controls
-              playsInline
-              autoPlay
-              preload="metadata"
-              src={preview.url}
-              className="max-h-[420px] w-full rounded-lg bg-black"
-            />
-            <p className="text-xs text-muted-foreground">
-              Private playback link expires. Select Preview again to refresh it.
-            </p>
-          </Card>
-        )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">
             Saved clips <span className="text-muted-foreground">({videos.data?.total ?? 0})</span>
           </h2>
-          <p className="text-xs text-muted-foreground">
-            Reference labels are user-supplied; a clip library alone is not an accuracy benchmark.
-          </p>
         </div>
         {videos.isLoading ? (
           <p role="status" className="p-8 text-center text-sm text-muted-foreground">
@@ -277,6 +266,7 @@ export default function DemoVideosPage() {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {videos.data.items.map((video) => (
               <Card key={video.id} className="gap-4 p-4">
+                {video.status === "ready" && <DemoClipPreview video={video} />}
                 <div className="flex items-start gap-3">
                   <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
                     <FilmIcon className="size-5" />
@@ -287,13 +277,14 @@ export default function DemoVideosPage() {
                     </h3>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {(video.size_bytes / 1024 ** 2).toFixed(1)} MiB ·{" "}
-                      {video.status === "ready" ? "Saved in B2" : "Upload unverified"}
+                      {video.status === "ready" ? "Ready" : "Upload incomplete"}
                     </p>
                   </div>
                 </div>
-                {video.notes && (
-                  <p className="line-clamp-3 text-xs text-muted-foreground">{video.notes}</p>
-                )}
+                {video.notes &&
+                  !video.notes.startsWith("Packaged Meta-processed showcase clip.") && (
+                    <p className="line-clamp-3 text-xs text-muted-foreground">{video.notes}</p>
+                  )}
                 {video.reference_fill_pct !== null && (
                   <p className="text-xs">
                     Reference fill: <strong>{Number(video.reference_fill_pct)}%</strong>
@@ -303,14 +294,6 @@ export default function DemoVideosPage() {
                   {video.status === "ready" ? (
                     <>
                       <button
-                        className={button}
-                        onClick={() => void play(video)}
-                        disabled={previewLoading === video.id}
-                      >
-                        <PlayIcon className="size-3.5" />
-                        {previewLoading === video.id ? "Loading…" : "Preview"}
-                      </button>
-                      <button
                         className={`${button} border-primary/40 text-primary`}
                         disabled={!writable || analyze.isPending || video.size_bytes > analysisMax}
                         onClick={() => analyze.mutate(video.id)}
@@ -319,7 +302,7 @@ export default function DemoVideosPage() {
                       </button>
                     </>
                   ) : (
-                    can("ingest") && (
+                    isSuperAdmin && (
                       <button
                         className={button}
                         disabled={verify.isPending}
@@ -350,5 +333,57 @@ export default function DemoVideosPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+function DemoClipPreview({ video }: { video: DemoVideo }) {
+  const [failed, setFailed] = useState(false);
+  const playback = useQuery({
+    queryKey: ["demo-playback", video.id],
+    queryFn: () => demoPlayback(video.id),
+    staleTime: 10 * 60_000,
+    refetchInterval: 10 * 60_000,
+    retry: 1,
+  });
+  if (playback.isError || failed)
+    return (
+      <div className="flex aspect-video flex-col items-center justify-center gap-3 rounded-lg bg-secondary text-sm">
+        <p>Preview could not load.</p>
+        <button
+          className={button}
+          onClick={() => {
+            setFailed(false);
+            void playback.refetch();
+          }}
+        >
+          Reload preview
+        </button>
+      </div>
+    );
+  if (!playback.data)
+    return (
+      <div
+        role="status"
+        className="flex aspect-video items-center justify-center rounded-lg bg-secondary"
+      >
+        <Loader2Icon className="size-6 animate-spin" />
+        <span className="sr-only">Loading preview</span>
+      </div>
+    );
+  return (
+    <video
+      key={playback.data.url}
+      src={`${playback.data.url}#t=0.1`}
+      controls
+      playsInline
+      preload="metadata"
+      aria-label={`Preview ${video.title}`}
+      onLoadedMetadata={(event) => {
+        const player = event.currentTarget;
+        if (player.duration > 0.1) player.currentTime = 0.1;
+      }}
+      onError={() => setFailed(true)}
+      className="aspect-video w-full rounded-lg bg-black object-contain"
+    />
   );
 }

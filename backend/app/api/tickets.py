@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
-from app.auth.roles import can_manage_events, can_review_tickets
+from app.auth.roles import can_manage_events, can_manage_settings, can_review_tickets
 from app.pipeline import evidence_store
 from app.tickets.repository import EventNotFoundError, TicketNotFoundError
 from app.tickets.schemas import (
@@ -43,11 +43,11 @@ from app.tickets.schemas import (
 
 router = APIRouter(tags=["tickets"])
 
-# Managing events and their rate tables is a county-admin-and-up action;
+# Managing events and their rate tables requires SuperAdmin;
 # reviewing tickets (monitor call, confirm/override/dispute) needs review rights.
-_NO_EVENTS = "You do not have permission to manage events."
+_NO_EVENTS = "Only SuperAdmin can manage workspace events and rate tables."
 _NO_REVIEW = "You do not have permission to review tickets."
-ManageEvents = Depends(require(can_manage_events, _NO_EVENTS))
+ManageEvents = Depends(require(can_manage_settings, _NO_EVENTS))
 ReviewTickets = Depends(require(can_review_tickets, _NO_REVIEW))
 
 

@@ -56,15 +56,15 @@ type NavItem = {
 // Separate records, capture, processing, and exception review.
 const NAV: NavItem[] = [
   { href: "/", label: "Overview", short: "Overview", icon: GaugeIcon },
-  { href: "/tickets", label: "Tickets", short: "Tickets", icon: ClipboardIcon },
   { href: "/add", label: "New Ticket", short: "New", icon: PlusIcon, cap: "ingest" },
   { href: "/console", label: "Review Console", short: "Review", icon: ClipboardIcon, badge: true },
-  { href: "/trucks", label: "Trucks", short: "Trucks", icon: TruckIcon, cap: "manage_trucks" },
+  { href: "/pipeline", label: "AI Pipeline Run", short: "Pipeline", icon: ActivityIcon },
   { href: "/assistant", label: "AI Analyst", short: "Analyst", icon: SparklesIcon },
-  { href: "/demos", label: "Demo Videos", short: "Demos", icon: FilmIcon },
-  { href: "/pipeline", label: "Pipeline Runs", short: "Pipeline", icon: ActivityIcon },
+  { href: "/tickets", label: "Ticket", short: "Ticket", icon: ClipboardIcon },
+  { href: "/trucks", label: "Trucks", short: "Trucks", icon: TruckIcon, cap: "manage_trucks" },
   { href: "/reports", label: "Reports", short: "Reports", icon: ChartIcon },
   { href: "/billing", label: "Billing", short: "Billing", icon: CircleDollarSignIcon },
+  { href: "/demos", label: "Demo Video", short: "Demos", icon: FilmIcon },
   {
     href: "/admin",
     label: "Settings",

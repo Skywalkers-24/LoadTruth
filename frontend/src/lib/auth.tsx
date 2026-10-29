@@ -11,12 +11,14 @@ import {
   login as apiLogin,
   logout as apiLogout,
   setAuthToken,
+  superadminLogin as apiSuperadminLogin,
 } from "@/lib/api";
 
 interface AuthValue {
   member: Member | null;
   loading: boolean;
   signIn: (email: string) => Promise<void>;
+  superAdminSignIn: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   can: (capability: keyof Capabilities) => boolean;
 }
@@ -69,6 +71,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [queryClient],
   );
 
+  const superAdminSignIn = useCallback(
+    async (username: string, password: string) => {
+      const result = await apiSuperadminLogin(username, password);
+      setAuthToken(result.token);
+      setMember(result.member);
+      await queryClient.resetQueries();
+    },
+    [queryClient],
+  );
+
   const signOut = useCallback(async () => {
     try {
       await apiLogout();
@@ -86,8 +98,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo<AuthValue>(
-    () => ({ member, loading, signIn, signOut, can }),
-    [member, loading, signIn, signOut, can],
+    () => ({ member, loading, signIn, superAdminSignIn, signOut, can }),
+    [member, loading, signIn, superAdminSignIn, signOut, can],
   );
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { ErrorState, Skeleton } from "@/components/ui/primitives";
+import { useAuth } from "@/lib/auth";
 import { useAiConfig, useUpdateAiConfig } from "@/lib/hooks";
 
 const EFFORT_LABEL: Record<ReasoningEffort, string> = {
@@ -97,6 +98,8 @@ function draftsFromData(data: AiConfigResponse): Record<string, Draft> {
 
 export function AiModelsPanel() {
   const { data, isLoading, isError, refetch } = useAiConfig();
+  const { can, member } = useAuth();
+  const canEdit = member?.role === "super_admin" || Boolean(can("manage_settings"));
   const toast = useToast();
   const { update, reset } = useUpdateAiConfig();
   const [confirming, setConfirming] = useState(false);
@@ -192,23 +195,25 @@ export function AiModelsPanel() {
         <Button
           variant="primary"
           size="sm"
-          disabled={dirtyCount === 0 || busy}
+          disabled={!canEdit || dirtyCount === 0 || busy}
           onClick={() => setConfirming(true)}
         >
           {dirtyCount > 1 ? `Save all (${dirtyCount})` : "Save all"}
         </Button>
-        <Button variant="ghost" size="sm" disabled={dirtyCount === 0 || busy} onClick={discard}>
+        <Button variant="ghost" size="sm" disabled={!canEdit || dirtyCount === 0 || busy} onClick={discard}>
           Discard changes
         </Button>
-        <Button variant="ghost" size="sm" disabled={busy} onClick={resetAllToDefault}>
+        <Button variant="ghost" size="sm" disabled={!canEdit || busy} onClick={resetAllToDefault}>
           Reset all to default
         </Button>
         <span className="ml-auto text-[12px] text-[var(--color-muted-foreground)]">
-          {dirtyCount === 0
-            ? "All saved"
-            : dirtyCount === 1
-              ? "1 task has unsaved changes"
-              : `${dirtyCount} tasks have unsaved changes`}
+          {!canEdit
+            ? "SuperAdmin required to change AI models"
+            : dirtyCount === 0
+              ? "All saved"
+              : dirtyCount === 1
+                ? "1 task has unsaved changes"
+                : `${dirtyCount} tasks have unsaved changes`}
         </span>
       </div>
 

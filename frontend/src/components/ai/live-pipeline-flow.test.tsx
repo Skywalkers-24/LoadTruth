@@ -79,6 +79,9 @@ describe("live pipeline", () => {
     });
     await render();
     const button = host.querySelector("button[aria-expanded]") as HTMLButtonElement;
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    await act(async () => button.click());
+    expect(button.getAttribute("aria-expanded")).toBe("false");
     await act(async () => button.click());
     expect(host.textContent).toContain("EXTRACTED-3391");
     expect(host.textContent).toContain("muse-spark");
@@ -92,6 +95,30 @@ describe("live pipeline", () => {
     await render();
     expect(host.textContent).toContain("Placard visible in the rear frame.");
     expect(button.getAttribute("aria-expanded")).toBe("true");
+  });
+  it("shows one cached badge with normal recorded stage output", async () => {
+    state.data = run({
+      status: "done",
+      outcome: "cached",
+      stages: [
+        {
+          key: "spark_ocr",
+          label: "Read placard",
+          model: "muse-spark",
+          status: "ok",
+          summary: "Truck ABC",
+          analysis: "Placard identified.",
+          confidence: 0.9,
+          duration_ms: 200,
+          details: [],
+        },
+      ],
+    });
+    await render();
+    expect(host.textContent?.match(/Cached/g)).toHaveLength(1);
+    expect(host.textContent).toContain("Placard identified.");
+    expect(host.textContent).not.toContain("Served from");
+    expect(host.textContent).not.toContain("no model call");
   });
   it("shows failed processing and offers reconnection for telemetry errors", async () => {
     state.data = run({ status: "done", outcome: "failed", detail: "AI service error" });

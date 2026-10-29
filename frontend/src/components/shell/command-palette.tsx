@@ -126,14 +126,14 @@ function Palette({ onClose }: { onClose: () => void }) {
       {
         id: "nav-demos",
         group: "Navigate",
-        label: "Demo Videos",
+        label: "Demo Video",
         icon: <FilmIcon size={15} />,
         run: () => go("/demos"),
       },
       {
         id: "nav-pipeline",
         group: "Navigate",
-        label: "Pipeline Runs",
+        label: "AI Pipeline Run",
         icon: <GaugeIcon size={15} />,
         run: () => go("/pipeline"),
       },

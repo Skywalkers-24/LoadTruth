@@ -13,13 +13,15 @@ from sqlalchemy import func, select
 
 from app.api.deps import CurrentMember, require
 from app.api.repo import ActiveTenant, Repository
-from app.auth.roles import can_ingest
+from app.auth.roles import can_manage_demo_videos
 from app.config import get_settings
 from app.db.models import DemoVideo
 from app.pipeline import b2_store
 
 router = APIRouter(tags=["demo videos"])
-ManageVideos = Depends(require(can_ingest, "You do not have permission to upload demo videos."))
+ManageVideos = Depends(
+    require(can_manage_demo_videos, "Only SuperAdmin can upload or manage demo videos.")
+)
 
 
 class VideoInput(BaseModel):

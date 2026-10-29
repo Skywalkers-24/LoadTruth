@@ -349,9 +349,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** Returns backend health, or throws on failure. */
-export async function getHealth(): Promise<Health> {
-  return await request<Health>("/health");
+/** Returns backend health, or null on failure. */
+export async function getHealth(): Promise<Health | null> {
+  try {
+    return await request<Health>("/health");
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -375,6 +379,8 @@ export interface Capabilities {
   manage_events: boolean;
   ingest: boolean;
   manage_users: boolean;
+  manage_settings?: boolean;
+  manage_demo_videos?: boolean;
 }
 
 export interface Member {
@@ -407,6 +413,14 @@ export async function login(email: string): Promise<LoginResult> {
   return request<LoginResult>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email }),
+  });
+}
+
+/** Developer / SuperAdmin sign in by username and password. */
+export async function superadminLogin(username: string, password: string): Promise<LoginResult> {
+  return request<LoginResult>("/auth/superadmin/login", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
   });
 }
 

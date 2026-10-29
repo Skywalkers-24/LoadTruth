@@ -23,7 +23,7 @@ from app.ai.config_store import (
 from app.api.deps import CurrentMember, require
 from app.api.ingest import get_cost_ledger
 from app.api.repo import ActiveTenant, Repository
-from app.auth.roles import can_manage_events
+from app.auth.roles import can_manage_settings
 from app.config import get_settings
 from app.pipeline.trace import (
     PipelineTrace,
@@ -35,9 +35,9 @@ from app.tickets.repository import TicketNotFoundError
 
 router = APIRouter(prefix="/system", tags=["system"])
 
-# Tuning which model/effort powers the pipeline is a county-admin-and-up action.
+# Tuning which model/effort powers the pipeline can only be changed by SuperAdmin.
 ManageAIConfig = Depends(
-    require(can_manage_events, "You do not have permission to change AI settings.")
+    require(can_manage_settings, "Only SuperAdmin can change AI model settings.")
 )
 
 

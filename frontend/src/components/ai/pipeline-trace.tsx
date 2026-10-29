@@ -40,12 +40,16 @@ function StageIcon({ stage, className }: { stage: PipelineStage; className?: str
 export function PipelineTrace({
   stages,
   compact = false,
+  defaultExpanded = false,
 }: {
   stages: PipelineStage[];
   compact?: boolean;
+  defaultExpanded?: boolean;
 }) {
   // Track which stage keys are expanded. A Set lets several be open at once.
-  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [open, setOpen] = useState<Set<string>>(
+    () => new Set(defaultExpanded ? stages.map((s, i) => `${s.key}-${i}`) : []),
+  );
 
   if (stages.length === 0) {
     return (

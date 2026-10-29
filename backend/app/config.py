@@ -107,6 +107,19 @@ class Settings(BaseSettings):
     # Supabase JWT signing secret (HS256) — verifies access tokens on the API.
     supabase_jwt_secret: str = Field(default="", alias="SUPABASE_JWT_SECRET")
 
+    # SuperAdmin / Developer credentials (stored hashed in .env)
+    superadmin_username_hash: str = Field(
+        default="",
+        alias="SUPERADMIN_USERNAME_HASH",
+    )
+    superadmin_password_hash: str = Field(
+        default="",
+        alias="SUPERADMIN_PASSWORD_HASH",
+        repr=False,
+    )
+    superadmin_username: str = Field(default="", alias="SUPERADMIN_USERNAME")
+    superadmin_password: str = Field(default="", alias="SUPERADMIN_PASSWORD", repr=False)
+
     # Redis / background worker
     pipeline_result_cache_enabled: bool = False
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
