@@ -14,7 +14,7 @@ import {
   SparklesIcon,
 } from "lucide-react";
 
-import { getDirectory, type DirectoryMember, type Role } from "@/lib/api";
+import { getDirectory, isServerWakingUp, type DirectoryMember, type Role } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { LoginVideoBg } from "@/components/auth/login-video-bg";
 import { LogoMark } from "@/components/ui/logo";
@@ -47,12 +47,19 @@ const ROLE_BLURB: Record<Role, string> = {
 export function LoginScreen() {
   const router = useRouter();
   const { signIn } = useAuth();
-  const directory = useQuery({ queryKey: ["directory"], queryFn: getDirectory, retry: false });
+  const directory = useQuery({
+    queryKey: ["directory"],
+    queryFn: getDirectory,
+    refetchInterval: (query) => (query.state.status === "error" ? 4_000 : false),
+    retry: (failureCount) => failureCount < 15,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
+  });
   const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const members = directory.data ?? [];
+  const wakingUp = directory.isError && isServerWakingUp(directory.error);
 
   useEffect(() => {
     if (!selected && members.length > 0) setSelected(members[0]!.email);
@@ -65,8 +72,12 @@ export function LoginScreen() {
     try {
       await signIn(selected);
       router.push("/");
-    } catch {
-      setError("Could not sign in. Check that the backend is running and try again.");
+    } catch (err) {
+      if (isServerWakingUp(err)) {
+        setError("The server is still starting up on Render. Please wait a moment and try again.");
+      } else {
+        setError("Could not sign in. Check that the backend is running and try again.");
+      }
       setSubmitting(false);
     }
   }
@@ -170,9 +181,21 @@ export function LoginScreen() {
                   <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />
                 ))
               ) : directory.isError ? (
-                <p className="rounded-lg border border-[var(--color-danger)]/40 bg-[var(--color-danger-soft)] px-4 py-3 text-[13px] text-[var(--color-danger)]">
-                  Could not reach the backend. Make sure the API is running, then refresh.
-                </p>
+                wakingUp ? (
+                  <div className="rounded-xl border border-[var(--color-warn,#f59e0b)]/40 bg-[var(--color-warn,#f59e0b)]/10 p-4 text-[13px]">
+                    <div className="flex items-center gap-2 font-semibold text-[var(--color-warn,#f59e0b)]">
+                      <Loader2Icon className="size-4 animate-spin shrink-0" />
+                      <span>Backend server is waking up on Render...</span>
+                    </div>
+                    <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
+                      Render&apos;s free tier spins down after 15 minutes of inactivity. Starting the container takes ~30–60 seconds. Reconnecting automatically...
+                    </p>
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-[var(--color-danger)]/40 bg-[var(--color-danger-soft)] px-4 py-3 text-[13px] text-[var(--color-danger)]">
+                    Could not reach the backend. Make sure the API is running, then refresh.
+                  </p>
+                )
               ) : (
                 members.map((m: DirectoryMember) => {
                   const active = selected === m.email;

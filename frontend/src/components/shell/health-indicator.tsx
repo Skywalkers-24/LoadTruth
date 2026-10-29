@@ -2,31 +2,43 @@
 
 import { useHealth } from "@/lib/hooks";
 import { relativeTime } from "@/lib/format";
+import { isServerWakingUp } from "@/lib/api";
 
 /**
- * Minimal top-bar backend health dot. Green only when the real /health check
- * confirms the API is up; red when unreachable; muted while checking. The state
- * is conveyed by the dot plus an accessible label/tooltip — no verbose text.
+ * Minimal top-bar backend health dot. Green when healthy, amber while waking up
+ * on Render (free tier cold start), red when unreachable; muted while checking.
  */
 export function HealthIndicator() {
-  const { data, isLoading, isError, dataUpdatedAt } = useHealth();
+  const { data, isLoading, isError, dataUpdatedAt, error } = useHealth();
 
-  const state: "loading" | "down" | "up" =
-    isLoading && !data ? "loading" : isError || data == null ? "down" : "up";
+  const wakingUp = isError && isServerWakingUp(error);
+
+  const state: "loading" | "waking" | "down" | "up" =
+    isLoading && !data
+      ? "loading"
+      : wakingUp
+        ? "waking"
+        : isError || data == null
+          ? "down"
+          : "up";
 
   const color =
     state === "up"
       ? "var(--color-ok)"
-      : state === "down"
-        ? "var(--color-danger)"
-        : "var(--color-subtle)";
+      : state === "waking"
+        ? "var(--color-warn, #f59e0b)"
+        : state === "down"
+          ? "var(--color-danger)"
+          : "var(--color-subtle)";
 
   const label =
     state === "up"
       ? `API healthy${dataUpdatedAt ? ` · checked ${relativeTime(new Date(dataUpdatedAt).toISOString())}` : ""}`
-      : state === "down"
-        ? "API unreachable"
-        : "Checking API…";
+      : state === "waking"
+        ? "Server waking up on Render (free tier) · retrying automatically…"
+        : state === "down"
+          ? "API unreachable"
+          : "Checking API…";
 
   return (
     <span
@@ -39,6 +51,13 @@ export function HealthIndicator() {
         {state === "up" && (
           <span
             className="absolute inline-flex size-full animate-ping rounded-full opacity-60"
+            style={{ backgroundColor: color }}
+            aria-hidden
+          />
+        )}
+        {state === "waking" && (
+          <span
+            className="absolute inline-flex size-full animate-pulse rounded-full opacity-75"
             style={{ backgroundColor: color }}
             aria-hidden
           />

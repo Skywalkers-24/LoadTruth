@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useAuth } from "@/lib/auth";
 import {
   api,
   getAuthContext,
@@ -18,7 +19,12 @@ import {
 } from "@/lib/api";
 
 export function useEvents() {
-  return useQuery({ queryKey: ["events"], queryFn: () => api.listEvents() });
+  const { member } = useAuth();
+  return useQuery({
+    queryKey: ["events"],
+    queryFn: () => api.listEvents(),
+    enabled: Boolean(member),
+  });
 }
 
 /** Signed-in user's tenants + roles. Null when no session is wired. */
@@ -36,8 +42,9 @@ export function useHealth() {
   return useQuery({
     queryKey: ["health"],
     queryFn: () => getHealth(),
-    refetchInterval: 30_000,
-    staleTime: 15_000,
+    refetchInterval: (query) => (query.state.status === "error" ? 5_000 : 30_000),
+    staleTime: 10_000,
+    retry: false,
   });
 }
 

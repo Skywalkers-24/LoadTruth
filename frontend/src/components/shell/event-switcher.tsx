@@ -13,7 +13,8 @@ import { orgFromEvent, useEventContext } from "@/lib/event-context";
  * rail/drawer trigger. The popover presents org context and a searchable list.
  */
 export function EventSwitcher({ compact = false }: { compact?: boolean }) {
-  const { events, selected, selectedId, setSelectedId, isLoading, isError } = useEventContext();
+  const { events, selected, selectedId, setSelectedId, isLoading, isError, isWakingUp } =
+    useEventContext();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -61,7 +62,11 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
           </span>
           <span className="flex min-w-0 flex-1 flex-col leading-none">
             <span className="truncate text-[13px] font-semibold text-foreground">
-              {isError ? "Events unavailable" : (selected?.name ?? "Select an event")}
+              {isError
+                ? isWakingUp
+                  ? "Backend waking up…"
+                  : "Events unavailable"
+                : (selected?.name ?? "Select an event")}
             </span>
           </span>
           <ChevronDownIcon
@@ -93,7 +98,11 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
         </span>
         <span className="flex min-w-0 flex-1 flex-col leading-tight">
           <span className="line-clamp-2 text-[13px] font-semibold text-sidebar-foreground">
-            {isError ? "Events unavailable" : (selected?.name ?? "Select an event")}
+            {isError
+              ? isWakingUp
+                ? "Backend waking up…"
+                : "Events unavailable"
+              : (selected?.name ?? "Select an event")}
           </span>
           <span className="truncate text-[11px] text-sidebar-muted">
             {selected?.location ?? org}

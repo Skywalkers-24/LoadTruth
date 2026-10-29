@@ -262,6 +262,31 @@ export class ApiError extends Error {
   }
 }
 
+/** Check if an error indicates Render is sleeping/waking up or network is down. */
+export function isServerWakingUp(error: unknown): boolean {
+  if (!error) return false;
+  if (error instanceof ApiError) {
+    return error.status === 502 || error.status === 503 || error.status === 504;
+  }
+  if (typeof error === "object" && error !== null && "status" in error) {
+    const s = (error as { status?: number }).status;
+    if (s === 502 || s === 503 || s === 504) return true;
+  }
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return (
+      msg.includes("502") ||
+      msg.includes("503") ||
+      msg.includes("504") ||
+      msg.includes("gateway") ||
+      msg.includes("service unavailable") ||
+      msg.includes("failed to fetch") ||
+      msg.includes("network")
+    );
+  }
+  return false;
+}
+
 // ── Session token. Stored in sessionStorage for per-session login, ensuring
 // visitors on new visits or fresh tabs start at the login screen.
 // Legacy localStorage tokens are proactively cleared. ──
@@ -324,13 +349,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** Returns backend health, or null if the backend is unreachable. */
-export async function getHealth(): Promise<Health | null> {
-  try {
-    return await request<Health>("/health");
-  } catch {
-    return null;
-  }
+/** Returns backend health, or throws on failure. */
+export async function getHealth(): Promise<Health> {
+  return await request<Health>("/health");
 }
 
 /**
