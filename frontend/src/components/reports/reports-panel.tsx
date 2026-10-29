@@ -109,7 +109,7 @@ export function ReportsPanel({
           icon={<CircleDollarSignIcon className="size-4" />}
           label="Flagged exposure"
           value={<CountUp value={flagged} format={(n) => money(n)} />}
-          hint="Sum of dollar deltas on tickets where the monitor called the load higher than measured."
+          hint="Sum of dollar differences on tickets where the monitor's call is higher than the load's estimated value."
           sub={`${s.overbill_ticket_count} over-called tickets`}
         />
         <StatCard
@@ -118,14 +118,14 @@ export function ReportsPanel({
           label="Exposure rate"
           value={<CountUp value={exposureRate * 100} format={(n) => `${n.toFixed(1)}%`} />}
           progress={exposureRate}
-          hint="Flagged exposure as a share of the total measured value."
-          sub={`Of ${money(measured)} measured`}
+          hint="Flagged exposure as a share of the total estimated value."
+          sub={`Of ${money(measured)} estimated`}
         />
         <StatCard
           icon={<LayersIcon className="size-4" />}
-          label="Measured value"
+          label="Estimated value"
           value={<CountUp value={measured} format={(n) => money(n)} />}
-          hint="Total dollar value of every load as measured by LoadTruth."
+          hint="Total estimated dollar value of all loads, based on Muse fill estimates, certified truck capacity, and event rates."
           sub={`${s.ticket_count} tickets · ${s.counts_by_status.draft ?? 0} awaiting review`}
         />
         <StatCard
@@ -146,7 +146,7 @@ export function ReportsPanel({
             </h3>
             <span className="text-[11px] text-muted-foreground">
               {perEvent
-                ? "Measured value and flagged exposure per event"
+                ? "Estimated value and flagged exposure per event"
                 : "Where the over-call dollars come from"}
             </span>
           </div>
@@ -200,7 +200,7 @@ function PerEventTable({ rows }: { rows: PerEvent[] }) {
           <tr>
             <th className="px-3 py-2 text-left font-semibold">Event</th>
             <th className="px-3 py-2 text-right font-semibold">Tickets</th>
-            <th className="px-3 py-2 text-right font-semibold">Measured</th>
+            <th className="px-3 py-2 text-right font-semibold">Estimated value</th>
             <th className="px-3 py-2 text-right font-semibold">Flagged</th>
           </tr>
         </thead>
@@ -297,7 +297,7 @@ function Ledger({ eventId, total: totalHint }: { eventId?: string; total: number
               <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider">
                 Debris
               </th>
-              {header("measured", "Measured")}
+              {header("measured", "Estimated value")}
               <th className="px-4 py-2.5 text-right font-semibold uppercase tracking-wider">
                 Called
               </th>
@@ -333,7 +333,11 @@ function Ledger({ eventId, total: totalHint }: { eventId?: string; total: number
                   <td className="px-4 py-2.5 text-right">
                     {v.monitor_fill_pct ? percent(v.monitor_fill_pct) : "Not called"}
                   </td>
-                  <td className="px-4 py-2.5 text-right">{money(v.est_dollar_value)}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    {Number.parseFloat(v.certified_cubic_yards) > 0
+                      ? money(v.est_dollar_value)
+                      : "Unavailable"}
+                  </td>
                   <td
                     className="px-4 py-2.5 text-right font-semibold"
                     style={{

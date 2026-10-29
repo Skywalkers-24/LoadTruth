@@ -1,10 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRightIcon, Loader2Icon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  BuildingIcon,
+  DollarSignIcon,
+  FileCheck2Icon,
+  Loader2Icon,
+  ScanEyeIcon,
+  ShieldAlertIcon,
+  SparklesIcon,
+} from "lucide-react";
 
 import { getDirectory, isServerWakingUp, type DirectoryMember, type Role } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -30,6 +39,15 @@ const ROLE_BLURB: Record<Role, string> = {
   auditor: "Read-only access and exports.",
   super_admin: "Full access across the workspace.",
 };
+
+const LOGIN_FEATURES: { icon: ReactNode; title: string; subtitle: string }[] = [
+  { icon: <ScanEyeIcon size={18} />, title: "Tracking", subtitle: "SAM 3.1" },
+  { icon: <DollarSignIcon size={18} />, title: "Money frame", subtitle: "Video proof" },
+  { icon: <ShieldAlertIcon size={18} />, title: "Anomaly", subtitle: "Risk checks" },
+  { icon: <SparklesIcon size={18} />, title: "AI analyst", subtitle: "Muse Spark" },
+  { icon: <FileCheck2Icon size={18} />, title: "Audit exports", subtitle: "Audit trail" },
+  { icon: <BuildingIcon size={18} />, title: "Multi-tenant", subtitle: "Role isolation" },
+];
 
 /**
  * Sign-in screen. Lists the workspace members and signs in as the chosen one.
@@ -159,16 +177,21 @@ export function LoginScreen() {
         <div className="absolute right-5 top-5 z-10">
           <ThemeToggle />
         </div>
-        <div className="login-screen-content flex w-full max-w-md flex-col gap-4">
-          <div className="login-screen-card w-full rounded-2xl border border-border bg-[var(--color-surface)]/90 p-6 shadow-xl backdrop-blur-xl sm:p-7">
+        <div className="login-screen-content flex w-full max-w-3xl flex-col gap-4">
+          <div className="login-screen-card mx-auto w-full max-w-md rounded-2xl border border-border bg-[var(--color-surface)]/90 p-6 shadow-xl backdrop-blur-xl sm:p-7">
             <div className="mb-6 flex items-center gap-3 lg:hidden">
               <LogoMark size={40} />
               <span className="text-[22px] font-bold tracking-tight">LoadTruth</span>
             </div>
 
-            <h2 className="text-[22px] font-semibold tracking-tight">Sign in</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-[22px] font-semibold tracking-tight">Demo sign-in</h2>
+              <span className="shrink-0 rounded-full border border-[var(--color-border)] px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
+                No password required
+              </span>
+            </div>
             <p className="mt-1 text-[13px] font-medium text-foreground/75">
-              Choose a member to sign in as. Each role sees a different set of actions.
+              Choose a demo role to continue. Each role sees a different set of actions.
             </p>
 
             <div className="login-screen-member-list mt-5 flex flex-col gap-2">
@@ -254,15 +277,34 @@ export function LoginScreen() {
               <ArrowRightIcon className="size-4" />
             </a>
 
-            <div className="mt-4 text-center">
+            <div className="mt-4">
               <Link
                 href="/superadmin"
-                className="text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className="flex w-full items-center justify-between rounded-lg border border-border px-4 py-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:border-[var(--color-border-strong)] hover:bg-accent hover:text-foreground"
               >
                 Administrator
+                <ArrowRightIcon className="size-4" />
               </Link>
             </div>
           </div>
+          <ul className="grid grid-cols-2 gap-2 min-[480px]:grid-cols-3 lg:grid-cols-6">
+            {LOGIN_FEATURES.map((feature) => (
+              <li
+                key={feature.title}
+                className="flex min-w-0 flex-col items-center gap-2 rounded-xl border border-border bg-[var(--color-surface)]/80 px-2 py-3 text-center backdrop-blur-sm"
+              >
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
+                  {feature.icon}
+                </span>
+                <span className="text-[13px] font-semibold leading-tight text-foreground">
+                  {feature.title}
+                </span>
+                <span className="text-[12px] leading-tight text-muted-foreground">
+                  {feature.subtitle}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>

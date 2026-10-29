@@ -1,11 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  ArrowUpRightIcon,
-  CheckCircle2Icon,
-  TriangleAlertIcon,
-} from "lucide-react";
+import { ArrowUpRightIcon, CheckCircle2Icon, TriangleAlertIcon } from "lucide-react";
 import type { PipelineStage } from "@/lib/api";
 import { PipelineTrace } from "./pipeline-trace";
 import { StageInspectorDrawer } from "./stage-inspector-drawer";
@@ -65,7 +61,7 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
   },
   {
     key: "geometry",
-    label: "Measure fill",
+    label: "Estimate fill",
     model: "Muse Spark + deterministic median",
     status: "ok",
     summary: "Combines Muse Spark's visual fill estimates from sampled video frames.",
@@ -75,7 +71,7 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
       "Meta Muse Spark visually estimates fill from each sampled video frame, and the pipeline takes the median of those estimates. SAM mask coverage does not determine the fill percentage.",
     details: [
       ["Calculation Basis", "Muse Spark's visual assessment of each sampled frame"],
-      ["Measurement Range", "0% (empty) to 100% (full to bed rails)"],
+      ["Estimate Range", "0% (empty) to 100% (full to bed rails)"],
       ["Combination", "Median of Muse Spark's per-frame estimates"],
       ["Live Status", "Ready to process on video upload"],
     ],
@@ -241,7 +237,9 @@ function SummaryField({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col min-w-0">
       <span className="text-[11px] text-muted-foreground">{label}</span>
-      <span className="truncate text-[13px] font-semibold tabular-nums text-foreground">{value}</span>
+      <span className="truncate text-[13px] font-semibold tabular-nums text-foreground">
+        {value}
+      </span>
     </div>
   );
 }

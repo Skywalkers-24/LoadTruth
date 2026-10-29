@@ -963,6 +963,12 @@ body {
   padding-bottom: calc(var(--lt-fab-clear) + env(safe-area-inset-bottom, 0px));
 }
 
+@media (min-width: 1024px) {
+  .lt-review-rail-safe {
+    padding-bottom: calc(var(--lt-fab-size) + var(--lt-fab-gap));
+  }
+}
+
 /* Visible, consistent keyboard focus everywhere. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--color-accent);
@@ -1122,7 +1128,7 @@ textarea,
 
 /* Keep the sign-in panel inside laptop-height viewports. */
 .login-screen-content {
-  margin-top: auto;
+  margin-block: auto;
 }
 
 @media (max-height: 900px) {

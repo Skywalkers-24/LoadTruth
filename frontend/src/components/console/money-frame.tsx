@@ -12,37 +12,43 @@ import {
 
 /**
  * The money frame as a compact strip: fill, volume, and value, each showing
- * what LoadTruth measured over what the monitor called, beside the dollar
+ * the LoadTruth estimate over what the monitor called, beside the dollar
  * difference as the hero. Sized to sit above the evidence without pushing it
  * below the fold. Responds to its own width (container query), so the hero
  * moves under the three figures when the pane is narrow.
  *
- * Convention: delta = monitor value minus measured value. Positive means the
- * monitor called the load higher than measured.
+ * Convention: delta = monitor value minus estimated value. Positive means the
+ * monitor called the load higher than the estimate.
  */
 export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: boolean }) {
-  const hasCall = v.monitor_fill_pct !== null && v.delta_dollar_value !== null;
+  const hasCapacity = Number.parseFloat(v.certified_cubic_yards) > 0;
+  const hasMonitorCall = v.monitor_fill_pct !== null;
+  const hasCall = hasCapacity && hasMonitorCall && v.delta_dollar_value !== null;
   const deltaNum = v.delta_dollar_value ? Number.parseFloat(v.delta_dollar_value) : 0;
   const agree = hasCall && Math.abs(deltaNum) < 0.005;
   const over = hasCall && deltaNum > 0.005;
 
-  const tone = !hasCall
-    ? { color: "var(--color-subtle)", label: "Awaiting inspector call" }
-    : agree
-      ? { color: "var(--color-ok)", label: "In agreement" }
-      : over
-        ? reviewed
-          ? { color: "var(--color-danger)", label: "Over-bill on record" }
-          : { color: "var(--color-money)", label: "Billed over measured" }
-        : { color: "var(--color-ok)", label: "Billed under measured" };
+  const tone = !hasCapacity
+    ? { color: "var(--color-warn)", label: "Truck capacity unavailable" }
+    : !hasCall
+      ? { color: "var(--color-subtle)", label: "Awaiting inspector call" }
+      : agree
+        ? { color: "var(--color-ok)", label: "In agreement" }
+        : over
+          ? reviewed
+            ? { color: "var(--color-danger)", label: "Over-bill on record" }
+            : { color: "var(--color-money)", label: "Call over estimate" }
+          : { color: "var(--color-ok)", label: "Call under estimate" };
 
-  const interpretation = !hasCall
-    ? "Enter the inspector's fill call to see the dollar difference."
-    : agree
-      ? "The bill matches what the load actually measures."
-      : over
-        ? `The bill is ${money(Math.abs(deltaNum))} higher than the evidence supports.`
-        : `The load is worth ${money(Math.abs(deltaNum))} more than the bill claims.`;
+  const interpretation = !hasCapacity
+    ? "Identify the truck and match its certified capacity to calculate volume and value."
+    : !hasCall
+      ? "Enter the inspector's fill call to see the dollar difference."
+      : agree
+        ? "The monitor's call matches the current visual estimate."
+        : over
+          ? `The monitor's call is ${money(Math.abs(deltaNum))} above the current visual estimate.`
+          : `The monitor's call is ${money(Math.abs(deltaNum))} below the current visual estimate.`;
 
   const fillDelta =
     v.monitor_fill_pct !== null
@@ -53,18 +59,18 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
     {
       label: "Fill",
       measured: percent(v.est_fill_pct),
-      monitor: hasCall ? percent(v.monitor_fill_pct) : null,
+      monitor: hasMonitorCall ? percent(v.monitor_fill_pct) : null,
       delta: fillDelta === null ? null : signedPoints(fillDelta),
     },
     {
       label: "Volume",
-      measured: cubicYards(v.est_cubic_yards),
+      measured: hasCapacity ? cubicYards(v.est_cubic_yards) : "Unavailable",
       monitor: hasCall ? cubicYards(v.monitor_cubic_yards) : null,
       delta: hasCall ? signedCubicYards(v.delta_cubic_yards) : null,
     },
     {
       label: "Value",
-      measured: money(v.est_dollar_value),
+      measured: hasCapacity ? money(v.est_dollar_value) : "Unavailable",
       monitor: hasCall ? money(v.monitor_dollar_value) : null,
       delta: hasCall ? signedMoney(v.delta_dollar_value) : null,
     },
@@ -76,14 +82,14 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
         className="lt-card-shadow grid overflow-hidden rounded-xl border bg-[var(--color-surface)] @[36rem]:grid-cols-[minmax(0,1fr)_minmax(0,14rem)] @2xl:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]"
         style={{ borderColor: `color-mix(in srgb, ${tone.color} 40%, var(--color-border))` }}
       >
-        {/* Measured over monitor, per quantity */}
+        {/* Visual estimate over monitor, per quantity */}
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-border)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-subtle)]">
             <span>Money frame</span>
             <span className="ml-auto flex items-center gap-2 normal-case tracking-normal">
               <HeadTip
-                label="Measured"
-                tip="What LoadTruth measured from the footage with Meta's AI. This is the independent, evidence-backed number."
+                label="Estimate"
+                tip="Muse Spark's visual fill estimate from sampled video frames. SAM masks support tracking and review but do not determine this percentage."
                 color="var(--color-money)"
               />
               <span aria-hidden>over</span>
@@ -174,7 +180,7 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
  */
 function DeltaTip() {
   return (
-    <Tooltip content="The gap in dollars: what the monitor's call bills minus what the load actually measures. A positive number means the bill is higher than the evidence supports.">
+    <Tooltip content="The dollar difference between the monitor's call and the current visual estimate. A positive number means the monitor's call is higher than the estimate.">
       <span className="text-[var(--color-subtle)] hover:text-[var(--color-text)]" tabIndex={0}>
         <InfoIcon size={12} />
       </span>

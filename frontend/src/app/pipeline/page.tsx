@@ -80,7 +80,8 @@ export default function PipelinePage() {
           <div className="flex min-w-0 flex-col">
             <h1 className="lt-page-title">AI Pipeline Run</h1>
             <p className="text-[12px] text-muted-foreground">
-              Meta SAM segmentation → Muse Spark understanding → measured load value.
+              SAM tracking evidence → Muse frame-based fill estimates → ticket value from certified
+              capacity and event rates.
             </p>
           </div>
           <Link
@@ -142,7 +143,8 @@ export default function PipelinePage() {
                   {active.ticket_id && (
                     <div className="flex items-center justify-end border-t border-border pt-1.5 text-[11px] text-muted-foreground">
                       <span>
-                        Ticket ID: <span className="font-mono text-foreground">{active.ticket_id}</span>
+                        Ticket ID:{" "}
+                        <span className="font-mono text-foreground">{active.ticket_id}</span>
                       </span>
                     </div>
                   )}
@@ -242,8 +244,8 @@ export default function PipelinePage() {
                                 )}
                               </div>
                               <span className="truncate text-[12px] text-muted-foreground">
-                                {j.debris_class ? debrisLabel(j.debris_class) : "No load detected"} ·{" "}
-                                {j.stages.length} stages ·{" "}
+                                {j.debris_class ? debrisLabel(j.debris_class) : "No load detected"}{" "}
+                                · {j.stages.length} stages ·{" "}
                                 {relativeTime(new Date(j.started_at * 1000).toISOString())}
                               </span>
                             </div>
@@ -252,7 +254,7 @@ export default function PipelinePage() {
                           <div className="flex shrink-0 items-center gap-3">
                             {j.dollar_value != null && (
                               <span className="text-[13px] font-semibold tabular-nums text-[var(--color-money)]">
-                                {money(j.dollar_value)}
+                                {j.outcome === "no_truck" ? "Unavailable" : money(j.dollar_value)}
                               </span>
                             )}
                             <StatusChip tone={OUTCOME_TONE[j.outcome]}>

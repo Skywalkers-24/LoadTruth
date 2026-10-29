@@ -1,7 +1,7 @@
 import { percent } from "@/lib/format";
 
 /**
- * Compact fill comparison: a 0 to 100% track with the measured fill as an
+ * Compact fill comparison: a 0 to 100% track with the visual fill estimate as an
  * amber bar and the monitor's call as a tick. The hatched gap between them is
  * the over-call. Labels carry the numbers so meaning never relies on color.
  */
@@ -25,7 +25,7 @@ export function FillGauge({
       <div
         className="relative h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-surface-3)]"
         role="img"
-        aria-label={`Measured ${percent(m)}${c !== null ? `, monitor called ${percent(c)}` : ""}`}
+        aria-label={`Estimated fill ${percent(m)}${c !== null ? `, monitor called ${percent(c)}` : ""}`}
       >
         <div
           className="absolute inset-y-0 left-0 rounded-full bg-[var(--color-money)]"
@@ -52,7 +52,7 @@ export function FillGauge({
       {showLabels && (
         <div className="flex justify-between text-[11px] tabular-nums text-[var(--color-subtle)]">
           <span>
-            <span className="font-medium text-[var(--color-money)]">{percent(m)}</span> measured
+            <span className="font-medium text-[var(--color-money)]">{percent(m)}</span> estimated
           </span>
           <span>
             {c !== null ? (

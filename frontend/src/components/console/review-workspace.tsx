@@ -51,10 +51,10 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
     <div className="lt-fade-in @container h-full min-h-0">
       {/* Narrow pane on desktop: this element is the one scroll area. Wide
           pane: it is a fixed-height grid and each column scrolls instead. */}
-      <div className="lt-scroll flex min-h-0 flex-col gap-3 lg:h-full lg:@max-[46rem]:overflow-y-auto @[46rem]:grid @[46rem]:grid-cols-[minmax(0,1fr)_20rem] @[46rem]:grid-rows-1 @[46rem]:overflow-hidden @[64rem]:grid-cols-[minmax(0,1fr)_24rem] @[64rem]:gap-4 @[96rem]:grid-cols-[minmax(0,1fr)_28rem]">
+      <div className="lt-scroll flex min-h-0 flex-col gap-3 lg:h-full lg:@max-[42rem]:overflow-y-auto @[42rem]:grid @[42rem]:grid-cols-[minmax(0,1fr)_18rem] @[42rem]:grid-rows-1 @[42rem]:overflow-hidden @[64rem]:grid-cols-[minmax(0,1fr)_24rem] @[64rem]:gap-4 @[96rem]:grid-cols-[minmax(0,1fr)_28rem]">
         {/* Center column. On a narrow pane its wrapper is `display: contents`
             so the decision bar can sit after the rail. */}
-        <div className="lt-scroll contents [&>*]:shrink-0 @[46rem]:flex @[46rem]:min-h-0 @[46rem]:min-w-0 @[46rem]:flex-col @[46rem]:gap-3 @[46rem]:overflow-y-auto">
+        <div className="lt-scroll contents [&>*]:shrink-0 @[42rem]:flex @[42rem]:min-h-0 @[42rem]:min-w-0 @[42rem]:flex-col @[42rem]:gap-3 @[42rem]:overflow-y-auto">
           <TicketHeader ticket={ticket} nav={nav} />
           <MoneyFrame v={ticket.valuation} reviewed={reviewed} />
           <EvidenceCanvas ticket={ticket} />
@@ -75,7 +75,7 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
         {/* Right rail: dynamic content-hugging cards that scroll cleanly
             without artificial empty gaps at the bottom. Bottom padding (lt-fab-safe)
             clears the AI analyst launcher. */}
-        <div className="lt-fab-safe flex min-w-0 flex-col gap-3 @[46rem]:min-h-0 @[46rem]:overflow-y-auto lt-scroll">
+        <div className="lt-fab-safe lt-review-rail-safe flex min-w-0 flex-col gap-3 @[42rem]:min-h-0 @[42rem]:overflow-y-auto lt-scroll">
           <AiAnalysisCard ticketId={ticket.id} />
           <CollapsibleSectionCard
             id="anomaly-flags"
@@ -166,7 +166,6 @@ function AiAnalysisCard({ ticketId }: { ticketId: string }) {
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
 
   return (
-    // Dynamic height card that wraps the 7 stages without empty whitespace at the bottom.
     <section className="lt-card-shadow flex shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
       <header className="lt-card-head shrink-0 border-b border-[var(--color-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-brand)_14%,transparent),transparent)]">
         <span className="grid size-6 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
@@ -184,7 +183,7 @@ function AiAnalysisCard({ ticketId }: { ticketId: string }) {
             className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-brand)] transition-colors hover:bg-[var(--color-brand-soft)]"
           >
             <PanelRightOpenIcon className="size-3.5" />
-            <span className="hidden sm:inline">Inspect</span>
+            <span className="hidden xl:inline">Inspect</span>
           </button>
         </div>
       </header>
@@ -224,8 +223,8 @@ function AiAnalysis({
     );
   }
   return (
-    <>
-      <div className="mb-2 flex items-center justify-between text-[11px] text-[var(--color-muted-foreground)]">
+    <div>
+      <div className="mb-2 text-[11px] text-[var(--color-muted-foreground)]">
         <span>Click any stage to inspect output</span>
       </div>
       <PipelineTrace
@@ -244,6 +243,6 @@ function AiAnalysis({
         currentStageIndex={selectedStageIndex}
         onSelectStageIndex={setSelectedStageIndex}
       />
-    </>
+    </div>
   );
 }

@@ -33,19 +33,19 @@ export function deriveAnomalies(ticket: Ticket): DerivedAnomaly[] {
     });
   }
 
-  // Observable: monitor over-call (potential overbilling) vs measurement.
+  // Observable: monitor over-call (potential overbilling) vs the estimate.
   if (v.is_overbill && v.delta_dollar_value) {
     out.push({
       key: "overbill_discrepancy",
       title: "Monitor over-call",
       severity: "high",
       explanation:
-        "The monitor's billed value exceeds LoadTruth's measured value. Review the money frame and evidence before confirming.",
+        "The monitor's billed value exceeds the current visual estimate. Review the money frame and evidence before confirming.",
       itemized: true,
     });
   }
 
-  // Observable: measured volume exceeds certified capacity.
+  // Observable: estimated volume exceeds certified capacity.
   const cap = Number.parseFloat(v.certified_cubic_yards);
   const est = Number.parseFloat(v.est_cubic_yards);
   if (!Number.isNaN(cap) && !Number.isNaN(est) && est > cap * 1.02) {
@@ -53,7 +53,7 @@ export function deriveAnomalies(ticket: Ticket): DerivedAnomaly[] {
       key: "capacity_exceeded",
       title: "Capacity exceeded",
       severity: "high",
-      explanation: `Measured volume (${est.toFixed(1)} CY) exceeds the truck's certified capacity (${cap.toFixed(1)} CY).`,
+      explanation: `Estimated volume (${est.toFixed(1)} CY) exceeds the truck's certified capacity (${cap.toFixed(1)} CY).`,
       itemized: true,
     });
   }

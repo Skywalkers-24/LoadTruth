@@ -65,8 +65,9 @@ export function RateTableEditor({ event }: { event: EventSummary }) {
   return (
     <div className="flex max-w-2xl flex-col gap-4">
       <p className="text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
-        Each ticket is valued as measured cubic yards times the rate for its debris class. New rates
-        apply to tickets calculated after you save. Existing tickets keep their current values.
+        Each ticket&apos;s estimated cubic yards are multiplied by the rate for its debris class.
+        New rates apply to tickets calculated after you save. Existing tickets keep their current
+        values.
       </p>
 
       <div className="divide-y divide-[var(--color-border)] rounded-lg border border-[var(--color-border)]">

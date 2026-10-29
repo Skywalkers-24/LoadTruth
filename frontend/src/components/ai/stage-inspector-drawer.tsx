@@ -113,7 +113,10 @@ export function StageInspectorDrawer({
       }
       cleanVal = cleanVal
         .replace(/\bdeterministic\b/gi, "verified formula")
-        .replace(/Orthogonal perspective projection & voxel depth integration/gi, "Surface boundary & depth measurement")
+        .replace(
+          /Orthogonal perspective projection & voxel depth integration/gi,
+          "Surface boundary & depth measurement",
+        )
         .replace(/\bvoxel depth integration\b/gi, "depth measurement");
       return [cleanKey, cleanVal] as [string, string];
     });
@@ -166,12 +169,18 @@ export function StageInspectorDrawer({
                     Flagged for review
                   </Badge>
                 ) : isPreviewOrReady ? (
-                  <Badge variant="outline" className="gap-1 border-primary/40 text-[10px] text-primary">
+                  <Badge
+                    variant="outline"
+                    className="gap-1 border-primary/40 text-[10px] text-primary"
+                  >
                     <span className="size-1.5 rounded-full bg-primary" />
                     Ready to process
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="gap-1 border-emerald-500/40 text-[10px] text-emerald-600 dark:text-emerald-400">
+                  <Badge
+                    variant="outline"
+                    className="gap-1 border-emerald-500/40 text-[10px] text-emerald-600 dark:text-emerald-400"
+                  >
                     <CheckCircle2Icon className="size-3" />
                     Completed
                   </Badge>
@@ -253,9 +262,7 @@ export function StageInspectorDrawer({
                 <SparklesIcon className="size-4" />
                 <span>AI ANALYSIS & EXPLANATION</span>
               </div>
-              <p className="mt-2.5 text-[13px] leading-relaxed text-foreground">
-                {cleanAnalysis}
-              </p>
+              <p className="mt-2.5 text-[13px] leading-relaxed text-foreground">{cleanAnalysis}</p>
               {cleanSummary && cleanAnalysis && cleanSummary !== cleanAnalysis && (
                 <div className="mt-3 rounded-lg border border-border/60 bg-background/50 p-2.5 text-xs text-muted-foreground">
                   <span className="font-semibold text-foreground">Summary:</span> {cleanSummary}
@@ -310,7 +317,10 @@ export function StageInspectorDrawer({
                 </h3>
                 <dl className="mt-3 divide-y divide-border/60 text-xs">
                   {regularDetails.map(([key, val], idx) => (
-                    <div key={`${key}-${idx}`} className="flex items-start justify-between py-2 gap-3">
+                    <div
+                      key={`${key}-${idx}`}
+                      className="flex items-start justify-between py-2 gap-3"
+                    >
                       <dt className="text-muted-foreground">{key}</dt>
                       <dd className="text-right font-medium text-foreground break-words max-w-[60%]">
                         {val}
@@ -334,7 +344,11 @@ export function StageInspectorDrawer({
                     onClick={copyJson}
                     className="h-7 gap-1 px-2 text-[11px]"
                   >
-                    {copied ? <CheckIcon className="size-3 text-emerald-500" /> : <CopyIcon className="size-3" />}
+                    {copied ? (
+                      <CheckIcon className="size-3 text-emerald-500" />
+                    ) : (
+                      <CopyIcon className="size-3" />
+                    )}
                     {copied ? "Copied" : "Copy"}
                   </Button>
                 </div>
@@ -348,7 +362,11 @@ export function StageInspectorDrawer({
           {/* Footer with Copy JSON and Close */}
           <div className="flex shrink-0 items-center justify-between border-t border-border bg-card/60 p-4 backdrop-blur-sm">
             <Button variant="outline" size="sm" onClick={copyJson} className="gap-1.5 text-xs">
-              {copied ? <CheckIcon className="size-3.5 text-emerald-500" /> : <CopyIcon className="size-3.5" />}
+              {copied ? (
+                <CheckIcon className="size-3.5 text-emerald-500" />
+              ) : (
+                <CopyIcon className="size-3.5" />
+              )}
               {copied ? "Copied Stage JSON" : "Copy Stage Details"}
             </Button>
             <Button size="sm" onClick={onClose} className="text-xs">

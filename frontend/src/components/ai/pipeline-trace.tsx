@@ -235,7 +235,10 @@ function cleanText(text: string): string {
     .replace(/\bevident\b/gi, "verified")
     .replace(/\bevidence receipt\b/gi, "audit summary")
     .replace(/\bvoxel depth integration\b/gi, "fill depth measurement")
-    .replace(/\border-preserving orthogonal perspective projection\b/gi, "perspective load alignment");
+    .replace(
+      /\border-preserving orthogonal perspective projection\b/gi,
+      "perspective load alignment",
+    );
 }
 
 /**

@@ -158,14 +158,14 @@ export function OverviewDashboard({
             label="Flagged exposure"
             value={<CountUp value={exposure} format={(n) => money(n)} />}
             trend={exposureSpark}
-            hint="Sum of dollar deltas on tickets where the monitor called the load higher than measured. Estimated, pending review."
+            hint="Sum of dollar differences on tickets where the monitor's call is higher than the visual estimate. Pending human review."
             sub={`Across ${d.overbill_ticket_count} over-called ticket${d.overbill_ticket_count === 1 ? "" : "s"}`}
           />
         </StaggerItem>
         <StaggerItem className="h-full">
           <StatCard
             icon={<LayersIcon className="size-4" />}
-            label="Measured value"
+            label="Estimated value"
             value={
               measuredValue === null ? (
                 "N/A"
@@ -174,7 +174,7 @@ export function OverviewDashboard({
               )
             }
             trend={measuredSpark}
-            hint="Total dollar value of every load as measured by LoadTruth."
+            hint="Total estimated dollar value of all loads, based on Muse fill estimates, certified truck capacity, and event rates."
             sub={`${d.ticket_count} tickets in this event`}
           />
         </StaggerItem>
@@ -214,7 +214,7 @@ export function OverviewDashboard({
               )
             }
             progress={d.accuracy_within_10pct ?? undefined}
-            hint="Share of reviewed tickets where the measured fill lands within 10 percentage points of the monitor's call. This is agreement with the human reviewer, not benchmark accuracy against a known volume."
+            hint="Share of reviewed tickets where the Muse fill estimate lands within 10 percentage points of the monitor's call. This is agreement with the human reviewer, not benchmark accuracy against a known volume."
             sub="Within 10 points of the monitor"
           />
         </StaggerItem>

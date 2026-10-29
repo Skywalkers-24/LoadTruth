@@ -118,6 +118,9 @@ export function AppShell({
 
   useEffect(() => setDrawer(false), [pathname]);
   useEffect(() => {
+    document.title = `${section} · LoadTruth`;
+  }, [section]);
+  useEffect(() => {
     // An explicit choice wins. Otherwise start collapsed on laptop and tablet
     // widths (13-inch MacBook, iPad landscape) so the workspace gets the room.
     const stored = window.localStorage.getItem(COLLAPSE_KEY);
@@ -267,6 +270,7 @@ function RailContent({
             const link = (
               <Link
                 href={item.href}
+                aria-label={item.label}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "group relative flex items-center rounded-lg text-[13.5px] font-medium transition-colors duration-150",

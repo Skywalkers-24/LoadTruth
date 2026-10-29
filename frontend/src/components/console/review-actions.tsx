@@ -27,7 +27,7 @@ const COPY: Record<
 > = {
   confirmed: {
     title: "Confirm this ticket?",
-    body: "LoadTruth's measurement becomes the ticket of record for this load.",
+    body: "LoadTruth's visual estimate becomes the ticket of record for this load.",
     cta: "Confirm",
     variant: "ok",
     done: "confirmed",
@@ -168,7 +168,7 @@ export function ReviewActions({
       className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[12px] font-medium text-[var(--color-muted-foreground)]"
     >
       {bar ? "Inspector call" : "Inspector's fill call"}
-      <Tooltip content="The fill percentage the on-site human inspector called for this load. The contractor is paid on this number. Enter it to see how it compares to what the AI measured.">
+      <Tooltip content="The fill percentage the on-site human inspector called for this load. Enter it to compare with Muse Spark's visual estimate.">
         <span tabIndex={0} className="text-[var(--color-subtle)] hover:text-[var(--color-text)]">
           <InfoIcon size={12} />
         </span>

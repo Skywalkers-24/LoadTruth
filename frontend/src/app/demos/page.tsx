@@ -4,13 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  FilmIcon,
-  UploadCloudIcon,
-  Loader2Icon,
-  SparklesIcon,
-  VideoIcon,
-} from "lucide-react";
+import { FilmIcon, UploadCloudIcon, Loader2Icon, SparklesIcon, VideoIcon } from "lucide-react";
 
 import {
   analyzeDemoVideo,
@@ -26,10 +20,7 @@ import { Card } from "@/components/ui/shadcn/card";
 import { Pagination } from "@/components/pagination";
 import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
-import {
-  BENCHMARK_PAIRS,
-  VideoPairCard,
-} from "@/components/demos/video-pair-card";
+import { BENCHMARK_PAIRS, VideoPairCard } from "@/components/demos/video-pair-card";
 
 const button =
   "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-40";
@@ -168,10 +159,13 @@ export default function DemoVideosPage() {
               CCTV Demo Pairs
             </h1>
             <span className="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-              Powered by Meta SAM 3.1 &amp; Muse Spark
+              SAM tracking · Muse fill estimates
             </span>
             <span className="text-[11px] text-muted-foreground hidden lg:inline">
-              · Hosted on <strong className="font-medium text-foreground">Modal</strong>, <strong className="font-medium text-foreground">Fireworks AI</strong>, and <strong className="font-medium text-foreground">Baseten</strong>
+              · Configurable Muse inference options:{" "}
+              <strong className="font-medium text-foreground">
+                Meta direct · Fireworks AI · Modal · Baseten
+              </strong>
             </span>
           </div>
 
@@ -206,10 +200,7 @@ export default function DemoVideosPage() {
             >
               Console →
             </Link>
-            <Link
-              href="/pipeline"
-              className="text-xs font-medium text-primary hover:underline"
-            >
+            <Link href="/pipeline" className="text-xs font-medium text-primary hover:underline">
               Pipeline →
             </Link>
 
@@ -271,11 +262,7 @@ export default function DemoVideosPage() {
             </div>
 
             <div className="flex items-center justify-between gap-2">
-              {progress ? (
-                <p className="text-xs text-muted-foreground">{progress}</p>
-              ) : (
-                <div />
-              )}
+              {progress ? <p className="text-xs text-muted-foreground">{progress}</p> : <div />}
               <button
                 className={`${button} bg-primary text-primary-foreground hover:bg-primary/90 h-7 text-xs`}
                 onClick={() => void upload()}
@@ -310,11 +297,10 @@ export default function DemoVideosPage() {
         {filteredPairs.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border p-8 text-center">
             <FilmIcon className="size-6 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">No video pairs match your category filter.</p>
-            <button
-              className={`${button} h-7 text-xs`}
-              onClick={() => setSelectedDebris("all")}
-            >
+            <p className="text-xs text-muted-foreground">
+              No video pairs match your category filter.
+            </p>
+            <button className={`${button} h-7 text-xs`} onClick={() => setSelectedDebris("all")}>
               Reset to All
             </button>
           </div>
