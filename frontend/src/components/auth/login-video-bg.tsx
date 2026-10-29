@@ -92,14 +92,14 @@ export function LoginVideoBg() {
     const idle = (cb: () => void) => {
       const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => number })
         .requestIdleCallback;
-      if (ric) return ric(cb);
+      if (ric) return ric.call(window, cb);
       return window.setTimeout(cb, 300);
     };
     const id = idle(() => setArmed(true));
     return () => {
       const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void })
         .cancelIdleCallback;
-      if (cic) cic(id as number);
+      if (cic) cic.call(window, id as number);
       else clearTimeout(id as number);
     };
   }, [mode]);
@@ -113,21 +113,29 @@ export function LoginVideoBg() {
     if (!armed) return;
     const el = videoRef.current;
     if (!el) return;
-    el.load();
     const reveal = () => {
-      setReady(true);
-      void el.play().catch(() => {
-        /* autoplay blocked — the poster + themed background stay, which is fine */
-      });
+      void el
+        .play()
+        .then(() => setReady(true))
+        .catch(() => {
+          /* Keep the poster visible if autoplay is blocked. */
+        });
     };
-    el.addEventListener("canplay", reveal, { once: true });
-    el.addEventListener("loadeddata", reveal, { once: true });
+    const retryPlayback = () => reveal();
+    el.addEventListener("canplay", reveal);
+    el.addEventListener("loadeddata", reveal);
     const onError = () => setReady(false);
     el.addEventListener("error", onError);
+    window.addEventListener("pointerdown", retryPlayback);
+    window.addEventListener("keydown", retryPlayback);
+    // Attach listeners before loading so quick/cached media cannot fire past them.
+    el.load();
     return () => {
       el.removeEventListener("canplay", reveal);
       el.removeEventListener("loadeddata", reveal);
       el.removeEventListener("error", onError);
+      window.removeEventListener("pointerdown", retryPlayback);
+      window.removeEventListener("keydown", retryPlayback);
     };
   }, [armed]);
 
@@ -186,6 +194,7 @@ export function LoginVideoBg() {
           ref={videoRef}
           muted
           loop
+          autoPlay
           playsInline
           preload="none"
           poster={poster}

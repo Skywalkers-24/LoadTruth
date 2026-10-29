@@ -144,13 +144,13 @@ export function LoginScreen() {
           the column split); the rest sits on the themed background so the card
           and capability strip stay fully legible. z-10 lifts it above the video
           layer. Scrolls when the content exceeds the viewport. */}
-      <div className="relative z-10 flex min-h-0 flex-col items-center justify-start gap-5 overflow-y-auto bg-gradient-to-r from-transparent via-background/80 to-background px-6 pb-6 pt-16 backdrop-blur-md lg:pt-16 xl:pt-20">
+      <div className="login-screen-panel relative z-10 flex min-h-0 flex-col items-center justify-start gap-5 overflow-y-auto bg-gradient-to-r from-transparent via-background/80 to-background px-6 pb-6 pt-16 backdrop-blur-md lg:pt-16 xl:pt-20">
         {/* Theme picker — reachable before sign-in so users land in their preferred look. */}
         <div className="absolute right-5 top-5 z-10">
           <ThemeToggle />
         </div>
         <div className="flex w-full max-w-md flex-col gap-4">
-          <div className="w-full rounded-2xl border border-border bg-[var(--color-surface)]/90 p-6 shadow-xl backdrop-blur-xl sm:p-8">
+          <div className="login-screen-card w-full rounded-2xl border border-border bg-[var(--color-surface)]/90 p-6 shadow-xl backdrop-blur-xl sm:p-7">
             <div className="mb-6 flex items-center gap-3 lg:hidden">
               <LogoMark size={40} />
               <span className="text-[22px] font-bold tracking-tight">LoadTruth</span>
@@ -161,7 +161,7 @@ export function LoginScreen() {
               Choose a member to sign in as. Each role sees a different set of actions.
             </p>
 
-            <div className="mt-5 flex flex-col gap-2">
+            <div className="login-screen-member-list mt-5 flex flex-col gap-2">
               {directory.isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />
@@ -179,7 +179,7 @@ export function LoginScreen() {
                       type="button"
                       onClick={() => setSelected(m.email)}
                       className={cn(
-                        "flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
+                        "login-screen-member-button flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
                         active
                           ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)] ring-1 ring-[var(--color-brand)]"
                           : "border-border hover:border-[var(--color-border-strong)] hover:bg-accent",
@@ -188,10 +188,10 @@ export function LoginScreen() {
                       <MemberAvatar seed={m.email} />
 
                       <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate text-[14px] font-semibold">
+                        <span className="truncate text-[13px] font-semibold">
                           {m.full_name ?? m.email}
                         </span>
-                        <span className="truncate text-[12px] text-muted-foreground">
+                        <span className="truncate text-[11px] text-muted-foreground">
                           {ROLE_LABEL[m.role]} · {ROLE_BLURB[m.role]}
                         </span>
                       </span>
@@ -207,8 +207,8 @@ export function LoginScreen() {
             {error && <p className="mt-3 text-[13px] text-[var(--color-danger)]">{error}</p>}
 
             <Button
-              className="mt-5 w-full"
-              size="lg"
+              className="login-screen-continue mt-5 w-full"
+              size="default"
               disabled={!selected || submitting}
               onClick={submit}
             >
@@ -236,7 +236,7 @@ export function LoginScreen() {
         {/* Condensed proof strip below the card. It spans the full right-side
             width (not the card's max-w) so the three numbers and the six
             capabilities each read in a single row on desktop. */}
-        <div className="flex w-full max-w-3xl flex-col gap-2.5">
+        <div className="login-screen-proof flex w-full max-w-3xl flex-col gap-2.5">
           <div className="grid grid-cols-3 gap-2">
             <MiniStat value="$1,402" label="Over-calls / event" />
             <MiniStat value="7" label="AI stages / clip" />
@@ -245,7 +245,7 @@ export function LoginScreen() {
           {/* Six compact capabilities in one horizontal row on desktop. They
             wrap to a 3-up then 2-up grid only on narrow screens where a single
             row can't fit, keeping each card equal width. */}
-          <ul className="grid grid-cols-2 gap-1.5 min-[480px]:grid-cols-3 lg:grid-cols-6">
+          <ul className="login-screen-features grid grid-cols-2 gap-1.5 min-[480px]:grid-cols-3 lg:grid-cols-6">
             <MiniFeature
               icon={<ScanEyeIcon className="size-3.5" />}
               title="Measured"
@@ -286,9 +286,9 @@ export function LoginScreen() {
 /** Compact stat chip shown under the sign-in card (short label, no sentence). */
 function MiniStat({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-lg border border-border bg-[var(--color-surface)]/70 px-2.5 py-2 text-center backdrop-blur-sm">
-      <div className="text-[15px] font-bold tabular-nums text-foreground">{value}</div>
-      <div className="mt-0.5 text-[10.5px] leading-tight text-muted-foreground">{label}</div>
+    <div className="rounded-lg border border-border bg-[var(--color-surface)]/70 px-2 py-1.5 text-center backdrop-blur-sm">
+      <div className="text-[13px] font-bold tabular-nums text-foreground">{value}</div>
+      <div className="mt-0.5 text-[9.5px] leading-tight text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -308,12 +308,12 @@ function MiniFeature({
   subtitle: string;
 }) {
   return (
-    <li className="flex flex-col items-center gap-1 rounded-lg border border-border bg-[var(--color-surface)]/70 px-2 py-2 text-center backdrop-blur-sm">
-      <span className="grid size-6 shrink-0 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
+    <li className="flex flex-col items-center gap-1 rounded-lg border border-border bg-[var(--color-surface)]/70 px-1.5 py-1.5 text-center backdrop-blur-sm">
+      <span className="grid size-5 shrink-0 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
         {icon}
       </span>
-      <span className="text-[11px] font-semibold leading-tight text-foreground">{title}</span>
-      <span className="text-[10.5px] leading-tight text-muted-foreground">{subtitle}</span>
+      <span className="text-[10px] font-semibold leading-tight text-foreground">{title}</span>
+      <span className="text-[9px] leading-tight text-muted-foreground">{subtitle}</span>
     </li>
   );
 }
