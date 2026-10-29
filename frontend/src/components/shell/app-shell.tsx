@@ -429,7 +429,7 @@ function TopBar({ section, onMenu }: { section: string; onMenu: () => void }) {
       </nav>
 
       {/* Event switcher lives in the top bar now, next to the workspace context. */}
-      <div className="ml-3 hidden min-w-0 max-w-[280px] flex-1 sm:block">
+      <div className="ml-3 hidden min-w-0 max-w-[460px] flex-1 sm:block">
         <EventSwitcher compact />
       </div>
 

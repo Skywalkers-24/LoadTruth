@@ -65,7 +65,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
   const frames = ticket.evidence_frames;
   const [frameIdx, setFrameIdx] = useState(0);
   const [overlays, setOverlays] = useState<Record<Overlay, boolean>>({
-    body: false,
+    body: true,
     rail: true,
     load: true,
     call: true,
