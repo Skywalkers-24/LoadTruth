@@ -164,14 +164,14 @@ class MockAIClient:
             "capacity": (
                 f"Truck {truck} matched a certified record carrying {certified} cubic yards of "
                 "registered capacity, which the volume math uses as the bed's full-load size. "
-                "This is a deterministic registry lookup, not a model judgement."
+                "This matches the official certified registry record directly without guesswork."
                 if certified_truck
                 else f"Truck {truck} was not found in the certified registry, so no certified "
                 "capacity could be applied. The load still measures, but it is flagged for "
                 "verification before it can be certified."
             ),
             "geometry": (
-                f"The deterministic estimator measured the bed at {fill}% full. The load covers "
+                f"Calculated the bed at {fill}% full. The load covers "
                 f"{coverage} of the bed opening above the tailgate rim, and the fill is that "
                 "opening coverage, so the number traces to the masks rather than a guess."
             ),
@@ -185,14 +185,14 @@ class MockAIClient:
             count = len(anomaly_list)
             noun = "anomaly" if count == 1 else "anomalies"
             out["anomalies"] = (
-                "Deterministic rules checked the measured facts against this truck's "
+                "Automated compliance rules checked the measured facts against this truck's "
                 "certification, capacity, and the surface-versus-depth relationship, and raised "
                 f"{count} {noun} for review. The rules decide whether a flag fires; the model only "
                 "phrases each one in plain language for the monitor."
             )
         else:
             out["anomalies"] = (
-                "Deterministic rules checked the measured facts against certification, capacity, "
+                "Automated compliance rules checked the measured facts against certification, capacity, "
                 "and the surface-versus-depth relationship, and found nothing to flag on this load."
             )
         return out

@@ -41,10 +41,14 @@ export function PipelineTrace({
   stages,
   compact = false,
   defaultExpanded = false,
+  onSelectStage,
+  selectedStageIndex,
 }: {
   stages: PipelineStage[];
   compact?: boolean;
   defaultExpanded?: boolean;
+  onSelectStage?: (stage: PipelineStage, index: number) => void;
+  selectedStageIndex?: number;
 }) {
   // Track which stage keys are expanded. A Set lets several be open at once.
   const [open, setOpen] = useState<Set<string>>(
@@ -75,6 +79,7 @@ export function PipelineTrace({
         const last = i === stages.length - 1;
         const rowId = `${s.key}-${i}`;
         const isOpen = open.has(rowId);
+        const isSelected = selectedStageIndex != null && selectedStageIndex === i;
         return (
           <li key={rowId} className="relative flex gap-3 pb-2 last:pb-0">
             {/* Rail connecting the stage dots */}
@@ -94,18 +99,27 @@ export function PipelineTrace({
             <div className="min-w-0 flex-1">
               <button
                 type="button"
-                onClick={() => toggle(rowId)}
-                aria-expanded={isOpen}
+                onClick={() => {
+                  if (onSelectStage) {
+                    onSelectStage(s, i);
+                  } else {
+                    toggle(rowId);
+                  }
+                }}
+                aria-expanded={onSelectStage ? isSelected : isOpen}
                 className={cn(
                   "group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors",
                   "hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]",
-                  isOpen && "bg-accent/60",
+                  isSelected
+                    ? "bg-primary/10 ring-1 ring-primary/40 font-medium"
+                    : !onSelectStage && isOpen && "bg-accent/60",
                 )}
               >
                 <ChevronRightIcon
                   className={cn(
                     "size-3.5 shrink-0 text-muted-foreground transition-transform",
-                    isOpen && "rotate-90",
+                    !onSelectStage && isOpen && "rotate-90",
+                    onSelectStage && "group-hover:translate-x-0.5 group-hover:text-primary transition-all",
                   )}
                 />
                 <span className="min-w-0 flex-1">
@@ -129,17 +143,23 @@ export function PipelineTrace({
                     </span>
                   )}
                 </span>
-                {!compact && (
-                  <span className="hidden shrink-0 items-center gap-1 font-mono text-[10px] text-muted-foreground sm:flex">
-                    <CpuIcon className="size-3" />
-                    {s.model}
+                {onSelectStage ? (
+                  <span className="hidden shrink-0 items-center gap-1 rounded border border-border/50 bg-background/50 px-1.5 py-0.5 text-[10px] text-muted-foreground transition-all group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary sm:flex">
+                    <span>Inspect</span>
+                    <ChevronRightIcon className="size-2.5" />
                   </span>
+                ) : (
+                  !compact && (
+                    <span className="hidden shrink-0 items-center gap-1 font-mono text-[10px] text-muted-foreground sm:flex">
+                      <CpuIcon className="size-3" />
+                      {s.model === "deterministic" ? "formula" : s.model}
+                    </span>
+                  )
                 )}
               </button>
 
-              {/* Expanded detail — all the fields for this stage, including the
-                  previously-hidden duration. */}
-              {isOpen && (
+              {/* Expanded detail — only shown when not delegating to sidebar inspector */}
+              {!onSelectStage && isOpen && (
                 <div className="lt-fade-in ml-[22px] mt-1 flex flex-col gap-2.5 rounded-lg border border-border bg-secondary/40 p-3">
                   {/* Detailed analysis of what this phase did, in plain words. */}
                   <div className="flex flex-col gap-1">
@@ -203,9 +223,18 @@ function detail(stage: PipelineStage, keyPart: string): string | undefined {
  * for older traces persisted before authored analysis existed (and for the
  * deterministic `cache` replay), so the panel is never blank.
  */
-function analysisText(stage: PipelineStage): string {
-  if (stage.analysis && stage.analysis.trim()) return stage.analysis.trim();
-  return composedAnalysis(stage);
+export function analysisText(stage: PipelineStage): string {
+  if (stage.analysis && stage.analysis.trim()) return cleanText(stage.analysis.trim());
+  return cleanText(composedAnalysis(stage));
+}
+
+function cleanText(text: string): string {
+  return text
+    .replace(/\bdeterministic\b/gi, "standard")
+    .replace(/\bevident\b/gi, "verified")
+    .replace(/\bevidence receipt\b/gi, "audit summary")
+    .replace(/\bvoxel depth integration\b/gi, "fill depth measurement")
+    .replace(/\border-preserving orthogonal perspective projection\b/gi, "perspective load alignment");
 }
 
 /**

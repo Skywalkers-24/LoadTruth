@@ -1181,25 +1181,25 @@ secured lead-acid batteries, hazardous.
 > night color, moderate sensor grain, no camera motion. Top-left white monospace
 > overlay: "CAM 01" and "2019-12-12 21:18:11". 10 seconds, 24 fps.
 
-## 33 — T4 walking-floor, compost feedstock
+## 33 — T4 walking-floor, near-full demolition concrete
 
-**Filename:** `live-33-walking-floor-compost-feedstock.mp4`
-**Truck:** T4 walking-floor, FL-DT-7120, certified 35 CY. **Load:** ~75%
-(~26 CY), green waste.
+**Filename:** `live-33-walking-floor-near-full-concrete.mp4`
+**Truck:** T4 walking-floor, FL-DT-7120, certified 35 CY. **Load:** ~90%
+(~32 CY), recycled concrete and masonry, below the walls.
 
 > Strict camera instruction: use a completely stationary security camera fixed
-> high above the compost-facility gate. No pan, tilt, zoom, dolly, orbit,
+> high above a concrete recycling facility gate. No pan, tilt, zoom, dolly, orbit,
 > tracking, shake, reframing, or angle change at any point; only the truck moves.
-> In steady rain, a long walking-floor trailer drives slowly away along the
+> In a damp evening setting, a long walking-floor trailer drives slowly away along the
 > marked lane and makes one gentle turn into the facility. The open top is clearly visible from the
-> rear-downward angle: roughly 75 percent full of chopped green waste, leaves,
-> and small branches, with the uneven surface below the rails and shadows across
-> it to convey depth. A single white placard centered on the rear door reads
+> rear-downward angle: roughly 90 percent full of crushed concrete and masonry,
+> with the uneven surface just below the rails; do not show overflow. Keep the
+> side walls visible and use clear shadows across the aggregate to convey depth.
+> A single white placard centered on the rear door reads
 > "FL-DT-7120" in bold black text, legible and unchanged from the first frame;
-> no other labels. Gray rainy daylight, wet pavement, and compost windrows and
-> a covered conveyor behind the fence; keep the load visible through the rain.
-> Fixed top-left white
-> monospace overlay: "CAM 01" and "2025-02-20 08:07:36". 10 seconds, 24 fps.
+> no other labels. Directional evening light, a crusher, and
+> sorted aggregate piles behind the fence. Fixed top-left white monospace
+> overlay: "CAM 01" and "2025-02-20 18:07:36". 10 seconds, 24 fps.
 
 ## 34 — T3 roll-off, rainy mixed debris
 
@@ -1283,24 +1283,25 @@ white goods.
 > Fixed top-left white monospace overlay: "CAM 01" and
 > "2021-04-08 13:17:43". 10 seconds, 24 fps.
 
-## 38 — T4 walking-floor, over-capacity brush
+## 38 — T4 walking-floor, near-full asphalt millings
 
-**Filename:** `live-38-walking-floor-overcapacity-brush.mp4`
-**Truck:** T4 walking-floor, FL-DT-9014, certified 32 CY. **Load:** visibly
-heaped above the side walls, capacity exceeded; brush.
+**Filename:** `live-38-walking-floor-near-full-asphalt.mp4`
+**Truck:** T4 walking-floor, FL-DT-9014, certified 32 CY. **Load:** ~90%
+(~29 CY), asphalt millings, below the walls.
 
 > Strict camera instruction: use a rigid, fixed CCTV camera with absolutely no
 > movement for the full duration: no pan, tilt, zoom, dolly, orbit, tracking,
-> shake, reframing, or viewpoint change. Only the truck moves. At a regional
-> storm-cleanup site, a long walking-floor trailer drives slowly away down a
+> shake, reframing, or viewpoint change. Only the truck moves. At an asphalt
+> recycling facility, a long walking-floor trailer drives slowly away down a
 > wide lane between cones and makes one gradual turn far away. The very long
-> open-top bed carries an unmistakably excessive mound of branches and leafy
-> brush, rising well above the straight side walls and spilling visibly over
-> both sides. Show the wall tops and the mound together from the elevated rear
-> angle so the excess height is clear. One white placard centered on the rear
+> open-top bed is about 90 percent full of dark asphalt millings, with a rough
+> granular surface just below the straight side-wall tops; do not show overflow.
+> Show the walls and the entire load together from the elevated rear angle so the
+> high but safe fill level is clear. One white placard centered on the rear
 > trailer door reads "FL-DT-9014" in bold black text, stable and legible from
 > the first frame; no extra ID labels. Warm evening light and work lamps create
-> clear branch shadows, with cleanup equipment beyond the fence. Fixed top-left
+> texture and shadows across the material, with a milling machine beyond the fence.
+> Fixed top-left
 > white monospace overlay: "CAM 01" and "2017-08-24 18:01:09". 10 seconds, 24 fps.
 
 ## 39 — T1 tandem, low-fill C&D
@@ -1365,26 +1366,27 @@ recyclable materials.
 > shadows across the load. Fixed top-left white monospace overlay: "CAM 01" and
 > "2018-05-14 18:42:16". 10 seconds, 24 fps.
 
-## 42 — T3 roll-off, nearly full green waste
+## 42 — T3 roll-off, secured hazardous e-waste
 
-**Filename:** `live-42-rolloff-near-full-green-waste.mp4`
-**Truck:** T3 roll-off, FL-DT-6845, certified 18 CY. **Load:** ~90% (~16 CY),
-green waste, below the walls.
+**Filename:** `live-42-rolloff-hazardous-ewaste.mp4`
+**Truck:** T3 roll-off, FL-DT-6845, certified 18 CY. **Load:** ~85% (~15 CY),
+secured hazardous e-waste, below the walls.
 
 > Strict camera instruction: use one rigidly mounted, completely stationary
 > security camera. It must not pan, tilt, zoom, dolly, orbit, track, shake,
 > reframe, or change position or angle at any time; only the truck moves. At a
-> city compost yard at night, lit by overhead floodlights so the scene is clear,
-> not pitch black. A dark green hook-lift truck with a straight-sided open roll-off
-> container moves slowly away through the marked lane, then makes one
-> gentle turn at the far end. Its container is nearly full, around 90 percent,
-> with compacted leaves, short branches, and chipped brush sitting just below
-> the wall tops; do not show overflow. Keep the full container opening and both
-> side walls visible from above, with shadows that show the uneven depth. One
+> hazardous e-waste receiving yard at night, lit by overhead floodlights so the
+> scene is clear, not pitch black. A dark green hook-lift truck with a straight-sided
+> open roll-off container moves slowly away through the marked lane, then makes
+> one gentle turn at the far end. Its container is about 85 percent full of
+> closed, secured battery and electronics overpack boxes, stacked upright below
+> the wall tops; do not show loose batteries, exposed wires, leaks, or damage.
+> Keep the full container opening and both side walls visible from above, with
+> shadows that show the load arrangement. One
 > centered white rear-door placard reads "FL-DT-6845" in bold black text,
 > visible and unchanged from the first frame; no other ID. Cool night color and
-> mild sensor grain; compost windrows and a loader remain
-> visible behind the fence. Fixed white monospace top-left overlay: "CAM 01" and
+> mild sensor grain; spill-response equipment and warning signs remain visible
+> behind the fence. Fixed white monospace top-left overlay: "CAM 01" and
 > "2023-10-09 21:24:37". 10 seconds, 24 fps.
 
 ## 43 — T4 walking-floor, low-fill demolition debris
@@ -1594,22 +1596,22 @@ mixed storm debris.
 | 24 | T1 tandem | FL-DT-9356 (20) | Roofing debris | ~85% | none | live |
 | 25 | T2 large tandem | FL-DT-1182 (30) | Soil | ~70% | none | live |
 | 26 | T3 roll-off | FL-DT-9601 (15) | C&D | >100% | capacity_exceeded | live |
-| 27 | T1 tandem | FL-DT-3391 (20) | Vegetative | >100% | capacity_exceeded | live |
-| 28 | T4 walking-floor | FL-DT-4417 (30) | Vegetative | surface high, depth low | surface_depth_mismatch | live |
+| 27 | T1 tandem | FL-DT-3391 (20) | C&D | >100% | capacity_exceeded | live |
+| 28 | T4 walking-floor | FL-DT-4417 (30) | Cardboard | surface high, depth low | surface_depth_mismatch | live |
 | 29 | T1 tandem | (unreadable) | C&D | ~60% | identity_unreadable | live |
 | 30 | T3 roll-off | FL-DT-0000 (none) | Wood | ~50% | uncertified_truck | live |
 | 31 | T5 compact dump | FL-DT-5120 (none) | Wood | ~45% | uncertified_truck | live |
-| 32 | T1 tandem | FL-DT-7788 (20) | Vegetative | ~65% | none (night) | live |
-| 33 | T4 walking-floor | FL-DT-7120 (35) | Vegetative | ~75% | none | live |
+| 32 | T1 tandem | FL-DT-7788 (20) | Hazardous batteries | ~85% | none (night) | live |
+| 33 | T4 walking-floor | FL-DT-7120 (35) | Concrete | ~90% | none (evening) | live |
 | 34 | T3 roll-off | FL-DT-8043 (16) | C&D | ~60% | none (rain) | live |
 | 35 | T2 large tandem | FL-DT-1182 (30) | Cardboard | ~50% | none | live |
 | 36 | T1 tandem | FL-DT-8290 (24) | Concrete | ~95% | none | live |
 | 37 | T3 roll-off | FL-DT-5590 (15) | White goods | ~35% | none | live |
-| 38 | T4 walking-floor | FL-DT-9014 (32) | Vegetative | >100% | capacity_exceeded | live |
+| 38 | T4 walking-floor | FL-DT-9014 (32) | Asphalt millings | ~90% | none (evening) | live |
 | 39 | T1 tandem | FL-DT-6612 (22) | C&D | ~25% | none | live |
 | 40 | T3 roll-off | FL-DT-9601 (15) | Hazardous | ~45% | none | live |
 | 41 | T1 tandem | FL-DT-6612 (22) | Recyclables | ~50% | none | live |
-| 42 | T3 roll-off | FL-DT-6845 (18) | Vegetative | ~90% | none | live |
+| 42 | T3 roll-off | FL-DT-6845 (18) | Hazardous e-waste | ~85% | none (night) | live |
 | 43 | T4 walking-floor | FL-DT-9014 (32) | C&D | ~30% | none | live |
 | 44 | T1 tandem | FL-DT-9356 (20) | Asphalt millings | ~70% | none (rain) | live |
 | 45 | T2 large tandem | FL-DT-1182 (30) | Soil | >100% | capacity_exceeded | live |
