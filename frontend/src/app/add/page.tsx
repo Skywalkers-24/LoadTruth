@@ -6,9 +6,10 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightIcon, CheckCircle2Icon, Loader2Icon, UploadCloudIcon } from "lucide-react";
 
-import { ApiError, listDemoVideos, type PipelineProgress } from "@/lib/api";
+import { ApiError, getTicketPipeline, listDemoVideos, type PipelineProgress } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
 import { LivePipelineFlow } from "@/components/ai/live-pipeline-flow";
+import { DEFAULT_PIPELINE_STAGES, PipelineWorkbench } from "@/components/ai/pipeline-workbench";
 import { shortId } from "@/components/console/ticket-metadata";
 import { Button } from "@/components/ui/shadcn/button";
 import { Card } from "@/components/ui/shadcn/card";
@@ -17,7 +18,7 @@ import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
 import { useLatestIngestJob, useSubmitIngestJob } from "@/lib/hooks";
 import { pipelineAttemptKey } from "@/lib/pipeline-progress";
-import { money, percent } from "@/lib/format";
+import { debrisLabel, money, percent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** Map an ingest failure to a clear, status-specific message for the operator. */
@@ -81,6 +82,13 @@ function CaptureWorkspace() {
   }, [ingest.isPending]);
   const [ignoredAttempt, setIgnoredAttempt] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
+
+  const ticketPipeline = useQuery({
+    queryKey: ["ticket-pipeline", result?.id],
+    queryFn: () => getTicketPipeline(result!.id),
+    enabled: Boolean(result?.id),
+    staleTime: 60_000,
+  });
 
   const allowed = can("ingest");
   const showcaseReadOnly = Boolean(selected?.tags.includes("read-only"));
@@ -304,22 +312,43 @@ function CaptureWorkspace() {
         </div>
         <section className="min-h-64 flex-1">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold">Live analysis workspace</h2>
+            <div>
+              <h2 className="text-sm font-semibold">Live analysis workspace</h2>
+              <p className="text-xs text-muted-foreground">
+                Meta SAM 3.1 segmentation → Muse Spark understanding → measured load value.
+              </p>
+            </div>
             <Link href="/pipeline" className="text-xs font-medium text-primary hover:underline">
               All AI pipeline runs →
             </Link>
           </div>
-          <LivePipelineFlow
-            eventId={eventId}
-            active={latest.data?.status === "running"}
-            showIdle
-            ignoredAttempt={ignoredAttempt}
-            detailed
-          />
-          {!busy && !result && (
-            <p className="mt-4 text-xs text-muted-foreground">
-              Upload a clip to reveal stage outputs, model responses, confidence, and timing here.
-            </p>
+
+          {processing ? (
+            <LivePipelineFlow
+              eventId={eventId}
+              active
+              showIdle
+              ignoredAttempt={ignoredAttempt}
+              detailed
+            />
+          ) : result && ticketPipeline.data && ticketPipeline.data.length > 0 ? (
+            <PipelineWorkbench
+              key={result.id}
+              stages={ticketPipeline.data}
+              summary={{
+                truck: result.truck_id ?? "Unidentified",
+                debris: result.debris_class ? debrisLabel(result.debris_class) : "N/A",
+                value: money(result.valuation.est_dollar_value),
+                flags: result.anomaly_count ?? 0,
+              }}
+            />
+          ) : (
+            <div className="flex flex-col gap-3">
+              <PipelineWorkbench stages={DEFAULT_PIPELINE_STAGES} />
+              <p className="text-xs text-muted-foreground">
+                Drop a truck clip above to run this pipeline live on your footage. Click any stage to inspect its purpose and model output in the 38% right-side drawer.
+              </p>
+            </div>
           )}
         </section>
       </div>

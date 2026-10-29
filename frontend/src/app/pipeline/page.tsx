@@ -190,21 +190,15 @@ export default function PipelinePage() {
                 </p>
               ) : (
                 <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-secondary/40 p-3 sm:grid-cols-4">
-                    <Field label="Truck" value={active.truck_id ?? "Unidentified"} />
-                    <Field
-                      label="Debris"
-                      value={active.debris_class ? debrisLabel(active.debris_class) : "N/A"}
-                    />
-                    <Field
-                      label="Value"
-                      value={active.dollar_value != null ? money(active.dollar_value) : "N/A"}
-                    />
-                    <Field label="Flags" value={String(active.anomaly_count)} />
-                  </div>
                   <PipelineWorkbench
                     key={`${eventId}:${active.content_hash}`}
                     stages={active.stages}
+                    summary={{
+                      truck: active.truck_id ?? "Unidentified",
+                      debris: active.debris_class ? debrisLabel(active.debris_class) : "N/A",
+                      value: active.dollar_value != null ? money(active.dollar_value) : "N/A",
+                      flags: active.anomaly_count,
+                    }}
                   />
                   {active.ticket_id && (
                     <button
