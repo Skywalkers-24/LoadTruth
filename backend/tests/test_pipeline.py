@@ -236,7 +236,11 @@ async def test_pipeline_second_run_is_a_cache_hit() -> None:
     first = await run_pipeline(artifact=_artifact("clean-full-cd"), **kwargs)  # type: ignore[arg-type]
     second = await run_pipeline(artifact=_artifact("clean-full-cd"), **kwargs)  # type: ignore[arg-type]
 
-    assert second is first  # cached result object returned as-is
+    assert second is not first
+    assert second.ticket.id != first.ticket.id
+    assert second.ticket.est_fill_pct == first.ticket.est_fill_pct
+    assert second.trace is not None and second.trace.cached
+    assert first.trace is not None and not first.trace.cached
     assert len(cache) == 1
     summary = ledger.summarize()
     # First run: 8 compute rows (7 stages + the batched analysis). Second run is

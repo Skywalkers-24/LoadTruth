@@ -10,11 +10,11 @@ import { useTheme } from "@/lib/theme";
  * Goals:
  *  - Text stays readable: the video sits behind a scrim and the real content.
  *  - Fast first paint on any link: a lightweight poster frame paints instantly,
- *    and the video is `preload="none"` so it never blocks sign-in. The clip
- *    only starts fetching once the browser is idle (requestIdleCallback).
+ *    while the muted background video starts loading as soon as the component
+ *    hydrates.
  *  - Right-sized download: the tier (sm/md/lg/xl) is chosen from the visitor's
  *    connection so a phone on 3G pulls ~430KB while a desktop on wifi gets the
- *    full-quality clip. Data-saver and 2G skip the video entirely.
+ *    full-quality clip. Data-saver and 2G receive the smallest clip.
  *  - Mode aware: dark vs light sources picked from the active theme mode, and
  *    the element remounts on a mode switch (keyed) so the right clip plays.
  *  - Degrades gracefully: if the video can't load or play, the poster and the
@@ -42,16 +42,15 @@ type NetworkInfo = {
 
 /** Pick a tier from the Network Information API, with safe fallbacks.
  *
- * The bias is toward playing the video: the only hard skip is an explicit
- * data-saver request. An unknown or ambiguous connection hint resolves to a
- * small tier so the clip still plays on a modest link rather than falling back
- * to a static poster (which is what "I can't see the video" looked like). */
-function pickTier(): Tier | null {
+ * The bias is toward playing the video. An unknown or ambiguous connection hint
+ * resolves to a modest tier so the clip still plays instead of falling back to
+ * a static poster. */
+function pickTier(): Tier {
   if (typeof navigator === "undefined") return "lg";
   const conn = (navigator as Navigator & { connection?: NetworkInfo }).connection;
   if (!conn) return "lg"; // no hint (Safari/Firefox): assume a healthy link
 
-  if (conn.saveData) return null; // honor data-saver: skip video entirely
+  if (conn.saveData) return "sm"; // keep the motion while limiting the download
 
   const type = conn.effectiveType ?? "";
   const down = conn.downlink ?? 0;
@@ -71,65 +70,44 @@ export function LoginVideoBg() {
   const poster = `/login-${videoMode}-poster.jpg`;
   const videoRef = useRef<HTMLVideoElement>(null);
   const [ready, setReady] = useState(false);
-  // Defer loading until the browser is idle so the login form paints first.
-  const [armed, setArmed] = useState(false);
   const [tier, setTier] = useState<Tier | null>(null);
+  const src = tier ? TIER_FILE[tier](videoMode) : null;
   // 1 = fully visible; dips toward 0 at the loop seam to hide the restart cut.
   const [loopFade, setLoopFade] = useState(1);
 
   useEffect(() => {
     setReady(false);
-    setArmed(false);
-
-    // Only an explicit data-saver / 2g skips the clip. Reduced-motion still gets
-    // the video: it is muted and loops gently as an ambient background, not an
-    // attention-grabbing animation, and the poster remains the fallback if it
-    // can't load.
-    const chosen = pickTier();
-    setTier(chosen);
-    if (!chosen) return; // data-saver only: poster stays
-
-    const idle = (cb: () => void) => {
-      const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => number })
-        .requestIdleCallback;
-      if (ric) return ric(cb);
-      return window.setTimeout(cb, 300);
-    };
-    const id = idle(() => setArmed(true));
-    return () => {
-      const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void })
-        .cancelIdleCallback;
-      if (cic) cic(id as number);
-      else clearTimeout(id as number);
-    };
+    setTier(pickTier());
   }, [mode]);
 
-  // Once armed, load + play. Autoplay only works muted + playsInline. We reveal
-  // the video on the first frame that can paint (canplay OR loadeddata, since
-  // browsers differ on which fires first) and attempt playback; if the browser
-  // blocks autoplay or the file errors, `ready` stays false and the poster
-  // keeps showing.
+  // Autoplay requires muted inline playback. Start as soon as the source is
+  // attached, and retry on a user gesture for browsers that defer autoplay.
   useEffect(() => {
-    if (!armed) return;
+    if (!src) return;
     const el = videoRef.current;
     if (!el) return;
-    el.load();
-    const reveal = () => {
-      setReady(true);
-      void el.play().catch(() => {
-        /* autoplay blocked — the poster + themed background stay, which is fine */
-      });
+    const play = () => {
+      void el
+        .play()
+        .then(() => setReady(true))
+        .catch(() => {
+          /* Keep the poster visible; a later user gesture retries playback. */
+        });
     };
-    el.addEventListener("canplay", reveal, { once: true });
-    el.addEventListener("loadeddata", reveal, { once: true });
+    const onPlaying = () => setReady(true);
     const onError = () => setReady(false);
+    el.addEventListener("playing", onPlaying);
     el.addEventListener("error", onError);
+    window.addEventListener("pointerdown", play);
+    window.addEventListener("keydown", play);
+    play();
     return () => {
-      el.removeEventListener("canplay", reveal);
-      el.removeEventListener("loadeddata", reveal);
+      el.removeEventListener("playing", onPlaying);
       el.removeEventListener("error", onError);
+      window.removeEventListener("pointerdown", play);
+      window.removeEventListener("keydown", play);
     };
-  }, [armed]);
+  }, [src]);
 
   // Smooth, seamless loop. The clip's last frame does not match its first, so a
   // raw `loop` shows a hard cut. The earlier fix reversed playback by stepping
@@ -139,7 +117,7 @@ export function LoginVideoBg() {
   // crossfade: as the clip nears its end we dip the video toward the poster for
   // ~0.5s, it loops back to 0, and we fade it back in. No seeking, so no stall.
   useEffect(() => {
-    if (!armed || !ready) return;
+    if (!src || !ready) return;
     const el = videoRef.current;
     if (!el) return;
 
@@ -163,9 +141,7 @@ export function LoginVideoBg() {
       if (raf) cancelAnimationFrame(raf);
       setLoopFade(1);
     };
-  }, [armed, ready]);
-
-  const src = tier ? TIER_FILE[tier](videoMode) : null;
+  }, [src, ready]);
 
   return (
     <div
@@ -180,14 +156,16 @@ export function LoginVideoBg() {
           opacity: ready ? 0 : 1,
         }}
       />
-      {armed && src && (
+      {src && (
         <video
           key={src}
           ref={videoRef}
+          src={src}
           muted
           loop
+          autoPlay
           playsInline
-          preload="none"
+          preload="auto"
           poster={poster}
           disablePictureInPicture
           tabIndex={-1}
@@ -206,9 +184,7 @@ export function LoginVideoBg() {
                 ? "brightness(1.35) contrast(1.1) saturate(1.3)"
                 : "brightness(1.15) contrast(1.05) saturate(1.2)",
           }}
-        >
-          <source src={src} type="video/mp4" />
-        </video>
+        />
       )}
       {/* Very light vignette only. The brand panel carries its own left-edge
           gradient for text legibility, so this just keeps the footage from

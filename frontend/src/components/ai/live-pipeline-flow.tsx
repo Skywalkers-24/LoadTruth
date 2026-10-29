@@ -30,13 +30,19 @@ const STAGE_FLOW: { key: string; label: string }[] = [
  */
 export function LivePipelineFlow({
   eventId,
+  active = false,
+  showIdle = false,
   onComplete,
 }: {
   eventId: string | null | undefined;
+  /** Keep polling and show pending stages while an upload is being processed. */
+  active?: boolean;
+  /** Render the pending stage map before the first upload. */
+  showIdle?: boolean;
   /** Called once when a run transitions to done, so the caller can refresh. */
   onComplete?: () => void;
 }) {
-  const progress = usePipelineProgress(eventId ?? undefined);
+  const progress = usePipelineProgress(eventId ?? undefined, active);
   const run = progress.data ?? null;
 
   // Fire onComplete exactly once per finished run (keyed by content hash).
@@ -50,14 +56,23 @@ export function LivePipelineFlow({
     }
   }, [run]);
 
-  if (!run) return null;
-  return <Flow run={run} />;
+  if (!run && !active && !showIdle) return null;
+  return <Flow run={run} active={active} idle={!run && !active} />;
 }
 
-function Flow({ run }: { run: PipelineProgress }) {
-  const running = run.status === "running";
-  const byKey = new Map(run.stages.map((s) => [s.key, s]));
-  const lastKey = run.stages[run.stages.length - 1]?.key;
+function Flow({
+  run,
+  active,
+  idle,
+}: {
+  run: PipelineProgress | null;
+  active: boolean;
+  idle: boolean;
+}) {
+  const running = run?.status === "running" || (!run && active);
+  const stages = run?.stages ?? [];
+  const byKey = new Map(stages.map((s) => [s.key, s]));
+  const lastKey = stages[stages.length - 1]?.key;
   const last = lastKey ? byKey.get(lastKey) : undefined;
   const cached = byKey.has("cache");
 
@@ -69,19 +84,21 @@ function Flow({ run }: { run: PipelineProgress }) {
             "grid size-6 place-items-center rounded-md",
             running
               ? "bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
+              : idle
+                ? "bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
               : "bg-[var(--color-ok-soft)] text-[var(--color-ok)]",
           )}
         >
-          {running ? (
-            <LoaderIcon className="size-3.5 animate-spin" />
+          {running || idle ? (
+            <LoaderIcon className={cn("size-3.5", running && "animate-spin")} />
           ) : (
             <CheckIcon className="size-3.5" />
           )}
         </span>
         <h3 className="text-[13px] font-semibold">
-          {running ? "Analysing clip" : outcomeTitle(run)}
+          {idle ? "Pipeline ready" : running ? "Analysing clip" : run ? outcomeTitle(run) : "Analysis pending"}
         </h3>
-        {run.truck_id && (
+        {run?.truck_id && (
           <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] font-medium tabular-nums text-[var(--color-muted-foreground)]">
             {run.truck_id}
           </span>
@@ -93,7 +110,7 @@ function Flow({ run }: { run: PipelineProgress }) {
           Served from the result cache, no model call.
         </p>
       ) : (
-        <ol className="flex gap-1.5 overflow-x-auto pb-1">
+        <ol className="flex flex-wrap gap-x-1.5 gap-y-2 pb-1">
           {STAGE_FLOW.map((s, i) => {
             const stage = byKey.get(s.key);
             const active = running && lastKey === s.key;
@@ -103,7 +120,7 @@ function Flow({ run }: { run: PipelineProgress }) {
                   label={s.label}
                   stage={stage}
                   active={active}
-                  pending={!stage && running}
+                  pending={!stage && (running || idle)}
                 />
                 {i < STAGE_FLOW.length - 1 && (
                   <span
@@ -128,7 +145,7 @@ function Flow({ run }: { run: PipelineProgress }) {
         </p>
       )}
 
-      {run.detail && run.outcome !== "drafted" && run.outcome !== "cached" && (
+      {run?.detail && run.outcome !== "drafted" && run.outcome !== "cached" && (
         <p className="mt-2 text-[12px] text-[var(--color-warn)]">{run.detail}</p>
       )}
     </section>

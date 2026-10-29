@@ -56,11 +56,12 @@ from app.ai.pricing import sam_billed_units, sam_cost_usd, spark_cost_usd, token
 from app.ai.request_params import params_for
 from app.ai.sam_measure import (
     BED_FROM_BED,
-    BED_FROM_TRUCK,
     BED_LABEL,
     LOAD_LABEL,
     LOAD_PREFIX,
     RIM_LABEL,
+    SAM_PROMPT_VERSION,
+    TRUCK_BODY_LABEL,
     Detection,
     frames_covered,
     measure,
@@ -120,25 +121,29 @@ _CLASSIFY_PROMPT = (
 )
 
 _NAME_LOAD_PROMPT = (
-    "This is evidence footage of a haul truck at a debris site. Look at the material "
-    "loaded in the open truck bed and give short noun phrases naming it, so an image "
-    "segmentation model can find every piece of it. Rules for each phrase: name the "
-    "thing itself, not the truck or the bed; use a concrete noun phrase of one to four "
-    "words, like 'tree branches', 'broken concrete', 'barrels and containers', "
-    "'household furniture', 'metal appliances'; no sentences, questions, colors unless "
-    "they matter, or the word 'debris' alone. Return concepts as one to three phrases "
-    "ordered best first, covering the load if it is mixed. If the bed looks empty, "
-    "return an empty list. visible_fill_pct is your estimate from 0 to 100 of how full "
-    "the bed is by volume."
+    "Inspect only the material physically inside the open bed of the foreground haul truck. "
+    "Ignore background piles, ground debris, and other vehicles. Classify the dominant load "
+    "as exactly one of vegetative, hazardous, white_goods, construction_demolition, or other. "
+    "Also return one to three short, concrete object noun phrases for items visibly inside "
+    "that bed, ordered most visible first, so SAM can segment those objects. Examples: tree "
+    "branches or logs; paint cans or propane cylinders; refrigerators or washing machines; "
+    "lumber, drywall, concrete, or roofing; tires or mixed household items. Do not name the "
+    "truck, bed, background material, or generic phrases like 'debris pile' or 'pile'. If the "
+    "bed is visibly empty, return an empty concepts list and class other. visible_fill_pct is "
+    "an estimate from 0 to 100 of bed volume occupied, based only on the foreground bed."
 )
 
 _NAME_LOAD_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "concepts": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
+        "debris_class": {
+            "type": "string",
+            "enum": ["vegetative", "hazardous", "white_goods", "construction_demolition", "other"],
+        },
         "visible_fill_pct": {"type": "number"},
     },
-    "required": ["concepts", "visible_fill_pct"],
+    "required": ["concepts", "debris_class", "visible_fill_pct"],
     "additionalProperties": False,
 }
 
@@ -302,7 +307,11 @@ def _in_bed_pixels(load: list[Detection], bed: list[Detection]) -> int:
             width = min(ld.box.right, b.box.right) - max(ld.box.left, b.box.left)
             height = min(ld.box.bottom, b.box.bottom) - max(ld.box.top, b.box.top)
             if width > 0 and height > 0:
-                total += width * height
+                overlap = width * height
+                # A match mostly outside the cargo opening is a body/background
+                # detection even if its box crosses the bed.
+                if overlap / max(1, ld.box.area) >= 0.5:
+                    total += overlap
     return total
 
 
@@ -435,14 +444,15 @@ class LiveAIClient:
         return PreparedMedia(clip.media_kind, prepared.mime, len(prepared.data), part, file_id)
 
     # ── SAM 3.1 ──────────────────────────────────────────────────────────────
-    async def _name_load_concepts(self, media: PreparedMedia) -> tuple[list[str], CallUsage | None]:
+    async def _name_load_concepts(
+        self, media: PreparedMedia
+    ) -> tuple[list[str], str, CallUsage | None]:
         """Ask Muse Spark what noun phrases name the load, for SAM to segment.
 
-        The vision model looks at the clip and names the load's shape (for
-        example "barrels and containers", "tree branches"), so SAM is not tied
-        to a fixed phrase list. Returns the cleaned phrases (best first) and the
-        call's usage. On any failure returns no phrases; the caller falls back to
-        the configured defaults, so naming can never break the run."""
+        The vision model identifies the debris class and names visible objects,
+        so SAM is not tied to a fixed phrase list. Returns the cleaned phrases,
+        class, and call usage. On failure the caller uses class-specific fallback
+        phrases, so naming can never prevent a SAM pass."""
         try:
             response, usage = await self._spark(
                 "name_load",
@@ -451,22 +461,28 @@ class LiveAIClient:
             )
             answer = _json_answer(response)
         except (ModelAPIResponseError, ModelAPIRequestError):
-            return [], None
+            return [], "other", None
         raw = answer.get("concepts")
         phrases = [_clean_concept(p) for p in raw] if isinstance(raw, list) else []
         phrases = [p for p in dict.fromkeys(phrases) if p][: get_settings().sam_load_max_concepts]
-        return phrases, usage
+        debris_class = str(answer.get("debris_class") or "other").strip().lower()
+        return phrases, debris_class if debris_class in DEBRIS_CLASSES else "other", usage
 
     async def track(self, clip: ClipMedia) -> TrackResult:
         media = await self._media(clip)
         s = get_settings()
-        # Muse Spark names the load's shape first, so SAM segments what is
-        # actually in the bed rather than a fixed phrase list. The configured
-        # defaults are kept as a safety net appended after the named phrases, so
-        # a strange model answer can never leave SAM with nothing to find.
-        named, name_usage = await self._name_load_concepts(media)
+        # Muse Spark names the load and class first; category-specific phrases
+        # ensure SAM still has useful prompts if the naming call returns no items.
+        named, debris_class, name_usage = await self._name_load_concepts(media)
         bed_concepts = list(dict.fromkeys(s.sam_bed_concepts))
-        load_concepts = list(dict.fromkeys([*named, *s.sam_load_concepts]))[
+        class_concepts = {
+            "vegetative": ["tree branches", "logs", "yard waste"],
+            "hazardous": ["paint cans", "chemical containers", "propane cylinders"],
+            "white_goods": ["refrigerators", "washing machines", "water heaters"],
+            "construction_demolition": ["lumber", "concrete rubble", "drywall"],
+            "other": ["discarded tires", "furniture", "mixed bulky items"],
+        }
+        load_concepts = list(dict.fromkeys([*named, *class_concepts[debris_class]]))[
             : max(1, s.sam_load_max_concepts)
         ]
         # Every concept goes to SAM in one parallel round: the bed phrases (in
@@ -476,11 +492,20 @@ class LiveAIClient:
         runs = dict(
             zip(
                 concepts,
+                # SAM receives one short object noun phrase per request. The
+                # prompt-naming call already limits these concepts to items seen
+                # inside this truck; the bed mask clips the resulting regions.
                 await asyncio.gather(*(self._segment(media, c) for c in concepts)),
                 strict=True,
             )
         )
-        bed_concept = next((c for c in bed_concepts if runs[c].detections), bed_concepts[0])
+        # The first prompt is the cargo opening used for measurement and load
+        # clipping. The second is only a visual exterior/body outline; never
+        # substitute it for the opening if SAM misses the interior.
+        bed_concept = bed_concepts[0]
+        body_concept = (
+            bed_concepts[1] if len(bed_concepts) > 1 and runs[bed_concepts[1]].detections else None
+        )
         bed, rim = runs[bed_concept], runs[s.sam_rim_concept]
         loads = [runs[c] for c in load_concepts]
         result = await asyncio.to_thread(
@@ -511,9 +536,12 @@ class LiveAIClient:
         # The overlay draws the bed and the load phrase that found the most;
         # every phrase's raw output is also kept so Re-measure can replay it.
         best_load = max(loads, key=lambda r: _in_bed_pixels(r.detections, bed.detections))
+        best_load_overlap = _in_bed_pixels(best_load.detections, bed.detections)
         segments = {
             BED_LABEL: bed.text,
-            LOAD_LABEL: best_load.text,
+            **({TRUCK_BODY_LABEL: runs[body_concept].text} if body_concept else {}),
+            # An off-truck background match must not become the Review overlay.
+            LOAD_LABEL: best_load.text if best_load_overlap else "",
             RIM_LABEL: rim.text,
             **{f"{LOAD_PREFIX}{c}": runs[c].text for c in load_concepts},
         }
@@ -521,12 +549,20 @@ class LiveAIClient:
         notes = {
             **_track_notes(media, runs, bed_concept, s.sam_rim_concept, load_concepts),
             "Load named by Muse Spark": (
-                ", ".join(f'"{c}"' for c in named) if named else "naming failed, used defaults"
+                ", ".join(f'"{c}"' for c in named) if named else "no specific objects named"
             ),
+            "Load class from Muse Spark": debris_class,
             **result.notes,
         }
-        bed_source = BED_FROM_BED if bed_concept == bed_concepts[0] else BED_FROM_TRUCK
-        return replace(result, usage=usage, segments=segments, notes=notes, bed_source=bed_source)
+        bed_source = BED_FROM_BED
+        return replace(
+            result,
+            usage=usage,
+            segments=segments,
+            notes=notes,
+            bed_source=bed_source,
+            sam_prompt_version=SAM_PROMPT_VERSION,
+        )
 
     async def _segment(self, media: PreparedMedia, concept: str) -> _SegmentRun:
         model = get_ai_config_store().resolve("sam_track").model

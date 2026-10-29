@@ -7,13 +7,15 @@ spread of tickets (with anomalies) that exercise every surface — the dashboard
 money frame, every review-console state, and the reports breakdowns. Editing the
 data is a JSON change, not a code change.
 
-Seeding is idempotent: it no-ops if the demo event already exists. Clearly-
-labeled sample data, not real haul records.
+Seeding is idempotent: the original demo seed is installed once, and the
+separate read-only showcase bundle restores its preprocessed videos/results.
 """
 
 from __future__ import annotations
 
 import json
+from datetime import datetime
+from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -27,6 +29,8 @@ from app.tickets.domain import new_ticket
 from app.tickets.schemas import DebrisClass
 
 _SEED_PATH = Path(__file__).resolve().parents[2] / "seed.json"
+_SHOWCASE_PATH = Path(__file__).resolve().parents[2] / "showcase" / "benchmark.json"
+_SHOWCASE_MEDIA_DIR = _SHOWCASE_PATH.parent / "media"
 
 
 @lru_cache
@@ -238,12 +242,136 @@ def _build_ticket_rows(
     return tickets, anomalies, stages
 
 
+@lru_cache
+def _showcase_data() -> dict[str, Any]:
+    """Preprocessed real-video output; loading it never calls an AI service."""
+    data = json.loads(_SHOWCASE_PATH.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("Showcase data must be an object")
+    return data
+
+
+def _decimal(value: object) -> Decimal | None:
+    return Decimal(str(value)) if value is not None else None
+
+
+async def _seed_showcase(session: AsyncSession, tenant_id: UUID) -> None:
+    """Install the immutable, precomputed Meta showcase event and its media."""
+    from app.pipeline import evidence_store
+
+    data = _showcase_data()
+    event = data["event"]
+    event_id = UUID(str(event["id"]))
+    existing_event = (
+        await session.execute(select(models.Event).where(models.Event.id == event_id))
+    ).scalar_one_or_none()
+    if existing_event is None:
+        session.add(
+            models.Event(
+                id=event_id,
+                tenant_id=tenant_id,
+                name=event["name"],
+                location=event["location"],
+                status=event["status"],
+                rate_table=dict(event["rate_table"]),
+                tags=list(event["tags"]),
+            )
+        )
+    else:
+        existing_event.name = event["name"]
+        existing_event.location = event["location"]
+        existing_event.tags = list(event["tags"])
+
+    # Store the packaged source clips under their content hashes. The endpoint
+    # serves these files on review; it never needs to call Meta to reconstruct
+    # the recorded analysis.
+    for media in data["media"]:
+        source = _SHOWCASE_MEDIA_DIR / media["filename"]
+        if source.is_file():
+            await evidence_store.save(
+                media["content_hash"],
+                source.read_bytes(),
+                mime=media["mime"],
+                fps=float(media["fps"]) if media.get("fps") is not None else None,
+            )
+
+    for item in data["tickets"]:
+        ticket_id = UUID(str(item["id"]))
+        found = await session.scalar(select(models.Ticket.id).where(models.Ticket.id == ticket_id))
+        if found is not None:
+            continue
+        session.add(
+            models.Ticket(
+                id=ticket_id,
+                tenant_id=tenant_id,
+                event_id=event_id,
+                clip_id=None,
+                truck_id=item["truck_id"],
+                certified_cubic_yards=Decimal(item["certified_cubic_yards"]),
+                debris_class=item["debris_class"],
+                rate_per_cy=Decimal(item["rate_per_cy"]),
+                est_fill_pct=Decimal(item["est_fill_pct"]),
+                est_cubic_yards=Decimal(item["est_cubic_yards"]),
+                est_dollar_value=Decimal(item["est_dollar_value"]),
+                monitor_call_fill_pct=_decimal(item.get("monitor_call_fill_pct")),
+                monitor_cubic_yards=_decimal(item.get("monitor_cubic_yards")),
+                monitor_dollar_value=_decimal(item.get("monitor_dollar_value")),
+                delta_cubic_yards=_decimal(item.get("delta_cubic_yards")),
+                delta_dollar_value=_decimal(item.get("delta_dollar_value")),
+                status="draft",
+                confirmed_fill_pct=None,
+                evidence_frames=list(item.get("evidence_frames", [])),
+                created_at=datetime.fromisoformat(item["created_at"]),
+            )
+        )
+        for anomaly in item.get("anomalies", []):
+            session.add(
+                models.Anomaly(
+                    tenant_id=tenant_id,
+                    ticket_id=ticket_id,
+                    type=anomaly["type"],
+                    severity=anomaly["severity"],
+                    explanation=anomaly.get("explanation"),
+                    evidence_frame=anomaly.get("evidence_frame"),
+                )
+            )
+        session.add(
+            models.TicketEvidence(
+                tenant_id=tenant_id,
+                ticket_id=ticket_id,
+                content_hash=item["content_hash"],
+                media_kind=item["media_kind"],
+                mime=item["mime"],
+                fps=_decimal(item.get("fps")),
+                segments=dict(item.get("segments", {})),
+            )
+        )
+        for stage in item.get("stages", []):
+            session.add(
+                models.PipelineStageRow(
+                    tenant_id=tenant_id,
+                    ticket_id=ticket_id,
+                    position=stage["position"],
+                    stage_key=stage["stage_key"],
+                    label=stage["label"],
+                    model=stage["model"],
+                    status=stage["status"],
+                    summary=stage["summary"],
+                    confidence=_decimal(stage.get("confidence")),
+                    duration_ms=_decimal(stage.get("duration_ms")) or Decimal(0),
+                    details=list(stage.get("details", [])),
+                    analysis=stage.get("analysis"),
+                )
+            )
+    await session.flush()
+
+
 async def seed_demo(session: AsyncSession) -> None:
     """Idempotently seed the demo tenant from `seed.json`. Safe on every startup.
 
     Seeds the tenant-level truck registry and members once, then every event
-    (with its own rate table, sources, and tickets). No-ops if the first event
-    already exists.
+    (with its own rate table, sources, and tickets). Existing installations
+    still receive the separately packaged showcase event and media.
     """
     data = _seed_data()
     tenant_id = DEMO_TENANT_ID
@@ -257,6 +385,8 @@ async def seed_demo(session: AsyncSession) -> None:
         await session.execute(select(models.Event).where(models.Event.id == DEMO_EVENT_ID))
     ).scalar_one_or_none()
     if existing is not None:
+        await _seed_showcase(session, tenant_id)
+        await session.commit()
         return
 
     # Tenant-level registry + members (shared across events).
@@ -292,6 +422,7 @@ async def seed_demo(session: AsyncSession) -> None:
                 location=ev.get("location"),
                 status=ev.get("status", "active"),
                 rate_table=dict(ev.get("rate_table", {})),
+                tags=list(ev.get("tags", [])),
             )
         )
         for s in ev.get("sources", []):
@@ -311,5 +442,7 @@ async def seed_demo(session: AsyncSession) -> None:
         session.add_all(tickets)
         session.add_all(anomalies)
         session.add_all(stages)
+
+    await _seed_showcase(session, tenant_id)
 
     await session.commit()

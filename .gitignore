@@ -28,8 +28,9 @@
 .DS_Store
 **/.DS_Store
 
-# Large demo video exports (keep out of git; share separately)
+# Large demo video exports; login background clips are deployed with the frontend.
 *.mp4
+!frontend/public/login-*.mp4
 
 # Local review/scratch artifacts
 semantic-review/
@@ -40,6 +41,9 @@ responses.log
 logs/
 # Stored evidence clips (customer media); see backend/app/pipeline/evidence_store.py
 media/
+# Explicitly curated clips that the user requested for the public, read-only showcase.
+!backend/showcase/media/
+!backend/showcase/media/**
 *.local
 
 # Local scratch / experiment scripts and logs (not part of the app)

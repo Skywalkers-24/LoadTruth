@@ -16,6 +16,11 @@ import { useTruckMutations, useTrucks } from "@/lib/hooks";
 import { cubicYards } from "@/lib/format";
 
 const TRUCK_PAGE_SIZE = 10;
+const BODY_TYPE_OPTIONS = [
+  { value: "tandem", label: "Tandem" },
+  { value: "walking-floor", label: "Walking floor" },
+  { value: "roll-off", label: "Roll-off" },
+] as const;
 
 /**
  * Certified-truck registry: list, add, edit, and remove certified trucks. Add
@@ -252,7 +257,24 @@ export function TruckRegistry() {
               placeholder="20"
               type="number"
             />
-            <Field label="Body type" value={body} onChange={setBody} placeholder="tandem" />
+            <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]">
+              Body type
+              <select
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+              >
+                <option value="">Select a body type</option>
+                {body && !BODY_TYPE_OPTIONS.some((option) => option.value === body) && (
+                  <option value={body}>{body} (existing)</option>
+                )}
+                {BODY_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Field
               label="Registry source"
               value={source}

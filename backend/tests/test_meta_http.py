@@ -103,7 +103,7 @@ async def test_auth_and_model_access_errors(status: int) -> None:
     def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(status, json={"error": {"code": "model_not_found"}})
 
-    with pytest.raises(ModelAPIAuthError):
+    with pytest.raises(ModelAPIRequestError if status == 404 else ModelAPIAuthError):
         await _http(handler).create_response({"model": "m"})
 
 

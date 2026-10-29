@@ -76,8 +76,12 @@ export interface EventSummary {
   location: string | null;
   status: string;
   rate_table: Record<string, number>;
+  tags: string[];
   created_at: string;
 }
+
+/** Stable read-only Meta-processed dataset shown in the public demo console. */
+export const SHOWCASE_EVENT_ID = "55555555-5555-4555-8555-555555555555";
 
 export interface Dashboard {
   event_id: string;
@@ -166,6 +170,7 @@ export interface EventInput {
   location?: string | null;
   status?: string;
   rate_table?: Record<string, number>;
+  tags?: string[];
 }
 
 /** A role within the product's RBAC vocabulary. */

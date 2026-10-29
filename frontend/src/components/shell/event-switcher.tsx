@@ -35,7 +35,9 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
   const { org } = orgFromEvent(selected);
   const initials = org.slice(0, 2).toUpperCase();
   const filtered = events.filter((e) =>
-    `${e.name} ${e.location ?? ""}`.toLowerCase().includes(q.trim().toLowerCase()),
+    `${e.name} ${e.location ?? ""} ${(e.tags ?? []).join(" ")}`
+      .toLowerCase()
+      .includes(q.trim().toLowerCase()),
   );
 
   if (isLoading) return <Skeleton className={compact ? "h-9 w-56 rounded-lg" : "h-12 w-full rounded-lg"} />;
@@ -177,6 +179,15 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
                               {e.location}
                             </span>
                           )}
+                          {e.tags?.length > 0 && eventTagBadges(e.tags).length > 0 && (
+                            <span className="mt-1 flex flex-wrap gap-1">
+                              {eventTagBadges(e.tags).map((tag) => (
+                                <Badge key={tag.key} tone={tag.tone}>
+                                  {tag.label}
+                                </Badge>
+                              ))}
+                            </span>
+                          )}
                         </span>
                         <Badge tone={e.status === "active" ? "ok" : "neutral"}>{e.status}</Badge>
                         {active && (
@@ -194,4 +205,18 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
         </div>
     );
   }
+}
+
+function eventTagBadges(tags: string[]) {
+  const badges: { key: string; label: string; tone: "neutral" | "accent" | "ok" | "info" }[] = [];
+  if (tags.includes("judge") || tags.includes("benchmarked")) {
+    badges.push({ key: "judge-benchmarked", label: "Judge benchmarked", tone: "ok" });
+  }
+  if (tags.includes("meta-processed")) {
+    badges.push({ key: "meta-processed", label: "Meta processed", tone: "info" });
+  }
+  if (tags.includes("read-only")) {
+    badges.push({ key: "read-only", label: "Read only", tone: "neutral" });
+  }
+  return badges;
 }

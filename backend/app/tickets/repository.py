@@ -192,6 +192,7 @@ def _to_event(row: models.Event) -> Event:
         location=row.location,
         status=row.status,
         rate_table=dict(row.rate_table or {}),
+        tags=list(row.tags or []),
         id=row.id,
         created_at=row.created_at,
     )
@@ -1063,6 +1064,7 @@ class SqlTicketRepository:
         location: str | None,
         status: str,
         rate_table: dict[str, float],
+        tags: list[str] | None = None,
     ) -> Event:
         """Create a disaster event for the tenant."""
         row = models.Event(
@@ -1071,6 +1073,7 @@ class SqlTicketRepository:
             location=location,
             status=status,
             rate_table=rate_table,
+            tags=list(tags or []),
         )
         self._s.add(row)
         await self._s.flush()
@@ -1085,6 +1088,7 @@ class SqlTicketRepository:
         location: str | None = None,
         status: str | None = None,
         rate_table: dict[str, float] | None = None,
+        tags: list[str] | None = None,
         fields_set: set[str],
     ) -> Event:
         """Patch an event; only fields named in ``fields_set`` change."""
@@ -1097,6 +1101,8 @@ class SqlTicketRepository:
             row.status = status
         if "rate_table" in fields_set and rate_table is not None:
             row.rate_table = rate_table
+        if "tags" in fields_set and tags is not None:
+            row.tags = list(tags)
         await self._s.flush()
         return _to_event(row)
 

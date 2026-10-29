@@ -1,5 +1,5 @@
 # Render Blueprint for the LoadTruth FastAPI backend.
-# Connect this repository in Render; pushes deploy after the repository CI checks pass.
+# Connect this repository in Render; pushes to main deploy immediately.
 services:
   - type: web
     name: loadtruth-api
@@ -9,7 +9,7 @@ services:
     buildCommand: pip install .
     startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: commit
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8

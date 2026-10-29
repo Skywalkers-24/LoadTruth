@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -259,12 +260,22 @@ export function usePipelineJobs(opts: {
  * still sees the in-flight run. Polling stops once the run is done (and when the
  * tab is hidden).
  */
-export function usePipelineProgress(eventId: string | undefined) {
+export function usePipelineProgress(eventId: string | undefined, pollWhileActive = false) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (eventId && pollWhileActive) {
+      void qc.invalidateQueries({ queryKey: ["pipeline-progress", eventId] });
+    }
+  }, [eventId, pollWhileActive, qc]);
   return useQuery({
     queryKey: ["pipeline-progress", eventId],
     enabled: Boolean(eventId),
     queryFn: () => api.getPipelineProgress(eventId as string),
-    refetchInterval: (query) => (query.state.data?.status === "running" ? 3000 : false),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === "done") return false;
+      return status === "running" || pollWhileActive ? 1500 : false;
+    },
     refetchIntervalInBackground: false,
   });
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { decodeMaskToSVGPath, formats } from "@meta-sam/parser";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { PlayIcon, PauseIcon, Volume2Icon, VolumeXIcon } from "lucide-react";
 
 import { fetchEvidenceMediaUrl, type TicketEvidence } from "@/lib/api";
 
@@ -25,7 +26,9 @@ export interface SamTrack {
 }
 
 export const BED_LABEL = "truck bed";
+export const TRUCK_BODY_LABEL = "truck body";
 export const LOAD_LABEL = "debris pile";
+const LOAD_PREFIX = "load: ";
 
 /**
  * Parse SAM 3.1's raw output (one line per frame, a box and a mask per object)
@@ -66,7 +69,7 @@ export function parseSam(text: string, media: "video" | "image"): SamTrack {
 interface Props {
   ticketId: string;
   evidence: TicketEvidence;
-  show: { bed: boolean; load: boolean };
+  show: { body: boolean; bed: boolean; load: boolean };
   onFrame?: (frame: number, total: number) => void;
 }
 
@@ -79,10 +82,23 @@ export function SamPlayer({ ticketId, evidence, show, onFrame }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [frame, setFrame] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const [time, setTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [playError, setPlayError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const loadClipId = useId().replaceAll(":", "");
   const isImage = evidence.media_kind === "image";
 
   useEffect(() => {
+    setUrl(null);
+    setFailed(false);
+    setFrame(0);
+    setTime(0);
+    setDuration(0);
+    setPlaying(false);
+    setPlayError(false);
     let alive = true;
     let objectUrl: string | null = null;
     fetchEvidenceMediaUrl(ticketId)
@@ -101,14 +117,21 @@ export function SamPlayer({ ticketId, evidence, show, onFrame }: Props) {
   const tracks = useMemo(() => {
     const media = isImage ? "image" : "video";
     return {
+      body: parseSam(evidence.segments[TRUCK_BODY_LABEL] ?? "", media),
       bed: parseSam(evidence.segments[BED_LABEL] ?? "", media),
-      load: parseSam(evidence.segments[LOAD_LABEL] ?? "", media),
+      rim: parseSam(evidence.segments.tailgate ?? "", media),
+      load: mergeSamTracks(loadTexts(evidence.segments).map((text) => parseSam(text, media))),
     };
   }, [evidence.segments, isImage]);
 
-  const width = tracks.bed.width || tracks.load.width;
-  const height = tracks.bed.height || tracks.load.height;
-  const total = Math.max(tracks.bed.frameCount, tracks.load.frameCount);
+  const width = tracks.body.width || tracks.bed.width || tracks.load.width;
+  const height = tracks.body.height || tracks.bed.height || tracks.load.height;
+  const total = Math.max(
+    tracks.body.frameCount,
+    tracks.bed.frameCount,
+    tracks.load.frameCount,
+    tracks.rim.frameCount,
+  );
 
   // Follow playback: map media time to a SAM frame index.
   useEffect(() => {
@@ -153,68 +176,275 @@ export function SamPlayer({ ticketId, evidence, show, onFrame }: Props) {
     );
   }
 
-  const bedShapes = show.bed ? (tracks.bed.frames.get(frame) ?? []) : [];
-  const loadShapes = show.load ? (tracks.load.frames.get(frame) ?? []) : [];
+  const layers = frameLayers(tracks.bed, tracks.load, tracks.rim, frame);
+  const bodyShapes = tracks.body.frames.get(frame) ?? [];
+  const { bed, rim, loads } = layers;
+  const openingId = `${loadClipId}-opening`;
+  const exteriorId = `${loadClipId}-exterior`;
+  const bodyMaskId = `${loadClipId}-body-mask`;
+
+  async function togglePlayback() {
+    const video = videoRef.current;
+    if (!video) return;
+    if (!video.paused) video.pause();
+    else {
+      try {
+        await video.play();
+        setPlayError(false);
+      } catch {
+        setPlayError(true);
+      }
+    }
+  }
 
   return (
-    <div className="absolute inset-0 bg-black">
-      {url &&
-        (isImage ? (
-          // eslint-disable-next-line @next/next/no-img-element -- a blob URL, not an optimizable asset
-          <img src={url} alt="Evidence frame" className="size-full object-contain" />
-        ) : (
-          <video
-            ref={videoRef}
-            src={url}
-            className="size-full object-contain"
-            autoPlay
-            muted
-            loop
-            playsInline
-            controls
-            aria-label="Evidence clip with segmentation overlay"
+    <div className="absolute inset-0 flex flex-col bg-black">
+      <div className="relative min-h-0 flex-1">
+        {!url && (
+          <div className="absolute inset-0 grid place-items-center text-xs text-white/70">
+            Loading evidence…
+          </div>
+        )}
+        {url &&
+          (isImage ? (
+            // eslint-disable-next-line @next/next/no-img-element -- authenticated blob media
+            <img
+              src={url}
+              alt="Evidence frame"
+              className="size-full object-contain"
+              onError={() => setFailed(true)}
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              src={url}
+              className="size-full object-contain"
+              autoPlay
+              muted={muted}
+              loop
+              playsInline
+              onPlay={() => setPlaying(true)}
+              onPause={() => setPlaying(false)}
+              onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
+              onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+              onError={() => setFailed(true)}
+              aria-label="Evidence clip with segmentation overlay"
+            />
+          ))}
+        {width > 0 && height > 0 && (
+          <svg
+            viewBox={`0 0 ${width} ${height}`}
+            preserveAspectRatio="xMidYMid meet"
+            className="pointer-events-none absolute inset-0 size-full"
+            aria-hidden
+          >
+            <defs>
+              <clipPath id={openingId} clipPathUnits="userSpaceOnUse">
+                {bed && <rect x={bed.left} y={0} width={bed.right - bed.left} height={rim} />}
+              </clipPath>
+              <clipPath id={exteriorId} clipPathUnits="userSpaceOnUse">
+                {bed && (
+                  <rect
+                    x={bed.left}
+                    y={rim}
+                    width={bed.right - bed.left}
+                    height={Math.max(0, bed.bottom - rim)}
+                  />
+                )}
+              </clipPath>
+              <mask
+                id={bodyMaskId}
+                maskUnits="userSpaceOnUse"
+                x={0}
+                y={0}
+                width={width}
+                height={height}
+                style={{ maskType: "luminance" }}
+              >
+                <rect width={width} height={height} fill="white" />
+                {bed && (
+                  <rect
+                    x={bed.left}
+                    y={bed.top}
+                    width={bed.right - bed.left}
+                    height={Math.max(0, rim - bed.top)}
+                    fill="black"
+                  />
+                )}
+                {loads.map((s) => (
+                  <path
+                    key={s.objectId}
+                    d={s.path}
+                    transform={`translate(${s.left} ${s.top})`}
+                    fill="black"
+                  />
+                ))}
+              </mask>
+            </defs>
+            {show.body && (
+              <g mask={`url(#${bodyMaskId})`}>
+                {bodyShapes.map((s) => (
+                  <Shape key={`body-${s.objectId}`} s={s} color="#f59e0b" />
+                ))}
+                {/* A bed prompt often includes the tailgate face. Reassign that visible
+                  exterior to Body using the same rim boundary as measurement. */}
+                {bed && (
+                  <g clipPath={`url(#${exteriorId})`}>
+                    <Shape s={bed} color="#f59e0b" />
+                  </g>
+                )}
+              </g>
+            )}
+            {show.bed && bed && (
+              <g clipPath={`url(#${openingId})`}>
+                <Shape s={bed} color="#0284c7" />
+              </g>
+            )}
+            {show.load && (
+              <g clipPath={`url(#${openingId})`}>
+                {loads.map((s) => (
+                  <Shape key={s.objectId} s={s} color="#8b5cf6" prominent />
+                ))}
+              </g>
+            )}
+          </svg>
+        )}
+      </div>
+      {!isImage && url && (
+        <div className="flex shrink-0 items-center gap-2 bg-black px-3 py-2 text-white">
+          <button
+            type="button"
+            aria-label={playing ? "Pause evidence" : "Play evidence"}
+            onClick={() => void togglePlayback()}
+            className="rounded p-1.5 hover:bg-white/20 focus-visible:outline-2"
+          >
+            {playing ? <PauseIcon size={16} /> : <PlayIcon size={16} />}
+          </button>
+          <input
+            aria-label="Seek evidence"
+            type="range"
+            min={0}
+            max={Number.isFinite(duration) ? duration : 0}
+            step={0.01}
+            value={time}
+            onChange={(e) => {
+              const t = Number(e.target.value);
+              if (videoRef.current) videoRef.current.currentTime = t;
+              setTime(t);
+            }}
+            className="min-w-0 flex-1 accent-violet-400"
           />
-        ))}
-      {width > 0 && height > 0 && (
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="xMidYMid meet"
-          className="pointer-events-none absolute inset-0 size-full"
-          aria-hidden
-        >
-          {bedShapes.map((s) => (
-            <Shape key={`b${s.objectId}`} s={s} color="var(--color-info)" />
-          ))}
-          {loadShapes.map((s) => (
-            <Shape key={`l${s.objectId}`} s={s} color="var(--color-money)" />
-          ))}
-        </svg>
+          <span className="text-[11px] tabular-nums">
+            {clockTime(time)} / {clockTime(duration)}
+          </span>
+          <button
+            type="button"
+            aria-label={muted ? "Unmute evidence" : "Mute evidence"}
+            onClick={() => setMuted((m) => !m)}
+            className="rounded p-1.5 hover:bg-white/20 focus-visible:outline-2"
+          >
+            {muted ? <VolumeXIcon size={16} /> : <Volume2Icon size={16} />}
+          </button>
+          {playError && (
+            <span role="status" className="text-xs">
+              Playback could not start. Try again.
+            </span>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-function Shape({ s, color }: { s: SamShape; color: string }) {
+function clockTime(seconds: number) {
+  const n = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
+  return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
+}
+
+/** All named material prompts contribute; the legacy aggregate is a fallback. */
+export function loadTexts(segments: Record<string, string>): string[] {
+  const named = Object.entries(segments).filter(([key]) => key.startsWith(LOAD_PREFIX));
+  return named.length ? named.map(([, text]) => text) : [segments[LOAD_LABEL] ?? ""];
+}
+
+/** Mirror the backend's dominant bed and tailgate boundary without intersecting
+ * cargo with visible metal surfaces (which exclude the cargo by definition). */
+export function frameLayers(beds: SamTrack, loads: SamTrack, rims: SamTrack, frame: number) {
+  const totals = new Map<string, number>();
+  for (const shapes of beds.frames.values())
+    for (const s of shapes) {
+      totals.set(
+        s.objectId,
+        (totals.get(s.objectId) ?? 0) + (s.right - s.left) * (s.bottom - s.top),
+      );
+    }
+  const id = [...totals].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const bed = beds.frames.get(frame)?.find((s) => s.objectId === id);
+  if (!bed) return { bed: undefined, rim: 0, loads: [] as SamShape[] };
+  const floor = bed.top + (bed.bottom - bed.top) * 0.25;
+  const candidates = (rims.frames.get(frame) ?? []).filter(
+    (s) => overlapShare(s, bed) > 0 && s.top >= floor && s.top < bed.bottom,
+  );
+  const rim = candidates.length ? Math.min(...candidates.map((s) => s.top)) : bed.bottom;
+  return {
+    bed,
+    rim,
+    loads: (loads.frames.get(frame) ?? []).filter(
+      (s) => overlapShare(s, bed) >= 0.5 && s.top < rim,
+    ),
+  };
+}
+
+/** Combine every phrase SAM used for this load into one frame-indexed track. */
+function mergeSamTracks(tracks: SamTrack[]): SamTrack {
+  const frames = new Map<number, SamShape[]>();
+  let width = 0;
+  let height = 0;
+  let frameCount = 0;
+  for (const [trackIndex, track] of tracks.entries()) {
+    width ||= track.width;
+    height ||= track.height;
+    frameCount = Math.max(frameCount, track.frameCount);
+    for (const [frame, shapes] of track.frames) {
+      const uniquelyIdentified = shapes.map((shape) => ({
+        ...shape,
+        objectId: `${trackIndex}-${shape.objectId}`,
+      }));
+      frames.set(frame, [...(frames.get(frame) ?? []), ...uniquelyIdentified]);
+    }
+  }
+  return { frames, width, height, frameCount };
+}
+
+/** Suppress prompt matches outside the measured bed; it commonly includes
+ * stationary debris in the background that is unrelated to this truckload. */
+function overlapShare(shape: SamShape, bed: SamShape): number {
+  const width = Math.max(0, Math.min(shape.right, bed.right) - Math.max(shape.left, bed.left));
+  const height = Math.max(0, Math.min(shape.bottom, bed.bottom) - Math.max(shape.top, bed.top));
+  const area = Math.max(1, shape.right - shape.left) * Math.max(1, shape.bottom - shape.top);
+  return (width * height) / area;
+}
+
+function Shape({
+  s,
+  color,
+  prominent = false,
+}: {
+  s: SamShape;
+  color: string;
+  prominent?: boolean;
+}) {
   return (
     <g>
       <path
         d={s.path}
         transform={`translate(${s.left} ${s.top})`}
         fill={color}
-        fillOpacity={0.32}
+        fillOpacity={prominent ? 0.38 : 0.22}
         stroke={color}
-        strokeWidth={1.5}
-        vectorEffect="non-scaling-stroke"
-      />
-      <rect
-        x={s.left}
-        y={s.top}
-        width={s.right - s.left}
-        height={s.bottom - s.top}
-        fill="none"
-        stroke={color}
-        strokeWidth={1}
-        strokeDasharray="4 3"
+        strokeWidth={prominent ? 1.8 : 1.3}
+        fillRule="evenodd"
+        strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
       />
     </g>

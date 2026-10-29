@@ -39,6 +39,11 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
       if (current && events.some((e) => e.id === current)) return current;
       const stored =
         typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
+      const requested =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("event")
+          : null;
+      if (requested && events.some((e) => e.id === requested)) return requested;
       if (stored && events.some((e) => e.id === stored)) return stored;
       return events[0]?.id;
     });

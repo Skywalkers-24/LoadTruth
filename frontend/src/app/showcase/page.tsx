@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SHOWCASE_EVENT_ID } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "LoadTruth — a load ticket anyone can reproduce",
@@ -59,10 +60,10 @@ function Nav() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Link
-            href="/console"
+            href={`/console?event=${SHOWCASE_EVENT_ID}`}
             className="rounded-md bg-[var(--color-brand)] px-3 py-1.5 text-[13px] font-medium text-white hover:opacity-90"
           >
-            Open the console
+            Explore benchmarked videos
           </Link>
         </div>
       </div>
@@ -91,10 +92,10 @@ function Hero() {
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
           <Link
-            href="/console"
+            href={`/console?event=${SHOWCASE_EVENT_ID}`}
             className="rounded-md bg-[var(--color-brand)] px-5 py-2.5 text-[14px] font-semibold text-white hover:opacity-90"
           >
-            See a live ticket
+            Explore benchmarked videos
           </Link>
           <Link
             href="/guide"

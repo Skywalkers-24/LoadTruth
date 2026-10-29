@@ -14,12 +14,14 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from app.ai.base import AIClient, CallUsage, ClipMedia, OCRResult, StageExplanations
 from app.ai.config_store import get_ai_config_store
+from app.ai.sam_measure import MEASURE_VERSION, SAM_PROMPT_VERSION
 from app.config import get_settings
 from app.pipeline.anomalies import Anomaly, AnomalyInput, evaluate
 from app.pipeline.cache import ResultCache
@@ -90,7 +92,7 @@ async def run_pipeline(
     h = artifact.content_hash
     # Results include tenant/event-specific ticket fields and pricing, so they
     # must never be shared across tenants or events for identical media bytes.
-    cache_key = f"{tenant_id}:{event_id}:{h}"
+    cache_key = f"{tenant_id}:{event_id}:m{MEASURE_VERSION}:p{SAM_PROMPT_VERSION}:{h}"
 
     if cache is not None:
         hit = await cache.get(cache_key)
@@ -103,9 +105,14 @@ async def run_pipeline(
             trace.stage(
                 "cache", "Result cache", "cache", "Served from the result cache (no model call)."
             )  # noqa: E501
-            trace.ticket_id = str(hit.ticket.id) if not hit.no_truck else None
-            hit.trace = trace
-            return hit
+            # PipelineResult's cached ticket is the original run's persisted
+            # ticket. Every ingest still creates a new ticket row, so copy the
+            # cached measurement into a fresh ticket identity instead of
+            # reusing its primary key. Clone the result too: the in-memory
+            # cache may return its stored object by reference.
+            ticket = replace(hit.ticket, id=uuid4(), created_at=datetime.now(UTC))
+            trace.ticket_id = str(ticket.id) if not hit.no_truck else None
+            return replace(hit, ticket=ticket, trace=trace)
 
     if ledger is not None and ledger.budget_status().hard_cap_hit:
         raise BudgetExceededError(ledger.budget_status().spent_usd)

@@ -112,6 +112,9 @@ class TrackResult:
     # (app.ai.sam_measure.MEASURE_VERSION); 0 for fixtures. A stored result from
     # an older method is re-measured from its stored SAM output.
     measure_version: int = 0
+    # Version of the SAM text prompt and class-to-concept mapping that produced
+    # this track. Prompt changes require a fresh SAM pass, not offline remeasure.
+    sam_prompt_version: int = 0
     # Which SAM phrase gave the bed outline: "bed" (the truck bed itself) or
     # "truck" (no bed phrase matched, so the whole truck was used; coarser,
     # lowers confidence).

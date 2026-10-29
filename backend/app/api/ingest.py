@@ -189,6 +189,12 @@ async def ingest_clip(
     event = await repo.get_event(tenant, event_id)
     if event is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "event not found")
+    if "read-only" in event.tags:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "This preprocessed showcase event is read-only. Choose a working event "
+            "to upload clips.",
+        )
 
     data = await file.read()
     filename = file.filename or "upload.mp4"
@@ -294,9 +300,6 @@ async def ingest_clip(
 
     # Record the run in the job store so the Pipeline view and the ticket's AI
     # analysis panel can show exactly how the result was produced.
-    if result.trace is not None:
-        await get_job_store().add(event_id, result.trace)
-
     if result.no_truck:
         await progress.finish(
             event_id,
@@ -309,26 +312,40 @@ async def ingest_clip(
             "No truck or load was detected in that footage, so no ticket was drafted.",
         )
 
-    saved = await repo.add_from_pipeline(result.ticket, list(result.anomalies))
-    # Persist the AI stage trace so this ticket keeps its analysis permanently.
-    if result.trace is not None and result.trace.stages:
-        await repo.save_pipeline_stages(tenant, saved.id, list(result.trace.stages))
-    # Keep the clip for the Review console. The live client already stored the
-    # exact media the models saw; otherwise (fixtures, or a cached replay of an
-    # older clip) store the upload itself, which plays without an overlay.
-    await evidence_store.save(
-        artifact.content_hash, data, mime=guess_mime(filename, artifact.media_kind)
-    )
-    stored = await evidence_store.load(artifact.content_hash)
-    await repo.save_ticket_evidence(
-        tenant,
-        saved.id,
-        content_hash=artifact.content_hash,
-        media_kind=artifact.media_kind,
-        mime=stored.mime if stored else guess_mime(filename, artifact.media_kind),
-        fps=stored.fps if stored else None,
-        segments=result.segments,
-    )
+    try:
+        saved = await repo.add_from_pipeline(result.ticket, list(result.anomalies))
+        # Persist the AI stage trace so this ticket keeps its analysis permanently.
+        if result.trace is not None and result.trace.stages:
+            await repo.save_pipeline_stages(tenant, saved.id, list(result.trace.stages))
+        # Keep the clip for the Review console. The live client already stored
+        # the exact media the models saw; otherwise (fixtures, or a cached
+        # replay of an older clip) store the upload itself.
+        await evidence_store.save(
+            artifact.content_hash, data, mime=guess_mime(filename, artifact.media_kind)
+        )
+        stored = await evidence_store.load(artifact.content_hash)
+        await repo.save_ticket_evidence(
+            tenant,
+            saved.id,
+            content_hash=artifact.content_hash,
+            media_kind=artifact.media_kind,
+            mime=stored.mime if stored else guess_mime(filename, artifact.media_kind),
+            fps=stored.fps if stored else None,
+            segments=result.segments,
+        )
+    except Exception as exc:  # noqa: BLE001 — return a clean failure and close progress.
+        log.error("ingest_persistence_failed", content_hash=ch, exc_info=True)
+        await progress.finish(
+            event_id, ch, outcome="failed", detail="The drafted ticket could not be saved."
+        )
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "The drafted ticket could not be saved. Please try the upload again.",
+        ) from exc
+
+    if result.trace is not None:
+        result.trace.ticket_id = str(saved.id)
+        await get_job_store().add(event_id, result.trace)
     await progress.finish(
         event_id,
         ch,
@@ -357,6 +374,12 @@ def _model_api_http_error(exc: ModelAPIError) -> HTTPException:
             status.HTTP_503_SERVICE_UNAVAILABLE,
             "The AI service did not accept this server's credentials. An administrator "
             "should check the Model API key.",
+        )
+    if exc.status == 404 and exc.code == "model_not_found":
+        return HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "The AI service could not find the configured model. An administrator should "
+            "check the selected model and account access.",
         )
     if isinstance(exc, ModelAPIUnavailableError):
         return HTTPException(
