@@ -10,7 +10,8 @@ you add a module or move responsibility, update the relevant row in the same cha
 loadtruth/
 ├─ backend/              FastAPI, Python 3.12 — API + pipeline + worker
 ├─ frontend/             Next.js 16 App Router — operator console
-├─ infra/                Supabase schema, RLS policies, migrations, seed
+├─ infra/                Supabase RLS policies and platform SQL
+├─ backend/migrations/   Application schema migrations (Alembic)
 ├─ scripts/              Reusable task entry points (setup/dev/test/eval/pipeline/...)
 ├─ docs/                 PROGRESS · CHANGELOG(root) · LESSONS · DEPLOYMENT · this map
 ├─ .github/workflows/    CI (ci.yml), security (codeql.yml), deploy (deploy.yml)

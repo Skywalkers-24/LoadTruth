@@ -17,6 +17,8 @@
 # Node / Next
 **/node_modules/
 **/.next/
+**/.open-next/
+**/.wrangler/
 **/out/
 **/coverage/
 *.tsbuildinfo

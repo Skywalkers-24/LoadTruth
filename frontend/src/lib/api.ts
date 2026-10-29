@@ -1,17 +1,17 @@
 /**
- * Thin typed client for the FastAPI backend. During local dev, requests go
- * through the Next.js rewrite in `next.config.ts` (`/api/*` -> backend), so the
- * browser uses a relative base and server components use BACKEND_URL.
+ * Thin typed client for the FastAPI backend. Production browser requests go
+ * directly to Render (NEXT_PUBLIC_API_URL); local dev can use the Next rewrite.
  */
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
+const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 
 /**
- * Base URL. In the browser, requests go through the Next.js `/api/*` rewrite
- * (next.config.ts) to the backend; on the server we call the backend directly.
+ * Browser traffic avoids proxying large evidence uploads through the Worker.
+ * Server components call the backend directly via BACKEND_URL.
  */
 function baseUrl(): string {
-  return typeof window === "undefined" ? BACKEND_URL : "/api";
+  return typeof window === "undefined" ? BACKEND_URL : PUBLIC_API_URL || "/api";
 }
 
 export interface Health {

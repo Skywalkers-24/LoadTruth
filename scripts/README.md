@@ -11,7 +11,7 @@ Conventions: bash scripts start with `set -euo pipefail`, are idempotent, print 
 | `lint.sh` | Lint + format check (ruff, eslint, prettier, sqlfluff) | planned |
 | `test.sh` | Run backend `pytest --cov` + frontend `vitest` + Playwright | planned |
 | `eval.sh` | Full open-source quality gate the "AI judge" check mirrors (see protocol §5) | **present (stub)** |
-| `db-migrate.sh` | Apply Alembic migrations + verify RLS on tenant tables | planned |
+| `make db-migrate` | Apply backend Alembic migrations (Supabase RLS SQL remains in `infra/rbac/`) | Makefile target |
 | `live-check.sh [clip]` | Verify the Meta Model API key and, with a clip, run the full pipeline live (`make live-check CLIP=…`) | **present** |
 | `meta-log.sh [N]` | One line per recorded Meta API call from `logs/meta_api.jsonl` (`make meta-log N=50`) | **present** |
 | `pipeline.sh <clip>` | Run the full video-to-ticket pipeline on one clip (cached) | planned |

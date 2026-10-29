@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     # Runtime
     environment: str = Field(default="development", alias="ENVIRONMENT")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+    cors_origins: str = Field(default="http://localhost:3000", alias="CORS_ORIGINS")
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        """Configured browser origins, comma-separated for Render environment variables."""
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     # Pipeline cost controls (see PLAN.md §5, §5a, LESSONS.md)
     frame_sample_fps: float = Field(default=3.0)

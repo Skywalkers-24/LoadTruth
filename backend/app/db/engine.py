@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from functools import lru_cache
+from pathlib import Path
 
 from sqlalchemy import Connection, inspect, text
 from sqlalchemy.ext.asyncio import (
@@ -60,20 +61,19 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 
 
 async def init_db() -> None:
-    """Create the app's tables from the ORM metadata (idempotent).
-
-    Runs on both the interim SQLite DB and the local Docker Postgres so the app
-    is runnable end-to-end without a migration step — `create_all` only creates
-    missing tables. (The production Supabase deploy applies the richer
-    `infra/rbac/*.sql` with RLS + pgvector instead; this is the pragmatic local
-    path and is safe to run on top of an already-provisioned schema.)
-    """
-    from app.db import models  # noqa: F401  (register models on the metadata)
-    from app.db.base import Base
+    """Apply backend Alembic migrations, then add nullable compatibility columns."""
+    from alembic import command
+    from alembic.config import Config
 
     engine = get_engine()
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
+
+        def upgrade(sync_conn: Connection) -> None:
+            config.attributes["connection"] = sync_conn
+            command.upgrade(config, "head")
+
+        await conn.run_sync(upgrade)
         await conn.run_sync(_add_missing_columns)
 
 

@@ -1,0 +1,31 @@
+# Render Blueprint for the LoadTruth FastAPI backend.
+# Connect this repository in Render; pushes deploy after the repository CI checks pass.
+services:
+  - type: web
+    name: loadtruth-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install .
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: DATABASE_URL
+        sync: false # Supabase session-pooler URL, converted to postgresql+asyncpg.
+      - key: MODEL_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false # The deployed Cloudflare Worker origin, e.g. https://loadtruth-console.example.workers.dev
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: EVIDENCE_DIR
+        value: /tmp/loadtruth/evidence
+      - key: MODEL_API_LOG_PATH
+        value: /tmp/loadtruth/meta_api.jsonl

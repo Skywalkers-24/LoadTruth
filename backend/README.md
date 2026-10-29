@@ -33,6 +33,19 @@ uvicorn app.main:app --reload --port 8000
 # http://localhost:8000/health   ·   http://localhost:8000/docs
 ```
 
+The backend applies `alembic upgrade head` on startup before loading demo data.
+To apply revisions manually (for example, in a deploy job), run from the repo
+root with `DATABASE_URL` configured in `.env`:
+
+```bash
+make db-migrate
+```
+
+Migration configuration and revisions live in `backend/alembic.ini` and
+`backend/migrations/`. Revision 0001 captures the current application tables and
+the Supabase RBAC schema/policies from `infra/rbac/`; use explicit Alembic
+operations in later revisions when changing the schema.
+
 ## Quality gates
 
 ```bash
