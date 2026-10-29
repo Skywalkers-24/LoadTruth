@@ -210,7 +210,7 @@ function CaptureWorkspace() {
                     disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
                   />
                   <span className="grid size-14 place-items-center rounded-2xl bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
-                    {busy ? (
+                    {ingest.isPending ? (
                       <Loader2Icon className="size-7 animate-spin" />
                     ) : (
                       <UploadCloudIcon className="size-7" />
@@ -219,18 +219,18 @@ function CaptureWorkspace() {
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[15px] font-semibold">
                       {ingest.isPending
-                        ? "Uploading — keep this tab open"
+                        ? "Uploading clip"
                         : processing
-                          ? "Uploaded — queued or analyzing"
+                          ? "Upload complete"
                           : showcaseReadOnly
                             ? "Preprocessed showcase event"
                             : "Drop a clip here, or click to browse"}
                     </span>
                     <span className="text-[12px] text-muted-foreground">
                       {ingest.isPending
-                        ? "Wait for the upload confirmation before refreshing."
+                        ? "Your clip is being uploaded."
                         : processing
-                          ? "You can refresh or return later to follow this run."
+                          ? "Your clip has been uploaded."
                           : showcaseReadOnly
                             ? "Stored Meta results are shown read-only. Browsing them makes no Meta calls."
                             : `Choose a video or image up to ${Math.round(analysisLimit / 1024 ** 2)} MiB.`}
@@ -246,16 +246,15 @@ function CaptureWorkspace() {
               <Card className="gap-2 p-4" role="status">
                 <p className="text-sm font-medium">
                   {processing
-                    ? "Clip uploaded. Analysis is queued or running."
+                    ? "Upload complete"
                     : latest.data.status === "failed"
                       ? "Analysis did not complete"
-                      : "Latest upload completed"}
+                      : "Upload complete"}
                 </p>
                 <p className="break-words text-xs text-muted-foreground">{latest.data.filename}</p>
                 {processing && (
                   <p className="text-xs text-muted-foreground">
-                    It is safe to refresh this page. Updates and the resulting ticket will reappear
-                    here.
+                    Your clip has been uploaded.
                   </p>
                 )}
                 {latest.data.status === "failed" && (

@@ -103,13 +103,11 @@ export default function PipelinePage() {
                 <span className="grid size-7 place-items-center rounded-lg bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
                   <CpuIcon className="size-4" />
                 </span>
-                <div>
-                  <h2 className="text-[14px] font-semibold">
-                    Run workspace · select a stage to inspect its output
-                  </h2>
-                  <p className="text-[11px] text-muted-foreground">
-                    Inspect stage geometry, model confidences, and itemized outputs for the selected pipeline run.
-                  </p>
+                <div className="flex items-baseline gap-2">
+                  <h2 className="text-[14px] font-semibold">Run workspace</h2>
+                  <span className="text-[11px] text-muted-foreground">
+                    Click any stage to inspect details
+                  </span>
                 </div>
               </div>
               {active?.ticket_id && (
@@ -124,7 +122,7 @@ export default function PipelinePage() {
               )}
             </header>
 
-            <div className="p-4">
+            <div className="p-3.5">
               {!active ? (
                 <p className="py-8 text-center text-[13px] text-muted-foreground">
                   Select a pipeline run below to inspect its AI analysis trace.
@@ -142,17 +140,10 @@ export default function PipelinePage() {
                     }}
                   />
                   {active.ticket_id && (
-                    <div className="flex items-center justify-between border-t border-border pt-2 text-[12px]">
-                      <span className="text-muted-foreground">
+                    <div className="flex items-center justify-end border-t border-border pt-1.5 text-[11px] text-muted-foreground">
+                      <span>
                         Ticket ID: <span className="font-mono text-foreground">{active.ticket_id}</span>
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => router.push(`/console?ticket=${active.ticket_id}`)}
-                        className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-                      >
-                        Open ticket in Review Console →
-                      </button>
                     </div>
                   )}
                 </div>

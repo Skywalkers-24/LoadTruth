@@ -4,14 +4,11 @@ import { useState } from "react";
 import {
   ArrowUpRightIcon,
   CheckCircle2Icon,
-  PanelRightOpenIcon,
-  SparklesIcon,
   TriangleAlertIcon,
 } from "lucide-react";
 import type { PipelineStage } from "@/lib/api";
 import { PipelineTrace } from "./pipeline-trace";
 import { StageInspectorDrawer } from "./stage-inspector-drawer";
-import { Button } from "@/components/ui/shadcn/button";
 import { cn } from "@/lib/utils";
 
 export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
@@ -126,7 +123,7 @@ export interface PipelineWorkbenchSummary {
   flags?: number | string;
 }
 
-/** CI-style stage graph with 38% right-side inspector modal. Fits completely on screen. */
+/** Stage graph with side inspector modal. Fits completely on screen. */
 export function PipelineWorkbench({
   stages,
   summary,
@@ -161,25 +158,6 @@ export function PipelineWorkbench({
           <SummaryField label="Flags" value={String(summary.flags ?? 0)} />
         </div>
       )}
-
-      {/* Prominent interactive prompt banner */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3.5 py-2 text-xs">
-        <div className="flex items-center gap-2 text-foreground">
-          <SparklesIcon className="size-4 shrink-0 text-primary" />
-          <span>
-            <strong className="font-semibold text-primary">Interactive AI Pipeline:</strong> Click any stage below to inspect its detailed AI analysis, model outputs, and measurements in the sidebar.
-          </span>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setDrawerOpen(true)}
-          className="h-6 gap-1.5 border-primary/30 px-2.5 text-[11px] font-medium hover:bg-primary/10"
-        >
-          <PanelRightOpenIcon className="size-3 text-primary" />
-          <span>Open Stage Inspector</span>
-        </Button>
-      </div>
 
       {/* Responsive stage cards grid: all 7 stages line up across the screen on desktop */}
       <ol
