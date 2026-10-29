@@ -96,8 +96,8 @@ export default function PipelinePage() {
         <LivePipelineFlow eventId={eventId} detailed onlyActive onComplete={() => jobs.refetch()} />
 
         <div className="flex min-h-0 flex-1 flex-col gap-4">
-          {/* TOP SECTION: Run workspace (Active job trace inspection) */}
-          <Card className="flex flex-col gap-0 overflow-hidden py-0 border-border bg-card shadow-xs">
+          {/* TOP SECTION: Run workspace (Active job trace inspection - full natural height, never squashed) */}
+          <Card className="flex shrink-0 flex-col gap-0 border-border bg-card shadow-xs">
             <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-secondary/15 px-4 py-3">
               <div className="flex items-center gap-2.5">
                 <span className="grid size-7 place-items-center rounded-lg bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
@@ -161,7 +161,7 @@ export default function PipelinePage() {
           </Card>
 
           {/* BOTTOM SECTION: Run history (Expanded height, prominent listing) */}
-          <Card className="flex flex-col gap-0 overflow-hidden py-0 border-border bg-card shadow-xs">
+          <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 border-border bg-card shadow-xs">
             <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-secondary/15 px-4 py-3">
               <div className="flex items-center gap-2.5">
                 <span className="grid size-7 place-items-center rounded-lg bg-secondary text-foreground">
@@ -183,7 +183,7 @@ export default function PipelinePage() {
               </div>
             </header>
 
-            <div className="max-h-[560px] min-h-[380px] overflow-y-auto lt-scroll">
+            <div className="min-h-0 flex-1 overflow-y-auto lt-scroll">
               {jobs.isError ? (
                 <div role="alert" className="p-4 text-sm">
                   <p>Run history could not be loaded.</p>

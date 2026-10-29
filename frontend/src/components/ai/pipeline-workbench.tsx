@@ -181,10 +181,10 @@ export function PipelineWorkbench({
         </Button>
       </div>
 
-      {/* Responsive stage cards grid: exactly 6 columns on desktop so full pipeline fits screen width */}
+      {/* Responsive stage cards grid: all 7 stages line up across the screen on desktop */}
       <ol
         aria-label="Analysis stages"
-        className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-6"
+        className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-4 lg:grid-cols-7"
       >
         {displayStages.map((s, i) => {
           const isSelected = i === selectedIndex;
