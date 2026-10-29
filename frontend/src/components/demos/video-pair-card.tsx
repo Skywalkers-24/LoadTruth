@@ -194,7 +194,12 @@ export function VideoPairCard({
 
   // Ticket evidence with SAM segmentation records
   const evidence = useTicketEvidence(pair.ticketId);
-  const videoUrl = playback.data?.url ?? null;
+
+  // Prefer instant Cloudflare edge static asset (/videos/showcase-N.mp4) for benchmark pairs;
+  // Fall back to dynamic upload playback URL for newly uploaded clips
+  const edgeVideoUrl = pair.matchFilename ? `/videos/${pair.matchFilename}` : null;
+  const [useEdgeAsset, setUseEdgeAsset] = useState(true);
+  const videoUrl = (useEdgeAsset && edgeVideoUrl) ? edgeVideoUrl : (playback.data?.url ?? null);
 
   // Toggle synchronized play / pause
   function toggleSyncPlay() {
@@ -363,6 +368,7 @@ export function VideoPairCard({
                   }}
                   onPlay={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
+                  onError={() => setUseEdgeAsset(false)}
                   aria-label={`Raw CCTV video for ${pair.truckId}`}
                 />
               )}
@@ -420,6 +426,7 @@ export function VideoPairCard({
                   preload="metadata"
                   muted={isMuted}
                   loop
+                  onError={() => setUseEdgeAsset(false)}
                   className="size-full object-cover"
                 />
               )}
