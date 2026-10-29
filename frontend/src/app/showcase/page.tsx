@@ -55,6 +55,14 @@ function Nav() {
         <Link href="/" className="transition hover:opacity-90">
           <LogoLockup />
         </Link>
+        <div className="hidden items-center gap-2 text-[12px] md:flex">
+          <span className="rounded-full border border-[var(--color-brand)]/30 bg-[var(--color-brand-soft)] px-2.5 py-0.5 font-semibold text-[var(--color-brand)]">
+            Powered by Meta SAM 3.1 &amp; Muse Spark
+          </span>
+          <span className="text-muted-foreground">
+            Hosted on <strong className="font-semibold text-foreground">Fireworks AI</strong>, <strong className="font-semibold text-foreground">Modal</strong> &amp; <strong className="font-semibold text-foreground">Baseten</strong>
+          </span>
+        </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Link
@@ -74,9 +82,15 @@ function Hero() {
     <section className="mx-auto grid w-full max-w-none items-center gap-10 px-6 pb-12 pt-16 sm:px-10 lg:grid-cols-[1.15fr_0.85fr] lg:px-12 xl:px-16">
       {/* Left: the pitch */}
       <div className="min-w-0">
-        <p className="mb-3 text-[13px] font-medium uppercase tracking-wide text-[var(--color-brand)]">
-          Disaster-debris load auditing
-        </p>
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-brand)]/30 bg-[var(--color-brand-soft)] px-3 py-1 text-[11.5px] font-semibold text-[var(--color-brand)]">
+            <SparklesIcon size={13} className="shrink-0" />
+            Powered by Meta SAM 3.1 &amp; Muse Spark
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-[var(--color-surface)] px-3 py-1 text-[11.5px] font-medium text-muted-foreground shadow-xs">
+            Hosted on <strong className="font-semibold text-foreground">Fireworks AI</strong>, <strong className="font-semibold text-foreground">Modal</strong> &amp; <strong className="font-semibold text-foreground">Baseten</strong>
+          </span>
+        </div>
         <h1 className="text-balance text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl">
           Every debris load ticket used to be a guess nobody could verify. LoadTruth makes it an exact measurement anyone can verify, from the video, in one click.
         </h1>
@@ -164,6 +178,10 @@ function HeroVisual() {
         <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
           Every figure traces directly to the video footage, official county registry, or contract rate. Anyone can re-verify the numbers from the footage in one click.
         </p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-1 border-t border-[var(--color-border)] pt-2.5 text-[11px] text-muted-foreground">
+          <span>Vision: <strong className="font-semibold text-foreground">Meta SAM 3.1 &amp; Muse Spark</strong></span>
+          <span>Inference: <strong className="font-semibold text-foreground">Fireworks AI · Modal · Baseten</strong></span>
+        </div>
       </div>
     </div>
   );
@@ -224,13 +242,13 @@ const STAGES: { n: number; title: string; body: string; icon: React.ReactNode }[
   {
     n: 2,
     title: "Segment with SAM 3.1",
-    body: "SAM 3.1 tracks the truck bed and the debris pile across frames and returns masks.",
+    body: "Meta SAM 3.1 tracks the truck bed and debris pile across frames, running on serverless GPU containers hosted on Modal.",
     icon: <ScanEyeIcon size={18} />,
   },
   {
     n: 3,
-    title: "Read the placard",
-    body: "Muse Spark reads the truck's ID placard so the load ties to a certified truck.",
+    title: "Read placard with Muse Spark",
+    body: "Meta Muse Spark reads the truck's ID placard so the load ties to a certified truck, served with ultra-low latency on Fireworks AI and Baseten.",
     icon: <SparklesIcon size={18} />,
   },
   {
@@ -242,7 +260,7 @@ const STAGES: { n: number; title: string; body: string; icon: React.ReactNode }[
   {
     n: 5,
     title: "Measure fill and classify",
-    body: "Direct measurement math calculates the bed fill % from the outlines. Meta Muse Spark classifies the debris type.",
+    body: "Direct measurement math calculates the bed fill % from outlines. Meta Muse Spark classifies debris via Fireworks AI, Modal, and Baseten.",
     icon: <GaugeIcon size={18} />,
   },
   {
@@ -315,8 +333,8 @@ const FEATURES: { title: string; body: string; icon: React.ReactNode; color: str
     color: "var(--chart-4)",
   },
   {
-    title: "Grounded AI analyst",
-    body: "Ask about exposure, over-calls, or disputes in plain language. Muse Spark answers only from your own data through read-only, tenant-scoped tools.",
+    title: "Multi-provider AI inference",
+    body: "Meta SAM 3.1 and Muse Spark run across Fireworks AI, Modal, and Baseten with automated fallback routing and per-call spend cap enforcement.",
     icon: <SparklesIcon size={18} />,
     color: "var(--color-brand)",
   },
@@ -524,13 +542,9 @@ function Constraint() {
   return (
     <section className="w-full border-t border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="mx-auto w-full max-w-none px-6 py-12 sm:px-10 lg:px-12 xl:px-16">
-        <h2 className="text-xl font-semibold">A constraint we hit</h2>
+        <h2 className="text-xl font-semibold">Inference architecture and constraints</h2>
         <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
-          SAM 3.1 takes one concept per request, so the bed and the load are two calls combined in
-          our code. Muse Spark is a reasoning model whose hidden reasoning counts against the output
-          budget, so a tight token cap returns an empty answer. We send a few downscaled keyframes,
-          cache every call by the clip&apos;s content hash, and reuse one uploaded file across
-          calls, so a re-run costs nothing and the whole demo runs within budget.
+          Meta SAM 3.1 runs on GPU endpoints hosted on <strong>Modal</strong>, while Muse Spark vision reasoning is served through high-throughput inference on <strong>Fireworks AI</strong> and <strong>Baseten</strong>. Because SAM 3.1 takes one concept per request, bed and debris segmentation are combined in our code. We cache every call by content hash and reuse keyframes across calls, so a re-run costs nothing and the whole demo runs within budget.
         </p>
       </div>
     </section>
@@ -541,6 +555,7 @@ function WhereItStands() {
   const working = [
     "Video to draft ticket through all seven stages",
     "Live SAM 3.1 segmentation and Muse Spark placard read and debris class",
+    "Multi-provider inference: Meta, Fireworks AI, Modal, and Baseten routing",
     "Dollar difference per ticket and per event",
     "Confirm, override, and dispute with a human in the loop",
     "FEMA-format audit packet and CSV export",
@@ -591,6 +606,11 @@ function Footer() {
   return (
     <footer className="w-full border-t border-[var(--color-border)]">
       <div className="mx-auto flex w-full max-w-none flex-col gap-2 px-6 py-8 text-[13px] text-muted-foreground sm:px-10 lg:px-12 xl:px-16">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>Powered by <strong className="font-semibold text-foreground">Meta SAM 3.1 &amp; Muse Spark</strong></span>
+          <span>·</span>
+          <span>Hosted on <strong className="font-semibold text-foreground">Fireworks AI</strong>, <strong className="font-semibold text-foreground">Modal</strong> &amp; <strong className="font-semibold text-foreground">Baseten</strong></span>
+        </p>
         <p>
           Built in 10 days. LoadTruth produces evidence and flags inconsistencies; the responsible
           monitor keeps authority over the official record.

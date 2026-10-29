@@ -140,14 +140,20 @@ export function LoginScreen() {
         {/* Spacer so the footer stays pinned to the bottom. */}
         <div className="flex-1" aria-hidden />
 
-        <div className="relative flex items-center justify-between gap-3 text-[12px] font-medium text-white [text-shadow:0_1px_10px_rgba(0,0,0,0.9),0_1px_2px_rgba(0,0,0,0.9)]">
-          <span className="flex items-center gap-2">
-            <span className="size-1.5 rounded-full bg-[#7dd3fc]" aria-hidden />
-            Powered by Meta SAM 3.1 and Muse Spark
-          </span>
+        <div className="relative flex flex-col gap-2 text-[12px] font-medium text-white [text-shadow:0_1px_10px_rgba(0,0,0,0.9),0_1px_2px_rgba(0,0,0,0.9)] sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full bg-[#7dd3fc]" aria-hidden />
+              <span>Powered by <strong className="font-semibold text-white">Meta SAM 3.1 &amp; Muse Spark</strong></span>
+            </span>
+            <span className="text-white/60">·</span>
+            <span className="text-white/90">
+              Hosted on <strong className="font-semibold text-white">Fireworks AI</strong>, <strong className="font-semibold text-white">Modal</strong> &amp; <strong className="font-semibold text-white">Baseten</strong>
+            </span>
+          </div>
           <a
             href="/showcase"
-            className="inline-flex items-center gap-1 font-semibold text-white underline-offset-4 hover:underline"
+            className="inline-flex shrink-0 items-center gap-1 font-semibold text-white underline-offset-4 hover:underline"
           >
             View the public showcase
             <ArrowRightIcon className="size-3.5" />
@@ -175,6 +181,17 @@ export function LoginScreen() {
             <p className="mt-1 text-[13px] font-medium text-foreground/75">
               Choose a member to sign in as. Each role sees a different set of actions.
             </p>
+
+            {/* Sponsor / tech partner badges */}
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 rounded-md border border-[var(--color-brand)]/30 bg-[var(--color-brand-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-brand)]">
+                <SparklesIcon className="size-3" />
+                Meta SAM 3.1 &amp; Muse Spark
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/60 px-2 py-0.5 text-[10.5px] font-medium text-muted-foreground">
+                Hosted on <strong className="font-semibold text-foreground">Fireworks AI</strong>, <strong className="font-semibold text-foreground">Modal</strong> &amp; <strong className="font-semibold text-foreground">Baseten</strong>
+              </span>
+            </div>
 
             <div className="login-screen-member-list mt-5 flex flex-col gap-2">
               {directory.isLoading ? (
@@ -313,6 +330,12 @@ export function LoginScreen() {
               subtitle="Role isolation"
             />
           </ul>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-[var(--color-surface)]/70 px-3 py-1.5 text-[11px] text-muted-foreground backdrop-blur-sm">
+            <span>Inference infrastructure:</span>
+            <span className="font-medium text-foreground">
+              Fireworks AI · Modal · Baseten
+            </span>
+          </div>
         </div>
       </div>
     </div>

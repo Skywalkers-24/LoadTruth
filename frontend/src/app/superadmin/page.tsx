@@ -77,8 +77,9 @@ export default function SuperAdminPage() {
           </div>
         </div>
 
-        <div className="text-xs text-white/60">
-          LoadTruth Engine · High-Privilege Administration Gate
+        <div className="flex flex-col gap-1 text-xs text-white/70">
+          <div>Powered by Meta SAM 3.1 &amp; Muse Spark · Hosted on Fireworks AI, Modal &amp; Baseten</div>
+          <div className="text-white/50">LoadTruth Engine · High-Privilege Administration Gate</div>
         </div>
       </div>
 
@@ -104,6 +105,15 @@ export default function SuperAdminPage() {
             <p className="mt-1 text-xs text-muted-foreground">
               Sign in with your developer username and custom password.
             </p>
+
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10.5px] font-semibold text-primary">
+                Meta SAM 3.1 &amp; Muse Spark
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                Fireworks AI · Modal · Baseten
+              </span>
+            </div>
 
             <form onSubmit={handleSubmit} className="mt-5 space-y-4">
               <div>
