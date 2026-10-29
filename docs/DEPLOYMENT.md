@@ -13,9 +13,10 @@ API credit budget.
 | Database + Auth + Storage | **Supabase Postgres** | Use its session pooler URL in Render; the migration installs Supabase RBAC. |
 | Shared pipeline cache | Render Key Value (Redis-compatible) | The Render Blueprint creates a private Frankfurt instance and links its internal URL as `REDIS_URL`. |
 
-On pushes to `main`, CI deploys the frontend to Cloudflare after backend and
-frontend checks pass. Render deploys the backend from the same branch after CI
-checks pass.
+On every push to `main`, Cloudflare Workers Builds deploys the frontend from its
+connected Git integration, and Render immediately deploys the backend from its
+connected Git branch. CI runs independently and reports code quality/build
+status; it does not gate either production deployment.
 
 ## First-time setup
 
@@ -60,11 +61,10 @@ npx wrangler login               # one-time local authentication
 npm run deploy                   # rebuild and deploy the Worker
 ```
 
-For GitHub Actions auto-deploys, add repository secrets `CLOUDFLARE_API_TOKEN`
-(Edit Cloudflare Workers permission) and `CLOUDFLARE_ACCOUNT_ID`. The CI workflow
-builds and deploys `loadtruth-console` when those secrets are set and a push to
-`main` passes the backend and frontend jobs. Without them, the deploy step is
-skipped so a directly connected Cloudflare Workers Build can deploy the push.
+The production Worker is connected through Cloudflare Workers Builds. It builds
+and deploys commits pushed to its configured production branch (`main`). The
+repo's GitHub Actions workflow does not deploy a second copy of the Worker;
+Cloudflare's connected build is the single frontend deploy path.
 `frontend/wrangler.jsonc` contains the Worker entry point and Render backend URL.
 
 For Cloudflare Workers Builds connected directly to GitHub, set these build
@@ -75,6 +75,10 @@ settings so commands run in the Next.js project directory:
 | Root directory | `frontend` |
 | Build command | `npm run cf:build` |
 | Deploy command | `npx wrangler deploy` |
+
+In **Settings → Build → Branch control**, set the production branch to `main`.
+With the Git integration connected and automatic production builds enabled,
+each push to `main` runs the build and deploy commands above.
 
 Add this **build variable** so Next.js bakes the correct rewrite destination:
 
