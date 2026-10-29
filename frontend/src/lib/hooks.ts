@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { pipelinePollInterval } from "@/lib/pipeline-progress";
 
 import { useAuth } from "@/lib/auth";
 import {
   api,
   getAuthContext,
   getHealth,
+  getLatestIngestJob,
+  submitIngestJob,
   type EventInput,
   type SourceInput,
   type TaskConfigUpdate,
@@ -56,7 +60,10 @@ export function useTickets(query: TicketQuery) {
     // Normally scoped to an event; `allTenant` opts into the whole-tenant list
     // (admin "All events" reports) where there is intentionally no event id.
     enabled: Boolean(query.eventId) || query.allTenant === true,
-    placeholderData: keepPreviousData,
+    placeholderData: (previous, previousQuery) =>
+      (previousQuery?.queryKey[1] as TicketQuery | undefined)?.eventId === query.eventId
+        ? previous
+        : undefined,
   });
 }
 
@@ -134,6 +141,39 @@ export function useIngest() {
     mutationFn: ({ eventId, file }: { eventId: string; file: File }) => api.ingest(eventId, file),
     onSuccess: invalidateAll(qc),
   });
+}
+
+/** File transfer ends with a server acknowledgement; analysis is independent. */
+export function useSubmitIngestJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ eventId, file }: { eventId: string; file: File }) =>
+      submitIngestJob(eventId, file),
+    onSuccess: (job, { eventId }) => {
+      qc.setQueryData(["ingest-job", eventId], job);
+      void qc.invalidateQueries({ queryKey: ["pipeline-progress", eventId] });
+    },
+  });
+}
+
+/** Rediscover the latest accepted upload, including after a full browser reload. */
+export function useLatestIngestJob(eventId: string | undefined) {
+  const qc = useQueryClient();
+  const job = useQuery({
+    queryKey: ["ingest-job", eventId],
+    queryFn: () => getLatestIngestJob(eventId as string),
+    enabled: Boolean(eventId),
+    refetchInterval: (query) =>
+      ["accepted", "running"].includes(query.state.data?.status ?? "") ? 1500 : 5000,
+    refetchIntervalInBackground: false,
+  });
+  const completedId = job.data?.status === "completed" ? job.data.id : null;
+  useEffect(() => {
+    if (!completedId) return;
+    invalidateAll(qc)();
+    void qc.invalidateQueries({ queryKey: ["pipeline-jobs", eventId] });
+  }, [completedId, eventId, qc]);
+  return job;
 }
 
 /** Confirm / override / dispute a ticket; invalidates tickets + dashboard. */
@@ -256,16 +296,16 @@ export function usePipelineJobs(opts: {
   return useQuery({
     queryKey: ["pipeline-jobs", eventId, limit, offset],
     queryFn: () => api.getPipelineJobs({ eventId, limit, offset }),
+    enabled: Boolean(eventId),
     refetchInterval: 4000,
-    placeholderData: keepPreviousData,
   });
 }
 
 /**
- * Live progress of the latest pipeline run for an event, polled every 3s while
+ * Live progress of the latest pipeline run for an event, polled every 1.5s while
  * a run is active. The server holds the snapshot, so a page refreshed mid-run
- * still sees the in-flight run. Polling stops once the run is done (and when the
- * tab is hidden).
+ * still sees the in-flight run. Idle discovery continues every five seconds;
+ * background polling pauses while the tab is hidden.
  */
 export function usePipelineProgress(eventId: string | undefined, pollWhileActive = false) {
   const qc = useQueryClient();
@@ -278,11 +318,7 @@ export function usePipelineProgress(eventId: string | undefined, pollWhileActive
     queryKey: ["pipeline-progress", eventId],
     enabled: Boolean(eventId),
     queryFn: () => api.getPipelineProgress(eventId as string),
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      if (status === "done") return false;
-      return status === "running" || pollWhileActive ? 1500 : false;
-    },
+    refetchInterval: (query) => pipelinePollInterval(query.state.data, pollWhileActive),
     refetchIntervalInBackground: false,
   });
 }

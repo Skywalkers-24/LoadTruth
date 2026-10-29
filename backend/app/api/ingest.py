@@ -26,6 +26,7 @@ from app.ai.meta_http import (
     ModelAPIRequestError,
     ModelAPIUnavailableError,
 )
+from app.ai.providers import ai_config_fingerprint
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_ingest
@@ -274,7 +275,14 @@ async def ingest_clip(
     inner = get_ai_client()
     # Judge-mode "bypass cache": call the raw client and skip both caches so the
     # models actually run again; otherwise wrap in the durable per-stage cache.
-    ai = inner if bypass_cache else CachingAIClient(inner, repo, tenant, model_label=model_label)
+    ai_namespace = ai_config_fingerprint() if settings.live_ai_enabled else ""
+    ai = (
+        inner
+        if bypass_cache
+        else CachingAIClient(
+            inner, repo, tenant, model_label=model_label, cache_namespace=ai_namespace
+        )
+    )
     result_cache = None if bypass_cache else get_pipeline_cache()
 
     # Live progress: record "started", then each stage as it lands, in a store
@@ -300,6 +308,7 @@ async def ingest_clip(
                 on_stage=_on_stage,
             )
     except BudgetExceededError as exc:
+        await progress.finish(event_id, ch, outcome="failed", detail="AI spending limit reached.")
         log.warning("ingest_budget_cap_reached", spent_usd=exc.spent_usd)
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -351,6 +360,7 @@ async def ingest_clip(
             mime=stored.mime if stored else guess_mime(filename, artifact.media_kind),
             fps=stored.fps if stored else None,
             segments=result.segments,
+            ai_cache_namespace=ai_namespace,
         )
     except Exception as exc:  # noqa: BLE001 — return a clean failure and close progress.
         log.error("ingest_persistence_failed", content_hash=ch, exc_info=True)

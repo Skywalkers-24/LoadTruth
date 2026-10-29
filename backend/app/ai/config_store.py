@@ -21,6 +21,8 @@ from pydantic import BaseModel
 
 from app.ai import catalog
 from app.ai.catalog import CostMode, ReasoningEffort
+from app.ai.providers import default_chat_model
+from app.config import get_settings
 
 
 class TaskConfig(BaseModel):
@@ -59,7 +61,11 @@ class AIConfigStore:
         task = catalog.TASKS[task_id]
         return TaskConfig(
             task_id=task_id,
-            model=task.default_model,
+            model=default_chat_model(
+                task.default_model, vision=task_id in ("spark_ocr", "spark_classify", "name_load")
+            )
+            if task.kind == "chat"
+            else task.default_model,
             effort=task.default_effort,
             cost_mode=task.default_cost_mode,
             max_output_tokens=None,
@@ -99,7 +105,11 @@ class AIConfigStore:
 
             if model not in catalog.MODELS:
                 raise ConfigValidationError(f"unknown model: {model}")
-            if model not in task.eligible_models:
+            if model not in task.eligible_models and not (
+                model == "fireworks/configured-model"
+                and task.kind == "chat"
+                and get_settings().fireworks_supports_vision
+            ):
                 raise ConfigValidationError(f"model {model} is not eligible for task {task_id}")
 
             info = catalog.MODELS[model]

@@ -228,6 +228,7 @@ class TicketEvidence(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Bas
     media_kind: Mapped[str] = mapped_column(String(8), nullable=False, default="video")
     mime: Mapped[str] = mapped_column(String(48), nullable=False, default="video/mp4")
     fps: Mapped[float | None] = mapped_column(Numeric(6, 3), nullable=True)
+    ai_cache_namespace: Mapped[str | None] = mapped_column(String(16), nullable=True)
     segments: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
 
     __table_args__ = (

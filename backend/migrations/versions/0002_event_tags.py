@@ -12,6 +12,9 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # The initial non-Supabase migration creates current ORM metadata.
+    if any(c["name"] == "tags" for c in sa.inspect(op.get_bind()).get_columns("events")):
+        return
     op.add_column(
         "events",
         sa.Column("tags", sa.JSON(), nullable=False, server_default=sa.text("'[]'")),

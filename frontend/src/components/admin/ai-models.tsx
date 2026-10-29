@@ -59,7 +59,10 @@ function spendBadge(weight: number): { tone: "ok" | "warn" | "danger"; label: st
 
 function priceLine(model: ModelInfo): string {
   const p = model.pricing;
-  if (!p) return "Self-hosted or subscription, no per-token price.";
+  if (!p)
+    return model.provider && model.provider !== "meta"
+      ? "Provider pricing not configured; charges may apply."
+      : "Self-hosted or subscription, no per-token price.";
   if (p.unit === "per_1k_images") return `$${p.output?.toFixed(2)} per 1,000 images`;
   if (p.unit === "per_image") return `$${p.output?.toFixed(2)} per image`;
   if (p.unit === "per_hour") return `$${p.output?.toFixed(2)} per hour of audio`;
@@ -125,8 +128,7 @@ export function AiModelsPanel() {
   }
 
   const config = data.config;
-  const setDraft = (taskId: string, next: Draft) =>
-    setDrafts((d) => ({ ...d, [taskId]: next }));
+  const setDraft = (taskId: string, next: Draft) => setDrafts((d) => ({ ...d, [taskId]: next }));
 
   // Which tasks changed from what the server currently has.
   const dirtyTasks = data.catalog.tasks.filter((task) => {
@@ -151,10 +153,7 @@ export function AiModelsPanel() {
     setConfirming(false);
     const failed = results.filter((r) => r.status === "rejected").length;
     if (failed === 0) {
-      toast.push(
-        "ok",
-        dirtyCount === 1 ? "1 task updated." : `${dirtyCount} tasks updated.`,
-      );
+      toast.push("ok", dirtyCount === 1 ? "1 task updated." : `${dirtyCount} tasks updated.`);
     } else {
       toast.push("danger", `${failed} of ${dirtyCount} tasks did not save. Please retry.`);
     }
@@ -183,9 +182,9 @@ export function AiModelsPanel() {
   return (
     <div className="flex max-w-4xl flex-col gap-5">
       <p className="text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
-        Choose which model powers each step of the pipeline and how hard it reasons. Lower effort and
-        the discounted Contributor mode save money; higher effort and Muse Wonder cost more but handle
-        harder cases. Changes apply to work processed after you save.
+        Choose which model powers each step of the pipeline and how hard it reasons. Lower effort
+        and the discounted Contributor mode save money; higher effort and Muse Wonder cost more but
+        handle harder cases. Changes apply to work processed after you save.
       </p>
 
       {/* Sticky action bar: one Save all for every edited task. */}
@@ -261,8 +260,7 @@ function TaskCard({
   const availableModes = selected?.cost_modes ?? ["standard"];
 
   const base = draftFromConfig(task, current);
-  const dirty =
-    model !== base.model || effort !== base.effort || costMode !== base.costMode;
+  const dirty = model !== base.model || effort !== base.effort || costMode !== base.costMode;
   const isDefault =
     model === task.default_model &&
     effort === task.default_effort &&
@@ -320,9 +318,10 @@ function TaskCard({
             aria-label={`${task.name} model`}
           >
             {eligible.map((m) => (
-              <option key={m.id} value={m.id}>
+              <option key={m.id} value={m.id} disabled={!m.available}>
                 {m.name}
                 {m.premium ? " ★" : ""}
+                {!m.available ? " · Not configured" : ""}
               </option>
             ))}
           </select>

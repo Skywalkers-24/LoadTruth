@@ -33,9 +33,10 @@ import re
 import time
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Any
 
+from app.ai import partner_http
 from app.ai.base import (
     CallUsage,
     ClassifyResult,
@@ -45,15 +46,19 @@ from app.ai.base import (
     StageExplanations,
     TrackResult,
 )
+from app.ai.catalog import MODELS
 from app.ai.config_store import get_ai_config_store
 from app.ai.meta_http import (
     MetaHTTP,
     ModelAPIRequestError,
     ModelAPIResponseError,
+    ModelAPIUnavailableError,
     output_text,
 )
+from app.ai.partner_media import media_parts
 from app.ai.pricing import sam_billed_units, sam_cost_usd, spark_cost_usd, token_counts
-from app.ai.request_params import params_for
+from app.ai.providers import endpoint
+from app.ai.request_params import SparkRequestParams, params_for
 from app.ai.sam_measure import (
     BED_FROM_BED,
     BED_LABEL,
@@ -217,6 +222,7 @@ class PreparedMedia:
     size_bytes: int
     part: dict[str, str]
     file_id: str | None = None
+    data: bytes = field(default=b"", repr=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -350,7 +356,7 @@ def _clean_paragraph(text: str) -> str:
 
 
 class LiveAIClient:
-    """Calls SAM 3.1 and Muse Spark over the Meta Model API."""
+    """Calls Meta SAM and routes Spark tasks to the selected inference provider."""
 
     def __init__(self, http: MetaHTTP | None = None) -> None:
         s = get_settings()
@@ -363,6 +369,7 @@ class LiveAIClient:
         self._lock = asyncio.Lock()
         self._prepared: dict[str, asyncio.Task[PreparedMedia]] = {}
         self._refs: dict[str, int] = {}
+        self._partner_media: dict[int, asyncio.Task[list[dict[str, Any]]]] = {}
 
     # ── media lifecycle ──────────────────────────────────────────────────────
     @asynccontextmanager
@@ -391,7 +398,11 @@ class LiveAIClient:
             return
         if task.cancelled() or task.exception() is not None:
             return
-        file_id = task.result().file_id
+        media = task.result()
+        frames = self._partner_media.pop(id(media), None)
+        if frames is not None and not frames.done():
+            frames.cancel()
+        file_id = media.file_id
         if file_id:
             await self._http.delete_file(file_id)
 
@@ -441,7 +452,9 @@ class LiveAIClient:
             transcoded=prepared.transcoded,
             send_method=plan.send_method.value,
         )
-        return PreparedMedia(clip.media_kind, prepared.mime, len(prepared.data), part, file_id)
+        return PreparedMedia(
+            clip.media_kind, prepared.mime, len(prepared.data), part, file_id, prepared.data
+        )
 
     # ── SAM 3.1 ──────────────────────────────────────────────────────────────
     async def _name_load_concepts(
@@ -458,6 +471,7 @@ class LiveAIClient:
                 "name_load",
                 [{"type": "input_text", "text": _NAME_LOAD_PROMPT}, media.part],
                 _NAME_LOAD_SCHEMA,
+                media=media,
             )
             answer = _json_answer(response)
         except (ModelAPIResponseError, ModelAPIRequestError):
@@ -589,9 +603,54 @@ class LiveAIClient:
 
     # ── Muse Spark ───────────────────────────────────────────────────────────
     async def _spark(
-        self, task_id: str, content: list[dict[str, str]], schema: dict[str, Any] | None
+        self,
+        task_id: str,
+        content: list[dict[str, str]],
+        schema: dict[str, Any] | None,
+        *,
+        media: PreparedMedia | None = None,
     ) -> tuple[dict[str, Any], CallUsage]:
         params = params_for(task_id)
+        selected = MODELS[params.model].provider
+        fallbacks = [
+            p.strip() for p in get_settings().spark_fallback_providers.split(",") if p.strip()
+        ]
+        providers = list(dict.fromkeys([selected, *fallbacks]))
+        for index, provider in enumerate(providers):
+            try:
+                if provider == "meta":
+                    model = params.model if selected == "meta" else "muse-spark-1.3"
+                    return await self._meta_spark(
+                        task_id, content, schema, replace(params, model=model)
+                    )
+                route = endpoint(provider)
+                parts: list[dict[str, Any]] = [
+                    {"type": "text", "text": p["text"]}
+                    for p in content
+                    if p["type"] == "input_text"
+                ]
+                if media is not None:
+                    frames = self._partner_media.get(id(media))
+                    if frames is None:
+                        frames = asyncio.create_task(
+                            media_parts(media.data, media.mime, media.media_kind)
+                        )
+                        self._partner_media[id(media)] = frames
+                    parts.extend(await asyncio.shield(frames))
+                return await partner_http.complete(route, params, task_id, parts, schema)
+            except (ModelAPIUnavailableError, ModelAPIResponseError):
+                if index == len(providers) - 1:
+                    raise
+                log.warning("ai_provider_fallback", provider=provider, task=task_id)
+        raise ModelAPIUnavailableError("No inference provider is configured.")
+
+    async def _meta_spark(
+        self,
+        task_id: str,
+        content: list[dict[str, str]],
+        schema: dict[str, Any] | None,
+        params: SparkRequestParams,
+    ) -> tuple[dict[str, Any], CallUsage]:
         payload: dict[str, Any] = {
             **params.as_request_kwargs(),
             "input": [{"type": "message", "role": "user", "content": content}],
@@ -626,7 +685,10 @@ class LiveAIClient:
     async def read_placard(self, clip: ClipMedia) -> OCRResult:
         media = await self._media(clip)
         response, usage = await self._spark(
-            "spark_ocr", [{"type": "input_text", "text": _OCR_PROMPT}, media.part], _OCR_SCHEMA
+            "spark_ocr",
+            [{"type": "input_text", "text": _OCR_PROMPT}, media.part],
+            _OCR_SCHEMA,
+            media=media,
         )
         answer = _json_answer(response)
         raw_id = str(answer.get("truck_id") or "").strip().upper()
@@ -649,6 +711,7 @@ class LiveAIClient:
             "spark_classify",
             [{"type": "input_text", "text": _CLASSIFY_PROMPT}, media.part],
             _CLASSIFY_SCHEMA,
+            media=media,
         )
         answer = _json_answer(response)
         debris = str(answer.get("debris_class") or "other")

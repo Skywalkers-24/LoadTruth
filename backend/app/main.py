@@ -18,6 +18,7 @@ from app.api.auth_session import router as auth_session_router
 from app.api.billing import router as billing_router
 from app.api.chat import router as chat_router
 from app.api.ingest import router as ingest_router
+from app.api.ingest_jobs import router as ingest_jobs_router
 from app.api.reports import router as reports_router
 from app.api.sources import router as sources_router
 from app.api.system import router as system_router
@@ -58,6 +59,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
                 await seed_demo(session)
         yield
     finally:
+        from app.api.ingest_jobs import stop_ingest_jobs
+
+        await stop_ingest_jobs()
         await close_pipeline_cache()
         log.info("shutdown")
 
@@ -101,6 +105,7 @@ app.include_router(trucks_router)
 app.include_router(users_router)
 app.include_router(sources_router)
 app.include_router(ingest_router)
+app.include_router(ingest_jobs_router)
 app.include_router(reports_router)
 app.include_router(billing_router)
 app.include_router(chat_router)

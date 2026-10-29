@@ -563,6 +563,7 @@ export interface ModelPricing {
 }
 
 export interface ModelInfo {
+  provider?: string;
   id: string;
   name: string;
   kind: string;
@@ -691,6 +692,25 @@ export function streamChat(
  * `status` is "running" until the run resolves; the server holds this, so a
  * page refreshed mid-run still sees the in-flight run.
  */
+export interface IngestJob {
+  id: string;
+  content_hash: string;
+  event_id: string;
+  filename: string;
+  status: "accepted" | "running" | "completed" | "failed";
+  started_at: number;
+  detail: string | null;
+  ticket: Ticket | null;
+}
+
+export function submitIngestJob(eventId: string, file: File): Promise<IngestJob> {
+  return upload<IngestJob>(`/events/${eventId}/ingest-jobs`, file);
+}
+
+export function getLatestIngestJob(eventId: string): Promise<IngestJob | null> {
+  return request<IngestJob | null>(`/events/${eventId}/ingest-jobs`);
+}
+
 export interface PipelineProgress {
   event_id: string;
   content_hash: string;

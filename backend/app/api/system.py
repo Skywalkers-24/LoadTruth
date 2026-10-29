@@ -77,7 +77,11 @@ async def pipeline_stats(_: CurrentMember) -> PipelineStats:
         hard_cap_hit=budget.hard_cap_hit,
         mode="live" if live else "fixtures",
         sam_model=settings.sam_model,
-        spark_model=settings.spark_model,
+        spark_model=", ".join(
+            dict.fromkeys(
+                cfg.model for cfg in get_ai_config_store().all() if cfg.task_id != "sam_track"
+            )
+        ),
     )
 
 
@@ -340,9 +344,58 @@ class AIConfigResponse(BaseModel):
 
 
 def _catalog() -> AICatalog:
+    from app.ai.providers import default_chat_model, endpoint
+
+    models = []
+    for model in catalog.MODELS.values():
+        if model.provider == "meta":
+            models.append(model)
+        else:
+            s = get_settings()
+            rates = [
+                float(getattr(s, f"{model.provider}_{name}_price"))
+                for name in ("input", "cached_input", "output")
+            ]
+            price = (
+                catalog.ModelPricing(input=rates[0], cached_input=rates[1], output=rates[2])
+                if rates[0] and rates[2]
+                else None
+            )
+            modalities = ["text", "image"] if endpoint(model.provider).vision else ["text"]
+            models.append(
+                model.model_copy(
+                    update={
+                        "available": endpoint(model.provider).configured,
+                        "pricing": price,
+                        "modalities": modalities,
+                    }
+                )
+            )
+    tasks = []
+    for task in catalog.TASKS.values():
+        if task.kind != "chat":
+            tasks.append(task)
+            continue
+        eligible = list(task.eligible_models)
+        if (
+            get_settings().fireworks_supports_vision
+            and "fireworks/configured-model" not in eligible
+        ):
+            eligible.append("fireworks/configured-model")
+        tasks.append(
+            task.model_copy(
+                update={
+                    "default_model": default_chat_model(
+                        task.default_model,
+                        vision=task.id in ("spark_ocr", "spark_classify", "name_load"),
+                    ),
+                    "eligible_models": eligible,
+                }
+            )
+        )
     return AICatalog(
-        models=list(catalog.MODELS.values()),
-        tasks=list(catalog.TASKS.values()),
+        models=models,
+        tasks=tasks,
         efforts=[e.value for e in catalog.ReasoningEffort],
         cost_modes=[m.value for m in catalog.CostMode],
     )

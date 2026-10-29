@@ -52,11 +52,15 @@ class CallUsage:
     cached: bool = False
     # Part of tokens_out spent on hidden reasoning (billed as output).
     reasoning_tokens: int = 0
+    provider_model: str = ""
+    pricing_known: bool = True
 
     def plus(self, other: CallUsage) -> CallUsage:
         """Combine two usages (e.g. the two SAM concept requests of one stage)."""
         return CallUsage(
             model=self.model,
+            provider_model=self.provider_model,
+            pricing_known=self.pricing_known and other.pricing_known,
             tokens_in=self.tokens_in + other.tokens_in,
             tokens_out=self.tokens_out + other.tokens_out,
             reasoning_tokens=self.reasoning_tokens + other.reasoning_tokens,

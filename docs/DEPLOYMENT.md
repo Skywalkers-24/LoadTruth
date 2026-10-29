@@ -38,7 +38,9 @@ status; it does not gate either production deployment.
 
 The free Render service may sleep when idle and its local filesystem is
 ephemeral. Evidence files and model logs are written under `/tmp`; configure
-durable object storage before relying on them across restarts. The free Render
+durable object storage before relying on them across restarts. Backblaze B2 support is
+now available through the `B2_*` settings; see [integration configuration](INTEGRATIONS.md).
+A local working copy remains available as fallback. The free Render
 Key Value plan is non-persistent and small, so it is used as a disposable cache;
 the database remains the system of record.
 

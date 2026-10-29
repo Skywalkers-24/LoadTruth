@@ -21,12 +21,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
  * color approach of Carbon/Fluent/Atlassian and WCAG 2.2 AA guidance.
  */
 export type Theme =
-  | "command-blue"
-  | "field-ops"
-  | "indigo-ai"
-  | "civic-evergreen"
-  | "arctic-cyan"
-  | "plum-signal";
+  "command-blue" | "field-ops" | "indigo-ai" | "civic-evergreen" | "arctic-cyan" | "plum-signal";
 
 export type ThemeMode = "dark" | "light";
 
@@ -161,6 +156,7 @@ function initialMode(): ThemeMode {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [hydrated, setHydrated] = useState(false);
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
   const [mode, setModeState] = useState<ThemeMode>(DEFAULT_MODE);
 
@@ -168,9 +164,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setThemeState(initialTheme());
     setModeState(initialMode());
+    setHydrated(true);
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
     const el = document.documentElement;
     el.setAttribute("data-theme", theme);
     el.setAttribute("data-mode", mode);
@@ -183,7 +181,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     el.setAttribute("data-theme-anim", "");
     const t = window.setTimeout(() => el.removeAttribute("data-theme-anim"), 350);
     return () => window.clearTimeout(t);
-  }, [theme, mode]);
+  }, [theme, mode, hydrated]);
 
   const setTheme = useCallback((t: Theme) => {
     if (isTheme(t)) setThemeState(t);
