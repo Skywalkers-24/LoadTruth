@@ -230,6 +230,11 @@ class SqlTicketRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
 
+    @property
+    def session(self) -> AsyncSession:
+        """Request-scoped session for adjacent tenant-scoped library operations."""
+        return self._s
+
     async def _anomaly_counts(self, tenant_id: UUID, ticket_ids: list[UUID]) -> dict[UUID, int]:
         if not ticket_ids:
             return {}
@@ -478,6 +483,7 @@ class SqlTicketRepository:
         mime: str,
         fps: float | None,
         segments: dict[str, str],
+        ai_cache_namespace: str = "",
     ) -> None:
         """Link a ticket to its processed clip and SAM's raw segmentation."""
         self._s.add(
@@ -489,6 +495,7 @@ class SqlTicketRepository:
                 mime=mime,
                 fps=fps,
                 segments=dict(segments),
+                ai_cache_namespace=ai_cache_namespace or None,
             )
         )
         await self._s.flush()
@@ -528,7 +535,13 @@ class SqlTicketRepository:
         settings = get_settings()
 
         track_json = (
-            await self.get_ai_stage_result(tenant_id, evidence.content_hash, serde.STAGE_TRACK)
+            await self.get_ai_stage_result(
+                tenant_id,
+                evidence.content_hash,
+                f"{serde.STAGE_TRACK}:{evidence.ai_cache_namespace}"
+                if evidence.ai_cache_namespace
+                else serde.STAGE_TRACK,
+            )
             if evidence is not None
             else None
         )
@@ -569,6 +582,19 @@ class SqlTicketRepository:
             ]
         )
 
+        served_spark: list[str] = []
+        for stage in (serde.STAGE_OCR, serde.STAGE_CLASSIFY):
+            stage_key = (
+                f"{stage}:{evidence.ai_cache_namespace}" if evidence.ai_cache_namespace else stage
+            )
+            cached = await self.get_ai_stage_result(tenant_id, evidence.content_hash, stage_key)
+            if cached is not None and cached.get("_model"):
+                identity = str(cached["_model"])
+                if cached.get("_provider_model"):
+                    identity += ":" + str(cached["_provider_model"])
+                if identity not in served_spark:
+                    served_spark.append(identity)
+
         receipt = compute_receipt(
             ReceiptInputs(
                 content_hash=evidence.content_hash,
@@ -586,8 +612,8 @@ class SqlTicketRepository:
                 est_fill_pct=str(ticket.est_fill_pct),
                 est_cubic_yards=str(ticket.est_cubic_yards),
                 est_dollar_value=str(ticket.est_dollar_value),
-                sam_model=settings.sam_model,
-                spark_model=settings.spark_model,
+                sam_model=str(track_json.get("_model") or settings.sam_model),
+                spark_model="; ".join(served_spark) or settings.spark_model,
             )
         )
         reproducible = recomputed.fill_pct == ticket.est_fill_pct

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/icons";
 import {
   ActivityIcon,
+  FilmIcon,
   BookOpenIcon,
   CircleDollarSignIcon,
   LogOutIcon,
@@ -52,17 +53,18 @@ type NavItem = {
   anyCap?: (keyof Capabilities)[];
 };
 
-// Order: Overview, Review, Ticket, Trucks, Reports, Billing, Settings, then
-// Guide last (reference docs).
+// Separate records, capture, processing, and exception review.
 const NAV: NavItem[] = [
   { href: "/", label: "Overview", short: "Overview", icon: GaugeIcon },
-  { href: "/console", label: "Review", short: "Review", icon: ClipboardIcon, badge: true },
-  { href: "/add", label: "Ticket", short: "Ticket", icon: PlusIcon, cap: "ingest" },
-  { href: "/trucks", label: "Trucks", short: "Trucks", icon: TruckIcon, cap: "manage_trucks" },
+  { href: "/add", label: "New Ticket", short: "New", icon: PlusIcon, cap: "ingest" },
+  { href: "/console", label: "Review Console", short: "Review", icon: ClipboardIcon, badge: true },
+  { href: "/pipeline", label: "AI Pipeline Run", short: "Pipeline", icon: ActivityIcon },
   { href: "/assistant", label: "AI Analyst", short: "Analyst", icon: SparklesIcon },
-  { href: "/pipeline", label: "AI Pipeline", short: "Pipeline", icon: ActivityIcon },
+  { href: "/tickets", label: "Ticket", short: "Ticket", icon: ClipboardIcon },
+  { href: "/trucks", label: "Trucks", short: "Trucks", icon: TruckIcon, cap: "manage_trucks" },
   { href: "/reports", label: "Reports", short: "Reports", icon: ChartIcon },
   { href: "/billing", label: "Billing", short: "Billing", icon: CircleDollarSignIcon },
+  { href: "/demos", label: "Demo Video", short: "Demos", icon: FilmIcon },
   {
     href: "/admin",
     label: "Settings",
@@ -183,7 +185,7 @@ export function AppShell({
       <BottomTabs pathname={pathname} />
 
       {/* AI Analyst — available on every page, labelled with the current screen. */}
-      <AssistantWidget page={section} />
+      {pathname !== "/assistant" && <AssistantWidget page={section} />}
     </div>
   );
 }
@@ -213,7 +215,6 @@ function RailContent({
   onToggle?: () => void;
 }) {
   const pending = usePendingCount();
-  const palette = usePalette();
   const { can } = useAuth();
   const items = visibleNav(can);
 
@@ -272,7 +273,7 @@ function RailContent({
                   collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2",
                   active
                     ? "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-sidebar-primary)_88%,white),var(--color-sidebar-primary))] text-[var(--color-sidebar-primary-foreground)] shadow-[0_4px_12px_-4px_color-mix(in_srgb,var(--color-sidebar-primary)_55%,transparent)]"
-                    : "text-[color-mix(in_srgb,var(--color-sidebar-foreground)_72%,transparent)] hover:bg-white/[0.06] hover:text-sidebar-foreground",
+                    : "text-[color-mix(in_srgb,var(--color-sidebar-foreground)_72%,transparent)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 )}
               >
                 <span className="relative">
@@ -280,7 +281,9 @@ function RailContent({
                     size={18}
                     className={cn(
                       "transition-colors",
-                      active ? "text-white" : "text-current opacity-80 group-hover:opacity-100",
+                      active
+                        ? "text-sidebar-primary-foreground"
+                        : "text-current opacity-80 group-hover:opacity-100",
                     )}
                   />
                   {collapsed && item.badge && pending > 0 && (
@@ -295,7 +298,7 @@ function RailContent({
                     className={cn(
                       "rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
                       active
-                        ? "bg-white/20 text-white"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
                         : "bg-[var(--color-brand)]/15 text-[var(--color-brand-strong)]",
                     )}
                     aria-label={`${pending} awaiting review`}
@@ -321,21 +324,7 @@ function RailContent({
         </ul>
       </nav>
 
-      <div className="flex flex-col gap-2 border-t border-white/[0.06] p-3">
-        {!collapsed && (
-          <button
-            type="button"
-            onClick={palette.open}
-            className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-[12px] text-sidebar-muted transition-colors hover:border-white/10 hover:bg-white/[0.06] hover:text-sidebar-foreground"
-          >
-            <span className="flex items-center gap-2">
-              <SearchIcon size={14} /> Quick search
-            </span>
-            <kbd className="rounded border border-white/10 bg-white/[0.04] px-1 text-[10px] text-sidebar-muted">
-              ⌘K
-            </kbd>
-          </button>
-        )}
+      <div className="flex flex-col gap-2 border-t border-sidebar-border p-3">
         <UserFooter collapsed={collapsed} />
       </div>
     </div>
@@ -466,7 +455,7 @@ function BottomTabs({ pathname }: { pathname: string }) {
   const pending = usePendingCount();
   const { can } = useAuth();
   const primary = visibleNav(can)
-    .filter((i) => ["/", "/console", "/add", "/trucks", "/reports"].includes(i.href))
+    .filter((i) => ["/", "/tickets", "/add", "/console"].includes(i.href))
     .slice(0, 4);
   return (
     <nav

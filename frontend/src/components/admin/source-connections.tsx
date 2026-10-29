@@ -170,8 +170,8 @@ export function SourceConnections({ eventId }: { eventId: string }) {
   const sources = useSources(eventId);
   const { create, update, remove, test } = useSourceMutations(eventId);
   const toast = useToast();
-  const { can } = useAuth();
-  const canManage = can("manage_sources");
+  const { can, member } = useAuth();
+  const canManage = member?.role === "super_admin" || Boolean(can("manage_settings"));
   const [kind, setKind] = useState<SourceKind>("upload");
   const [name, setName] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});

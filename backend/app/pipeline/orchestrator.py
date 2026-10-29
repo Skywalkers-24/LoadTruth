@@ -21,6 +21,7 @@ from uuid import UUID, uuid4
 
 from app.ai.base import AIClient, CallUsage, ClipMedia, OCRResult, StageExplanations
 from app.ai.config_store import get_ai_config_store
+from app.ai.providers import ai_config_fingerprint
 from app.ai.sam_measure import MEASURE_VERSION, SAM_PROMPT_VERSION
 from app.config import get_settings
 from app.pipeline.anomalies import Anomaly, AnomalyInput, evaluate
@@ -92,19 +93,37 @@ async def run_pipeline(
     h = artifact.content_hash
     # Results include tenant/event-specific ticket fields and pricing, so they
     # must never be shared across tenants or events for identical media bytes.
-    cache_key = f"{tenant_id}:{event_id}:m{MEASURE_VERSION}:p{SAM_PROMPT_VERSION}:{h}"
+    cache_key = (
+        f"{tenant_id}:{event_id}:m{MEASURE_VERSION}:p{SAM_PROMPT_VERSION}:"
+        f"{ai_config_fingerprint()}:{h}"
+    )
 
     if cache is not None:
         hit = await cache.get(cache_key)
         if hit is not None:
             await _record_cached(ledger)
             # Rebuild a trace for the cached run so the UI still shows the work.
-            trace = PipelineTrace(content_hash=h, on_stage=on_stage)
+            trace = (
+                replace(hit.trace, stages=[], on_stage=on_stage)
+                if hit.trace is not None
+                else PipelineTrace(content_hash=h, on_stage=on_stage)
+            )
+            trace.started_at = datetime.now(UTC).timestamp()
             trace.cached = True
             trace.outcome = "cached" if not hit.no_truck else "no_truck"
-            trace.stage(
-                "cache", "Result cache", "cache", "Served from the result cache (no model call)."
-            )  # noqa: E501
+            for stage in hit.trace.stages if hit.trace is not None else []:
+                if stage.key != "cache":
+                    trace.stage(
+                        stage.key,
+                        stage.label,
+                        stage.model,
+                        stage.summary,
+                        status=stage.status,
+                        confidence=stage.confidence,
+                        details=stage.details,
+                        duration_ms=stage.duration_ms,
+                        analysis=stage.analysis,
+                    )
             # PipelineResult's cached ticket is the original run's persisted
             # ticket. Every ingest still creates a new ticket row, so copy the
             # cached measurement into a fresh ticket identity instead of
@@ -199,7 +218,7 @@ async def _compute_pipeline(
         trace.stage(
             "spark_ocr",
             "Read placard",
-            spark,
+            ocr.usage.model if ocr.usage else spark,
             (
                 f"Read truck placard {ocr.truck_id}."
                 if ocr.truck_id
@@ -285,7 +304,7 @@ async def _compute_pipeline(
         trace.stage(
             "spark_classify",
             "Classify debris",
-            spark,
+            classify.usage.model if classify.usage else spark,
             f"Classified the load as {debris_class.value.replace('_', ' ')}.",
             confidence=classify.confidence,
             details=_answer(classify.raw)
@@ -338,7 +357,7 @@ async def _compute_pipeline(
         trace.stage(
             "anomalies",
             "Flag anomalies",
-            spark,
+            narration_usage.model if narration_usage else spark,
             (
                 f"Flagged {len(anomalies)} anomal{'y' if len(anomalies) == 1 else 'ies'} for review."  # noqa: E501
                 if anomalies
@@ -568,8 +587,10 @@ def _usage_details(usage: CallUsage | None) -> list[list[str]]:
     if usage is None:
         return []
     if usage.cached:
-        return [["Source", "Saved result from an earlier run, no model call"]]
+        return []
     rows: list[list[str]] = []
+    if usage.provider_model:
+        rows.append(["Provider model", usage.provider_model])
     if usage.tokens_in or usage.tokens_out:
         reasoning = (
             f", {usage.reasoning_tokens:,} of them reasoning" if usage.reasoning_tokens else ""
@@ -579,7 +600,12 @@ def _usage_details(usage: CallUsage | None) -> list[list[str]]:
         rows.append(["Requests", str(usage.requests)])
     if usage.latency_ms > 0:
         rows.append(["Response time", f"{usage.latency_ms / 1000:.1f} s"])
-    rows.append(["Cost", f"${usage.cost_usd:.4f}"])
+    rows.append(
+        [
+            "Cost",
+            f"${usage.cost_usd:.4f}" if usage.pricing_known else "Provider pricing not configured",
+        ]
+    )
     return rows
 
 

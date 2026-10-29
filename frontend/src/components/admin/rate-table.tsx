@@ -20,8 +20,8 @@ const CLASSES = ["vegetative", "construction_demolition", "white_goods", "hazard
 export function RateTableEditor({ event }: { event: EventSummary }) {
   const update = useUpdateEvent();
   const toast = useToast();
-  const { can } = useAuth();
-  const canEdit = can("manage_events");
+  const { can, member } = useAuth();
+  const canEdit = member?.role === "super_admin" || Boolean(can("manage_settings"));
   const [rates, setRates] = useState<Record<string, string>>({});
   const [confirming, setConfirming] = useState(false);
 

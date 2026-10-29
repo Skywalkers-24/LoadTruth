@@ -367,7 +367,7 @@ function ConsoleView() {
 
   if (eventsError) {
     return (
-      <AppShell section="Review">
+      <AppShell section="Review Console">
         <ErrorState
           title="Events unavailable"
           description="The server did not return any events."
@@ -377,7 +377,7 @@ function ConsoleView() {
   }
 
   return (
-    <AppShell section="Review" fluid>
+    <AppShell section="Review Console" fluid>
       {isDesktop ? (
         // Fixed-height grid: the queue column scrolls its list with the pager
         // pinned; the workspace lays out its own columns and scroll areas.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -58,7 +59,7 @@ export function LoginScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const members = directory.data ?? [];
+  const members = (directory.data ?? []).filter((m) => m.role !== "super_admin");
   const wakingUp = directory.isError && isServerWakingUp(directory.error);
 
   useEffect(() => {
@@ -125,8 +126,8 @@ export function LoginScreen() {
             {/* Highlighted headline: brighter, heavier, with a glow so it pops
                 over the footage. */}
             <h1 className="text-[clamp(26px,2.25vw,32px)] font-extrabold leading-[1.12] tracking-tight text-white">
-              Every debris haul, <span className="text-[#7dd3fc]">measured and paid</span> on the
-              evidence.
+              Every debris haul, <span className="text-[#7dd3fc]">measured and verified</span> from
+              real video.
             </h1>
             <p className="text-[14px] font-medium leading-relaxed text-white/90">
               Counties pay contractors by the cubic yard to clear debris. LoadTruth measures each
@@ -256,6 +257,15 @@ export function LoginScreen() {
               See the public showcase
               <ArrowRightIcon className="size-4" />
             </a>
+
+            <div className="mt-4 text-center">
+              <Link
+                href="/superadmin"
+                className="text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Developer / SuperAdmin Sign In →
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -266,7 +276,7 @@ export function LoginScreen() {
           <div className="grid grid-cols-3 gap-2">
             <MiniStat value="$1,402" label="Over-calls / event" />
             <MiniStat value="7" label="AI stages / clip" />
-            <MiniStat value="100%" label="Traced to evidence" />
+            <MiniStat value="100%" label="Verified by video" />
           </div>
           {/* Six compact capabilities in one horizontal row on desktop. They
             wrap to a 3-up then 2-up grid only on narrow screens where a single
@@ -280,7 +290,7 @@ export function LoginScreen() {
             <MiniFeature
               icon={<DollarSignIcon className="size-3.5" />}
               title="Money frame"
-              subtitle="Visual evidence"
+              subtitle="Video proof"
             />
             <MiniFeature
               icon={<ShieldAlertIcon className="size-3.5" />}
@@ -295,7 +305,7 @@ export function LoginScreen() {
             <MiniFeature
               icon={<FileCheck2Icon className="size-3.5" />}
               title="Audit exports"
-              subtitle="Evidence trail"
+              subtitle="Audit trail"
             />
             <MiniFeature
               icon={<BuildingIcon className="size-3.5" />}

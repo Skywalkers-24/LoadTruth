@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MaximizeIcon, MinimizeIcon } from "lucide-react";
+import { Loader2Icon, MaximizeIcon, MinimizeIcon } from "lucide-react";
 
 import type { Ticket } from "@/lib/api";
 import { useTicketEvidence } from "@/lib/hooks";
@@ -72,13 +72,15 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
   });
 
   // The clip the models analyzed, with SAM's per-frame output, when stored.
-  const evidence = useTicketEvidence(ticket.id).data ?? null;
+  const evidenceQuery = useTicketEvidence(ticket.id);
+  const evidence = evidenceQuery.data ?? null;
+  const loadingEvidence = Boolean(evidenceQuery.isLoading && !evidence);
   const live = Boolean(evidence?.has_media);
   const [samFrame, setSamFrame] = useState({ frame: 0, total: 0 });
   const onFrame = useCallback((frame: number, total: number) => {
     setSamFrame((prev) => (prev.frame === frame && prev.total === total ? prev : { frame, total }));
   }, []);
-  const hasViewer = live || frames.length > 0;
+  const hasViewer = live && !loadingEvidence;
 
   const v = ticket.valuation;
   const measured = clamp(Number.parseFloat(v.est_fill_pct), 0, 100);
@@ -106,27 +108,27 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
             Evidence
             <Tooltip
               content={
-                live
+                loadingEvidence
+                  ? "Loading real evidence footage…"
+                  : live
                   ? "SAM 3.1 masks: amber is the exterior and tailgate, blue is the visible bed interior above the rear rim, and purple is the load. Each color can be toggled."
-                  : "Drawn from the segmented load surface relative to the calibrated truck-bed geometry."
+                  : "No video footage captured for this ticket."
               }
             >
               <span tabIndex={0}>
                 <Badge tone="neutral">
-                  {live ? "SAM 3.1 segmentation" : "Measurement overlay"}
+                  {loadingEvidence
+                    ? "Loading footage…"
+                    : live
+                    ? "SAM 3.1 segmentation"
+                    : "No evidence"}
                 </Badge>
               </span>
             </Tooltip>
-            {live && samFrame.total > 0 ? (
+            {live && samFrame.total > 0 && (
               <span className="hidden truncate text-[12px] font-normal tabular-nums text-[var(--color-subtle)] md:inline">
                 Frame {samFrame.frame + 1} of {samFrame.total}
               </span>
-            ) : (
-              frames.length > 0 && (
-                <span className="hidden truncate text-[12px] font-normal tabular-nums text-[var(--color-subtle)] md:inline">
-                  {selectedFrame}
-                </span>
-              )
             )}
           </div>
           {hasViewer && (
@@ -162,21 +164,18 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
               >
                 {fullscreen || expanded ? <MinimizeIcon size={16} /> : <MaximizeIcon size={16} />}
               </button>
-              {!live && monitor !== null && (
-                <OverlayToggle
-                  label="Call"
-                  color="var(--color-text)"
-                  on={overlays.call}
-                  onClick={() => toggle("call")}
-                />
-              )}
             </div>
           )}
         </div>
 
         {/* The media and SVG overlays letterbox inside this box at any size. */}
         <div className="lt-evidence-media relative aspect-video min-h-[14rem] w-full shrink-0 overflow-hidden bg-[var(--color-bg)]">
-          {live && evidence ? (
+          {loadingEvidence ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[var(--color-bg)] text-[var(--color-subtle)]">
+              <Loader2Icon className="size-8 animate-spin text-[var(--color-money)]" />
+              <p className="text-sm font-medium">Loading real video evidence…</p>
+            </div>
+          ) : live && evidence ? (
             <>
               <SamPlayer
                 key={ticket.id}
@@ -193,66 +192,16 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
                 />
               </div>
             </>
-          ) : frames.length === 0 ? (
+          ) : (
             <div className="absolute inset-0 grid place-items-center p-6">
               <EmptyState
                 icon={<CameraIcon size={22} />}
-                title="No evidence captured"
-                description="Upload a clip to generate the measurement overlay for this ticket."
+                title="No video evidence captured"
+                description="Upload a clip to generate the video evidence for this ticket."
               />
             </div>
-          ) : (
-            <>
-              <div className="lt-grid-bg absolute inset-0" aria-hidden />
-              <TruckIllustration measured={measured} monitor={monitor} overlays={overlays} />
-
-              {/* Readouts */}
-              <div className="absolute right-3 top-3 hidden gap-2 sm:flex">
-                <Readout
-                  label="Measured"
-                  value={percent(v.est_fill_pct)}
-                  color="var(--color-money)"
-                />
-                {monitor !== null && (
-                  <Readout
-                    label="Monitor call"
-                    value={percent(v.monitor_fill_pct)}
-                    color="var(--color-text)"
-                  />
-                )}
-              </div>
-            </>
           )}
         </div>
-
-        {/* Frame stepper (only when there is more than one frame) */}
-        {!live && frames.length > 1 && (
-          <div className="flex items-center justify-center gap-3 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5">
-            <div className="flex items-center gap-1 text-[var(--color-subtle)]">
-              <button
-                type="button"
-                disabled={frameIdx === 0}
-                aria-label="Previous frame"
-                onClick={() => setFrameIdx((i) => Math.max(0, i - 1))}
-                className="rounded p-1.5 hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text)] disabled:opacity-30"
-              >
-                <SkipBackIcon size={14} />
-              </button>
-              <span className="min-w-[88px] text-center text-[12px] tabular-nums text-[var(--color-muted-foreground)]">
-                Frame {frameIdx + 1} of {frames.length}
-              </span>
-              <button
-                type="button"
-                disabled={frameIdx >= frames.length - 1}
-                aria-label="Next frame"
-                onClick={() => setFrameIdx((i) => Math.min(frames.length - 1, i + 1))}
-                className="rounded p-1.5 hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text)] disabled:opacity-30"
-              >
-                <SkipForwardIcon size={14} />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

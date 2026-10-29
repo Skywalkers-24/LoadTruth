@@ -30,17 +30,19 @@ status; it does not gate either production deployment.
    Set `CORS_ORIGINS` to the exact Cloudflare Worker origin, for example
    `https://loadtruth-console.<your-workers-subdomain>.workers.dev`.
    `REDIS_URL` is linked to the private Render Key Value instance by `render.yaml`;
-   local development keeps using the in-memory pipeline cache unless `REDIS_URL`
-   is explicitly configured.
+   full pipeline-result caching is disabled by default to keep RAM bounded;
+   reusable AI stage results remain in Postgres.
 4. Deploy `main`. Render runs `alembic upgrade head` before Uvicorn starts and
    uses `/health` for its health check. The service URL is
    `https://loadtruth-api.onrender.com`.
 
-The free Render service may sleep when idle and its local filesystem is
-ephemeral. Evidence files and model logs are written under `/tmp`; configure
-durable object storage before relying on them across restarts. The free Render
-Key Value plan is non-persistent and small, so it is used as a disposable cache;
-the database remains the system of record.
+The free Render service may sleep and its filesystem is ephemeral. Videos and
+processed evidence now require private Backblaze B2 storage; there is no local
+storage fallback. Set the `B2_*` secrets declared in `render.yaml` separately on
+Render. Browser uploads and playback go directly to B2 using signed URLs. The
+Demo Videos library and analysis queue are persisted in Postgres. Startup applies
+migration `0004_demo_videos_jobs` and requeues interrupted work. See
+[integration configuration](INTEGRATIONS.md) for CORS and per-clip limits.
 
 ### Cloudflare frontend
 
@@ -112,7 +114,7 @@ Caching is layered so the expensive thing — Meta Model API calls on video — 
 
 ### 4. Shared pipeline-result cache
 - `REDIS_URL` points to the private Render Key Value instance. It shares completed pipeline results across backend instances for seven days, scoped to a tenant and event.
-- If Key Value is unavailable, the backend falls back to an in-process cache; PostgreSQL remains the durable system of record.
+- This full-result cache is disabled by default on free Render (`PIPELINE_RESULT_CACHE_ENABLED=false`). PostgreSQL AI-stage caching still avoids repeated model calls for saved stages.
 
 ### Security scanning on a free private repo
 CodeQL code scanning is free only for **public** repos; on a free **private** repo it needs paid GitHub Advanced Security and fails at the upload step. So CI uses free equivalents: `gitleaks` (secret scan) in `.github/workflows/security.yml`, plus `bandit`, `pip-audit`, and `npm audit` in `scripts/eval.sh` and CI. Re-enable CodeQL only if the repo goes public or gets Advanced Security.
@@ -121,11 +123,11 @@ CodeQL code scanning is free only for **public** repos; on a free **private** re
 - GitHub Actions caches pip + npm (`cache:` in `setup-python`/`setup-node`) and Docker layers via `type=gha`, so CI stays fast within free minutes.
 
 ### Golden rule (enforced by the protocol)
-> No uncached model call on any path that runs more than once. The demo path is pure cache reads.
+> Reuse persisted perception results when the clip and AI configuration match. New narration can still run; bypass-cache intentionally requests fresh inference.
 
 ## Local full-stack
 
-`docker-compose.yml` runs backend + frontend + Postgres + Redis locally with no external accounts. For the fastest inner loop, use `./scripts/dev.sh` (no containers).
+`docker-compose.yml` runs backend + frontend + Postgres + Redis locally. B2 credentials are now required for media storage and uploads. For the fastest inner loop, use `./scripts/dev.sh` (no containers).
 
 ## Promotion flow
 

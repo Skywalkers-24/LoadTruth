@@ -31,18 +31,66 @@ from app.tickets.seed import DEMO_TENANT_ID, seed_demo
 def _no_meta_api_log(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Tests never append to the real logs/meta_api.jsonl."""
     monkeypatch.setenv("MODEL_API_LOG_PATH", "")
+    monkeypatch.setenv("SPARK_PROVIDER", "meta")
+    monkeypatch.setenv("SPARK_FALLBACK_PROVIDERS", "")
     yield
     get_settings.cache_clear()
 
 
 @pytest.fixture(autouse=True)
-def _isolated_evidence_dir(
-    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
-) -> Iterator[None]:
-    """Tests store evidence media in a temp dir, never the repo's media/."""
-    monkeypatch.setenv("EVIDENCE_DIR", str(tmp_path_factory.mktemp("evidence")))
+def b2_objects(monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+    """A private in-memory S3 test double, never a production local fallback."""
+    import hashlib
+    import io
+
+    from app.pipeline import b2_store
+
+    objects: dict[str, tuple[bytes, dict[str, object]]] = {}
+    for key, value in {
+        "B2_KEY_ID": "test",
+        "B2_APPLICATION_KEY": "test",
+        "B2_BUCKET_NAME": "test",
+        "B2_S3_ENDPOINT": "https://b2.test",
+        "B2_REGION": "test",
+    }.items():
+        monkeypatch.setenv(key, value)
     get_settings.cache_clear()
-    yield
+
+    def put(key: str, data: bytes, mime: str, fps: float | None) -> None:
+        objects[b2_store.object_key(key)] = (
+            data,
+            {
+                "ContentType": mime,
+                "ContentLength": len(data),
+                "VersionId": "v1",
+                "Metadata": {
+                    "fps": str(fps) if fps else "",
+                    "sha256": hashlib.sha256(data).hexdigest(),
+                },
+            },
+        )
+
+    def head(key: str, version: str | None = None):  # type: ignore[no-untyped-def]
+        return objects[key][1] if key in objects else None
+
+    def signed(key: str, **kwargs: object) -> str:
+        return "https://private-b2.test/" + key
+
+    def download(
+        key: str, file: io.BufferedIOBase, max_bytes: int, version: str | None = None
+    ) -> str:
+        data = objects[key][0]
+        if len(data) > max_bytes:
+            raise ValueError("too large")
+        file.write(data)
+        file.seek(0)
+        return hashlib.sha256(data).hexdigest()
+
+    monkeypatch.setattr(b2_store, "put", put)
+    monkeypatch.setattr(b2_store, "head_key", head)
+    monkeypatch.setattr(b2_store, "signed_url", signed)
+    monkeypatch.setattr(b2_store, "download_to", download)
+    yield objects
     get_settings.cache_clear()
 
 

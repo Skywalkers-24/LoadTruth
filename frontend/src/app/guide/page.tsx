@@ -87,25 +87,24 @@ export default function GuidePage() {
                   get the bed&apos;s registered cubic-yard capacity.
                 </li>
                 <li>
-                  <B>Measure fill.</B> The geometry estimator converts the bed and debris masks into
-                  a fill percentage with a confidence score.
+                  <B>Measure fill.</B> Combines the video outlines with bed height to calculate the
+                  fill percentage directly from video pixels.
                 </li>
                 <li>
-                  <B>Classify debris.</B> Muse Spark labels the load as vegetative, C&amp;D, white
-                  goods, hazardous, or other, which selects the event rate.
+                  <B>Classify debris.</B> Meta Muse Spark labels the load as vegetative, C&amp;D, white
+                  goods, hazardous, or other, which selects the contract rate.
                 </li>
                 <li>
-                  <B>Flag anomalies.</B> Deterministic rules check the measured facts and raise
-                  flags. Muse Spark phrases each one for a reviewer.
+                  <B>Flag anomalies.</B> Safety checks inspect the load and raise flags for
+                  issues like overfilling or empty voids. Meta Muse Spark explains each one clearly for a reviewer.
                 </li>
                 <li>
-                  <B>Value the load.</B> The deterministic money math produces the measured value
-                  and, once a monitor call exists, the signed delta.
+                  <B>Value the load.</B> Exact billing calculations produce the measured dollar value
+                  and, once a monitor call exists, the signed difference.
                 </li>
               </ol>
               <p className="text-[12px] text-[var(--color-subtle)]">
-                Stages 1 through 3 and stage 5 are AI. Capacity, fill geometry, anomaly rules, and
-                the dollar math are deterministic, so the AI never sets a price.
+                Visual detection uses Meta SAM 3.1 and Muse Spark. Capacity, fill percentage, and dollar calculations follow exact math so the AI never guesses prices.
               </p>
             </Section>
 

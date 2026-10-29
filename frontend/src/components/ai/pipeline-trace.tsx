@@ -40,12 +40,16 @@ function StageIcon({ stage, className }: { stage: PipelineStage; className?: str
 export function PipelineTrace({
   stages,
   compact = false,
+  defaultExpanded = false,
 }: {
   stages: PipelineStage[];
   compact?: boolean;
+  defaultExpanded?: boolean;
 }) {
   // Track which stage keys are expanded. A Set lets several be open at once.
-  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [open, setOpen] = useState<Set<string>>(
+    () => new Set(defaultExpanded ? stages.map((s, i) => `${s.key}-${i}`) : []),
+  );
 
   if (stages.length === 0) {
     return (
@@ -216,14 +220,7 @@ function composedAnalysis(stage: PipelineStage): string {
   switch (stage.key) {
     case "sam_track": {
       parts.push(
-        "Meta SAM 3.1 tracked the truck bed and the debris pile across the sampled frames and returned a segmentation mask for each.",
-      );
-      const billed = detail(stage, "billed");
-      const media = detail(stage, "media sent");
-      if (media) parts.push(`The clip was sent ${media.toLowerCase()}.`);
-      if (billed) parts.push(`SAM was billed for ${billed.toLowerCase()}.`);
-      parts.push(
-        "These masks are the pixel evidence every downstream measurement is derived from.",
+        "Meta SAM 3.1 tracked the truck bed and debris load across video frames to create visual outlines of the load boundaries.",
       );
       break;
     }
@@ -231,69 +228,66 @@ function composedAnalysis(stage: PipelineStage): string {
       const truck = detail(stage, "clearest") ?? null;
       if (stage.status === "flagged") {
         parts.push(
-          "Muse Spark could not read the truck's ID placard confidently, so the ticket is flagged for manual identification.",
+          "Meta Muse Spark could not clearly read the truck's vehicle ID placard, so the ticket is flagged for human review.",
         );
       } else {
         parts.push(
-          "Muse Spark read the truck's ID placard from the clearest frame of the footage.",
+          "Meta Muse Spark read the truck's vehicle ID placard from the clearest frame in the footage.",
         );
       }
-      if (conf) parts.push(`The read carries ${conf}.`);
+      if (conf) parts.push(`The reading has ${conf}.`);
       if (truck) parts.push(`The clearest view was at ${truck}.`);
       break;
     }
     case "capacity": {
       if (stage.status === "flagged") {
         parts.push(
-          "The identified truck was not found in the certified registry, so no certified capacity could be applied. The load still measures, but it is flagged for verification.",
+          "The truck was not found in the official county registry, so its certified capacity could not be applied automatically. The load is flagged for review.",
         );
       } else {
         parts.push(
-          "The placard read was matched to a certified truck in the registry, which supplies the bed's registered cubic-yard capacity used in the volume math.",
+          "The truck ID was matched to the official county registry to get its certified bed capacity in cubic yards for billing.",
         );
       }
       const score = detail(stage, "match score");
-      if (score) parts.push(`The registry match scored ${score}.`);
+      if (score) parts.push(`Match score: ${score}.`);
       break;
     }
     case "geometry": {
       parts.push(
-        "The deterministic geometry estimator converted the bed and load masks into a fill percentage. It blends how much of the bed opening the load covers with how high the load sits against the rails, weighted by a body-type depth prior, so the number traces to the pixels rather than to a model's opinion.",
+        "Calculates the exact fill percentage based on how much debris fills the truck bed rails. This is computed directly from the video outlines to ensure fair and accurate measurements.",
       );
-      if (conf)
-        parts.push(
-          `The estimate carries ${conf}; lower confidence means occlusion or a near-empty or near-heaped load.`,
-        );
+      if (conf) parts.push(`Measurement confidence: ${conf}.`);
       break;
     }
     case "spark_classify": {
       parts.push(
-        "Muse Spark classified the load into one debris class, which selects the per-cubic-yard rate the valuation applies.",
+        "Meta Muse Spark identified the debris material in the truck to select the correct contract rate per cubic yard.",
       );
-      if (conf) parts.push(`The classification carries ${conf}.`);
+      if (conf) parts.push(`Classification confidence: ${conf}.`);
       break;
     }
     case "anomalies": {
       if (stage.status === "flagged") {
         parts.push(
-          "Deterministic rules checked the measured facts against the truck's certification, capacity, and the surface-versus-depth relationship, and raised one or more flags. Muse Spark phrased each flag in plain language; the rules, not the model, decide whether a flag fires.",
+          "Quality checks flagged an issue with this load (such as overfilling, hidden voids, or uncertified hauler) and routed the ticket for supervisor review.",
         );
       } else {
         parts.push(
-          "Deterministic rules checked the measured facts against certification, capacity, and the surface-versus-depth relationship, and found nothing to flag.",
+          "Quality checks verified the load is within normal limits with no overfill or safety flags.",
         );
       }
       break;
     }
     case "dollar_math": {
       parts.push(
-        "The valuation is exact arithmetic, never a model output: fill percent times the truck's certified capacity gives cubic yards, and cubic yards times the event's rate for this debris class gives the measured dollar value. Once a monitor records a call, the signed delta against that value is computed here too.",
+        "Calculates the payout: certified truck size multiplied by the fill percentage and the debris rate per cubic yard.",
       );
       break;
     }
     case "cache": {
       parts.push(
-        "This result was served from the durable, content-hash-keyed cache. The models already ran on this exact clip, so the stored outputs were replayed with no new model call and no cost.",
+        "This result was loaded instantly from storage because the models already analyzed this exact video clip earlier.",
       );
       break;
     }

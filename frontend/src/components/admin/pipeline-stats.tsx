@@ -59,7 +59,7 @@ export function PipelineStats() {
       <div className="grid gap-3 sm:grid-cols-3">
         <Tile
           icon={<GaugeIcon className="size-4" />}
-          label="Pipeline runs"
+          label="AI Pipeline runs"
           value={String(s.total_runs)}
           sub={`${s.cache_hits} served from cache`}
         />
@@ -81,7 +81,7 @@ export function PipelineStats() {
       <div className="flex items-center gap-2">
         <span className="text-[12px] text-muted-foreground">Model source:</span>
         <StatusChip tone={s.mode === "live" ? "ok" : "info"}>
-          {s.mode === "live" ? "Live Meta API" : "Fixtures (zero-cost demo)"}
+          {s.mode === "live" ? "Live model APIs" : "Fixtures (zero-cost demo)"}
         </StatusChip>
       </div>
 

@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
-from app.auth.roles import can_manage_sources
+from app.auth.roles import can_manage_settings
 from app.pipeline.sources import get_adapter
 from app.tickets.repository import EventNotFoundError, SourceNotFoundError
 from app.tickets.schemas import (
@@ -39,9 +39,9 @@ def _require_enabled_kind(kind: SourceKind) -> None:
 
 router = APIRouter(tags=["sources"])
 
-# Connecting, editing, testing, or removing evidence sources is supervisor-and-up.
-_NO_SOURCES = "You do not have permission to manage sources."
-ManageSources = Depends(require(can_manage_sources, _NO_SOURCES))
+# Connecting, editing, testing, or removing evidence sources is restricted to SuperAdmin.
+_NO_SOURCES = "Only SuperAdmin can manage evidence sources in settings."
+ManageSources = Depends(require(can_manage_settings, _NO_SOURCES))
 
 
 @router.get("/events/{event_id}/sources", response_model=list[SourceOut])

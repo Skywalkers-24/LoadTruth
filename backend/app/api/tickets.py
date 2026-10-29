@@ -13,12 +13,12 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import FileResponse
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
-from app.auth.roles import can_manage_events, can_review_tickets
+from app.auth.roles import can_manage_events, can_manage_settings, can_review_tickets
 from app.pipeline import evidence_store
 from app.tickets.repository import EventNotFoundError, TicketNotFoundError
 from app.tickets.schemas import (
@@ -43,11 +43,11 @@ from app.tickets.schemas import (
 
 router = APIRouter(tags=["tickets"])
 
-# Managing events and their rate tables is a county-admin-and-up action;
+# Managing events and their rate tables requires SuperAdmin;
 # reviewing tickets (monitor call, confirm/override/dispute) needs review rights.
-_NO_EVENTS = "You do not have permission to manage events."
+_NO_EVENTS = "Only SuperAdmin can manage workspace events and rate tables."
 _NO_REVIEW = "You do not have permission to review tickets."
-ManageEvents = Depends(require(can_manage_events, _NO_EVENTS))
+ManageEvents = Depends(require(can_manage_settings, _NO_EVENTS))
 ReviewTickets = Depends(require(can_review_tickets, _NO_REVIEW))
 
 
@@ -247,18 +247,27 @@ async def ticket_evidence(repo: Repository, tenant: ActiveTenant, ticket_id: UUI
 @router.get("/tickets/{ticket_id}/evidence/media")
 async def ticket_evidence_media(
     repo: Repository, tenant: ActiveTenant, ticket_id: UUID
-) -> FileResponse:
-    """The stored clip itself (tenant-checked through the ticket's evidence row)."""
+) -> RedirectResponse:
+    """Authorize once, then play private B2 evidence without proxying video bytes."""
     row = await repo.get_ticket_evidence(tenant, ticket_id)
     stored = await evidence_store.load(row.content_hash) if row is not None else None
     if row is None or stored is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "no evidence media for this ticket")
-    return FileResponse(
-        stored.path,
-        media_type=stored.mime,
-        filename=f"evidence-{ticket_id}.{evidence_store.extension(stored.mime)}",
-        content_disposition_type="inline",
+        raise HTTPException(404, "no evidence media for this ticket")
+    return RedirectResponse(
+        await evidence_store.media_url(row.content_hash),
+        status_code=307,
+        headers={"Cache-Control": "no-store"},
     )
+
+
+@router.get("/tickets/{ticket_id}/evidence/url")
+async def ticket_evidence_url(
+    repo: Repository, tenant: ActiveTenant, ticket_id: UUID
+) -> dict[str, str]:
+    row = await repo.get_ticket_evidence(tenant, ticket_id)
+    if row is None or await evidence_store.load(row.content_hash) is None:
+        raise HTTPException(404, "no evidence media for this ticket")
+    return {"url": await evidence_store.media_url(row.content_hash)}
 
 
 class ReverifyOut(BaseModel):

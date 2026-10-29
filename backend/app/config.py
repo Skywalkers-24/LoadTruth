@@ -8,8 +8,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
-from pydantic import Field
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Repo root is two levels up from this file: backend/app/config.py -> repo/
@@ -26,21 +27,101 @@ class Settings(BaseSettings):
     )
 
     # Meta Model API
-    model_api_key: str = Field(default="TO_BE_UPDATED_LATER", alias="MODEL_API_KEY")
+    model_api_key: str = Field(default="TO_BE_UPDATED_LATER", alias="MODEL_API_KEY", repr=False)
     model_api_base_url: str = Field(default="https://api.meta.ai/v1")
     sam_model: str = Field(default="sam-3.1")
     spark_model: str = Field(default="muse-spark-1.3")
 
+    # Partner inference routes. Meta remains the default and owns SAM segmentation.
+    spark_provider: Literal["meta", "baseten", "modal", "fireworks"] = "meta"
+    spark_fallback_providers: str = ""
+    baseten_api_key: str = Field(default="", alias="BASETEN_API_KEY", repr=False)
+    baseten_base_url: str = "https://inference.baseten.co/v1"
+    baseten_model: str = "meta-models/muse-spark-open-1026"
+    modal_proxy_token_id: str = Field(
+        default="", validation_alias=AliasChoices("MODAL_PROXY_TOKEN_ID", "ModalKey"), repr=False
+    )
+    modal_proxy_token_secret: str = Field(
+        default="",
+        validation_alias=AliasChoices("MODAL_PROXY_TOKEN_SECRET", "Modal-Secret"),
+        repr=False,
+    )
+    modal_base_url: str = ""
+    modal_model: str = "meta-models/Muse-Spark-Open-816B-A42B"
+    modal_routing_affinity_key: str = ""
+    fireworks_api_key: str = Field(default="", alias="FIREWORKS_API_KEY", repr=False)
+    fireworks_base_url: str = "https://api.fireworks.ai/inference/v1"
+    # No guessed Fireworks model/deployment: supplied by the operator.
+    fireworks_model: str = ""
+    fireworks_supports_vision: bool = False
+    # Prices per million tokens; zero means not configured, not a free provider.
+    baseten_input_price: float = 1.25
+    baseten_cached_input_price: float = 0.15
+    baseten_output_price: float = 4.25
+    modal_input_price: float = 1.25
+    modal_cached_input_price: float = 0.15
+    modal_output_price: float = 4.25
+    fireworks_input_price: float = 0.0
+    fireworks_cached_input_price: float = 0.0
+    fireworks_output_price: float = 0.0
+
+    @field_validator("spark_fallback_providers")
+    @classmethod
+    def validate_fallbacks(cls, value: str) -> str:
+        providers = [item.strip() for item in value.split(",") if item.strip()]
+        if any(item not in ("meta", "baseten", "modal", "fireworks") for item in providers):
+            raise ValueError("Fallback providers must be meta, baseten, modal, or fireworks.")
+        return ",".join(dict.fromkeys(providers))
+
+    # Private Backblaze evidence storage with a local working copy/fallback.
+    b2_key_id: str = Field(default="", alias="B2_KEY_ID", repr=False)
+    b2_application_key: str = Field(default="", alias="B2_APPLICATION_KEY", repr=False)
+    b2_bucket_name: str = Field(default="", alias="B2_BUCKET_NAME")
+    b2_s3_endpoint: str = Field(default="", alias="B2_S3_ENDPOINT")
+    b2_region: str = Field(default="", alias="B2_REGION")
+    b2_key_prefix: str = "loadtruth/evidence"
+    demo_upload_max_bytes: int = 100 * 1024 * 1024
+    analysis_max_bytes: int = 20 * 1024 * 1024
+    b2_signed_url_ttl_s: int = 900
+
+    @property
+    def b2_configured(self) -> bool:
+        return all(
+            (
+                self.b2_key_id,
+                self.b2_application_key,
+                self.b2_bucket_name,
+                self.b2_s3_endpoint,
+                self.b2_region,
+            )
+        )
+
     # Database. Defaults to a local SQLite file (async aiosqlite) until Supabase
     # Postgres is wired; then set DATABASE_URL to the postgresql+asyncpg URL.
-    database_url: str = Field(default="sqlite+aiosqlite:///./loadtruth.db", alias="DATABASE_URL")
+    database_url: str = Field(
+        default="sqlite+aiosqlite:///./loadtruth.db", alias="DATABASE_URL", repr=False
+    )
     supabase_url: str = Field(default="", alias="SUPABASE_URL")
     supabase_anon_key: str = Field(default="", alias="SUPABASE_ANON_KEY")
     supabase_service_role_key: str = Field(default="", alias="SUPABASE_SERVICE_ROLE_KEY")
     # Supabase JWT signing secret (HS256) — verifies access tokens on the API.
     supabase_jwt_secret: str = Field(default="", alias="SUPABASE_JWT_SECRET")
 
+    # SuperAdmin / Developer credentials (stored hashed in .env)
+    superadmin_username_hash: str = Field(
+        default="",
+        alias="SUPERADMIN_USERNAME_HASH",
+    )
+    superadmin_password_hash: str = Field(
+        default="",
+        alias="SUPERADMIN_PASSWORD_HASH",
+        repr=False,
+    )
+    superadmin_username: str = Field(default="", alias="SUPERADMIN_USERNAME")
+    superadmin_password: str = Field(default="", alias="SUPERADMIN_PASSWORD", repr=False)
+
     # Redis / background worker
+    pipeline_result_cache_enabled: bool = False
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
 
     # Runtime
@@ -131,7 +212,6 @@ class Settings(BaseSettings):
     )
     model_api_log_max_chars: int = Field(default=200_000)
     # Processed evidence media (the exact clip the models saw), by content hash.
-    evidence_dir: str = Field(default=str(_REPO_ROOT / "media" / "evidence"), alias="EVIDENCE_DIR")
     # Target number of frames sampled from any clip, whatever its length. The
     # transcode step picks the fps per clip (target / duration) so a 10s clip and
     # a 40s clip both yield ~60 evenly spaced frames. `max_sampled_frames` is the
@@ -154,8 +234,21 @@ class Settings(BaseSettings):
 
     @property
     def live_ai_enabled(self) -> bool:
-        """True when the pipeline calls Meta (a key is set and MOCK_AI is off)."""
-        return self.model_api_configured and not self.mock_ai
+        """True when a live route is configured and MOCK_AI is off.
+
+        Partner-only text tasks can run without a Meta key; SAM still requires it.
+        """
+        partners_ready = (
+            self.spark_provider == "baseten"
+            and bool(self.baseten_api_key)
+            or self.spark_provider == "modal"
+            and bool(
+                self.modal_base_url and self.modal_proxy_token_id and self.modal_proxy_token_secret
+            )
+            or self.spark_provider == "fireworks"
+            and bool(self.fireworks_model and self.fireworks_api_key)
+        )
+        return not self.mock_ai and (self.model_api_configured or partners_ready)
 
     @property
     def is_sqlite(self) -> bool:

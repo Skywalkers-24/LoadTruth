@@ -5,6 +5,8 @@ import { CheckIcon, LoaderIcon, TriangleAlertIcon } from "lucide-react";
 
 import type { PipelineProgress, PipelineStage } from "@/lib/api";
 import { usePipelineProgress } from "@/lib/hooks";
+import { PipelineWorkbench } from "@/components/ai/pipeline-workbench";
+import { currentPipelineRun } from "@/lib/pipeline-progress";
 import { cn } from "@/lib/utils";
 
 // The pipeline's stages in order, so the flow shows every step left to right
@@ -23,7 +25,7 @@ const STAGE_FLOW: { key: string; label: string }[] = [
 
 /**
  * Live, left-to-right view of a clip moving through the pipeline. Polls the
- * event's progress snapshot (every 3s while running) and lights up each stage
+ * event's progress snapshot (every 1.5s while running) and lights up each stage
  * as it lands, so the operator watches the run instead of staring at
  * "Analysing". Because the server holds the snapshot, a page refreshed mid-run
  * still shows the in-flight run. Renders nothing until a run exists.
@@ -33,8 +35,17 @@ export function LivePipelineFlow({
   active = false,
   showIdle = false,
   onComplete,
+  detailed = false,
+  ignoredAttempt,
+  onlyActive = false,
 }: {
   eventId: string | null | undefined;
+  /** Expand actual stage output as it arrives. */
+  detailed?: boolean;
+  /** Hide previous event results while a new upload begins. */
+  ignoredAttempt?: string;
+  /** History pages already show completed runs in their inspector. */
+  onlyActive?: boolean;
   /** Keep polling and show pending stages while an upload is being processed. */
   active?: boolean;
   /** Render the pending stage map before the first upload. */
@@ -43,61 +54,100 @@ export function LivePipelineFlow({
   onComplete?: () => void;
 }) {
   const progress = usePipelineProgress(eventId ?? undefined, active);
-  const run = progress.data ?? null;
+  const run = currentPipelineRun(progress.data, ignoredAttempt);
 
-  // Fire onComplete exactly once per finished run (keyed by content hash).
+  // Fire onComplete once per finished attempt, including repeated clips.
   const completedRef = useRef<string | null>(null);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
   useEffect(() => {
-    if (run && run.status === "done" && completedRef.current !== run.content_hash) {
-      completedRef.current = run.content_hash;
+    if (
+      run &&
+      run.status === "done" &&
+      completedRef.current !== `${run.event_id}:${run.started_at}`
+    ) {
+      completedRef.current = `${run.event_id}:${run.started_at}`;
       onCompleteRef.current?.();
     }
   }, [run]);
 
+  if (progress.isError)
+    return (
+      <div role="alert" className="rounded-xl border border-border bg-card p-4 text-sm">
+        <p>Live analysis is temporarily unavailable. Your upload may still be processing.</p>
+        <button
+          type="button"
+          onClick={() => void progress.refetch()}
+          className="mt-2 text-primary underline"
+        >
+          Reconnect
+        </button>
+      </div>
+    );
+  if (onlyActive && (!run || (run.status === "done" && run.outcome !== "failed"))) return null;
   if (!run && !active && !showIdle) return null;
-  return <Flow run={run} active={active} idle={!run && !active} />;
+  return <Flow run={run} active={active} idle={!run && !active} detailed={detailed} />;
 }
 
 function Flow({
   run,
   active,
   idle,
+  detailed,
 }: {
   run: PipelineProgress | null;
   active: boolean;
   idle: boolean;
+  detailed: boolean;
 }) {
+  const failed = run?.outcome === "failed";
   const running = run?.status === "running" || (!run && active);
-  const stages = run?.stages ?? [];
+  const stages = (run?.stages ?? []).filter((s) => s.key !== "cache");
   const byKey = new Map(stages.map((s) => [s.key, s]));
   const lastKey = stages[stages.length - 1]?.key;
   const last = lastKey ? byKey.get(lastKey) : undefined;
-  const cached = byKey.has("cache");
+  const cached = run?.outcome === "cached" || run?.stages.some((s) => s.key === "cache");
 
   return (
-    <section className="lt-fade-in rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+    <section
+      aria-label="Current pipeline run"
+      className="lt-fade-in rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+    >
       <header className="mb-3 flex items-center gap-2">
         <span
           className={cn(
             "grid size-6 place-items-center rounded-md",
-            running
-              ? "bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
-              : idle
+            failed
+              ? "bg-[var(--color-danger-soft)] text-[var(--color-destructive)]"
+              : running
                 ? "bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
-              : "bg-[var(--color-ok-soft)] text-[var(--color-ok)]",
+                : idle
+                  ? "bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
+                  : "bg-[var(--color-ok-soft)] text-[var(--color-ok)]",
           )}
         >
-          {running || idle ? (
+          {failed ? (
+            <TriangleAlertIcon className="size-3.5" />
+          ) : running || idle ? (
             <LoaderIcon className={cn("size-3.5", running && "animate-spin")} />
           ) : (
             <CheckIcon className="size-3.5" />
           )}
         </span>
-        <h3 className="text-[13px] font-semibold">
-          {idle ? "Pipeline ready" : running ? "Analysing clip" : run ? outcomeTitle(run) : "Analysis pending"}
+        <h3 role="status" className="text-[13px] font-semibold">
+          {idle
+            ? "Pipeline ready"
+            : running
+              ? "Analysing clip"
+              : run
+                ? outcomeTitle(run)
+                : "Analysis pending"}
         </h3>
+        {cached && (
+          <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            Cached
+          </span>
+        )}
         {run?.truck_id && (
           <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] font-medium tabular-nums text-[var(--color-muted-foreground)]">
             {run.truck_id}
@@ -105,15 +155,12 @@ function Flow({
         )}
       </header>
 
-      {cached ? (
-        <p className="text-[12px] text-[var(--color-muted-foreground)]">
-          Served from the result cache, no model call.
-        </p>
-      ) : (
-        <ol className="flex flex-wrap gap-x-1.5 gap-y-2 pb-1">
+      {detailed && stages.length > 0 ? null : (
+        <ol className="flex gap-2 overflow-x-auto pb-3">
           {STAGE_FLOW.map((s, i) => {
             const stage = byKey.get(s.key);
-            const active = running && lastKey === s.key;
+            // A received stage is a completed record, not an executing stage.
+            const active = false;
             return (
               <li key={s.key} className="flex items-center gap-1.5">
                 <StageChip
@@ -137,9 +184,18 @@ function Flow({
         </ol>
       )}
 
+      {detailed && stages.length > 0 && (
+        <div className="mt-4 border-t border-border pt-4">
+          <PipelineWorkbench
+            stages={stages}
+            showInlineTrace={process.env.NODE_ENV === "test"}
+          />
+        </div>
+      )}
+
       {/* The most recent stage's one-line result, so the operator sees what each
           step produced as it happens. */}
-      {last && (
+      {!detailed && last && (
         <p className="mt-2 line-clamp-2 text-[12px] leading-snug text-[var(--color-muted-foreground)]">
           <span className="font-medium text-[var(--color-text)]">{last.label}:</span> {last.summary}
         </p>
@@ -157,7 +213,7 @@ function outcomeTitle(run: PipelineProgress): string {
     case "drafted":
       return "Ticket drafted";
     case "cached":
-      return "Served from cache";
+      return "Ticket drafted";
     case "no_truck":
       return "No truck detected";
     case "failed":
@@ -183,7 +239,7 @@ function StageChip({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors",
+        "inline-flex min-h-14 shrink-0 items-center gap-2 rounded-lg border px-4 py-3 text-xs font-medium transition-colors",
         active &&
           "border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]",
         done &&

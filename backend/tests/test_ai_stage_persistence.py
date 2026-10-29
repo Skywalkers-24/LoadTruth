@@ -236,3 +236,63 @@ async def test_outdated_track_with_no_load_reruns_sam(session: AsyncSession) -> 
     inner = CountingAIClient()
     await CachingAIClient(inner, repo, TENANT).track(CLIP)
     assert inner.track_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_provider_namespaces_isolate_results_and_preserve_repeat_cache(
+    session: AsyncSession,
+) -> None:
+    repo = SqlTicketRepository(session)
+    inner = CountingAIClient()
+    baseten = CachingAIClient(
+        inner, repo, TENANT, model_label="baseten/muse-spark-open", cache_namespace="baseten-route"
+    )
+    modal = CachingAIClient(
+        inner, repo, TENANT, model_label="modal/muse-spark-open", cache_namespace="modal-route"
+    )
+    await baseten.read_placard(CLIP)
+    await modal.read_placard(CLIP)
+    repeated = await baseten.read_placard(CLIP)
+    assert inner.ocr_calls == 2
+    assert repeated.usage is not None and repeated.usage.cached
+    assert repeated.usage.model == "baseten/muse-spark-open"
+
+
+@pytest.mark.asyncio
+async def test_parallel_perception_does_not_share_a_database_session_concurrently(
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import asyncio
+
+    repo = SqlTicketRepository(session)
+    original_get = repo.get_ai_stage_result
+    original_save = repo.save_ai_stage_result
+    busy = False
+
+    async def checked_get(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal busy
+        assert not busy
+        busy = True
+        try:
+            await asyncio.sleep(0)
+            return await original_get(*args, **kwargs)
+        finally:
+            busy = False
+
+    async def checked_save(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal busy
+        assert not busy
+        busy = True
+        try:
+            await asyncio.sleep(0)
+            return await original_save(*args, **kwargs)
+        finally:
+            busy = False
+
+    monkeypatch.setattr(repo, "get_ai_stage_result", checked_get)
+    monkeypatch.setattr(repo, "save_ai_stage_result", checked_save)
+    client = CachingAIClient(CountingAIClient(), repo, TENANT)
+    await asyncio.gather(client.read_placard(CLIP), client.classify_debris(CLIP))
+    assert await original_get(TENANT, HASH, "spark_ocr") is not None
+    assert await original_get(TENANT, HASH, "spark_classify") is not None

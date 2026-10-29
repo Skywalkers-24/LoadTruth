@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 
-import { PlusIcon } from "lucide-react";
+import { FilmIcon, PlusIcon } from "lucide-react";
 
 import { openAuthedExport } from "@/lib/api";
 import {
@@ -112,14 +112,35 @@ function Palette({ onClose }: { onClose: () => void }) {
       {
         id: "nav-console",
         group: "Navigate",
-        label: "Review",
+        label: "Review Console",
         icon: <ClipboardIcon size={15} />,
         run: () => go("/console"),
       },
       {
+        id: "nav-tickets",
+        group: "Navigate",
+        label: "Tickets",
+        icon: <ClipboardIcon size={15} />,
+        run: () => go("/tickets"),
+      },
+      {
+        id: "nav-demos",
+        group: "Navigate",
+        label: "Demo Video",
+        icon: <FilmIcon size={15} />,
+        run: () => go("/demos"),
+      },
+      {
+        id: "nav-pipeline",
+        group: "Navigate",
+        label: "AI Pipeline Run",
+        icon: <GaugeIcon size={15} />,
+        run: () => go("/pipeline"),
+      },
+      {
         id: "nav-ticket",
         group: "Navigate",
-        label: "Ticket",
+        label: "New Ticket",
         icon: <PlusIcon size={15} />,
         run: () => go("/add"),
       },

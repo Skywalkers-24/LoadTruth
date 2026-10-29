@@ -23,7 +23,7 @@ from app.ai.config_store import (
 from app.api.deps import CurrentMember, require
 from app.api.ingest import get_cost_ledger
 from app.api.repo import ActiveTenant, Repository
-from app.auth.roles import can_manage_events
+from app.auth.roles import can_manage_settings
 from app.config import get_settings
 from app.pipeline.trace import (
     PipelineTrace,
@@ -35,9 +35,9 @@ from app.tickets.repository import TicketNotFoundError
 
 router = APIRouter(prefix="/system", tags=["system"])
 
-# Tuning which model/effort powers the pipeline is a county-admin-and-up action.
+# Tuning which model/effort powers the pipeline can only be changed by SuperAdmin.
 ManageAIConfig = Depends(
-    require(can_manage_events, "You do not have permission to change AI settings.")
+    require(can_manage_settings, "Only SuperAdmin can change AI model settings.")
 )
 
 
@@ -77,7 +77,11 @@ async def pipeline_stats(_: CurrentMember) -> PipelineStats:
         hard_cap_hit=budget.hard_cap_hit,
         mode="live" if live else "fixtures",
         sam_model=settings.sam_model,
-        spark_model=settings.spark_model,
+        spark_model=", ".join(
+            dict.fromkeys(
+                cfg.model for cfg in get_ai_config_store().all() if cfg.task_id != "sam_track"
+            )
+        ),
     )
 
 
@@ -340,9 +344,58 @@ class AIConfigResponse(BaseModel):
 
 
 def _catalog() -> AICatalog:
+    from app.ai.providers import default_chat_model, endpoint
+
+    models = []
+    for model in catalog.MODELS.values():
+        if model.provider == "meta":
+            models.append(model)
+        else:
+            s = get_settings()
+            rates = [
+                float(getattr(s, f"{model.provider}_{name}_price"))
+                for name in ("input", "cached_input", "output")
+            ]
+            price = (
+                catalog.ModelPricing(input=rates[0], cached_input=rates[1], output=rates[2])
+                if rates[0] and rates[2]
+                else None
+            )
+            modalities = ["text", "image"] if endpoint(model.provider).vision else ["text"]
+            models.append(
+                model.model_copy(
+                    update={
+                        "available": endpoint(model.provider).configured,
+                        "pricing": price,
+                        "modalities": modalities,
+                    }
+                )
+            )
+    tasks = []
+    for task in catalog.TASKS.values():
+        if task.kind != "chat":
+            tasks.append(task)
+            continue
+        eligible = list(task.eligible_models)
+        if (
+            get_settings().fireworks_supports_vision
+            and "fireworks/configured-model" not in eligible
+        ):
+            eligible.append("fireworks/configured-model")
+        tasks.append(
+            task.model_copy(
+                update={
+                    "default_model": default_chat_model(
+                        task.default_model,
+                        vision=task.id in ("spark_ocr", "spark_classify", "name_load"),
+                    ),
+                    "eligible_models": eligible,
+                }
+            )
+        )
     return AICatalog(
-        models=list(catalog.MODELS.values()),
-        tasks=list(catalog.TASKS.values()),
+        models=models,
+        tasks=tasks,
         efforts=[e.value for e in catalog.ReasoningEffort],
         cost_modes=[m.value for m in catalog.CostMode],
     )

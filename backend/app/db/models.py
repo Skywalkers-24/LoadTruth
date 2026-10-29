@@ -228,8 +228,36 @@ class TicketEvidence(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Bas
     media_kind: Mapped[str] = mapped_column(String(8), nullable=False, default="video")
     mime: Mapped[str] = mapped_column(String(48), nullable=False, default="video/mp4")
     fps: Mapped[float | None] = mapped_column(Numeric(6, 3), nullable=True)
+    ai_cache_namespace: Mapped[str | None] = mapped_column(String(16), nullable=True)
     segments: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
 
     __table_args__ = (
         Index("ix_ticket_evidence_tenant_ticket", "tenant_id", "ticket_id", unique=True),
     )
+
+
+class DemoVideo(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
+    """Private, reusable demo/benchmark input stored in B2."""
+
+    __tablename__ = "demo_videos"
+    title: Mapped[str] = mapped_column(String(160), nullable=False)
+    filename: Mapped[str] = mapped_column(String(240), nullable=False)
+    mime: Mapped[str] = mapped_column(String(80), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(nullable=False)
+    object_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    object_version: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="uploading")
+    notes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    reference_fill_pct: Mapped[Decimal | None] = mapped_column(_PCT, nullable=True)
+
+
+class AnalysisJob(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
+    """Durable job pointing at B2 media; never stores uploaded bytes in memory."""
+
+    __tablename__ = "analysis_jobs"
+    event_id: Mapped[uuid.UUID] = mapped_column(GUID(), nullable=False, index=True)
+    video_id: Mapped[uuid.UUID] = mapped_column(GUID(), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued", index=True)
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    detail: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    ticket_id: Mapped[uuid.UUID | None] = mapped_column(GUID(), nullable=True)

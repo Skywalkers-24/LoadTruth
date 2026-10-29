@@ -2,7 +2,7 @@
 
 import { decodeMaskToSVGPath, formats } from "@meta-sam/parser";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { PlayIcon, PauseIcon, Volume2Icon, VolumeXIcon } from "lucide-react";
+import { PlayIcon, PauseIcon, Volume2Icon, VolumeXIcon, Loader2Icon } from "lucide-react";
 
 import { fetchEvidenceMediaUrl, type TicketEvidence } from "@/lib/api";
 
@@ -201,8 +201,9 @@ export function SamPlayer({ ticketId, evidence, show, onFrame }: Props) {
     <div className="absolute inset-0 flex flex-col bg-black">
       <div className="relative min-h-0 flex-1">
         {!url && (
-          <div className="absolute inset-0 grid place-items-center text-xs text-white/70">
-            Loading evidence…
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-black text-xs text-white/80">
+            <Loader2Icon className="size-6 animate-spin text-white/90" />
+            <span>Loading footage…</span>
           </div>
         )}
         {url &&

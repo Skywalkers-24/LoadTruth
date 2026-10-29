@@ -15,7 +15,7 @@ the fill %), and the **debris content** (for the debris class).
 - [Lighting, depth, and the CCTV overlay](#lighting-depth-and-the-cctv-overlay)
 - [Realism / camera-setup clips (R1–R4)](#realism--camera-setup-clips-day-and-night) — day + night, gate and bed
 - [Fixture-backed prompts (1–6)](#fixture-backed-prompts) — work in mock demo mode
-- [Live-pipeline prompts (7–20)](#live-pipeline-prompts) — run against the real pipeline
+- [Live-pipeline prompts (7–50)](#live-pipeline-prompts) — run against the real pipeline
 - [Recommended 3-minute demo order](#recommended-3-minute-demo-order)
 
 ---
@@ -526,6 +526,11 @@ pipeline correctly producing nothing instead of inventing a load.
 
 # Live-pipeline prompts
 
+Prompts 7–20 provide the first live-pipeline scenarios. Prompts 21–50 add more
+load types, operating conditions, and anomaly cases, reusing registry IDs where
+noted. Every prompt below explicitly requires a completely fixed camera; do not
+allow camera shake or any viewpoint movement.
+
 Prompts 7–20 are for the live Meta pipeline (`MOCK_AI=false`), where the result
 is read from the pixels. Each cites a real registry truck (type and certified
 capacity) so the fill reads as a believable cubic-yard number, and spans every
@@ -929,6 +934,609 @@ hazardous.
 > running date-time stamp "2026-10-28 13:28:52" on the second. 10 seconds, 24 fps, realistic
 > surveillance look.
 
+## 21 — T1 tandem, partial mixed C&D
+
+**Filename:** `live-21-tandem-partial-cd.mp4`
+**Truck:** T1 tandem, FL-DT-6612, certified 22 CY. **Load:** ~55% (~12 CY), C&D.
+
+> Strict camera instruction: use one rigidly mounted, completely fixed CCTV camera for
+> the entire clip. The camera must not pan, tilt, zoom, dolly, orbit, track, shake,
+> reframe, or change position or angle. Only the truck moves. Mount it high above a
+> county transfer-station entry lane, angled down about 50 degrees. A red tandem
+> steel-box dump truck drives slowly away between orange cones, then follows one gentle
+> curve at the far end without stopping or reversing. From the fixed high rear view,
+> show the open bed and its side walls clearly: it is about 55 percent full of broken
+> drywall, short lumber offcuts, and small concrete pieces, all below the rails with
+> visible gaps and surface shadows. A single white placard centered on the rear
+> tailgate reads "FL-DT-6612" in bold black text and remains unchanged and readable
+> from the first frame; no other truck labels. Soft directional morning daylight,
+> gravel and concrete ground, chain-link fencing, mild CCTV grain. Burned-in white
+> monospace overlay at top left: "CAM 01" and "2026-10-29 09:16:08". 10 seconds,
+> 24 fps, realistic surveillance footage.
+
+## 22 — T3 roll-off, vegetative debris
+
+**Filename:** `live-22-rolloff-vegetative.mp4`
+**Truck:** T3 roll-off, FL-DT-6845, certified 18 CY. **Load:** ~65% (~12 CY),
+vegetative.
+
+> Strict camera instruction: the CCTV camera is bolted in place and stays perfectly
+> still for the whole clip: no pan, tilt, zoom, dolly, orbit, tracking, shake,
+> reframing, or angle change. Only the truck moves. Place it high over a municipal
+> yard gate at a steep rear-facing angle, looking down into the container. A blue
+> hook-lift truck with a straight-sided open roll-off container drives away at a slow,
+> steady pace between cones and makes one smooth turn into the distant lane. Its bed
+> is about 65 percent full of leafy branches, short logs, and bundled brush, below the
+> top edges; keep the container walls visible and cast shadows between the branches so
+> the load depth is clear. One centered white rear-door placard reads "FL-DT-6845"
+> in bold black characters, stable and legible from the first frame, with no other
+> labels. Overcast daylight, damp gravel, a wood-chip pile in the background, subtle
+> sensor grain. Top-left white monospace overlay: "CAM 01" and
+> "2026-10-29 10:22:31". 10 seconds, 24 fps, realistic fixed-camera footage.
+
+## 23 — T4 walking-floor, mixed demolition debris
+
+**Filename:** `live-23-walking-floor-demolition.mp4`
+**Truck:** T4 walking-floor, FL-DT-9014, certified 32 CY. **Load:** ~60% (~19 CY),
+C&D.
+
+> Strict camera instruction: keep the security camera completely stationary and
+> locked for all 10 seconds. No pan, tilt, zoom, dolly, orbit, tracking, shake,
+> reframing, or change in viewpoint is allowed; only the truck may move. Mount the
+> camera above a demolition-site gate, looking down and forward from behind. A long
+> walking-floor trailer with high straight side walls rolls away slowly through the
+> cone-marked lane and eases into a single gentle turn in the distance. The open top
+> stays visible: about 60 percent full with broken brick, concrete fragments, and
+> splintered framing lumber, with the uneven load surface below the rails and distinct
+> shadows showing depth. Put one white placard reading "FL-DT-9014" in bold black
+> text at the center of the rear trailer door; it is present and unchanged from the
+> first frame, and no other ID appears. Directional late-morning sunlight, dusty
+> ground, excavated structure behind the fence. Fixed top-left CCTV overlay in white
+> monospace: "CAM 01" and "2026-10-29 11:03:14". 10 seconds, 24 fps.
+
+## 24 — T1 tandem, asphalt shingles
+
+**Filename:** `live-24-tandem-shingles.mp4`
+**Truck:** T1 tandem, FL-DT-9356, certified 20 CY. **Load:** ~85% (~17 CY), roofing
+debris.
+
+> Strict camera instruction: the camera is fixed to a concrete gate column and must
+> remain absolutely motionless: no pan, tilt, zoom, dolly, orbit, tracking, shake,
+> reframing, or viewpoint change. Only the truck moves. Look down at roughly 50
+> degrees from a high rear position over a roofing-recovery facility entrance. A
+> green tandem steel dump truck drives away slowly along the marked lane, remaining
+> between the cones before one smooth distant turn. The bed is about 85 percent full
+> of dark asphalt shingles and roofing felt, mounded but still below the bed rails;
+> show the side walls and use angled sunlight to define the rough surface and its
+> depth. A single centered white tailgate placard reads "FL-DT-9356" in bold black
+> text, clearly visible from the first frame and never changing; no extra lettering
+> or labels. Bright overcast light, stacks of salvaged roofing material behind the
+> fence, realistic mild CCTV noise. Top-left white monospace overlay: "CAM 01" and
+> "2026-10-29 11:41:52". 10 seconds, 24 fps, realistic surveillance style.
+
+## 25 — T2 large tandem, screened soil
+
+**Filename:** `live-25-tri-axle-screened-soil.mp4`
+**Truck:** T2 large tandem, FL-DT-1182, certified 30 CY. **Load:** ~70% (~21 CY),
+screened soil.
+
+> Strict camera instruction: keep a single high-mounted CCTV camera rigidly fixed
+> throughout the video. Absolutely no pan, tilt, zoom, dolly, orbit, tracking,
+> shake, reframing, or camera-angle change; only the truck moves. At a soil
+> processing yard, frame the rear of a large tri-axle steel dump truck from above
+> at about 50 degrees. It drives away at a modest slow pace between jersey barriers
+> and follows a single gentle curve at the far end. Its deep bed contains roughly
+> 70 percent screened brown soil, visibly below the top rails; preserve clear
+> visibility of the bed walls and the granular surface with small shadows. A single
+> centered white rear-tailgate placard reads "FL-DT-1182" in bold black text, sharp
+> from the first frame to the last and not duplicated elsewhere. Directional
+> afternoon light, aggregate piles and a conveyor beyond the fence, light dust near
+> the tires. Top-left fixed white monospace overlay: "CAM 01" and
+> "2026-10-29 12:07:26". 10 seconds, 24 fps.
+
+## 26 — T3 roll-off, overloaded mixed C&D
+
+**Filename:** `live-26-rolloff-overcapacity-cd.mp4`
+**Truck:** T3 roll-off, FL-DT-9601, certified 15 CY. **Load:** visibly above the
+container walls, capacity exceeded; mixed C&D.
+
+> Strict camera instruction: use a rigidly mounted camera that remains perfectly
+> still for the entire clip. No pan, tilt, zoom, dolly, orbit, tracking, shake,
+> reframing, or viewpoint change; only the truck moves. From a high rear angle over
+> a landfill scale lane, watch a gray hook-lift truck with an open roll-off
+> container drive slowly away between fixed concrete barriers, then make one gentle
+> turn in the distance. Its construction debris load is unmistakably over capacity:
+> broken concrete, twisted metal, drywall, and lumber form a stable-looking mound
+> well above the straight container walls, with the raised profile and overhanging
+> edges clearly visible. The bed walls remain in view as a comparison. One white
+> placard centered on the rear door reads "FL-DT-9601" in bold black text and stays
+> unchanged and readable from frame one; no other ID labels. Hard midday light
+> casts a clear shadow from the mound. Top-left white monospace overlay: "CAM 01"
+> and "2026-10-29 12:38:40". 10 seconds, 24 fps, fixed CCTV look.
+
+## 27 — T1 tandem, overfilled brush
+
+**Filename:** `live-27-tandem-overcapacity-brush.mp4`
+**Truck:** T1 tandem, FL-DT-3391, certified 20 CY. **Load:** brush piled above the
+rails, capacity exceeded.
+
+> Strict camera instruction: the security camera is fixed and immobile for the
+> whole video: no pan, tilt, zoom, dolly, orbit, tracking, shake, reframing, or
+> change of angle. Only the truck moves. At a storm-debris collection yard, a
+> yellow tandem dump truck drives slowly away from the high rear-facing camera
+> through a cone-lined lane and makes one smooth distant turn. Show the open steel
+> bed clearly, with leafy limbs and long branches piled well above the side rails
+> and extending past the bed edges so the overload is unmistakable; the pile's
+> surface and the rails must both stay visible. A single white placard fixed at
+> the center of the rear tailgate reads "FL-DT-3391" in bold black text, clear
+> and unchanged from the first frame. No other writing on the truck. Bright
+> directional daylight creates branch shadows; tree-trimming trucks and a brush
+> pile sit behind the fence. Top-left white monospace overlay: "CAM 01" and
+> "2026-10-29 13:19:03". 10 seconds, 24 fps.
+
+## 28 — T4 walking-floor, hollow vegetative load
+
+**Filename:** `live-28-walking-floor-hollow-veg.mp4`
+**Truck:** T4 walking-floor, FL-DT-4417, certified 30 CY. **Load:** high surface
+with a visibly shallow, hollow center.
+
+> Strict camera instruction: lock the CCTV camera firmly in one position for the
+> full clip. It must not pan, tilt, zoom, dolly, orbit, track, shake, reframe, or
+> change angle; only the truck moves. From a steep high rear view at a green-waste
+> composting yard, a long walking-floor trailer rolls away slowly and follows one
+> gentle turn at the far end. Its open bed appears nearly full from the top, but
+> make the center of the load visibly hollow and shallow beneath a loose high layer
+> of leafy brush; show a depression exposing the lower interior and bed floor so
+> surface height and actual depth are visibly inconsistent. Keep the tall side
+> walls unobstructed. A single centered white rear placard reads "FL-DT-4417" in
+> bold black text, constant and legible from the first frame, with no other truck
+> labels. Directional daylight casts shadows into the hollow. Top-left fixed white
+> monospace overlay: "CAM 01" and "2026-10-29 13:54:17". 10 seconds, 24 fps.
+
+## 29 — T1 tandem, unreadable placard
+
+**Filename:** `live-29-tandem-unreadable-id.mp4`
+**Truck:** T1 tandem, identity intentionally unreadable. **Load:** ~60% (~12 CY)
+C&D.
+
+> Strict camera instruction: the CCTV camera is rigidly mounted and stays
+> completely fixed for the entire clip. No pan, tilt, zoom, dolly, orbit, tracking,
+> shake, reframing, or viewpoint change; only the truck moves. At a county
+> construction-waste gate, a blue tandem dump truck drives away slowly between
+> cones and makes one gradual turn far down the lane. From above and behind, show
+> the open steel bed about 60 percent full of broken concrete, drywall, and
+> framing scraps, all below the rails with clear surface shadows. Center one
+> weathered white rectangular placard on the rear tailgate, but make its printed
+> characters genuinely unreadable from dirt and abrasion; do not invent, reveal,
+> or change an ID at any point. The placard stays in the same position from frame
+> one, with no other labels on the truck. Soft directional daylight and a
+> concrete-and-gravel lane. Top-left white monospace overlay: "CAM 01" and
+> "2026-10-29 14:26:39". 10 seconds, 24 fps, realistic CCTV.
+
+## 30 — T3 roll-off, uncertified truck with wood debris
+
+**Filename:** `live-30-rolloff-uncertified-wood.mp4`
+**Truck:** T3 roll-off, FL-DT-0000, intentionally absent from the registry.
+**Load:** ~50% (~8 CY), clean untreated wood.
+
+> Strict camera instruction: one high-mounted CCTV camera remains entirely fixed
+> throughout: no pan, tilt, zoom, dolly, orbit, tracking, shake, reframing, or
+> angle change. Only the truck moves. At a reclaimed-building-materials yard, a
+> white hook-lift truck with an open roll-off container drives away at a slow,
+> even pace between cones, then follows one gentle turn at the far end. The
+> container is about 50 percent full of clean untreated lumber offcuts and
+> separated wooden boards, below the straight side walls, with visible gaps and
+> shadows that reveal the load depth. A single centered white rear-door placard
+> reads "FL-DT-0000" in bold black text, fully readable and unchanged from the
+> first frame; no other ID labels. Clear midday daylight, sorted wood stacks
+> behind chain-link fencing, light natural sensor grain. Top-left white monospace
+> overlay: "CAM 01" and "2026-10-29 14:58:02". 10 seconds, 24 fps.
+
+## 31 — T5 compact dump, uncertified salvaged wood
+
+**Filename:** `live-31-compact-uncertified-wood.mp4`
+**Truck:** T5 compact dump, FL-DT-5120, intentionally absent from the registry.
+**Load:** ~45% (~5 CY), salvaged wood.
+
+> Strict camera instruction: keep the camera rigidly mounted and perfectly
+> stationary for all 10 seconds. No pan, tilt, zoom, dolly, orbit, tracking,
+> shake, reframing, or viewpoint change; only the truck moves. At a small
+> neighborhood transfer-yard entrance, a compact single-rear-axle dump truck
+> drives slowly away through a narrow cone-marked lane and eases into one gentle
+> turn in the distance. Its shallow open steel bed is about 45 percent full of
+> salvaged boards and short timber pieces, below the low rails; show the entire
+> bed and its walls from the elevated rear angle so the amount is easy to judge.
+> One centered white tailgate placard reads "FL-DT-5120" in bold black text,
+> stable and readable from the first frame, with no second ID. Soft daylight,
+> compact loaders and sorted material piles in the background. Fixed top-left
+> white monospace overlay: "CAM 01" and "2026-10-29 15:32:45". 10 seconds,
+> 24 fps, realistic surveillance footage.
+
+## 32 — T1 tandem, night-time vegetative load
+
+**Filename:** `live-32-tandem-vegetative-night.mp4`
+**Truck:** T1 tandem, FL-DT-7788, certified 20 CY. **Load:** ~65% (~13 CY),
+vegetative.
+
+> Strict camera instruction: the camera is bolted to the gate structure and
+> absolutely fixed for the full clip: no pan, tilt, zoom, dolly, orbit, tracking,
+> shake, reframing, or change in viewpoint. Only the truck moves. At night, a
+> tandem dump truck with its lights on drives away slowly under overhead
+> floodlights and follows one smooth distant turn. The elevated rear view clearly
+> sees into the steel bed, about 65 percent full of branches, leaves, and short
+> logs below the rails; keep the walls visible and use floodlight shadows to show
+> gaps and depth. One centered white tailgate placard reads "FL-DT-7788" in bold
+> black text, lit and unchanged from the first frame; no other ID labels. The
+> transfer-yard lane, cones, and fencing are visible and not pitch black. Cooler
+> night color, moderate sensor grain, no camera motion. Top-left white monospace
+> overlay: "CAM 01" and "2026-10-29 21:18:11". 10 seconds, 24 fps.
+
+## 33 — T4 walking-floor, compost feedstock
+
+**Filename:** `live-33-walking-floor-compost-feedstock.mp4`
+**Truck:** T4 walking-floor, FL-DT-7120, certified 35 CY. **Load:** ~75%
+(~26 CY), green waste.
+
+> Strict camera instruction: use a completely stationary security camera fixed
+> high above the compost-facility gate. No pan, tilt, zoom, dolly, orbit,
+> tracking, shake, reframing, or angle change at any point; only the truck moves.
+> A long walking-floor trailer drives slowly away along the marked lane and makes
+> one gentle turn into the facility. The open top is clearly visible from the
+> rear-downward angle: roughly 75 percent full of chopped green waste, leaves,
+> and small branches, with the uneven surface below the rails and shadows across
+> it to convey depth. A single white placard centered on the rear door reads
+> "FL-DT-7120" in bold black text, legible and unchanged from the first frame;
+> no other labels. Early morning directional light, compost windrows and a
+> covered conveyor behind the fence, natural muted colors. Fixed top-left white
+> monospace overlay: "CAM 01" and "2026-10-30 08:07:36". 10 seconds, 24 fps.
+
+## 34 — T3 roll-off, rainy mixed debris
+
+**Filename:** `live-34-rolloff-rainy-mixed.mp4`
+**Truck:** T3 roll-off, FL-DT-8043, certified 16 CY. **Load:** ~60% (~10 CY),
+mixed C&D.
+
+> Strict camera instruction: mount the CCTV camera rigidly and keep it perfectly
+> still throughout the clip. No pan, tilt, zoom, dolly, orbit, tracking, shake,
+> reframing, or viewpoint change; only the truck moves. At a transfer station in
+> steady light rain, a gray hook-lift truck drives away slowly between the lane
+> markers, then follows one gradual turn in the distance. The open container is
+> about 60 percent full of wet lumber, broken drywall, and small masonry pieces,
+> below the top of its straight walls. Keep the bed and its walls visible; the
+> wet load has distinct ridges and soft shadows so its depth can still be judged.
+> A single white placard on the center of the rear door reads "FL-DT-8043" in
+> bold black text, readable and unchanged from frame one; no other truck ID.
+> Overcast gray daylight, reflective pavement and shallow puddles, no dramatic
+> lens effects. Fixed top-left white monospace overlay: "CAM 01" and
+> "2026-10-30 10:44:20". 10 seconds, 24 fps.
+
+## 35 — T2 large tandem, flattened cardboard
+
+**Filename:** `live-35-tri-axle-cardboard.mp4`
+**Truck:** T2 large tandem, FL-DT-1182, certified 30 CY. **Load:** ~50% (~15 CY),
+recyclable cardboard.
+
+> Strict camera instruction: keep a single fixed camera completely motionless
+> from beginning to end. No pan, tilt, zoom, dolly, orbit, tracking, shake,
+> reframing, or camera-angle change; only the truck moves. From a high rear
+> vantage overlooking a materials-recovery facility scale lane, a large tri-axle
+> dump truck drives away slowly between painted lines and makes one easy turn
+> beyond the scale. Show the steel bed from above, around 50 percent full with
+> flattened brown cardboard sheets and compact bundles, all below the rails; keep
+> the bed walls visible and the folded layers distinct enough to judge the fill.
+> One centered white placard on the rear tailgate reads "FL-DT-1182" in bold
+> black text and remains unchanged and clear from the first frame. No other ID
+> label. Directional daylight through a partly covered sorting yard, conveyor
+> structures in the distance, realistic CCTV texture. Top-left white monospace
+> overlay: "CAM 01" and "2026-10-30 11:26:54". 10 seconds, 24 fps.
+
+## 36 — T1 tandem, near-full concrete rubble
+
+**Filename:** `live-36-tandem-near-full-concrete.mp4`
+**Truck:** T1 tandem, FL-DT-8290, certified 24 CY. **Load:** ~95% (~23 CY),
+concrete rubble, below the rails.
+
+> Strict camera instruction: fix the CCTV camera securely in one position and
+> keep it absolutely still for the entire clip. No pan, tilt, zoom, dolly, orbit,
+> tracking, shake, reframing, or viewpoint change; only the truck moves. A tandem
+> steel dump truck rolls slowly away from a high rear-facing camera at a concrete
+> recycling plant and follows one gentle turn at the end of the lane. Its open
+> bed is nearly full, about 95 percent, of crushed concrete chunks and pale
+> masonry, but every piece remains below the top rails; do not show overflow.
+> Keep both bed walls and the full textured surface in view so the near-capacity
+> fill is clear. A single centered white rear-tailgate placard reads
+> "FL-DT-8290" in bold black text, legible and unchanged from frame one, with no
+> other ID. Strong angled daylight defines the rubble shadows. Top-left white
+> monospace overlay: "CAM 01" and "2026-10-30 12:02:18". 10 seconds, 24 fps.
+
+## 37 — T3 roll-off, low-fill white goods
+
+**Filename:** `live-37-rolloff-low-fill-white-goods.mp4`
+**Truck:** T3 roll-off, FL-DT-5590, certified 15 CY. **Load:** ~35% (~5 CY),
+white goods.
+
+> Strict camera instruction: the camera is fixed in place and must not move at
+> all: no pan, tilt, zoom, dolly, orbit, tracking, shake, reframing, or change
+> of angle during the clip. Only the truck moves. At a municipal bulky-waste
+> intake lane, a blue hook-lift truck with an open roll-off container drives
+> slowly away from the elevated rear camera and makes a single gentle turn in the
+> distance. The container is only about 35 percent full, holding a refrigerator
+> door, a washing-machine shell, and a small water heater separated by visible
+> open spaces; all items sit well below the straight walls. Make the low fill and
+> gaps unambiguous from above. One centered white rear-door placard reads
+> "FL-DT-5590" in bold black text and stays clear and unchanged from the first
+> frame; no other truck labels. Bright diffuse daylight, sorting bays and
+> concrete ground. Fixed top-left white monospace overlay: "CAM 01" and
+> "2026-10-30 13:17:43". 10 seconds, 24 fps.
+
+## 38 — T4 walking-floor, over-capacity brush
+
+**Filename:** `live-38-walking-floor-overcapacity-brush.mp4`
+**Truck:** T4 walking-floor, FL-DT-9014, certified 32 CY. **Load:** visibly
+heaped above the side walls, capacity exceeded; brush.
+
+> Strict camera instruction: use a rigid, fixed CCTV camera with absolutely no
+> movement for the full duration: no pan, tilt, zoom, dolly, orbit, tracking,
+> shake, reframing, or viewpoint change. Only the truck moves. At a regional
+> storm-cleanup site, a long walking-floor trailer drives slowly away down a
+> wide lane between cones and makes one gradual turn far away. The very long
+> open-top bed carries an unmistakably excessive mound of branches and leafy
+> brush, rising well above the straight side walls and spilling visibly over
+> both sides. Show the wall tops and the mound together from the elevated rear
+> angle so the excess height is clear. One white placard centered on the rear
+> trailer door reads "FL-DT-9014" in bold black text, stable and legible from
+> the first frame; no extra ID labels. Directional sunlight and clear branch
+> shadows, cleanup equipment beyond the fence. Fixed top-left white monospace
+> overlay: "CAM 01" and "2026-10-30 14:01:09". 10 seconds, 24 fps.
+
+## 39 — T1 tandem, low-fill C&D
+
+**Filename:** `live-39-tandem-low-fill-cd.mp4`
+**Truck:** T1 tandem, FL-DT-6612, certified 22 CY. **Load:** ~25% (~6 CY), C&D.
+
+> Strict camera instruction: keep the camera rigidly mounted and completely
+> stationary for the entire video. No pan, tilt, zoom, dolly, orbit, tracking,
+> shake, reframing, or angle change; only the truck moves. At a small demolition
+> transfer gate, a white tandem steel-box dump truck travels slowly away from
+> the high rear camera between orange cones and follows one gentle turn at the
+> end. Its bed is only about 25 percent full, with a shallow layer of broken
+> brick, short lumber pieces, and drywall scraps collected at the front half;
+> leave most of the bed floor visibly empty and keep both side walls in view.
+> A single centered white tailgate placard reads "FL-DT-6612" in bold black
+> text, clearly readable from the first frame and unchanged throughout; no
+> other ID. Bright but soft afternoon light creates small shadows across the
+> sparse load. Fixed top-left white monospace overlay: "CAM 01" and
+> "2026-10-30 14:39:55". 10 seconds, 24 fps.
+
+## 40 — T3 roll-off, secured hazardous materials
+
+**Filename:** `live-40-rolloff-hazardous-materials.mp4`
+**Truck:** T3 roll-off, FL-DT-9601, certified 15 CY. **Load:** ~45% (~7 CY),
+hazardous materials.
+
+> Strict camera instruction: the CCTV camera is firmly mounted and stays
+> completely motionless for all 10 seconds. No pan, tilt, zoom, dolly, orbit,
+> tracking, shake, reframing, or viewpoint change; only the truck moves. At a
+> permitted hazardous-materials receiving facility, a hook-lift truck with an
+> open roll-off container drives slowly away between marked barriers and makes
+> one smooth distant turn. From the high rear view, show the container about
+> 45 percent full of a few closed, secured chemical drums and sealed battery
+> totes, upright and separated with visible gaps, all below the container walls.
+> Keep the load surface and straight walls clear enough to judge both content
+> and fill. One centered white rear-door placard reads "FL-DT-9601" in bold
+> black text, legible and unchanged from frame one; no other truck ID. Strong
+> daylight, a spill-response station and warning signs in the background, no
+> spills or unsafe activity. Fixed top-left white monospace overlay: "CAM 01"
+> and "2026-10-30 15:12:27". 10 seconds, 24 fps.
+
+## 41 — T1 tandem, separated recyclable materials
+
+**Filename:** `live-41-tandem-recyclables.mp4`
+**Truck:** T1 tandem, FL-DT-6612, certified 22 CY. **Load:** ~50% (~11 CY),
+recyclable materials.
+
+> Strict camera instruction: the CCTV camera is bolted in place and remains
+> perfectly still for the entire clip. No pan, tilt, zoom, dolly, orbit,
+> tracking, shake, reframing, or angle change; only the truck moves. At a
+> materials-recovery facility entrance, a blue tandem steel-box dump truck
+> drives slowly away between lane cones and follows a single gentle turn in the
+> distance. From the elevated rear view, show the open bed about 50 percent full
+> of separated recyclable material: flattened cardboard, short clean lumber
+> pieces, and a few rigid plastic containers. Keep all items below the rails,
+> clearly distinguishable, and separated enough to show the load surface and
+> bed walls. One white placard centered on the tailgate reads "FL-DT-6612" in
+> bold black text and remains unchanged and readable from frame one; no other
+> truck labels. Soft directional daylight, sorting equipment beyond the fence,
+> mild CCTV grain. Fixed top-left white monospace overlay: "CAM 01" and
+> "2026-10-31 08:42:16". 10 seconds, 24 fps.
+
+## 42 — T3 roll-off, nearly full green waste
+
+**Filename:** `live-42-rolloff-near-full-green-waste.mp4`
+**Truck:** T3 roll-off, FL-DT-6845, certified 18 CY. **Load:** ~90% (~16 CY),
+green waste, below the walls.
+
+> Strict camera instruction: use one rigidly mounted, completely stationary
+> security camera. It must not pan, tilt, zoom, dolly, orbit, track, shake,
+> reframe, or change position or angle at any time; only the truck moves. At a
+> city compost yard, a dark green hook-lift truck with a straight-sided open
+> roll-off container moves slowly away through the marked lane, then makes one
+> gentle turn at the far end. Its container is nearly full, around 90 percent,
+> with compacted leaves, short branches, and chipped brush sitting just below
+> the wall tops; do not show overflow. Keep the full container opening and both
+> side walls visible from above, with shadows that show the uneven depth. One
+> centered white rear-door placard reads "FL-DT-6845" in bold black text,
+> visible and unchanged from the first frame; no other ID. Bright overcast
+> light, compost windrows and a loader behind the fence. Fixed white monospace
+> top-left overlay: "CAM 01" and "2026-10-31 09:24:37". 10 seconds, 24 fps.
+
+## 43 — T4 walking-floor, low-fill demolition debris
+
+**Filename:** `live-43-walking-floor-low-fill-demo.mp4`
+**Truck:** T4 walking-floor, FL-DT-9014, certified 32 CY. **Load:** ~30%
+(~10 CY), C&D.
+
+> Strict camera instruction: the camera remains rigidly fixed and motionless
+> for the full clip: no pan, tilt, zoom, dolly, orbit, tracking, shake,
+> reframing, or viewpoint change. Only the truck may move. At a demolition
+> recycling gate, a long walking-floor trailer rolls slowly away from the
+> high rear camera and follows one smooth gradual turn at the distant end.
+> Its long open bed is only about 30 percent full with a shallow layer of
+> broken brick, lumber offcuts, and small concrete pieces gathered near the
+> center; most of the bed floor remains visibly empty. Keep the full bed and
+> high side walls in frame so the low fill is easy to assess. A single centered
+> white rear-door placard reads "FL-DT-9014" in bold black text, legible and
+> unchanged from frame one; no other ID labels. Directional daylight creates
+> clear shadows across the sparse debris. Fixed top-left white monospace
+> overlay: "CAM 01" and "2026-10-31 10:11:05". 10 seconds, 24 fps.
+
+## 44 — T1 tandem, wet asphalt millings
+
+**Filename:** `live-44-tandem-asphalt-millings-rain.mp4`
+**Truck:** T1 tandem, FL-DT-9356, certified 20 CY. **Load:** ~70% (~14 CY),
+asphalt millings, rainy conditions.
+
+> Strict camera instruction: keep the CCTV camera firmly mounted and absolutely
+> still throughout. No pan, tilt, zoom, dolly, orbit, tracking, shake,
+> reframing, or camera-angle change; only the truck moves. At a road-repair
+> materials yard in light rain, a gray tandem dump truck drives slowly away
+> between cones and eases into a single gentle turn. From the high rear angle,
+> show its steel bed about 70 percent full of dark, damp asphalt millings,
+> below the top rails. The bed walls and textured surface must remain visible,
+> with soft shadows and small highlights on the wet aggregate to communicate
+> depth. One white placard centered on the rear tailgate reads "FL-DT-9356"
+> in bold black text, readable and unchanged from the first frame; no other
+> truck ID. Overcast daylight, wet pavement, subtle rain in the background,
+> no raindrops obscuring the view. Fixed top-left white monospace overlay:
+> "CAM 01" and "2026-10-31 11:03:48". 10 seconds, 24 fps.
+
+## 45 — T2 large tandem, overfilled soil
+
+**Filename:** `live-45-tri-axle-overcapacity-soil.mp4`
+**Truck:** T2 large tandem, FL-DT-1182, certified 30 CY. **Load:** soil piled
+clearly above the rails, capacity exceeded.
+
+> Strict camera instruction: mount the camera rigidly above the scale lane and
+> keep it completely fixed for all 10 seconds. No pan, tilt, zoom, dolly,
+> orbit, tracking, shake, reframing, or change in viewpoint; only the truck
+> moves. A large tri-axle dump truck drives slowly away through an aggregate
+> yard, centered between fixed barriers, then makes one gentle turn at the
+> far end. Its deep steel bed contains a clearly excessive mound of dark soil
+> that rises well above the side rails and visibly bulges over the edges.
+> Show the rail tops and the mound together from the elevated rear view so
+> the over-capacity condition is unmistakable. The soil remains contained
+> without falling from the vehicle. One centered white tailgate placard reads
+> "FL-DT-1182" in bold black text, stable and legible from the first frame;
+> no additional labels. Hard directional sunlight defines the mound's height.
+> Fixed top-left white monospace overlay: "CAM 01" and
+> "2026-10-31 11:47:22". 10 seconds, 24 fps.
+
+## 46 — T3 roll-off, hollow cardboard load
+
+**Filename:** `live-46-rolloff-hollow-cardboard.mp4`
+**Truck:** T3 roll-off, FL-DT-9601, certified 15 CY. **Load:** high surface
+with a visibly shallow, hollow center.
+
+> Strict camera instruction: the camera is fixed in one position and must
+> remain absolutely motionless: no pan, tilt, zoom, dolly, orbit, tracking,
+> shake, reframing, or angle change. Only the truck moves. At a recycling
+> center's gate, an orange hook-lift truck drives slowly away with its open
+> roll-off container visible from the high rear angle, then follows one
+> gentle turn. The container appears nearly full at the edges with loose,
+> flattened cardboard, but the center is visibly hollow and shallow: show
+> a broad depression with the lower interior visible beneath a thin raised
+> layer, making surface height and actual depth inconsistent. Keep the
+> straight side walls unobstructed. A single centered white rear-door
+> placard reads "FL-DT-9601" in bold black text and stays unchanged and
+> readable from frame one; no other ID. Directional light casts shadows
+> into the depression. Fixed top-left white monospace overlay: "CAM 01"
+> and "2026-10-31 12:28:09". 10 seconds, 24 fps.
+
+## 47 — T1 tandem, night-time concrete rubble
+
+**Filename:** `live-47-tandem-concrete-night.mp4`
+**Truck:** T1 tandem, FL-DT-8290, certified 24 CY. **Load:** ~75% (~18 CY),
+concrete rubble.
+
+> Strict camera instruction: the gate camera is bolted down and entirely
+> motionless from first frame to last. No pan, tilt, zoom, dolly, orbit,
+> tracking, shake, reframing, or viewpoint change; only the truck moves.
+> At night, a tandem steel dump truck with headlights and tail lights on
+> drives slowly away beneath bright overhead floodlights and follows one
+> gradual turn in the distance. Show its bed from above and behind, about
+> 75 percent full of broken concrete chunks, below the rails with visible
+> side walls and shadows between the rubble. Keep the load clear under the
+> lights; the yard must not be pitch black. One centered white placard on
+> the tailgate reads "FL-DT-8290" in bold black text, illuminated and
+> unchanged from frame one; no other truck labels. Cool night color and
+> realistic sensor grain, but absolutely no camera shake. Fixed top-left
+> white monospace overlay: "CAM 01" and "2026-10-31 21:16:54". 10 seconds,
+> 24 fps.
+
+## 48 — T4 walking-floor, over-capacity demolition rubble
+
+**Filename:** `live-48-walking-floor-overcapacity-rubble.mp4`
+**Truck:** T4 walking-floor, FL-DT-7120, certified 35 CY. **Load:** mixed
+demolition rubble piled above the walls, capacity exceeded.
+
+> Strict camera instruction: keep the camera rigidly mounted and perfectly
+> still for the complete clip. No pan, tilt, zoom, dolly, orbit, tracking,
+> shake, reframing, or angle change; only the truck moves. At a concrete
+> recycling facility, a long walking-floor trailer drives slowly away
+> through a wide lane and makes one smooth turn far beyond the scale. Its
+> open-top bed carries an unmistakably overloaded mound of broken masonry,
+> brick, and concrete chunks, rising well above the tall side walls and
+> extending beyond the bed edges. The mound and wall tops remain clearly
+> visible together from the elevated rear position. One centered white
+> placard on the rear trailer door reads "FL-DT-7120" in bold black text,
+> sharp and unchanged from the first frame; no other truck ID. Strong
+> daylight defines the pile's height, with a crusher and sorted aggregate
+> behind the fence. Fixed top-left white monospace overlay: "CAM 01" and
+> "2026-11-01 08:53:40". 10 seconds, 24 fps.
+
+## 49 — T3 roll-off, clean wood-only load
+
+**Filename:** `live-49-rolloff-clean-wood.mp4`
+**Truck:** T3 roll-off, FL-DT-8043, certified 16 CY. **Load:** ~80% (~13 CY),
+clean untreated wood.
+
+> Strict camera instruction: use one fixed CCTV viewpoint, rigidly mounted
+> and completely still for all 10 seconds. No pan, tilt, zoom, dolly, orbit,
+> tracking, shake, reframing, or camera-angle change; only the truck moves.
+> At a reclaimed lumber facility, a blue hook-lift truck with an open
+> straight-sided container drives slowly away between lane markings and
+> makes one easy distant turn. The container is about 80 percent full of
+> clean untreated boards, broken pallets, and short timber offcuts, all
+> below the wall tops. Show visible gaps between pieces and clear side
+> walls so the fill and material are easy to inspect. A single centered
+> white rear-door placard reads "FL-DT-8043" in bold black text and stays
+> legible and unchanged from the first frame; no other ID labels. Clear
+> morning daylight, neat lumber stacks behind a chain-link fence, subdued
+> CCTV grain. Fixed top-left white monospace overlay: "CAM 01" and
+> "2026-11-01 09:36:12". 10 seconds, 24 fps.
+
+## 50 — T1 tandem, mixed storm debris
+
+**Filename:** `live-50-tandem-storm-debris.mp4`
+**Truck:** T1 tandem, FL-DT-7788, certified 20 CY. **Load:** ~65% (~13 CY),
+mixed storm debris.
+
+> Strict camera instruction: the security camera is fixed firmly to the
+> gate structure and remains absolutely motionless for the whole clip:
+> no pan, tilt, zoom, dolly, orbit, tracking, shake, reframing, or
+> viewpoint change. Only the truck moves. At a municipal storm-cleanup
+> drop-off site after the rain has stopped, a red tandem dump truck
+> drives slowly away along a cone-lined lane, then follows one gentle
+> curve in the distance. Its open steel bed is about 65 percent full
+> of leafy branches, short fence boards, and small roof-shingle pieces,
+> all below the rails; keep the side walls visible and the mixed debris
+> distinct, with shadows showing its depth. One centered white tailgate
+> placard reads "FL-DT-7788" in bold black text, clear and unchanged
+> from the first frame; no other truck labels. Soft post-rain daylight,
+> damp ground and sorted storm debris in the background. Fixed top-left
+> white monospace overlay: "CAM 01" and "2026-11-01 10:18:37". 10 seconds,
+> 24 fps.
+
 ---
 
 ## Prompt index
@@ -959,13 +1567,45 @@ hazardous.
 | 18 | T1 tandem | FL-DT-4408 (~20) | C&D | ~80% | none (night) | live |
 | 19 | T3 roll-off | FL-DT-6845 (18) | C&D | ~55% | none (rain) | live |
 | 20 | T2 large tandem | FL-DT-8290 (24) | Hazardous | ~55% | none (haz intake) | live |
+| 21 | T1 tandem | FL-DT-6612 (22) | C&D | ~55% | none | live |
+| 22 | T3 roll-off | FL-DT-6845 (18) | Vegetative | ~65% | none | live |
+| 23 | T4 walking-floor | FL-DT-9014 (32) | C&D | ~60% | none | live |
+| 24 | T1 tandem | FL-DT-9356 (20) | Roofing debris | ~85% | none | live |
+| 25 | T2 large tandem | FL-DT-1182 (30) | Soil | ~70% | none | live |
+| 26 | T3 roll-off | FL-DT-9601 (15) | C&D | >100% | capacity_exceeded | live |
+| 27 | T1 tandem | FL-DT-3391 (20) | Vegetative | >100% | capacity_exceeded | live |
+| 28 | T4 walking-floor | FL-DT-4417 (30) | Vegetative | surface high, depth low | surface_depth_mismatch | live |
+| 29 | T1 tandem | (unreadable) | C&D | ~60% | identity_unreadable | live |
+| 30 | T3 roll-off | FL-DT-0000 (none) | Wood | ~50% | uncertified_truck | live |
+| 31 | T5 compact dump | FL-DT-5120 (none) | Wood | ~45% | uncertified_truck | live |
+| 32 | T1 tandem | FL-DT-7788 (20) | Vegetative | ~65% | none (night) | live |
+| 33 | T4 walking-floor | FL-DT-7120 (35) | Vegetative | ~75% | none | live |
+| 34 | T3 roll-off | FL-DT-8043 (16) | C&D | ~60% | none (rain) | live |
+| 35 | T2 large tandem | FL-DT-1182 (30) | Cardboard | ~50% | none | live |
+| 36 | T1 tandem | FL-DT-8290 (24) | Concrete | ~95% | none | live |
+| 37 | T3 roll-off | FL-DT-5590 (15) | White goods | ~35% | none | live |
+| 38 | T4 walking-floor | FL-DT-9014 (32) | Vegetative | >100% | capacity_exceeded | live |
+| 39 | T1 tandem | FL-DT-6612 (22) | C&D | ~25% | none | live |
+| 40 | T3 roll-off | FL-DT-9601 (15) | Hazardous | ~45% | none | live |
+| 41 | T1 tandem | FL-DT-6612 (22) | Recyclables | ~50% | none | live |
+| 42 | T3 roll-off | FL-DT-6845 (18) | Vegetative | ~90% | none | live |
+| 43 | T4 walking-floor | FL-DT-9014 (32) | C&D | ~30% | none | live |
+| 44 | T1 tandem | FL-DT-9356 (20) | Asphalt millings | ~70% | none (rain) | live |
+| 45 | T2 large tandem | FL-DT-1182 (30) | Soil | >100% | capacity_exceeded | live |
+| 46 | T3 roll-off | FL-DT-9601 (15) | Cardboard | surface high, depth low | surface_depth_mismatch | live |
+| 47 | T1 tandem | FL-DT-8290 (24) | Concrete | ~75% | none (night) | live |
+| 48 | T4 walking-floor | FL-DT-7120 (35) | C&D | >100% | capacity_exceeded | live |
+| 49 | T3 roll-off | FL-DT-8043 (16) | Wood | ~80% | none | live |
+| 50 | T1 tandem | FL-DT-7788 (20) | Mixed storm debris | ~65% | none | live |
 
 > Registry note: IDs in prompts 1–9, 11–16, and 19–20 exist in `backend/seed.json`
 > with the capacity shown. Prompts 10 and 18 use IDs not in the seed (FL-DT-5120,
 > FL-DT-4408); under the live pipeline they will read as uncertified unless you add
-> them to the registry first. Prompts 5 and 17 use intentionally-absent IDs to
-> trigger the uncertified-truck path. Adjust any placard string to match your seed
-> data if you change it.
+> them to the registry first. Prompts 5, 17, 30, and 31 use intentionally absent
+> IDs to trigger the uncertified-truck path. Prompts 21–28 and 32–40 reuse seeded
+> IDs; prompt 29 intentionally has no readable identity. Prompts 41–50 reuse
+> seeded IDs from prompts 21–40. Adjust any placard string to match your seed data
+> if you change it.
 
 ## Recommended 3-minute demo order
 
@@ -994,5 +1634,5 @@ load, all three of the anomalies that carry a dollar delta or block payment
 (`surface_depth_mismatch`, `capacity_exceeded`, `uncertified_truck`), and the
 fail-loud identity path, while spanning three truck types (tandem, roll-off,
 walking-floor) and three debris classes (vegetative, C&D). The night, rain, dust,
-hazardous, white-goods, and low-fill clips (10, 11, 12, 16, 17, 18, 19, 20) are the
-breadth reel for a longer walkthrough or the showcase, not the three-minute cut.
+hazardous, white-goods, and low-fill clips (10–50) are the breadth reel for a
+longer walkthrough or the showcase, not the three-minute cut.

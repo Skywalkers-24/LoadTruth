@@ -64,6 +64,7 @@ class ModelInfo(BaseModel):
     """One selectable model and its capabilities/price."""
 
     id: str
+    provider: str = "meta"
     name: str
     kind: str  # chat | segmentation | image_generation | audio
     context_tokens: int | None = None
@@ -197,6 +198,48 @@ MODELS: dict[str, ModelInfo] = {
 }
 
 
+# Partner models use separate catalog identities even when the weights share a name.
+MODELS.update(
+    {
+        "baseten/muse-spark-open": ModelInfo(
+            id="baseten/muse-spark-open",
+            provider="baseten",
+            name="Muse Spark Open · Baseten",
+            kind="chat",
+            modalities=["text", "image"],
+            description=(
+                "Baseten hackathon route: meta-models/muse-spark-open-1026. "
+                "Always-on reasoning; standard published token pricing is configurable."
+            ),
+            pricing=ModelPricing(input=1.25, cached_input=0.15, output=4.25),
+        ),
+        "modal/muse-spark-open": ModelInfo(
+            id="modal/muse-spark-open",
+            provider="modal",
+            name="Muse Spark Open · Modal",
+            kind="chat",
+            modalities=["text", "image"],
+            description=(
+                "Configured Modal shared endpoint. Video perception uses sampled image frames."
+            ),
+            efforts=_ALL_EFFORTS,
+            pricing=ModelPricing(input=1.25, cached_input=0.15, output=4.25),
+        ),
+        "fireworks/configured-model": ModelInfo(
+            id="fireworks/configured-model",
+            provider="fireworks",
+            name="Configured model · Fireworks",
+            kind="chat",
+            modalities=["text"],
+            description=(
+                "Requires an explicit Fireworks model/deployment ID; "
+                "vision is opt-in after verification."
+            ),
+        ),
+    }
+)
+
+
 # ── Tasks ───────────────────────────────────────────────────────────────────
 
 # Each task id matches the pipeline stage / AIClient method it configures.
@@ -318,6 +361,13 @@ TASKS: dict[str, TaskInfo] = {
         default_effort=ReasoningEffort.BALANCED,
     ),
 }
+
+# Fireworks is exposed for text tasks first; no unverified vision capability.
+for _task in TASKS.values():
+    if _task.kind == "chat":
+        _task.eligible_models.extend(["baseten/muse-spark-open", "modal/muse-spark-open"])
+        if _task.id not in ("spark_ocr", "spark_classify", "name_load"):
+            _task.eligible_models.append("fireworks/configured-model")
 
 
 def task_ids() -> list[str]:

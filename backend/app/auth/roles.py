@@ -85,6 +85,21 @@ def can_act_on_user(actor_role: str, target_role: str) -> bool:
     return rank(actor_role) >= rank(target_role)
 
 
+def is_super_admin(role: str) -> bool:
+    """True only for the Developer / SuperAdmin role."""
+    return role == Role.SUPER_ADMIN.value
+
+
+def can_manage_settings(role: str) -> bool:
+    """Only SuperAdmin logged in via the superadmin page can change settings."""
+    return is_super_admin(role)
+
+
+def can_manage_demo_videos(role: str) -> bool:
+    """Only SuperAdmin can upload and manage demo videos."""
+    return is_super_admin(role)
+
+
 # Exposed to the frontend so the UI can hide/disable what the role cannot do.
 def capabilities(role: str) -> dict[str, bool]:
     """A flat capability map for the signed-in role."""
@@ -95,4 +110,7 @@ def capabilities(role: str) -> dict[str, bool]:
         "manage_events": can_manage_events(role),
         "ingest": can_ingest(role),
         "manage_users": can_manage_users(role),
+        "manage_settings": can_manage_settings(role),
+        "manage_demo_videos": can_manage_demo_videos(role),
+        "is_super_admin": is_super_admin(role),
     }

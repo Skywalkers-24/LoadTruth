@@ -1,7 +1,7 @@
 """Select the AI client implementation from configuration.
 
-MOCK_AI (or an unconfigured key) -> MockAIClient (fixtures, $0).
-Otherwise -> LiveAIClient (real Meta Model API).
+MOCK_AI (or no configured inference route) -> MockAIClient (fixtures, $0).
+Otherwise -> LiveAIClient (Meta SAM plus the configured chat/vision providers).
 """
 
 from __future__ import annotations

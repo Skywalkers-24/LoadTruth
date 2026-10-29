@@ -81,19 +81,35 @@ class CachingAIClient:
     """
 
     def __init__(
-        self, inner: AIClient, repo: StageResultStore, tenant_id: UUID, model_label: str = ""
+        self,
+        inner: AIClient,
+        repo: StageResultStore,
+        tenant_id: UUID,
+        model_label: str = "",
+        cache_namespace: str = "",
     ) -> None:
         self._inner = inner
         self._repo = repo
         self._tenant = tenant_id
         self._model = model_label
+        self._namespace = cache_namespace
+        self._repo_lock = asyncio.Lock()
 
-    def _hit(self) -> CallUsage:
-        return CallUsage(model=self._model, requests=0, cached=True)
+    def _stage_key(self, stage: str) -> str:
+        return f"{stage}:{self._namespace}" if self._namespace else stage
+
+    def _hit(self, payload: dict[str, object] | None = None) -> CallUsage:
+        payload = payload or {}
+        return CallUsage(
+            model=str(payload.get("_model") or self._model),
+            provider_model=str(payload.get("_provider_model") or ""),
+            requests=0,
+            cached=True,
+        )
 
     async def track(self, clip: ClipMedia) -> TrackResult:
         h = clip.content_hash
-        cached = await self._repo.get_ai_stage_result(self._tenant, h, serde.STAGE_TRACK)
+        cached = await self._get(h, serde.STAGE_TRACK)
         outdated = cached is not None and serde.track_is_outdated(cached, MEASURE_VERSION)
         prompt_outdated = (
             cached is not None
@@ -106,7 +122,7 @@ class CachingAIClient:
             and not outdated
             and not prompt_outdated
         ):
-            return replace(serde.track_from_json(cached), usage=self._hit())
+            return replace(serde.track_from_json(cached), usage=self._hit(cached))
         if (
             cached is not None
             and outdated
@@ -123,7 +139,7 @@ class CachingAIClient:
             )
             await self._persist(h, serde.STAGE_TRACK, serde.track_to_json(stored))
             log.info("ai_track_remeasured", content_hash=h, version=MEASURE_VERSION)
-            return replace(stored, usage=self._hit())
+            return replace(stored, usage=self._hit(cached))
         # Re-run SAM once when: a miss; or an outdated row that can't be replayed
         # offline (missing the tailgate rim, or no load mask so an offline replay
         # would reproduce the same 0% while the current method has new/named load
@@ -134,25 +150,33 @@ class CachingAIClient:
         if prompt_outdated:
             log.info("ai_track_reran_prompt_version", content_hash=h, version=SAM_PROMPT_VERSION)
         result = await self._inner.track(clip)
-        await self._persist(h, serde.STAGE_TRACK, serde.track_to_json(result))
+        await self._persist(
+            h, serde.STAGE_TRACK, {**serde.track_to_json(result), **self._provenance(result.usage)}
+        )
         return result
 
     async def read_placard(self, clip: ClipMedia) -> OCRResult:
         h = clip.content_hash
-        cached = await self._repo.get_ai_stage_result(self._tenant, h, serde.STAGE_OCR)
+        cached = await self._get(h, serde.STAGE_OCR)
         if cached is not None:
-            return replace(serde.ocr_from_json(cached), usage=self._hit())
+            return replace(serde.ocr_from_json(cached), usage=self._hit(cached))
         result = await self._inner.read_placard(clip)
-        await self._persist(h, serde.STAGE_OCR, serde.ocr_to_json(result))
+        await self._persist(
+            h, serde.STAGE_OCR, {**serde.ocr_to_json(result), **self._provenance(result.usage)}
+        )
         return result
 
     async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
         h = clip.content_hash
-        cached = await self._repo.get_ai_stage_result(self._tenant, h, serde.STAGE_CLASSIFY)
+        cached = await self._get(h, serde.STAGE_CLASSIFY)
         if cached is not None:
-            return replace(serde.classify_from_json(cached), usage=self._hit())
+            return replace(serde.classify_from_json(cached), usage=self._hit(cached))
         result = await self._inner.classify_debris(clip)
-        await self._persist(h, serde.STAGE_CLASSIFY, serde.classify_to_json(result))
+        await self._persist(
+            h,
+            serde.STAGE_CLASSIFY,
+            {**serde.classify_to_json(result), **self._provenance(result.usage)},
+        )
         return result
 
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
@@ -169,16 +193,31 @@ class CachingAIClient:
         # Not clip-keyed — pass through.
         return await self._inner.answer_question(prompt)
 
+    async def _get(self, content_hash: str, stage_key: str) -> dict[str, object] | None:
+        # OCR and classification run concurrently, but their shared SQLAlchemy
+        # session cannot. Serialize only DB access, keeping inference parallel.
+        async with self._repo_lock:
+            return await self._repo.get_ai_stage_result(
+                self._tenant, content_hash, self._stage_key(stage_key)
+            )
+
+    def _provenance(self, usage: CallUsage | None) -> dict[str, object]:
+        return {
+            "_model": usage.model if usage else self._model,
+            "_provider_model": usage.provider_model if usage else "",
+        }
+
     async def _persist(self, content_hash: str, stage_key: str, payload: dict[str, object]) -> None:
         try:
-            await self._repo.save_ai_stage_result(
-                self._tenant,
-                content_hash,
-                stage_key,
-                result_json=payload,
-                model=self._model,
-                confidence=serde.confidence_of(stage_key, payload),
-            )
+            async with self._repo_lock:
+                await self._repo.save_ai_stage_result(
+                    self._tenant,
+                    content_hash,
+                    self._stage_key(stage_key),
+                    result_json=payload,
+                    model=str(payload.get("_model") or self._model),
+                    confidence=serde.confidence_of(stage_key, payload),
+                )
         except Exception:  # noqa: BLE001 — a storage hiccup must not fail the pipeline
             log.warning(
                 "ai_stage_persist_failed",

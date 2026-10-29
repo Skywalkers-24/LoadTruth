@@ -240,6 +240,9 @@ async def test_pipeline_second_run_is_a_cache_hit() -> None:
     assert second.ticket.id != first.ticket.id
     assert second.ticket.est_fill_pct == first.ticket.est_fill_pct
     assert second.trace is not None and second.trace.cached
+    assert first.trace is not None
+    assert [s.key for s in second.trace.stages] == [s.key for s in first.trace.stages]
+    assert all(s.key != "cache" for s in second.trace.stages)
     assert first.trace is not None and not first.trace.cached
     assert len(cache) == 1
     summary = ledger.summarize()

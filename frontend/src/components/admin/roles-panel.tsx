@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { UsersIcon } from "@/components/ui/icons";
 import { EmptyState, Skeleton } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
+import { useAuth } from "@/lib/auth";
 import { useUserMutations, useUsers } from "@/lib/hooks";
 import { relativeTime } from "@/lib/format";
 
@@ -36,6 +37,8 @@ const ROLE_LABEL: Record<Role, string> = {
 export function RolesPanel() {
   const users = useUsers();
   const { create, update, remove } = useUserMutations();
+  const { can, member } = useAuth();
+  const canManage = member?.role === "super_admin" || Boolean(can("manage_settings"));
   const toast = useToast();
 
   const [email, setEmail] = useState("");
@@ -92,40 +95,42 @@ export function RolesPanel() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Add user */}
-      <form
-        onSubmit={add}
-        className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4"
-      >
-        <div className="mb-3 flex items-center gap-2">
-          <span className="text-[var(--color-subtle)]">
-            <UsersIcon size={15} />
-          </span>
-          <span className="text-[12px] font-semibold text-[var(--color-text)]">Add a user</span>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_180px_auto] sm:items-end">
-          <Field label="Email" value={email} onChange={setEmail} placeholder="name@county.gov" type="email" />
-          <Field label="Full name" value={name} onChange={setName} placeholder="Jane Doe" />
-          <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]">
-            Role
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
-              className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
-            >
-              {ROLES.map((r) => (
-                <option key={r.role} value={r.role}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Button type="submit" variant="primary" disabled={create.isPending || !emailValid}>
-            Add user
-          </Button>
-        </div>
-        {error && <p className="mt-2 text-[12px] text-[var(--color-danger)]">{error}</p>}
-      </form>
+      {/* Add user (SuperAdmin only) */}
+      {canManage && (
+        <form
+          onSubmit={add}
+          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4"
+        >
+          <div className="mb-3 flex items-center gap-2">
+            <span className="text-[var(--color-subtle)]">
+              <UsersIcon size={15} />
+            </span>
+            <span className="text-[12px] font-semibold text-[var(--color-text)]">Add a user</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_180px_auto] sm:items-end">
+            <Field label="Email" value={email} onChange={setEmail} placeholder="name@county.gov" type="email" />
+            <Field label="Full name" value={name} onChange={setName} placeholder="Jane Doe" />
+            <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]">
+              Role
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as Role)}
+                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+              >
+                {ROLES.map((r) => (
+                  <option key={r.role} value={r.role}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Button type="submit" variant="primary" disabled={create.isPending || !emailValid}>
+              Add user
+            </Button>
+          </div>
+          {error && <p className="mt-2 text-[12px] text-[var(--color-danger)]">{error}</p>}
+        </form>
+      )}
 
       <div className="flex items-center justify-between">
         <span className="text-[12px] font-semibold text-[var(--color-text)]">Members</span>
@@ -170,22 +175,28 @@ export function RolesPanel() {
               </span>
               <span className="flex items-center gap-2">
                 <Badge tone={u.status === "active" ? "ok" : "neutral"}>{u.status}</Badge>
-                <select
-                  value={u.role}
-                  onChange={(e) => changeRole(u, e.target.value as Role)}
-                  disabled={update.isPending}
-                  aria-label={`Role for ${u.email}`}
-                  className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[12px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
-                >
-                  {ROLES.map((r) => (
-                    <option key={r.role} value={r.role}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-                <Button variant="danger" size="sm" onClick={() => setRemoving(u)} disabled={remove.isPending}>
-                  Remove
-                </Button>
+                {canManage ? (
+                  <>
+                    <select
+                      value={u.role}
+                      onChange={(e) => changeRole(u, e.target.value as Role)}
+                      disabled={update.isPending}
+                      aria-label={`Role for ${u.email}`}
+                      className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[12px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+                    >
+                      {ROLES.map((r) => (
+                        <option key={r.role} value={r.role}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                    <Button variant="danger" size="sm" onClick={() => setRemoving(u)} disabled={remove.isPending}>
+                      Remove
+                    </Button>
+                  </>
+                ) : (
+                  <Badge tone="neutral">{ROLE_LABEL[u.role] ?? u.role}</Badge>
+                )}
               </span>
             </li>
           ))}

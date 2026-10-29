@@ -26,12 +26,13 @@ from app.ai.meta_http import (
     ModelAPIRequestError,
     ModelAPIUnavailableError,
 )
+from app.ai.providers import ai_config_fingerprint
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_ingest
 from app.config import get_settings
 from app.log import get_logger
-from app.pipeline import evidence_store
+from app.pipeline import b2_store, evidence_store
 from app.pipeline.anomalies import Anomaly, AnomalyType, Severity
 from app.pipeline.cache import InMemoryResultCache, RedisResultCache, ResultCache
 from app.pipeline.frames import sample_frames
@@ -113,9 +114,11 @@ def _decode_pipeline_result(payload: bytes) -> PipelineResult:
     )
 
 
-def get_pipeline_cache() -> ResultCache[PipelineResult]:
+def get_pipeline_cache() -> ResultCache[PipelineResult] | None:
     """Return the shared result cache, using Render Key Value when configured."""
     global _pipeline_cache, _redis_client
+    if not get_settings().pipeline_result_cache_enabled:
+        return None
     if _pipeline_cache is None:
         settings = get_settings()
         if settings.redis_url != "redis://localhost:6379/0":
@@ -162,7 +165,9 @@ async def get_cache_status() -> dict[str, object]:
         except Exception:
             connected = False
     return {
-        "backend": "redis" if connected else "memory",
+        "backend": ("redis" if connected else "memory")
+        if settings.pipeline_result_cache_enabled
+        else "database-stage-cache",
         "redis_configured": is_configured,
         "redis_connected": connected,
     }
@@ -215,7 +220,10 @@ async def ingest_clip(
             "to upload clips.",
         )
 
-    data = await file.read()
+    limit = get_settings().analysis_max_bytes
+    data = await file.read(limit + 1)
+    if len(data) > limit:
+        raise HTTPException(413, "Trim this clip below the configured analysis size limit.")
     filename = file.filename or "upload.mp4"
     settings = get_settings()
     try:
@@ -274,7 +282,14 @@ async def ingest_clip(
     inner = get_ai_client()
     # Judge-mode "bypass cache": call the raw client and skip both caches so the
     # models actually run again; otherwise wrap in the durable per-stage cache.
-    ai = inner if bypass_cache else CachingAIClient(inner, repo, tenant, model_label=model_label)
+    ai_namespace = ai_config_fingerprint() if settings.live_ai_enabled else ""
+    ai = (
+        inner
+        if bypass_cache
+        else CachingAIClient(
+            inner, repo, tenant, model_label=model_label, cache_namespace=ai_namespace
+        )
+    )
     result_cache = None if bypass_cache else get_pipeline_cache()
 
     # Live progress: record "started", then each stage as it lands, in a store
@@ -299,7 +314,13 @@ async def ingest_clip(
                 data=data,
                 on_stage=_on_stage,
             )
+    except b2_store.StorageUnavailableError as exc:
+        await progress.finish(event_id, ch, outcome="failed", detail="B2 storage is unavailable.")
+        raise HTTPException(
+            503, "B2 storage is unavailable. The saved input can be retried later."
+        ) from exc
     except BudgetExceededError as exc:
+        await progress.finish(event_id, ch, outcome="failed", detail="AI spending limit reached.")
         log.warning("ingest_budget_cap_reached", spent_usd=exc.spent_usd)
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -339,10 +360,12 @@ async def ingest_clip(
         # Keep the clip for the Review console. The live client already stored
         # the exact media the models saw; otherwise (fixtures, or a cached
         # replay of an older clip) store the upload itself.
-        await evidence_store.save(
-            artifact.content_hash, data, mime=guess_mime(filename, artifact.media_kind)
-        )
         stored = await evidence_store.load(artifact.content_hash)
+        if stored is None:
+            await evidence_store.save(
+                artifact.content_hash, data, mime=guess_mime(filename, artifact.media_kind)
+            )
+            stored = await evidence_store.load(artifact.content_hash)
         await repo.save_ticket_evidence(
             tenant,
             saved.id,
@@ -351,6 +374,7 @@ async def ingest_clip(
             mime=stored.mime if stored else guess_mime(filename, artifact.media_kind),
             fps=stored.fps if stored else None,
             segments=result.segments,
+            ai_cache_namespace=ai_namespace,
         )
     except Exception as exc:  # noqa: BLE001 — return a clean failure and close progress.
         log.error("ingest_persistence_failed", content_hash=ch, exc_info=True)

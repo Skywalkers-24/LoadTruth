@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { ErrorState, Skeleton } from "@/components/ui/primitives";
+import { useAuth } from "@/lib/auth";
 import { useAiConfig, useUpdateAiConfig } from "@/lib/hooks";
 
 const EFFORT_LABEL: Record<ReasoningEffort, string> = {
@@ -59,7 +60,10 @@ function spendBadge(weight: number): { tone: "ok" | "warn" | "danger"; label: st
 
 function priceLine(model: ModelInfo): string {
   const p = model.pricing;
-  if (!p) return "Self-hosted or subscription, no per-token price.";
+  if (!p)
+    return model.provider && model.provider !== "meta"
+      ? "Provider pricing not configured; charges may apply."
+      : "Self-hosted or subscription, no per-token price.";
   if (p.unit === "per_1k_images") return `$${p.output?.toFixed(2)} per 1,000 images`;
   if (p.unit === "per_image") return `$${p.output?.toFixed(2)} per image`;
   if (p.unit === "per_hour") return `$${p.output?.toFixed(2)} per hour of audio`;
@@ -94,6 +98,8 @@ function draftsFromData(data: AiConfigResponse): Record<string, Draft> {
 
 export function AiModelsPanel() {
   const { data, isLoading, isError, refetch } = useAiConfig();
+  const { can, member } = useAuth();
+  const canEdit = member?.role === "super_admin" || Boolean(can("manage_settings"));
   const toast = useToast();
   const { update, reset } = useUpdateAiConfig();
   const [confirming, setConfirming] = useState(false);
@@ -125,8 +131,7 @@ export function AiModelsPanel() {
   }
 
   const config = data.config;
-  const setDraft = (taskId: string, next: Draft) =>
-    setDrafts((d) => ({ ...d, [taskId]: next }));
+  const setDraft = (taskId: string, next: Draft) => setDrafts((d) => ({ ...d, [taskId]: next }));
 
   // Which tasks changed from what the server currently has.
   const dirtyTasks = data.catalog.tasks.filter((task) => {
@@ -151,10 +156,7 @@ export function AiModelsPanel() {
     setConfirming(false);
     const failed = results.filter((r) => r.status === "rejected").length;
     if (failed === 0) {
-      toast.push(
-        "ok",
-        dirtyCount === 1 ? "1 task updated." : `${dirtyCount} tasks updated.`,
-      );
+      toast.push("ok", dirtyCount === 1 ? "1 task updated." : `${dirtyCount} tasks updated.`);
     } else {
       toast.push("danger", `${failed} of ${dirtyCount} tasks did not save. Please retry.`);
     }
@@ -183,9 +185,9 @@ export function AiModelsPanel() {
   return (
     <div className="flex max-w-4xl flex-col gap-5">
       <p className="text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
-        Choose which model powers each step of the pipeline and how hard it reasons. Lower effort and
-        the discounted Contributor mode save money; higher effort and Muse Wonder cost more but handle
-        harder cases. Changes apply to work processed after you save.
+        Choose which model powers each step of the pipeline and how hard it reasons. Lower effort
+        and the discounted Contributor mode save money; higher effort and Muse Wonder cost more but
+        handle harder cases. Changes apply to work processed after you save.
       </p>
 
       {/* Sticky action bar: one Save all for every edited task. */}
@@ -193,23 +195,25 @@ export function AiModelsPanel() {
         <Button
           variant="primary"
           size="sm"
-          disabled={dirtyCount === 0 || busy}
+          disabled={!canEdit || dirtyCount === 0 || busy}
           onClick={() => setConfirming(true)}
         >
           {dirtyCount > 1 ? `Save all (${dirtyCount})` : "Save all"}
         </Button>
-        <Button variant="ghost" size="sm" disabled={dirtyCount === 0 || busy} onClick={discard}>
+        <Button variant="ghost" size="sm" disabled={!canEdit || dirtyCount === 0 || busy} onClick={discard}>
           Discard changes
         </Button>
-        <Button variant="ghost" size="sm" disabled={busy} onClick={resetAllToDefault}>
+        <Button variant="ghost" size="sm" disabled={!canEdit || busy} onClick={resetAllToDefault}>
           Reset all to default
         </Button>
         <span className="ml-auto text-[12px] text-[var(--color-muted-foreground)]">
-          {dirtyCount === 0
-            ? "All saved"
-            : dirtyCount === 1
-              ? "1 task has unsaved changes"
-              : `${dirtyCount} tasks have unsaved changes`}
+          {!canEdit
+            ? "SuperAdmin required to change AI models"
+            : dirtyCount === 0
+              ? "All saved"
+              : dirtyCount === 1
+                ? "1 task has unsaved changes"
+                : `${dirtyCount} tasks have unsaved changes`}
         </span>
       </div>
 
@@ -261,8 +265,7 @@ function TaskCard({
   const availableModes = selected?.cost_modes ?? ["standard"];
 
   const base = draftFromConfig(task, current);
-  const dirty =
-    model !== base.model || effort !== base.effort || costMode !== base.costMode;
+  const dirty = model !== base.model || effort !== base.effort || costMode !== base.costMode;
   const isDefault =
     model === task.default_model &&
     effort === task.default_effort &&
@@ -320,9 +323,10 @@ function TaskCard({
             aria-label={`${task.name} model`}
           >
             {eligible.map((m) => (
-              <option key={m.id} value={m.id}>
+              <option key={m.id} value={m.id} disabled={!m.available}>
                 {m.name}
                 {m.premium ? " ★" : ""}
+                {!m.available ? " · Not configured" : ""}
               </option>
             ))}
           </select>

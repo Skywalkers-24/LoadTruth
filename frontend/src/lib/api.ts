@@ -349,9 +349,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** Returns backend health, or throws on failure. */
-export async function getHealth(): Promise<Health> {
-  return await request<Health>("/health");
+/** Returns backend health, or null on failure. */
+export async function getHealth(): Promise<Health | null> {
+  try {
+    return await request<Health>("/health");
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -375,6 +379,8 @@ export interface Capabilities {
   manage_events: boolean;
   ingest: boolean;
   manage_users: boolean;
+  manage_settings?: boolean;
+  manage_demo_videos?: boolean;
 }
 
 export interface Member {
@@ -407,6 +413,14 @@ export async function login(email: string): Promise<LoginResult> {
   return request<LoginResult>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email }),
+  });
+}
+
+/** Developer / SuperAdmin sign in by username and password. */
+export async function superadminLogin(username: string, password: string): Promise<LoginResult> {
+  return request<LoginResult>("/auth/superadmin/login", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
   });
 }
 
@@ -543,12 +557,8 @@ export function reverifyTicket(ticketId: string): Promise<Reverify> {
  * URL for a <video> or <img>. The caller revokes it when done.
  */
 export async function fetchEvidenceMediaUrl(ticketId: string): Promise<string> {
-  const res = await fetch(`${baseUrl()}/tickets/${ticketId}/evidence/media`, {
-    cache: "no-store",
-    headers: authToken ? { authorization: `Bearer ${authToken}` } : undefined,
-  });
-  if (!res.ok) throw new ApiError(res.status, "");
-  return URL.createObjectURL(await res.blob());
+  const result = await request<{ url: string }>(`/tickets/${ticketId}/evidence/url`);
+  return result.url;
 }
 
 // ── AI model & reasoning-effort configuration (admin) ──
@@ -563,6 +573,7 @@ export interface ModelPricing {
 }
 
 export interface ModelInfo {
+  provider?: string;
   id: string;
   name: string;
   kind: string;
@@ -691,6 +702,97 @@ export function streamChat(
  * `status` is "running" until the run resolves; the server holds this, so a
  * page refreshed mid-run still sees the in-flight run.
  */
+export interface IngestJob {
+  id: string;
+  content_hash: string;
+  event_id: string;
+  filename: string;
+  status: "accepted" | "running" | "completed" | "failed";
+  started_at: number;
+  detail: string | null;
+  ticket: Ticket | null;
+}
+
+export interface DemoVideo {
+  id: string;
+  title: string;
+  filename: string;
+  mime: string;
+  size_bytes: number;
+  status: "uploading" | "ready";
+  notes: string | null;
+  reference_fill_pct: string | null;
+  created_at: string;
+}
+export interface DemoVideoPage {
+  items: DemoVideo[];
+  total: number;
+  analysis_max_bytes: number;
+  upload_max_bytes: number;
+}
+export function listDemoVideos(offset = 0): Promise<DemoVideoPage> {
+  return request(`/demo-videos?limit=24&offset=${offset}`);
+}
+export function completeDemoUpload(id: string): Promise<DemoVideo> {
+  return request(`/demo-videos/${id}/complete`, { method: "POST" });
+}
+export function demoPlayback(id: string): Promise<{ url: string }> {
+  return request(`/demo-videos/${id}/playback`);
+}
+export function analyzeDemoVideo(eventId: string, videoId: string): Promise<IngestJob> {
+  return request(`/events/${eventId}/demo-videos/${videoId}/analyze`, { method: "POST" });
+}
+export async function uploadDemoVideo(
+  file: File,
+  metadata?: { title?: string; notes?: string; reference_fill_pct?: number | null },
+  onProgress?: (pct: number) => void,
+): Promise<DemoVideo> {
+  const mime =
+    file.type || (file.name.toLowerCase().endsWith(".mov") ? "video/quicktime" : "video/mp4");
+  const init = await request<{
+    video: DemoVideo;
+    upload_url: string;
+    headers: Record<string, string>;
+  }>("/demo-videos/uploads", {
+    method: "POST",
+    body: JSON.stringify({
+      title: (metadata?.title?.trim() || file.name).slice(0, 160),
+      filename: file.name,
+      mime,
+      size_bytes: file.size,
+      notes: metadata?.notes || null,
+      reference_fill_pct: metadata?.reference_fill_pct ?? null,
+    }),
+  });
+  // The application token is NEVER sent to the signed bucket URL.
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", init.upload_url);
+    Object.entries(init.headers).forEach(([key, value]) => xhr.setRequestHeader(key, value));
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () =>
+      xhr.status >= 200 && xhr.status < 300
+        ? resolve()
+        : reject(new Error("B2 upload failed. Check the saved clip or retry the upload."));
+    xhr.onerror = () =>
+      reject(new Error("B2 could not be reached. Check the connection and bucket CORS settings."));
+    xhr.onabort = () =>
+      reject(new Error("Upload interrupted. Only verified clips can be analyzed."));
+    xhr.send(file);
+  });
+  return completeDemoUpload(init.video.id);
+}
+export async function submitIngestJob(eventId: string, file: File): Promise<IngestJob> {
+  const video = await uploadDemoVideo(file);
+  return analyzeDemoVideo(eventId, video.id);
+}
+
+export function getLatestIngestJob(eventId: string): Promise<IngestJob | null> {
+  return request<IngestJob | null>(`/events/${eventId}/ingest-jobs`);
+}
+
 export interface PipelineProgress {
   event_id: string;
   content_hash: string;

@@ -27,6 +27,8 @@
 # OS / editor
 .DS_Store
 **/.DS_Store
+.kiro/
+codex-usage/
 
 # Large demo video exports; login background clips are deployed with the frontend.
 *.mp4

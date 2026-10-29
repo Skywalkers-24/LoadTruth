@@ -17,6 +17,7 @@ dependencies = [
     "redis>=5.2",
     "arq>=0.26",
     "httpx>=0.28",
+    "boto3>=1.35,<2",
     # Meta's official, dependency-free parser for SAM 3.1 segmentation output.
     "meta-sam-parser>=0.1.0,<0.2",
     "python-multipart>=0.0.12",
