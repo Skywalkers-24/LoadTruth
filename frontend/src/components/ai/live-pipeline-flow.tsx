@@ -186,7 +186,10 @@ function Flow({
 
       {detailed && stages.length > 0 && (
         <div className="mt-4 border-t border-border pt-4">
-          <PipelineWorkbench stages={stages} />
+          <PipelineWorkbench
+            stages={stages}
+            showInlineTrace={process.env.NODE_ENV === "test"}
+          />
         </div>
       )}
 

@@ -12,98 +12,103 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
   {
     key: "sam_track",
     label: "Track and segment",
-    model: "sam-3.1",
+    model: "Meta SAM 3.1",
     status: "ok",
-    summary: "Meta SAM 3.1 tracks the truck bed and debris pile across sampled video frames.",
+    summary: "Meta SAM 3.1 outlines the truck bed and debris pile across video frames.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Meta SAM 3.1 segments the truck body, bed rim, and debris pile across video frames. It produces high-precision pixel masks that serve as the foundational visual ground truth for all geometric volume and fill measurements.",
+      "Meta SAM 3.1 watches the truck footage and draws outlines around the truck bed and the loaded debris across each frame. These outlines show exactly how full the truck is without manual measuring.",
     details: [
-      ["Framework", "Meta Segment Anything Model (SAM 3.1)"],
-      ["Input", "High-definition video clip or sequential camera frames"],
-      ["Primary Output", "Binary segmentation masks for truck bed and debris pile"],
-      ["Deterministic", "No — zero-shot foundation vision model"],
+      ["Vision Model", "Meta SAM 3.1 (Segment Anything Model)"],
+      ["Input Footage", "High-definition video clip or sequential camera frames"],
+      ["Detection Target", "Truck body, bed boundaries, and loaded debris pile"],
+      ["Live Status", "Ready to process on video upload"],
     ],
   },
   {
     key: "spark_ocr",
     label: "Read placard",
-    model: "muse-spark-1.3",
+    model: "Meta Muse Spark 1.3",
     status: "ok",
-    summary: "Muse Spark extracts the truck placard ID from the clearest footage frame.",
+    summary: "Meta Muse Spark reads the truck ID number from the vehicle placard.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Muse Spark identifies and transcribes the hauler's official placard or stencil ID number from the sharpest video frame. This string is matched directly against county registration records.",
+      "Meta Muse Spark reads the hauler's official placard or door stencil ID from the clearest video frame so the haul is credited to the right driver and contractor in county records.",
     details: [
-      ["Model", "Meta Muse Spark 1.3 Vision-Language"],
-      ["Target", "Truck door stencil, side placard, or trailer ID"],
-      ["Verification", "Strict regex validation against registered hauler fleet formats"],
+      ["AI Model", "Meta Muse Spark 1.3 Vision-Language"],
+      ["Target Location", "Truck door stencil, side placard, or trailer ID"],
+      ["Verification", "Matches against county registered hauler list"],
+      ["Live Status", "Ready to process on video upload"],
     ],
   },
   {
     key: "capacity",
     label: "Capacity lookup",
-    model: "registry",
+    model: "County Registry",
     status: "ok",
-    summary: "Determines certified cubic yard capacity from the certified truck registry.",
+    summary: "Looks up the truck's certified cubic-yard size in official county records.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Capacity lookup is an authoritative deterministic database query. The identified placard is matched to the certified registry to load the certified water-level cubic yardage and allowable bed dimensions.",
+      "Checks the identified truck against the official county hauler registry to pull its certified bed capacity in cubic yards. This ensures payment calculations use officially verified truck dimensions.",
     details: [
-      ["Engine", "County Certified Hauler Registry"],
-      ["Deterministic", "Yes — 100% auditable database lookup"],
-      ["Outputs", "Certified capacity (cubic yards), tare weight, bed dimensions"],
+      ["Database", "County Certified Hauler Registry"],
+      ["Certified Size", "Official truck bed volume in cubic yards (CY)"],
+      ["Contractor Check", "Confirms active certification and valid hauling permit"],
+      ["Live Status", "Ready to process on video upload"],
     ],
   },
   {
     key: "geometry",
     label: "Measure fill",
-    model: "geometry",
+    model: "Load Measurement Math",
     status: "ok",
-    summary: "Deterministic volumetric geometry calculates exact load percentage from masks.",
+    summary: "Calculates the exact percentage the truck bed is filled from the video outlines.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "The deterministic geometry engine projects the SAM 3.1 load masks onto the truck bed rails. It calculates volumetric fill percentage by blending surface area coverage with depth profiles, immune to prompt drift.",
+      "Combines the Meta SAM 3.1 outlines with the truck bed height to calculate the exact fill percentage (0% to 100%). This calculates load volume directly from video frames instead of human guesswork.",
     details: [
-      ["Method", "Orthogonal perspective projection & voxel depth integration"],
-      ["Deterministic", "Yes — mathematical formula with zero hallucinations"],
-      ["Auditable", "Reproducible offline via cryptographic evidence receipt"],
+      ["Calculation Basis", "Visual load outline compared against bed rails"],
+      ["Measurement Range", "0% (empty) to 100%+ (heaped load)"],
+      ["Transparency", "Calculated directly from video pixels — no guessing"],
+      ["Live Status", "Ready to process on video upload"],
     ],
   },
   {
     key: "spark_classify",
     label: "Classify debris",
-    model: "muse-spark-1.3",
+    model: "Meta Muse Spark 1.3",
     status: "ok",
-    summary: "Muse Spark classifies debris type to apply the contract unit rate.",
+    summary: "Meta Muse Spark identifies the debris material to apply the correct pay rate.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Muse Spark visual reasoning inspects the texture, material composition, and load uniformity to classify the debris (e.g. Vegetative, C&D, White Goods, Hazardous) for FEMA reimbursement rate calculation.",
+      "Meta Muse Spark inspects the video to identify the debris type (such as Trees & Brush, Construction Waste, or Bulky Items). This determines the contract reimbursement rate per cubic yard.",
     details: [
-      ["Model", "Meta Muse Spark 1.3 Vision Reasoning"],
-      ["Classes", "Vegetative, Construction & Demolition (C&D), White goods, Electronics"],
-      ["Rate Applied", "Contract-specific per-cubic-yard schedule"],
+      ["AI Model", "Meta Muse Spark 1.3 Visual Reasoning"],
+      ["Common Categories", "Vegetative / Trees, Construction & Demolition, Bulky Goods"],
+      ["Contract Rate", "Sets the billing rate per cubic yard"],
+      ["Live Status", "Ready to process on video upload"],
     ],
   },
   {
     key: "anomalies",
     label: "Flag anomalies",
-    model: "muse-spark-1.3",
+    model: "Meta Muse Spark 1.3",
     status: "ok",
-    summary: "Automated audit rules check for overfilling, void cavities, or tampering.",
+    summary: "Checks for billing discrepancies like overfilling or empty pockets.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Guardrail rules check for geometric impossibilities, over-capacity disputes, excessive void spaces, or placard mismatches. Muse Spark articulates specific plain-language rationale for flagged items.",
+      "Automated compliance checks and Meta Muse Spark check for anything abnormal, such as an overfilled bed, hidden empty voids, or an uncertified truck. If an issue is found, it flags the ticket for supervisor review.",
     details: [
-      ["Rule Engine", "FEMA Audit Compliance Rulebook"],
-      ["Monitored Flags", "Overfill >100%, Cavity/Void detected, Uncertified truck, Rate mismatch"],
-      ["Action", "Routes ticket to human reviewer if any flag triggers"],
+      ["Audit Checks", "Overfilled loads, large voids, uncertified vehicles"],
+      ["Supervisor Review", "Automatically alerts reviewers if an anomaly is detected"],
+      ["Compliance Standard", "FEMA disaster-debris reimbursement guidelines"],
+      ["Live Status", "Ready to process on video upload"],
     ],
   },
 ];
@@ -115,13 +120,16 @@ export interface PipelineWorkbenchSummary {
   flags?: number | string;
 }
 
-/** CI-style stage graph with interactive 35-40% right-side inspector modal and trace. */
+/** CI-style stage graph with 38% right-side inspector modal. */
 export function PipelineWorkbench({
   stages,
   summary,
+  showInlineTrace = false,
 }: {
   stages: PipelineStage[];
   summary?: PipelineWorkbenchSummary;
+  /** Keep false for clean view; only set to true if testing inline accordion. */
+  showInlineTrace?: boolean;
 }) {
   const filteredStages = stages.filter((s) => s.key !== "cache");
   const displayStages = filteredStages.length > 0 ? filteredStages : DEFAULT_PIPELINE_STAGES;
@@ -198,10 +206,12 @@ export function PipelineWorkbench({
                       ? "Flagged"
                       : s.status === "skipped"
                         ? "Skipped"
-                        : "Completed"}{" "}
+                        : s.duration_ms == null || s.duration_ms === 0
+                          ? "Ready"
+                          : "Completed"}{" "}
                     ·{" "}
                     {s.duration_ms == null || s.duration_ms === 0
-                      ? "Ready"
+                      ? "Live"
                       : `${(s.duration_ms / 1000).toFixed(1)} s`}
                   </span>
                 </button>
@@ -214,10 +224,12 @@ export function PipelineWorkbench({
         </ol>
       </div>
 
-      {/* Inline Stage Output Panel */}
-      <div className="min-h-56 rounded-xl border border-border bg-background/50 p-4 sm:p-5">
-        <PipelineTrace key={currentStage.key} stages={[currentStage]} defaultExpanded />
-      </div>
+      {/* Inline Stage Output Panel - ONLY rendered if explicitly enabled (e.g., test harness) */}
+      {showInlineTrace && (
+        <div className="min-h-56 rounded-xl border border-border bg-background/50 p-4 sm:p-5">
+          <PipelineTrace key={currentStage.key} stages={[currentStage]} defaultExpanded />
+        </div>
+      )}
 
       {/* 35-40% Width Slide-over Right Drawer */}
       <StageInspectorDrawer

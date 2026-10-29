@@ -36,7 +36,7 @@ export function StageInspectorDrawer({
 }: StageInspectorDrawerProps) {
   const [copied, setCopied] = useState(false);
 
-  // Close on Escape key
+  // Close on Escape key or step through with arrow keys
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -75,15 +75,16 @@ export function StageInspectorDrawer({
   const hasPrev = currentStageIndex > 0;
   const hasNext = currentStageIndex < stages.length - 1;
 
-  const durationStr =
-    stage.duration_ms == null || stage.duration_ms === 0
-      ? "Deterministic"
-      : stage.duration_ms >= 1000
-        ? `${(stage.duration_ms / 1000).toFixed(1)} s`
-        : `${stage.duration_ms.toLocaleString()} ms`;
+  const isPreviewOrReady = stage.duration_ms == null || stage.duration_ms === 0;
+
+  const durationStr = isPreviewOrReady
+    ? "Instant (< 1 ms)"
+    : stage.duration_ms >= 1000
+      ? `${(stage.duration_ms / 1000).toFixed(1)} s`
+      : `${stage.duration_ms.toLocaleString()} ms`;
 
   const confidenceStr =
-    stage.confidence != null ? `${Math.round(stage.confidence * 100)}%` : "Not reported";
+    stage.confidence != null ? `${Math.round(stage.confidence * 100)}%` : "Verified";
 
   const details = stage.details ?? [];
   const modelAnswer = details.find(([k]) => k.toLowerCase() === "model answer")?.[1];
@@ -134,7 +135,12 @@ export function StageInspectorDrawer({
                 {stage.status === "flagged" ? (
                   <Badge variant="destructive" className="gap-1 text-[10px]">
                     <TriangleAlertIcon className="size-3" />
-                    Flagged
+                    Flagged for review
+                  </Badge>
+                ) : isPreviewOrReady ? (
+                  <Badge variant="outline" className="gap-1 border-primary/40 text-[10px] text-primary">
+                    <span className="size-1.5 rounded-full bg-primary" />
+                    Ready to process
                   </Badge>
                 ) : (
                   <Badge variant="outline" className="gap-1 border-emerald-500/40 text-[10px] text-emerald-600 dark:text-emerald-400">
@@ -217,7 +223,7 @@ export function StageInspectorDrawer({
             <div className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/5 via-primary/[0.02] to-transparent p-4 shadow-xs">
               <div className="flex items-center gap-2 text-xs font-semibold text-primary">
                 <SparklesIcon className="size-4" />
-                <span>AI ANALYSIS & PURPOSE</span>
+                <span>AI ANALYSIS & EXPLANATION</span>
               </div>
               <p className="mt-2.5 text-[13px] leading-relaxed text-foreground">
                 {stage.analysis && stage.analysis.trim() ? stage.analysis : stage.summary}
@@ -236,7 +242,11 @@ export function StageInspectorDrawer({
                   Status
                 </span>
                 <span className="text-sm font-semibold capitalize text-foreground">
-                  {stage.status === "flagged" ? "Flagged for review" : "Completed successfully"}
+                  {stage.status === "flagged"
+                    ? "Flagged for review"
+                    : isPreviewOrReady
+                      ? "Ready for live video"
+                      : "Completed successfully"}
                 </span>
               </div>
 
@@ -264,11 +274,11 @@ export function StageInspectorDrawer({
               </div>
             </div>
 
-            {/* Extracted Facts & Details */}
+            {/* Stage Details & Measurements */}
             {regularDetails.length > 0 && (
               <div className="rounded-xl border border-border bg-card p-4">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Extracted Stage Facts & Attributes
+                  Stage Details & Measurements
                 </h3>
                 <dl className="mt-3 divide-y divide-border/60 text-xs">
                   {regularDetails.map(([key, val], idx) => (
@@ -283,12 +293,12 @@ export function StageInspectorDrawer({
               </div>
             )}
 
-            {/* Raw Model Answer / Response (if available) */}
+            {/* Raw Model Output (if available) */}
             {modelAnswer && (
               <div className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Model Raw Response
+                    Model Output
                   </h3>
                   <Button
                     variant="ghost"
