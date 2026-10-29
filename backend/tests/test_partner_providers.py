@@ -195,7 +195,9 @@ async def test_partner_vision_receives_images_not_meta_file_ids(
             "spark_ocr", [{"type": "input_text", "text": "Read ID"}, media.part], None, media=media
         )
         sent = complete.call_args.args[3]
-        assert sent[1]["image_url"]["url"].startswith("data:image/png;base64,")
+        images = [part for part in sent if part["type"] == "image_url"]
+        assert len(images) == 1
+        assert images[0]["image_url"]["url"].startswith("data:image/png;base64,")
         assert "meta-only" not in json.dumps(sent)
     finally:
         await client.aclose()

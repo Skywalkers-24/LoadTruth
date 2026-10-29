@@ -59,9 +59,16 @@ class CountingAIClient:
         self.ocr_calls += 1
         return OCRResult(truck_id="FL-DT-3391", confidence=0.93, frame_ref="frame-7")
 
-    async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
+    async def classify_debris(
+        self, clip: ClipMedia, *, sam_coverage_pct: list[float] | None = None
+    ) -> ClassifyResult:
         self.classify_calls += 1
-        return ClassifyResult(debris_class="construction_demolition", confidence=0.88)
+        return ClassifyResult(
+            debris_class="construction_demolition",
+            confidence=0.88,
+            visual_fill_pct=72.35,
+            frame_fill_pcts=(70.0, 72.35, 75.0),
+        )
 
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
         self.narrate_calls += 1
@@ -102,11 +109,13 @@ async def test_first_run_calls_model_and_persists(session: AsyncSession) -> None
     # And the raw outputs are now persisted, tenant+hash+stage scoped.
     assert await repo.get_ai_stage_result(TENANT, HASH, "sam_track") is not None
     assert await repo.get_ai_stage_result(TENANT, HASH, "spark_ocr") is not None
-    assert await repo.get_ai_stage_result(TENANT, HASH, "spark_classify") is not None
+    assert await repo.get_ai_stage_result(TENANT, HASH, "spark_fill_v2") is not None
     # Returned values are the model's.
     assert track.frame_count == 12
     assert ocr.truck_id == "FL-DT-3391"
     assert classify.debris_class == "construction_demolition"
+    assert classify.visual_fill_pct == 72.35
+    assert classify.frame_fill_pcts == (70.0, 72.35, 75.0)
 
 
 @pytest.mark.asyncio
@@ -132,6 +141,7 @@ async def test_second_run_replays_from_db_without_model(session: AsyncSession) -
     assert t2 == t1
     assert o2 == o1
     assert c2 == c1
+    assert c2.frame_fill_pcts == (70.0, 72.35, 75.0)
     # A replay is reported to the ledger as a $0 cache hit.
     assert t2.usage is not None and t2.usage.cached and t2.usage.cost_usd == 0.0
 
@@ -171,6 +181,7 @@ def _old_track_row(*, with_rim: bool, with_load: bool = True) -> dict[str, objec
         "sam_output": sam_output,
         "load_source": "segmented" if with_load else "none",
         "measure_version": 1,
+        "sam_prompt_version": sam_measure.SAM_PROMPT_VERSION,
         "objects": [
             {"label": "truck bed", "sam_object_id": "bed-0", "mask_areas": [1.0]},
             {
@@ -295,4 +306,4 @@ async def test_parallel_perception_does_not_share_a_database_session_concurrentl
     client = CachingAIClient(CountingAIClient(), repo, TENANT)
     await asyncio.gather(client.read_placard(CLIP), client.classify_debris(CLIP))
     assert await original_get(TENANT, HASH, "spark_ocr") is not None
-    assert await original_get(TENANT, HASH, "spark_classify") is not None
+    assert await original_get(TENANT, HASH, "spark_fill_v2") is not None

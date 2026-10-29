@@ -18,6 +18,8 @@ describe("percent", () => {
   it("drops trailing zeros for whole numbers", () => {
     expect(percent("62.00")).toBe("62%");
     expect(percent("62.5")).toBe("62.5%");
+    expect(percent("74.81")).toBe("74.81%");
+    expect(percent("89.947")).toBe("89.95%");
   });
   it("renders N/A for null", () => {
     expect(percent(null)).toBe("N/A");

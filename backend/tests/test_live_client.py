@@ -81,11 +81,13 @@ class FakeMeta:
         frames: int = 2,
         ocr: dict[str, Any] | None = None,
         visual_fill: float | None = None,
+        frame_fill_pcts: list[float] | None = None,
         named_load: list[str] | None = None,
     ) -> None:
         self.named_load = named_load if named_load is not None else ["steel drums"]
         self.frames = frames
         self.visual_fill = visual_fill
+        self.frame_fill_pcts = frame_fill_pcts
         self.ocr = ocr or {
             "truck_id": "fl-dt-3391",
             "readable": True,
@@ -128,10 +130,15 @@ class FakeMeta:
             ocr = {"analysis": "I read the placard from the clearest frame.", **self.ocr}
             return httpx.Response(200, json=_spark(json.dumps(ocr)))
         if task == "spark_classify":
+            content = body["input"][0]["content"]
+            frame_count = sum(part["type"] == "input_image" for part in content)
+            estimates = self.frame_fill_pcts or [
+                self.visual_fill if self.visual_fill is not None else 50.0
+            ] * frame_count
             answer = {
                 "debris_class": "construction_demolition",
                 "confidence": 0.9,
-                "fill_pct": self.visual_fill,
+                "frame_fill_pcts": estimates,
                 "analysis": "The load is mostly damaged building materials.",
             }
             return httpx.Response(200, json=_spark(json.dumps(answer)))
@@ -169,7 +176,23 @@ def _passthrough_media(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         mime = "image/png" if media_kind == "image" else "video/mp4"
         return PreparedBytes(data, mime)
 
+    async def _keyframes(data: bytes, mime: str, media_kind: str) -> list[dict[str, str]]:
+        count = 1 if media_kind == "image" else 4
+        parts: list[dict[str, str]] = []
+        for index in range(count):
+            parts.extend(
+                [
+                    {"type": "input_text", "text": f"Frame {index + 1}."},
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:{mime};base64,ZmFrZQ==",
+                    },
+                ]
+            )
+        return parts
+
     monkeypatch.setattr(live_module, "prepare_media", _same)
+    monkeypatch.setattr(live_module, "meta_keyframe_parts", _keyframes)
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -246,10 +269,21 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
         "steel drums",
         "tailgate",
     ]
+    classify_body = next(
+        body
+        for body in spark
+        if (body.get("text") or {}).get("format", {}).get("name") == "spark_classify"
+    )
+    classify_content = classify_body["input"][0]["content"]
+    assert sum(part["type"] == "input_image" for part in classify_content) == 4
+    assert "SAM segmentation context" in classify_content[0]["text"]
+    assert "projected mask-area ratios" in classify_content[0]["text"]
     for body in fake.responses:
-        part = body["input"][0]["content"][-1]
-        if part["type"] != "input_text":
-            assert part == {"type": "input_video", "file_id": "file-123"}
+        content = body["input"][0]["content"]
+        if (body.get("text") or {}).get("format", {}).get("name") != "spark_classify":
+            media_parts = [part for part in content if part["type"] != "input_text"]
+            if media_parts:
+                assert media_parts == [{"type": "input_video", "file_id": "file-123"}]
     assert all(b["stream"] is True for b in sam)
     assert all(b["metadata"]["mask_encoding"] == "one_bit" for b in sam)
     # name_load (names the SAM load concept) + OCR + classify + the batched
@@ -319,7 +353,7 @@ async def test_spark_requests_use_strict_schema_and_wire_effort() -> None:
     assert ocr["reasoning"] == {"effort": "low"}
     # The admin's "balanced" is sent as the API's "medium".
     assert classify["reasoning"] == {"effort": "medium"}
-    assert classify["text"]["format"]["schema"]["properties"]["debris_class"]["enum"][0]
+    assert classify["text"]["format"]["schema"]["properties"]["frame_fill_pcts"]["type"] == "array"
     # Reasoning shares the output budget, so the cap must leave room for it.
     assert ocr["max_output_tokens"] >= 2000
 
@@ -340,19 +374,20 @@ async def test_unreadable_placard_flags_identity_and_narrates() -> None:
 
 
 @pytest.mark.asyncio
-async def test_spark_visual_read_cross_checks_the_measured_fill() -> None:
-    """Muse Spark's fill read never sets the number, but a big gap flags review."""
-    agree_fill = (await _run(_client(FakeMeta())))[0].ticket.est_fill_pct
-    far_off = 0.0 if agree_fill > 50 else 100.0  # the other end of the scale
-    result, _ = await _run(_client(FakeMeta(visual_fill=far_off)))
+async def test_muse_multiframe_median_sets_two_decimal_fill() -> None:
+    """Muse frame estimates, not SAM's projected mask coverage, set ticket fill."""
+    fake = FakeMeta(frame_fill_pcts=[91.23, 89.87, 90.01, 40.0])
+    result, _ = await _run(_client(fake))
 
-    assert result.ticket.est_fill_pct == agree_fill  # the masks still set the fill
-    assert result.fill_confidence < 0.45
-    assert "low_confidence" in {a.type.value for a in result.anomalies}
+    assert result.ticket.est_fill_pct == Decimal("89.94")
     assert result.trace is not None
     geometry = dict(next(s for s in result.trace.stages if s.key == "geometry").details)
-    assert geometry["Muse Spark visual read"].endswith("%")
-    assert "Muse Spark" in geometry["Review note"]
+    assert geometry["Muse per-frame fill"] == "91.23%, 89.87%, 90.01%, 40.00%"
+    assert geometry["Muse combined fill (median)"] == "89.94%"
+    assert geometry["Fill selected from"] == "Muse Spark median of 4 frame estimates"
+    assert geometry["Fill"] == "89.94%"
+    assert "Review note" not in geometry
+    assert "low_confidence" not in {a.type.value for a in result.anomalies}
 
 
 @pytest.mark.asyncio

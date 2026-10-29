@@ -285,9 +285,9 @@ async def ticket_evidence_url(
 class ReverifyOut(BaseModel):
     """The result of reproducing a ticket's number from its stored evidence.
 
-    ``reproducible`` is true when the fill % recomputed from the stored SAM masks
-    matches the ticket. ``receipt_hash`` is the SHA-256 fingerprint of every
-    pinned input; ``receipt_inputs`` is the canonical record behind it.
+    ``reproducible`` is true when the fill % recomputed from the stored Muse
+    per-frame estimates (or SAM masks for legacy/fixture results) matches the
+    ticket. ``receipt_hash`` fingerprints every pinned input.
     """
 
     ticket_id: UUID
@@ -303,9 +303,9 @@ class ReverifyOut(BaseModel):
 async def reverify_ticket(repo: Repository, tenant: ActiveTenant, ticket_id: UUID) -> ReverifyOut:
     """Reproduce the ticket's measured fill % from its stored evidence.
 
-    Deterministic and offline: re-runs the geometry over the SAM masks saved for
-    this clip and rebuilds the evidence receipt, so an auditor sees both a
-    matching number and a matching fingerprint without any model call.
+    Deterministic and offline: combines stored Muse frame estimates using the
+    ingestion median (or replays SAM geometry for legacy/fixture results) and
+    rebuilds the evidence receipt without any model call.
     """
     try:
         r = await repo.reverify_ticket(tenant, ticket_id)

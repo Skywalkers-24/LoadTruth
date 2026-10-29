@@ -166,12 +166,14 @@ class CachingAIClient:
         )
         return result
 
-    async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
+    async def classify_debris(
+        self, clip: ClipMedia, *, sam_coverage_pct: list[float] | None = None
+    ) -> ClassifyResult:
         h = clip.content_hash
         cached = await self._get(h, serde.STAGE_CLASSIFY)
         if cached is not None:
             return replace(serde.classify_from_json(cached), usage=self._hit(cached))
-        result = await self._inner.classify_debris(clip)
+        result = await self._inner.classify_debris(clip, sam_coverage_pct=sam_coverage_pct)
         await self._persist(
             h,
             serde.STAGE_CLASSIFY,

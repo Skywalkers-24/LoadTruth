@@ -108,7 +108,9 @@ class MockAIClient:
             analysis=analysis,
         )
 
-    async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
+    async def classify_debris(
+        self, clip: ClipMedia, *, sam_coverage_pct: list[float] | None = None
+    ) -> ClassifyResult:
         c = self._scenario(clip.content_hash)["classify"]
         debris_class = c["debris_class"]
         confidence = float(c["confidence"])
@@ -144,6 +146,7 @@ class MockAIClient:
         truck = s("truck_id", "the truck")
         certified = s("certified_cubic_yards", "0")
         fill = s("fill_pct", "0")
+        fill_source = s("fill_source", "SAM mask geometry")
         coverage = _pct(facts.get("planar_coverage"))
         debris = s("debris_class", "other").replace("_", " ")
         rate = s("rate_per_cy", "0")
@@ -171,9 +174,9 @@ class MockAIClient:
                 "verification before it can be certified."
             ),
             "geometry": (
-                f"Calculated the bed at {fill}% full. The load covers "
-                f"{coverage} of the bed opening above the tailgate rim, and the fill is that "
-                "opening coverage, so the number traces to the masks rather than a guess."
+                f"Estimated the bed at {fill}% full using {fill_source}. SAM segmented the load "
+                f"across {coverage} of the bed opening above the tailgate rim and supplied that "
+                "spatial evidence to the fill estimate."
             ),
             "dollar_math": (
                 f"Exact arithmetic valued the load at ${value}: {fill}% of {certified} cubic "
@@ -192,7 +195,8 @@ class MockAIClient:
             )
         else:
             out["anomalies"] = (
-                "Automated compliance rules checked the measured facts against certification, capacity, "
+                "Automated compliance rules checked the measured facts against certification, "
+                "capacity, "
                 "and the surface-versus-depth relationship, and found nothing to flag on this load."
             )
         return out

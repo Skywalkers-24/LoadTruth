@@ -87,7 +87,7 @@ A phone or pole camera at the tower records every truck. LoadTruth turns that cl
 2. **Track & segment (SAM 3.1)** — text-prompted multi-object tracking/segmentation of `dump truck`, `truck bed`, `debris pile`, `placard` across frames, returning per-instance masks.
 3. **Read placard (Muse Spark)** — OCR the truck's ID from the clearest frame.
 4. **Capacity lookup** — the OCR'd ID is matched to the certified-truck registry with **fuzzy matching** (exact → normalized → edit-distance) so OCR noise fails loudly instead of guessing.
-5. **Measure fill % (deterministic)** — the geometry engine turns the bed and load masks into `planar coverage × depth factor` (a body-type depth prior) → a fill % that is reproducible and traceable to the mask pixels.
+5. **Estimate fill % (SAM + Muse Spark)** — SAM segments the bed and load and supplies per-frame opening coverage; Muse inspects multiple keyframes with that context and estimates fill for each. The pipeline uses the median Muse estimate, retaining SAM coverage as auditable spatial evidence and as a fixture fallback.
 6. **Classify debris (Muse Spark)** — vegetative / construction & demolition / white goods / hazardous / other; this selects the per-class rate.
 7. **Flag + draft (deterministic)** — plain-Python rules raise `capacity_exceeded`, `impossible_cycle`, `surface_depth_mismatch`, `uncertified_truck`, `duplicate_truck`, `identity_unreadable`, `low_confidence`; Muse Spark only *narrates* a flag the rules already decided. A **draft ticket** is written with its evidence frames and the full stage trace.
 

@@ -48,6 +48,12 @@ def test_receipt_changes_when_any_input_changes() -> None:
     assert compute_receipt(_inputs(est_fill_pct="61.00")).receipt_hash != base
     assert compute_receipt(_inputs(truck_id="FL-DT-9999")).receipt_hash != base
     assert compute_receipt(_inputs(sam_model="sam-9.9")).receipt_hash != base
+    assert (
+        compute_receipt(
+            _inputs(fill_source="muse_spark_frame_median", muse_frame_fill_pcts=[89.5, 90.5])
+        ).receipt_hash
+        != base
+    )
 
 
 def test_sam_output_hash_is_order_independent() -> None:

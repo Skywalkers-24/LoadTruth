@@ -6,14 +6,14 @@ record of every input that determined the result:
 
   * the clip's content hash (the exact bytes the models saw);
   * a hash of SAM's stored segmentation output and the measured mask areas;
+  * Muse's stored per-frame fill estimates and the median source selection;
   * the placard read and debris class the perception models returned;
   * the deterministic geometry inputs and the fill %, cubic yards, and dollars;
   * the model versions and the config constants that governed the math.
 
-Because every input is pinned and the geometry/valuation stages are deterministic,
-re-running them over the *stored* SAM masks must yield the identical fill %, and
-rebuilding the receipt from those inputs must yield the identical hash. That is
-what :func:`app.api.tickets.reverify_ticket` checks: same number, same receipt.
+Re-verification combines the stored Muse estimates with the same median as
+ingestion (or replays SAM geometry for legacy/fixture results), then rebuilds
+the receipt without a model call.
 
 Nothing here calls a model or touches the network. It is pure, so it is cheap to
 run on demand and trivial to test.
@@ -30,7 +30,7 @@ from typing import Any
 # Bump when the canonical receipt shape changes, so an old receipt is detectably
 # from an older format rather than silently "not matching."
 # "2": bed_area is the bed opening above the tailgate rim (measurement v2).
-RECEIPT_VERSION = "2"
+RECEIPT_VERSION = "3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +57,8 @@ class ReceiptInputs:
     est_dollar_value: str  # derived dollars (Decimal as string)
     sam_model: str  # e.g. sam-3.1
     spark_model: str  # e.g. muse-spark-1.3
+    fill_source: str = "sam_mask_coverage"
+    muse_frame_fill_pcts: list[float] = field(default_factory=list)
 
     def canonical(self) -> dict[str, Any]:
         """A stable, JSON-serializable mapping (sorted keys on dump)."""
@@ -77,6 +79,8 @@ class ReceiptInputs:
             "est_dollar_value": self.est_dollar_value,
             "sam_model": self.sam_model,
             "spark_model": self.spark_model,
+            "fill_source": self.fill_source,
+            "muse_frame_fill_pcts": [round(value, 2) for value in self.muse_frame_fill_pcts],
         }
 
 

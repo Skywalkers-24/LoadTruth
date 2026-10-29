@@ -1,10 +1,10 @@
 """Stage 5 — fill-% estimation from segmentation geometry (PLAN.md §5).
 
-This is the technical core and it is deliberately *deterministic*: the fill %
-traces back to pixels, not to a model's opinion. SAM 3.1 gives per-frame masks
-for the truck bed and the load; :mod:`app.ai.sam_measure` turns them into the
-bed **opening** (the inside of the bed above the tailgate rim) and the load
-inside it. This module turns those into a credited fill percentage.
+This module computes the deterministic SAM mask-coverage baseline. SAM 3.1
+gives per-frame masks for the truck bed and load; :mod:`app.ai.sam_measure`
+turns them into the bed **opening** and load area inside it. The live pipeline
+also sends that spatial evidence to Muse Spark, whose multi-frame median is the
+ticket fill estimate; this module remains the reproducible mask-only fallback.
 
 Model (measurement v2):
 

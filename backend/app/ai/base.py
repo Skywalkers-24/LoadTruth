@@ -152,10 +152,10 @@ class ClassifyResult:
     raw: str = field(default="", compare=False, repr=False)
     # Model-authored "AI analysis" paragraph for the Pipeline screen.
     analysis: str = field(default="", compare=False, repr=False)
-    # Muse Spark's own visual read of how full the bed is (0..100), returned in
-    # the same classify call. An independent cross-check on the measured fill:
-    # it never sets the number, but a large disagreement lowers confidence.
+    # Median of Muse Spark's per-frame fill estimates (0..100).
     visual_fill_pct: float | None = None
+    # Muse Spark's fill estimate for each supplied keyframe, in presentation order.
+    frame_fill_pcts: tuple[float, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,8 +192,10 @@ class AIClient(Protocol):
         """Muse Spark: read the truck placard from the clearest frame."""
         ...
 
-    async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
-        """Muse Spark: classify the load (vegetative / C&D / white goods / ...)."""
+    async def classify_debris(
+        self, clip: ClipMedia, *, sam_coverage_pct: list[float] | None = None
+    ) -> ClassifyResult:
+        """Muse Spark: classify the load and estimate fill from SAM-grounded frames."""
         ...
 
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:

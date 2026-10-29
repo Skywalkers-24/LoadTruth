@@ -1,3 +1,5 @@
+import { percent } from "@/lib/format";
+
 /**
  * Compact fill comparison: a 0 to 100% track with the measured fill as an
  * amber bar and the monitor's call as a tick. The hatched gap between them is
@@ -23,9 +25,12 @@ export function FillGauge({
       <div
         className="relative h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-surface-3)]"
         role="img"
-        aria-label={`Measured ${Math.round(m)}%${c !== null ? `, monitor called ${Math.round(c)}%` : ""}`}
+        aria-label={`Measured ${percent(m)}${c !== null ? `, monitor called ${percent(c)}` : ""}`}
       >
-        <div className="absolute inset-y-0 left-0 rounded-full bg-[var(--color-money)]" style={{ width: `${m}%` }} />
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-[var(--color-money)]"
+          style={{ width: `${m}%` }}
+        />
         {over && (
           <div
             className="absolute inset-y-0"
@@ -38,15 +43,26 @@ export function FillGauge({
           />
         )}
         {c !== null && (
-          <div className="absolute -top-0.5 h-2.5 w-[2px] rounded bg-[var(--color-text)]" style={{ left: `calc(${c}% - 1px)` }} />
+          <div
+            className="absolute -top-0.5 h-2.5 w-[2px] rounded bg-[var(--color-text)]"
+            style={{ left: `calc(${c}% - 1px)` }}
+          />
         )}
       </div>
       {showLabels && (
         <div className="flex justify-between text-[11px] tabular-nums text-[var(--color-subtle)]">
           <span>
-            <span className="font-medium text-[var(--color-money)]">{Math.round(m)}%</span> measured
+            <span className="font-medium text-[var(--color-money)]">{percent(m)}</span> measured
           </span>
-          <span>{c !== null ? <><span className="font-medium text-[var(--color-text)]">{Math.round(c)}%</span> called</> : "No call yet"}</span>
+          <span>
+            {c !== null ? (
+              <>
+                <span className="font-medium text-[var(--color-text)]">{percent(c)}</span> called
+              </>
+            ) : (
+              "No call yet"
+            )}
+          </span>
         </div>
       )}
     </div>

@@ -29,11 +29,14 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import math
 import re
 import time
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
+from decimal import ROUND_HALF_UP, Decimal
+from statistics import median
 from typing import Any
 
 from app.ai import partner_http
@@ -55,7 +58,7 @@ from app.ai.meta_http import (
     ModelAPIUnavailableError,
     output_text,
 )
-from app.ai.partner_media import media_parts
+from app.ai.partner_media import media_parts, meta_keyframe_parts
 from app.ai.pricing import sam_billed_units, sam_cost_usd, spark_cost_usd, token_counts
 from app.ai.providers import endpoint
 from app.ai.request_params import SparkRequestParams, params_for
@@ -117,12 +120,17 @@ _CLASSIFY_PROMPT = (
     "refrigerators, washers, dryers, water heaters, air conditioners); hazardous "
     "(household chemicals, paint, batteries, propane tanks, oil, pesticides); other "
     "(anything else, or not visible). Pick the class that makes up most of the load. "
-    "confidence is your probability, from 0 to 1, that the class is right. fill_pct is "
-    "your visual estimate, from 0 to 100, of how full the truck bed is by volume: 0 is "
-    "an empty bed, 100 is a load level with the top of the side walls across the whole "
-    "bed; judge it on the frames where the bed is closest and most visible. analysis is "
-    "two or three plain sentences explaining what the load is and why that class was "
-    f"chosen. {_ANALYSIS_STYLE}"
+    "confidence is your probability, from 0 to 1, that the class is right. Estimate "
+    "truck-bed volume fill from 0 to 100, where 0 is empty and 100 is full to the side "
+    "wall tops across the bed. The prompt includes SAM's measured cargo coverage of the "
+    "bed opening. Use that segmentation as spatial evidence, not as the fill answer: "
+    "visible 2D coverage is not the same as 3D volume. Inspect every supplied frame, "
+    "consider the cargo height relative to the bed rails and how the pile changes along "
+    "the bed, and return one continuous estimate per frame in the exact frame order. "
+    "Do not round to tens or other fixed buckets; return each estimate to two decimal "
+    "places. Do not copy the same estimate to every frame unless the evidence supports "
+    "it. analysis is two or three plain sentences explaining the load and the visual "
+    f"evidence for the fill estimates. {_ANALYSIS_STYLE}"
 )
 
 _NAME_LOAD_PROMPT = (
@@ -171,8 +179,9 @@ _EXPLAIN_PROMPT = (
     "The stages are: sam_track (SAM 3.1 segmented and tracked the truck, bed, and load "
     "across the frames, producing the masks every later measurement reads); capacity "
     "(the identified truck was looked up in the certified registry for its registered "
-    "cubic-yard capacity); geometry (a deterministic estimator turned the masks into a "
-    "fill percentage from the bed opening coverage); anomalies (deterministic rules "
+    "cubic-yard capacity); geometry (SAM supplied the bed and cargo regions, Muse Spark "
+    "estimated fill for multiple keyframes, and the pipeline combined those estimates "
+    "with a median); anomalies (deterministic rules "
     "checked the facts and raised any flags); dollar_math (exact arithmetic multiplies "
     "fill percent by certified capacity for cubic yards, then by the rate for the "
     "dollar value). State plainly that capacity, geometry, anomalies, and dollar_math "
@@ -205,10 +214,15 @@ _CLASSIFY_SCHEMA: dict[str, Any] = {
     "properties": {
         "debris_class": {"type": "string", "enum": list(DEBRIS_CLASSES)},
         "confidence": {"type": "number"},
-        "fill_pct": {"type": "number"},
+        "frame_fill_pcts": {
+            "type": "array",
+            "items": {"type": "number", "minimum": 0, "maximum": 100},
+            "minItems": 1,
+            "maxItems": 8,
+        },
         "analysis": {"type": "string"},
     },
-    "required": ["debris_class", "confidence", "fill_pct", "analysis"],
+    "required": ["debris_class", "confidence", "frame_fill_pcts", "analysis"],
     "additionalProperties": False,
 }
 
@@ -246,11 +260,25 @@ def _clamp01(value: object) -> float:
     return max(0.0, min(1.0, number))
 
 
-def _visual_fill(value: object) -> float | None:
-    """Spark's visual fill read as 0..100, or None when absent or not a number."""
-    if isinstance(value, bool) or not isinstance(value, int | float):
-        return None
-    return round(max(0.0, min(100.0, float(value))), 1)
+def _frame_fill_estimates(value: object, *, media_kind: str) -> tuple[float, ...]:
+    """Validate Muse's ordered per-frame fill estimates and retain two decimals."""
+    if not isinstance(value, list) or not 1 <= len(value) <= 8:
+        raise ModelAPIResponseError("Muse did not return a fill estimate for each keyframe.")
+    if media_kind == "video" and len(value) < 2:
+        raise ModelAPIResponseError("Muse fill estimation requires multiple video frames.")
+    estimates: list[float] = []
+    for estimate in value:
+        if (
+            isinstance(estimate, bool)
+            or not isinstance(estimate, int | float)
+            or not math.isfinite(float(estimate))
+            or not 0 <= float(estimate) <= 100
+        ):
+            raise ModelAPIResponseError("Muse returned an invalid per-frame fill estimate.")
+        estimates.append(
+            float(Decimal(str(estimate)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+        )
+    return tuple(estimates)
 
 
 def _json_answer(response: Mapping[str, Any]) -> dict[str, Any]:
@@ -620,8 +648,16 @@ class LiveAIClient:
             try:
                 if provider == "meta":
                     model = params.model if selected == "meta" else "muse-spark-1.3"
+                    request_content = content
+                    if task_id == "spark_classify" and media is not None:
+                        keyframes = await meta_keyframe_parts(
+                            media.data, media.mime, media.media_kind
+                        )
+                        request_content = [
+                            part for part in content if part.get("type") == "input_text"
+                        ] + keyframes
                     return await self._meta_spark(
-                        task_id, content, schema, replace(params, model=model)
+                        task_id, request_content, schema, replace(params, model=model)
                     )
                 route = endpoint(provider)
                 parts: list[dict[str, Any]] = [
@@ -705,23 +741,44 @@ class LiveAIClient:
             analysis=_clean_paragraph(str(answer.get("analysis") or "")),
         )
 
-    async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
+    async def classify_debris(
+        self, clip: ClipMedia, *, sam_coverage_pct: list[float] | None = None
+    ) -> ClassifyResult:
         media = await self._media(clip)
+        coverage = (
+            ", ".join(f"{value:.2f}%" for value in sam_coverage_pct)
+            if sam_coverage_pct
+            else "unavailable"
+        )
+        prompt = (
+            f"{_CLASSIFY_PROMPT}\n\nSAM segmentation context: measured opening coverage "
+            f"for {len(sam_coverage_pct or [])} usable frames, in measurement order: "
+            f"{coverage}. These are projected mask-area ratios, not ground-truth volume."
+        )
         response, usage = await self._spark(
             "spark_classify",
-            [{"type": "input_text", "text": _CLASSIFY_PROMPT}, media.part],
+            [{"type": "input_text", "text": prompt}, media.part],
             _CLASSIFY_SCHEMA,
             media=media,
         )
         answer = _json_answer(response)
         debris = str(answer.get("debris_class") or "other")
+        frame_fill_pcts = _frame_fill_estimates(
+            answer.get("frame_fill_pcts"), media_kind=media.media_kind
+        )
+        visual_fill_pct = float(
+            Decimal(str(median(frame_fill_pcts))).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+        )
         return ClassifyResult(
             debris_class=debris if debris in DEBRIS_CLASSES else "other",
             confidence=_clamp01(answer.get("confidence")),
             usage=usage,
             raw=output_text(response).strip(),
             analysis=_clean_paragraph(str(answer.get("analysis") or "")),
-            visual_fill_pct=_visual_fill(answer.get("fill_pct")),
+            visual_fill_pct=visual_fill_pct,
+            frame_fill_pcts=frame_fill_pcts,
         )
 
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
