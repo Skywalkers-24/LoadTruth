@@ -358,6 +358,12 @@ def _model_api_http_error(exc: ModelAPIError) -> HTTPException:
             "The AI service did not accept this server's credentials. An administrator "
             "should check the Model API key.",
         )
+    if exc.status == 404 and exc.code == "model_not_found":
+        return HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "The AI service could not find the configured model. An administrator should "
+            "check the selected model and account access.",
+        )
     if isinstance(exc, ModelAPIUnavailableError):
         return HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,

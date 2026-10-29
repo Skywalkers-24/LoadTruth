@@ -109,7 +109,7 @@ def _raise_for_status(resp: httpx.Response) -> None:
         return
     message, code = _error_detail(resp)
     status = resp.status_code
-    if status in (401, 403, 404):
+    if status in (401, 403):
         raise ModelAPIAuthError(message, status=status, code=code)
     if status in _RETRYABLE_STATUS:
         raise ModelAPIUnavailableError(
