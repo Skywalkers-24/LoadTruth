@@ -42,21 +42,25 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     )
     if not settings.model_api_configured:
         log.warning("model_api_key_missing", hint="set MODEL_API_KEY in .env before pipeline runs")
-    # Interim SQLite: create tables from ORM metadata and seed the demo tenant.
-    # Tests provide their own isolated DB via a dependency override, so they set
-    # LOADTRUTH_SKIP_STARTUP_DB=1 to skip touching the on-disk file DB.
-    # Create tables (SQLite and local Docker Postgres) and seed the demo tenant.
-    # Tests provide their own isolated DB via a dependency override, so they set
-    # LOADTRUTH_SKIP_STARTUP_DB=1 to skip touching the real DB.
-    if os.environ.get("LOADTRUTH_SKIP_STARTUP_DB") != "1":
-        from app.db.engine import get_sessionmaker, init_db
-        from app.tickets.seed import seed_demo
+    from app.api.ingest import close_pipeline_cache, initialize_pipeline_cache
 
-        await init_db()
-        async with get_sessionmaker()() as session:
-            await seed_demo(session)
-    yield
-    log.info("shutdown")
+    try:
+        if settings.redis_url != "redis://localhost:6379/0":
+            if await initialize_pipeline_cache():
+                log.info("redis_cache_ready")
+        # Create tables and seed the demo tenant unless startup DB work is
+        # explicitly disabled (as it is in isolated tests).
+        if os.environ.get("LOADTRUTH_SKIP_STARTUP_DB") != "1":
+            from app.db.engine import get_sessionmaker, init_db
+            from app.tickets.seed import seed_demo
+
+            await init_db()
+            async with get_sessionmaker()() as session:
+                await seed_demo(session)
+        yield
+    finally:
+        await close_pipeline_cache()
+        log.info("shutdown")
 
 
 app = FastAPI(

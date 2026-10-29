@@ -21,6 +21,11 @@ services:
         sync: false # Supabase session-pooler URL, converted to postgresql+asyncpg.
       - key: MODEL_API_KEY
         sync: false
+      - key: REDIS_URL
+        fromService:
+          name: loadtruth-cache
+          type: keyvalue
+          property: connectionString
       - key: CORS_ORIGINS
         sync: false # The deployed Cloudflare Worker origin, e.g. https://loadtruth-console.example.workers.dev
       - key: SUPABASE_JWT_SECRET
@@ -29,3 +34,10 @@ services:
         value: /tmp/loadtruth/evidence
       - key: MODEL_API_LOG_PATH
         value: /tmp/loadtruth/meta_api.jsonl
+  - type: keyvalue
+    name: loadtruth-cache
+    region: frankfurt
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    persistenceMode: off
+    ipAllowList: [] # Render services in this workspace connect over the private network.

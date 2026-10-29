@@ -12,6 +12,7 @@ from collections.abc import Callable
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from redis.asyncio import Redis
 
 from app.ai import clip_session, get_ai_client
 from app.ai.cached_client import CachingAIClient
@@ -27,7 +28,7 @@ from app.auth.roles import can_ingest
 from app.config import get_settings
 from app.log import get_logger
 from app.pipeline import evidence_store
-from app.pipeline.cache import InMemoryResultCache
+from app.pipeline.cache import InMemoryResultCache, RedisResultCache, ResultCache
 from app.pipeline.frames import sample_frames
 from app.pipeline.ingest import ingest_upload
 from app.pipeline.ledger import BudgetExceededError, CostLedger
@@ -40,16 +41,49 @@ from app.tickets.schemas import TicketOut, ticket_to_out
 router = APIRouter(tags=["ingest"])
 log = get_logger("ingest")
 
-# Process-local pipeline cache + cost ledger. In-memory now (per the cache's
-# ResultCache protocol, swap for Redis later); the ledger backs the future cost
-# dashboard. Shared across requests so a re-run of the same clip is free.
-_pipeline_cache: InMemoryResultCache[PipelineResult] = InMemoryResultCache()
+# Use Render Key Value (Redis-compatible) when REDIS_URL is configured. Keep
+# the local in-memory cache for development and as a fallback during outages.
+_local_pipeline_cache: InMemoryResultCache[PipelineResult] = InMemoryResultCache()
+_redis_client: Redis[bytes] | None = None
+_pipeline_cache: ResultCache[PipelineResult] | None = None
 _cost_ledger = CostLedger()
 
 
-def get_pipeline_cache() -> InMemoryResultCache[PipelineResult]:
-    """The shared pipeline result cache (content-hash keyed)."""
+def get_pipeline_cache() -> ResultCache[PipelineResult]:
+    """Return the shared result cache, using Render Key Value when configured."""
+    global _pipeline_cache, _redis_client
+    if _pipeline_cache is None:
+        settings = get_settings()
+        if settings.redis_url != "redis://localhost:6379/0":
+            _redis_client = Redis.from_url(
+                settings.redis_url,
+                socket_connect_timeout=3,
+                socket_timeout=3,
+                health_check_interval=30,
+            )
+            _pipeline_cache = RedisResultCache(_redis_client, fallback=_local_pipeline_cache)
+        else:
+            _pipeline_cache = _local_pipeline_cache
     return _pipeline_cache
+
+
+async def initialize_pipeline_cache() -> bool:
+    """Check the configured shared cache at startup; cache failure is non-fatal."""
+    get_pipeline_cache()
+    if _redis_client is None:
+        return False
+    try:
+        await _redis_client.ping()
+        return True
+    except Exception:  # noqa: BLE001 — Redis is optional; local fallback remains usable.
+        log.warning("redis_cache_unavailable; using process-local fallback", exc_info=True)
+        return False
+
+
+async def close_pipeline_cache() -> None:
+    """Close the shared Redis connection pool during application shutdown."""
+    if _redis_client is not None:
+        await _redis_client.aclose()
 
 
 def get_cost_ledger() -> CostLedger:
@@ -78,7 +112,7 @@ async def ingest_clip(
 ) -> TicketOut:
     """Ingest one clip/image and return the drafted ticket.
 
-    ``bypass_cache`` forces a live run: the process-local result cache and the
+    ``bypass_cache`` forces a live run: the result cache and the
     durable per-stage cache are both skipped, so the vision models are actually
     called again. It is the proof, for a judge, that a re-run is the real
     pipeline and not a replay.
@@ -140,8 +174,8 @@ async def ingest_clip(
     # Wrap the model client in the durable, content-hash-keyed cache so each
     # vision stage runs at most once per clip, ever. On a re-ingest (or after a
     # restart) the raw outputs are replayed from the DB with no model call and
-    # no media sent. The process-local result cache below is now just a fast
-    # same-process shortcut layered on top of that durable store.
+    # no media sent. The result cache below is an additional shortcut layered
+    # over that durable store, shared through Render Key Value when configured.
     model_label = f"{settings.sam_model} · {settings.spark_model}"
     inner = get_ai_client()
     # Judge-mode "bypass cache": call the raw client and skip both caches so the
