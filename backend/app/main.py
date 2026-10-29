@@ -10,7 +10,7 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth_context import router as auth_context_router
@@ -78,9 +78,11 @@ app.add_middleware(
 )
 
 
-@app.get("/health", tags=["system"])
-async def health() -> dict[str, object]:
+@app.api_route("/health", methods=["GET", "HEAD"], response_model=None, tags=["system"])
+async def health(request: Request) -> dict[str, object] | Response:
     """Liveness probe. Reports whether the Meta Model API key is configured."""
+    if request.method == "HEAD":
+        return Response(status_code=200)
     return {
         "status": "ok",
         "environment": settings.environment,
