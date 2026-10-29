@@ -4,7 +4,7 @@ import type { Ticket } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/badge";
 import { AlertIcon, TruckIcon } from "@/components/ui/icons";
 import { FillGauge } from "@/components/console/fill-gauge";
-import { relativeTime, signedMoney } from "@/lib/format";
+import { percent, relativeTime, signedMoney } from "@/lib/format";
 import { shortId } from "@/components/console/ticket-metadata";
 
 /**
@@ -124,15 +124,12 @@ function TicketRow({
               every row — the gauge + column context already convey them. */}
           <span className="shrink-0 text-[11px] tabular-nums text-[var(--color-subtle)]">
             <span className="font-semibold text-[var(--color-money)]">
-              {Math.round(Number.parseFloat(v.est_fill_pct))}%
+              {percent(v.est_fill_pct)}
             </span>
             {v.monitor_fill_pct !== null && (
               <>
                 {" "}
-                /{" "}
-                <span className="text-[var(--color-text)]">
-                  {Math.round(Number.parseFloat(v.monitor_fill_pct))}%
-                </span>
+                / <span className="text-[var(--color-text)]">{percent(v.monitor_fill_pct)}</span>
               </>
             )}
           </span>

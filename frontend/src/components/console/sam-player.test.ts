@@ -1,6 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, describe, expect, it } from "vitest";
 
-import { parseSam } from "./sam-player";
+import type { TicketEvidence } from "@/lib/api";
+import {
+  frameLayers,
+  loadTexts,
+  parseSam,
+  SamPlayer,
+  type SamShape,
+  type SamTrack,
+} from "./sam-player";
 
 // Two records from dev.meta.ai/docs/sam/reading-segmentation (lossless masks).
 const FRAME_0 =
@@ -26,8 +36,6 @@ describe("parseSam", () => {
     expect(track.frames.size).toBe(0);
   });
 });
-
-import { frameLayers, loadTexts, type SamShape, type SamTrack } from "./sam-player";
 
 function shape(
   objectId: string,
@@ -72,5 +80,51 @@ describe("evidence overlay regions", () => {
     const unrelated = shape("other rim", 500, 200, 600, 300);
     const cab = shape("cab", 100, 110, 300, 140);
     expect(frameLayers(track([bed]), track([]), track([unrelated, cab, rim]), 0).rim).toBe(260);
+  });
+});
+
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+
+let root: Root | undefined;
+
+afterEach(async () => {
+  if (root) await act(async () => root?.unmount());
+  root = undefined;
+  document.body.innerHTML = "";
+});
+
+describe("SAM video overlay readiness", () => {
+  it("waits for the video frame before displaying masks and respects autoplay control", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    const evidence: TicketEvidence = {
+      media_kind: "video",
+      mime: "video/mp4",
+      fps: 3,
+      has_media: true,
+      segments: { "truck bed": FRAME_0, "debris pile": FRAME_0 },
+    };
+
+    await act(async () =>
+      root?.render(
+        createElement(SamPlayer, {
+          ticketId: "ticket",
+          evidence,
+          show: { body: false, bed: true, load: true },
+          videoUrl: "blob:clip",
+          autoPlay: false,
+        }),
+      ),
+    );
+
+    const video = host.querySelector("video");
+    expect(video?.autoplay).toBe(false);
+    expect(host.querySelector("svg.pointer-events-none")).toBeNull();
+    expect(host.textContent).toContain("Synchronizing footage and masks");
+
+    await act(async () => video?.dispatchEvent(new Event("loadeddata")));
+    expect(host.querySelector("svg.pointer-events-none")).not.toBeNull();
+    expect(host.textContent).not.toContain("Synchronizing footage and masks");
   });
 });

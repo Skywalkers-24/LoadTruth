@@ -241,10 +241,10 @@ export function OverviewDashboard({
             </div>
           </Card>
 
-          {/* Breakdown row: decision mix, debris mix, anomaly severity */}
+          {/* Breakdown row: decision review, debris classes, anomaly severity */}
           <div className="grid shrink-0 gap-3 sm:grid-cols-3">
             <BreakdownCard
-              title="Decision mix"
+              title="Review decisions"
               rows={statusBreakdown(summary)}
               empty="No tickets yet"
             />

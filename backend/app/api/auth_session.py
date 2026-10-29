@@ -166,9 +166,18 @@ async def superadmin_login(repo: LoginRepo, body: SuperAdminLoginIn) -> LoginOut
             email="developer@loadtruth.io",
             full_name="Developer (SuperAdmin)",
             role=Role.SUPER_ADMIN.value,
+            status="active",
         )
     elif user.role != Role.SUPER_ADMIN.value:
-        user = await repo.update_user(DEMO_TENANT_ID, user.id, role=Role.SUPER_ADMIN.value)
+        user = await repo.update_user(
+            DEMO_TENANT_ID,
+            user.id,
+            email=user.email,
+            full_name=user.full_name,
+            role=Role.SUPER_ADMIN.value,
+            status=user.status,
+            fields_set={"role"},
+        )
 
     session = Session(
         user_id=str(user.id),

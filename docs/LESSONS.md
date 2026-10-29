@@ -206,6 +206,8 @@ Entry format:
 - **Cost:** SAM goes from 2 to 5 video requests per clip (about $0.02 → $0.05). The probe that found these phrases cost about $0.13 (13 requests).
 - **Rule going forward:** Before trusting a SAM-derived ratio, render the masks and check what each concept actually covers from that camera. Tune phrases with `scripts/sam-probe.sh` on real clips (one request per phrase) and change the settings lists, not code. Never let a missing mask become a confident number; a weak measurement must lower confidence so the review flag fires. The ±10% claim still needs `data_bench` clips with known fills; two generated clips are a sanity check, not a benchmark.
 
+**Current policy (2026-10-30):** The SAM-derived fill and fill-quality auto-flags described above are historical. Current runs ask Muse Spark for a visual fill estimate on each sampled frame and use the median. SAM masks are not provided as fill context or used to calculate/flag fill; monitors review the visual result. Historical tickets without Muse frame estimates remain reproducible through the legacy SAM geometry path.
+
 ### 2026-10-29 — Hazardous loads (drums/cans/batteries) are not a "pile"; added "barrels and containers"
 
 - **What happened:** LT-76E34E (FL-DT-7788, a hazardous load of rusty drums, paint cans, propane tanks, and batteries) measured 0.00% fill and was flagged, even after the v2 measurement fix. Muse Spark classified it hazardous at 95% and visually read ~30% full; the guardrails correctly capped confidence at 0.40 and flagged the Spark-vs-geometry gap, so the bad number was caught, not trusted.

@@ -4,14 +4,11 @@ import { useState } from "react";
 import {
   ArrowUpRightIcon,
   CheckCircle2Icon,
-  PanelRightOpenIcon,
-  SparklesIcon,
   TriangleAlertIcon,
 } from "lucide-react";
 import type { PipelineStage } from "@/lib/api";
 import { PipelineTrace } from "./pipeline-trace";
 import { StageInspectorDrawer } from "./stage-inspector-drawer";
-import { Button } from "@/components/ui/shadcn/button";
 import { cn } from "@/lib/utils";
 
 export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
@@ -24,7 +21,7 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Meta SAM 3.1 watches the truck footage and draws outlines around the truck bed and the loaded debris across each frame. These outlines show exactly how full the truck is without manual measuring.",
+      "Meta SAM 3.1 tracks the truck, bed, and visible load across the footage. Its masks support visual evidence and tracking; Muse Spark estimates the fill percentage separately.",
     details: [
       ["Vision Model", "Meta SAM 3.1 (Segment Anything Model)"],
       ["Input Footage", "High-definition video clip or sequential camera frames"],
@@ -69,17 +66,17 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
   {
     key: "geometry",
     label: "Measure fill",
-    model: "Load Math",
+    model: "Muse Spark + deterministic median",
     status: "ok",
-    summary: "Calculates the exact percentage the truck bed is filled from the video outlines.",
+    summary: "Combines Muse Spark's visual fill estimates from sampled video frames.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Combines the Meta SAM 3.1 outlines with the truck bed height to calculate the exact fill percentage (0% to 100%). This calculates load volume directly from video frames instead of human guesswork.",
+      "Meta Muse Spark visually estimates fill from each sampled video frame, and the pipeline takes the median of those estimates. SAM mask coverage does not determine the fill percentage.",
     details: [
-      ["Calculation Basis", "Visual load outline compared against bed rails"],
-      ["Measurement Range", "0% (empty) to 100%+ (heaped load)"],
-      ["Transparency", "Calculated directly from video pixels — no guessing"],
+      ["Calculation Basis", "Muse Spark's visual assessment of each sampled frame"],
+      ["Measurement Range", "0% (empty) to 100% (full to bed rails)"],
+      ["Combination", "Median of Muse Spark's per-frame estimates"],
       ["Live Status", "Ready to process on video upload"],
     ],
   },
@@ -105,14 +102,14 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
     label: "Flag anomalies",
     model: "Meta Muse Spark 1.3",
     status: "ok",
-    summary: "Checks for billing discrepancies like overfilling or empty pockets.",
+    summary: "Checks identity, certification, capacity, and cycle-time rules.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Automated compliance checks and Meta Muse Spark check for anything abnormal, such as an overfilled bed, hidden empty voids, or an uncertified truck. If an issue is found, it flags the ticket for supervisor review.",
+      "Automated rules can flag identity, certification, capacity, and cycle-time issues. Fill quality is not automatically flagged; monitors can flag visual concerns during review.",
     details: [
-      ["Audit Checks", "Overfilled loads, large voids, uncertified vehicles"],
-      ["Supervisor Review", "Automatically alerts reviewers if an anomaly is detected"],
+      ["Audit Checks", "Identity, certification, capacity, and cycle time"],
+      ["Supervisor Review", "Monitors review the visual estimate and can flag concerns"],
       ["Compliance Standard", "FEMA disaster-debris reimbursement guidelines"],
       ["Live Status", "Ready to process on video upload"],
     ],
@@ -126,7 +123,7 @@ export interface PipelineWorkbenchSummary {
   flags?: number | string;
 }
 
-/** CI-style stage graph with 38% right-side inspector modal. Fits completely on screen. */
+/** Stage graph with side inspector modal. Fits completely on screen. */
 export function PipelineWorkbench({
   stages,
   summary,
@@ -162,29 +159,10 @@ export function PipelineWorkbench({
         </div>
       )}
 
-      {/* Prominent interactive prompt banner */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3.5 py-2 text-xs">
-        <div className="flex items-center gap-2 text-foreground">
-          <SparklesIcon className="size-4 shrink-0 text-primary" />
-          <span>
-            <strong className="font-semibold text-primary">Interactive AI Pipeline:</strong> Click any stage below to inspect its detailed AI analysis, model outputs, and measurements in the sidebar.
-          </span>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setDrawerOpen(true)}
-          className="h-6 gap-1.5 border-primary/30 px-2.5 text-[11px] font-medium hover:bg-primary/10"
-        >
-          <PanelRightOpenIcon className="size-3 text-primary" />
-          <span>Open Inspector Drawer (38%)</span>
-        </Button>
-      </div>
-
-      {/* Responsive stage cards grid: exactly 6 columns on desktop so full pipeline fits screen width */}
+      {/* Responsive stage cards grid: all 7 stages line up across the screen on desktop */}
       <ol
         aria-label="Analysis stages"
-        className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-6"
+        className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-4 lg:grid-cols-7"
       >
         {displayStages.map((s, i) => {
           const isSelected = i === selectedIndex;

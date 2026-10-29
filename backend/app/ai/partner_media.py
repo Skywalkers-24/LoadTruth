@@ -19,11 +19,9 @@ def image_part(data: bytes, mime: str) -> dict[str, Any]:
     return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{encoded}"}}
 
 
-async def media_parts(data: bytes, mime: str, media_kind: str) -> list[dict[str, Any]]:
+async def _extract_keyframes(data: bytes, media_kind: str) -> list[tuple[float, bytes]]:
     if media_kind == "image":
-        if len(data) > 7_000_000:
-            raise ModelAPIRequestError("Partner image input is too large; use a smaller image.")
-        return [image_part(data, mime)]
+        return [(0.0, data)]
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
         raise ModelAPIRequestError("ffmpeg is required for partner video keyframes.")
@@ -63,20 +61,56 @@ async def media_parts(data: bytes, mime: str, media_kind: str) -> list[dict[str,
         frames = await asyncio.to_thread(lambda: sorted(root.glob("frame-*.jpg")))
         if proc.returncode or not frames:
             raise ModelAPIRequestError("Cannot extract partner vision keyframes.")
-        parts: list[dict[str, Any]] = []
-        total = 0
-        for index, frame in enumerate(frames):
-            image = await asyncio.to_thread(frame.read_bytes)
-            total += len(image)
-            parts.extend(
-                [
-                    {
-                        "type": "text",
-                        "text": f"Sampled frame near {index * duration / wanted:.2f}s.",
-                    },
-                    image_part(image, "image/jpeg"),
-                ]
-            )
-        if total > 7_000_000:
-            raise ModelAPIRequestError("Partner keyframes exceed the image budget.")
-        return parts
+        return [
+            (index * duration / wanted, await asyncio.to_thread(frame.read_bytes))
+            for index, frame in enumerate(frames)
+        ]
+
+
+async def media_parts(data: bytes, mime: str, media_kind: str) -> list[dict[str, Any]]:
+    frames = await _extract_keyframes(data, media_kind)
+    if media_kind == "image" and len(data) > 7_000_000:
+        raise ModelAPIRequestError("Partner image input is too large; use a smaller image.")
+    if media_kind == "video" and not frames:
+        raise ModelAPIRequestError("Cannot extract partner vision keyframes.")
+    parts: list[dict[str, Any]] = []
+    total = 0
+    for timestamp, image in frames:
+        total += len(image)
+        parts.extend(
+            [
+                {"type": "text", "text": f"Sampled frame near {timestamp:.2f}s."},
+                image_part(image, "image/jpeg" if media_kind == "video" else mime),
+            ]
+        )
+    if total > 7_000_000:
+        raise ModelAPIRequestError("Partner keyframes exceed the image budget.")
+    return parts
+
+
+async def meta_keyframe_parts(data: bytes, mime: str, media_kind: str) -> list[dict[str, str]]:
+    """Extract individual images for Muse so it can estimate and combine each frame."""
+    frames = await _extract_keyframes(data, media_kind)
+    if media_kind == "video" and len(frames) < 2:
+        raise ModelAPIRequestError("Muse fill estimation needs at least two video keyframes.")
+    parts: list[dict[str, str]] = []
+    total = 0
+    image_mime = "image/jpeg" if media_kind == "video" else mime
+    for index, (timestamp, image) in enumerate(frames, start=1):
+        total += len(image)
+        encoded = base64.b64encode(image).decode("ascii")
+        parts.extend(
+            [
+                {
+                    "type": "input_text",
+                    "text": f"Frame {index}, sampled near {timestamp:.2f}s.",
+                },
+                {
+                    "type": "input_image",
+                    "image_url": f"data:{image_mime};base64,{encoded}",
+                },
+            ]
+        )
+    if total > 7_000_000:
+        raise ModelAPIRequestError("Muse keyframes exceed the image budget.")
+    return parts

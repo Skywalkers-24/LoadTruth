@@ -49,9 +49,6 @@ class AnomalyInput:
     truck_is_certified: bool
     certified_cubic_yards: Decimal | None
     est_cubic_yards: Decimal
-    est_fill_pct: Decimal
-    fill_confidence: float
-    planar_coverage: float
     identity_confidence: float
     observed_at: datetime | None = None
     evidence_frame: str | None = None
@@ -59,12 +56,7 @@ class AnomalyInput:
 
 # Minimum realistic minutes between two loads from the same truck at one site.
 _MIN_CYCLE_MINUTES = 20.0
-# The load surface reaches across most of the bed opening, yet the credited fill
-# is low: high planar coverage with low measured depth. We report exactly what we
-# measured (surface high, depth low); we do not claim to see interior voids.
-_SURFACE_COVERAGE = 0.80
-_LOW_DEPTH_FILL_PCT = Decimal(45)
-_LOW_CONFIDENCE = 0.45
+_LOW_IDENTITY_CONFIDENCE = 0.45
 _CAPACITY_TOLERANCE = Decimal("1.02")  # allow 2% measurement slack
 
 
@@ -73,7 +65,7 @@ def evaluate(
     *,
     prior_loads: list[AnomalyInput] | None = None,
 ) -> list[Anomaly]:
-    """Return every anomaly the load trips. ``prior_loads`` enables cross-load rules."""
+    """Return compliance anomalies. Fill-quality concerns are left to monitors."""
     flags: list[Anomaly] = []
     ev = load.evidence_frame
 
@@ -87,7 +79,7 @@ def evaluate(
             )
         )
 
-    if load.identity_confidence < _LOW_CONFIDENCE or not load.truck_id:
+    if load.identity_confidence < _LOW_IDENTITY_CONFIDENCE or not load.truck_id:
         flags.append(
             Anomaly(
                 AnomalyType.IDENTITY_UNREADABLE,
@@ -107,27 +99,6 @@ def evaluate(
                 Severity.HIGH,
                 f"Measured volume ({load.est_cubic_yards} CY) exceeds the truck's certified "
                 f"capacity ({load.certified_cubic_yards} CY).",
-                ev,
-            )
-        )
-
-    if load.planar_coverage >= _SURFACE_COVERAGE and load.est_fill_pct <= _LOW_DEPTH_FILL_PCT:
-        flags.append(
-            Anomaly(
-                AnomalyType.SURFACE_DEPTH_MISMATCH,
-                Severity.WARN,
-                "The load surface spans most of the bed opening, but the measured depth is "
-                "low. Review the surface against the depth before crediting the volume.",
-                ev,
-            )
-        )
-
-    if load.fill_confidence < _LOW_CONFIDENCE:
-        flags.append(
-            Anomaly(
-                AnomalyType.LOW_CONFIDENCE,
-                Severity.INFO,
-                "Fill-% estimate confidence is low (occlusion or extreme fill); confirm manually.",
                 ev,
             )
         )

@@ -19,7 +19,9 @@ from app.ai.base import ClassifyResult, OCRResult, TrackedObject, TrackResult
 # Stage keys — must match the pipeline's AI stages and the cost-ledger buckets.
 STAGE_TRACK = "sam_track"
 STAGE_OCR = "spark_ocr"
-STAGE_CLASSIFY = "spark_classify"
+# Muse-only, multi-frame fill output must not replay older SAM-guided results.
+STAGE_CLASSIFY = "spark_fill_v3"
+MUSE_FILL_VERSION = 2
 
 
 def track_to_json(r: TrackResult) -> dict[str, Any]:
@@ -147,6 +149,7 @@ def classify_to_json(r: ClassifyResult) -> dict[str, Any]:
         "raw": r.raw,
         "analysis": r.analysis,
         "visual_fill_pct": r.visual_fill_pct,
+        "frame_fill_pcts": list(r.frame_fill_pcts),
     }
 
 
@@ -158,6 +161,7 @@ def classify_from_json(d: dict[str, Any]) -> ClassifyResult:
         raw=str(d.get("raw") or ""),
         analysis=str(d.get("analysis") or ""),
         visual_fill_pct=float(visual) if visual is not None else None,
+        frame_fill_pcts=tuple(float(v) for v in d.get("frame_fill_pcts", [])),
     )
 
 

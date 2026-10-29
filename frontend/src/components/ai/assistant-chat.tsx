@@ -64,8 +64,8 @@ export function AssistantChat({
   const suggestions =
     !busy && lastAssistant?.role === "assistant" ? (lastAssistant.suggestions ?? []) : [];
 
-  // Centered reading column, ChatGPT-style, only in full mode.
-  const col = full ? "mx-auto w-full max-w-3xl" : "";
+  // Full mode expands 100% across the container.
+  const col = full ? "w-full max-w-none" : "";
 
   function submit(q: string) {
     const trimmed = q.trim();
@@ -115,7 +115,7 @@ export function AssistantChat({
             <div
               className={cn(
                 "flex flex-wrap justify-center gap-2",
-                full ? "max-w-2xl" : "max-w-lg",
+                full ? "w-full max-w-4xl" : "max-w-lg",
               )}
             >
               {prompts.slice(0, compact ? 3 : 6).map((p) => (

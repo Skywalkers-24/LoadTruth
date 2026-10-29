@@ -2,9 +2,9 @@
 
 # 🚛 LoadTruth
 
-### Turning tower video into an auditable, machine-measured load ticket.
+### Turning tower video into an auditable, AI-estimated load ticket.
 
-**A measurement problem, not a paperwork one.** After a disaster, how full a dump truck is gets decided by a tired human eyeballing it from a tower. LoadTruth replaces that guess with a number that traces back to pixels — using Meta's **SAM 3.1** for segmentation/tracking and **Muse Spark** for reading and classifying — and keeps a human in the loop to confirm every call.
+**A measurement problem, not a paperwork one.** After a disaster, how full a dump truck is gets decided by a tired human eyeballing it from a tower. LoadTruth provides a frame-based visual fill estimate from **Muse Spark**, uses **SAM 3.1** to track the truck and load, and keeps a human in the loop to review every call.
 
 Built for the [Meta Global AI Developer Hackathon](https://cerebralvalley.ai/e/meta-ai-developer-hackathon) · Oct 26 – Nov 4, 2026
 **Track:** Indie Developer · **Theme:** Push the Frontier
@@ -20,9 +20,9 @@ Built for the [Meta Global AI Developer Hackathon](https://cerebralvalley.ai/e/m
 
 > After a hurricane, debris is hauled away by the **cubic yard**, and a short-term "tower monitor" estimates each truck's fill percentage by eye — often in 10% increments. That subjective estimate becomes the official **load ticket**, which is audited years later when the evidence is long gone.
 >
-> **LoadTruth points a camera at the tower instead.** A seven-stage pipeline tracks and segments each truck's bed and load (SAM 3.1), reads the ID placard and classifies the debris (Muse Spark), converts the segmentation masks into a fill % with a **deterministic geometry engine**, and flags anomalies (impossible cycle times, a load surface spanning the bed with low measured depth, loads above certified capacity) with a **rules engine**. Every figure links to its evidence frame; a human confirms or overrides each one.
+> **LoadTruth points a camera at the tower instead.** A seven-stage pipeline tracks the truck and load (SAM 3.1), asks Muse Spark to estimate fill from multiple video frames and combines those estimates with a deterministic median, reads the ID placard, and classifies the debris. Compliance rules flag identity, certification, capacity, and cycle-time issues; fill-quality concerns are left for the monitor to review. Every figure links to its evidence.
 >
-> The core engineering idea: **the AI measures, but no model decides the number.** The fill % is a ratio of mask pixels; the arithmetic is exact `Decimal`; the anomaly checks are plain code. A model mistake can surface a flag for review — it can never silently redefine a record.
+> The core engineering idea: **Muse makes the visual fill estimate; deterministic code combines and values it.** SAM masks support truck/load tracking, not fill calculation. Cubic yards and dollars use exact `Decimal` arithmetic, while compliance checks are plain code. A monitor remains responsible for reviewing visual concerns.
 
 ---
 
@@ -60,38 +60,41 @@ That last row is the exact error LoadTruth is built to catch: a ticket says a 25
 
 ## ✅ How the system works
 
-A phone or pole camera at the tower records every truck. LoadTruth turns that clip into a verified ticket in seven stages. Stages shaded **AI** call Meta models; stages shaded **deterministic** are pure code with no model in the loop.
+A phone or pole camera at the tower records each truck. LoadTruth turns the clip into an evidence-linked draft ticket; the monitor reviews and adjudicates it.
 
-```
-┌─────────┐   ┌──────────────┐   ┌─────────────┐   ┌───────────────┐
-│ 0–1     │   │ 2  SAM 3.1   │   │ 3  Muse     │   │ 4  Registry   │
-│ Ingest  │──▶│ track + seg  │──▶│ Spark OCR   │──▶│ capacity      │
-│ + hash  │AI │ bed/debris/  │AI │ read placard│AI │ lookup (fuzzy)│ det.
-│ (cache) │   │ placard      │   │             │   │               │
-└─────────┘   └──────────────┘   └─────────────┘   └───────┬───────┘
-                                                            │
-     ┌──────────────────────────────────────────────────────┘
-     ▼
-┌───────────────┐   ┌───────────────┐   ┌───────────────────┐   ┌──────────────┐
-│ 5  Geometry   │   │ 5b Muse Spark │   │ 6  Anomaly rules  │   │ 7  Draft      │
-│ fill %        │──▶│ classify      │──▶│ (deterministic)   │──▶│ ticket +      │
-│ DETERMINISTIC │det│ debris class  │AI │ capacity/cycle/   │det│ evidence +    │ det.
-│ from masks    │   │               │   │ depth/uncertified │   │ exports       │
-└───────────────┘   └───────────────┘   └───────────────────┘   └──────┬───────┘
-                                                                        │
-                                                        ┌───────────────┘
-                                                        ▼  Human confirms / overrides (never authors)
+```mermaid
+flowchart LR
+    upload[Video or image] --> ingest[Normalize, hash and sample]
+    ingest --> sam[SAM 3.1<br/>Track truck, bed and load]
+    ingest --> muse[Muse Spark<br/>Per-frame fill + debris class]
+    ingest --> ocr[Muse Spark<br/>Placard OCR]
+    ocr --> registry[Certified-truck registry]
+    muse --> aggregate[Median of Muse frame estimates]
+    aggregate --> quantity[Fill % → estimated cubic yards]
+    registry --> quantity
+    muse --> price[Apply debris rate with exact Decimal math]
+    quantity --> price
+    sam --> evidence[Persist masks and video evidence]
+    price --> rules[Deterministic compliance checks]
+    rules --> ticket[Draft ticket + stage trace]
+    evidence --> ticket
+    ticket --> monitor[Monitor confirms, overrides or disputes]
+    monitor --> reports[Reports, audit packet and billing]
 ```
 
 1. **Ingest & hash** — the clip is normalized and SHA-256 content-hashed. The hash is the cache key for every downstream AI call, so re-processing the same footage is free and deterministic.
-2. **Track & segment (SAM 3.1)** — text-prompted multi-object tracking/segmentation of `dump truck`, `truck bed`, `debris pile`, `placard` across frames, returning per-instance masks.
+2. **Track & segment (SAM 3.1)** — text-prompted multi-object tracking/segmentation of the truck, bed, debris and placard across frames, returning per-instance masks as visual evidence. SAM masks do not calculate or adjust fill.
 3. **Read placard (Muse Spark)** — OCR the truck's ID from the clearest frame.
 4. **Capacity lookup** — the OCR'd ID is matched to the certified-truck registry with **fuzzy matching** (exact → normalized → edit-distance) so OCR noise fails loudly instead of guessing.
-5. **Measure fill % (deterministic)** — the geometry engine turns the bed and load masks into `planar coverage × depth factor` (a body-type depth prior) → a fill % that is reproducible and traceable to the mask pixels.
+5. **Estimate fill % (Muse Spark)** — Muse visually estimates fill from multiple sampled video frames. The pipeline uses the median of those estimates; SAM segmentation is not used to calculate, adjust, or flag the fill percentage.
 6. **Classify debris (Muse Spark)** — vegetative / construction & demolition / white goods / hazardous / other; this selects the per-class rate.
-7. **Flag + draft (deterministic)** — plain-Python rules raise `capacity_exceeded`, `impossible_cycle`, `surface_depth_mismatch`, `uncertified_truck`, `duplicate_truck`, `identity_unreadable`, `low_confidence`; Muse Spark only *narrates* a flag the rules already decided. A **draft ticket** is written with its evidence frames and the full stage trace.
+7. **Flag + draft (deterministic)** — plain-Python rules can raise `capacity_exceeded`, `impossible_cycle`, `uncertified_truck`, and `identity_unreadable`; fill quality is left for monitor review rather than automatically flagged. A **draft ticket** is written with its evidence frames and the full stage trace.
 
 The human monitor then reviews the draft — **confirm**, **override**, or **dispute**. They never type a ticket from scratch; they adjudicate a machine-made one.
+
+### Quantity, unit and evidence
+
+Muse estimates **visual fill percentage**, not a scale weight or a physical 3D volume. The ticket's Estimated cubic yards are calculated deterministically as certified truck capacity × Muse fill percentage. The visual pipeline neither infers nor records weight; actual weight would require a separate scale integration. SAM supplies trackable visual evidence so a reviewer can follow the same truck and inspect the masks alongside the source video.
 
 ---
 
@@ -112,19 +115,19 @@ Throughput and cost are the two things that break a naive "call a vision model p
 - **Cost ledger + budget caps.** Each stage records spend; soft and hard caps (`spend_warn_usd` / `build_spend_cap_usd`) stop runaway cost when volume spikes — the single most important control for a per-call vision pipeline.
 - **Pagination and event scoping everywhere.** Ticket lists, the review queue, and reports are all `limit/offset` paginated with a separate `COUNT`, and data is scoped to `(tenant_id, event_id)` on indexed hot paths, so query latency stays flat as a single event grows to tens of thousands of tickets.
 
-**Honest status:** the queue is architected (the orchestrator is already fully decoupled from the request and the DB, so moving it behind a worker is a lift-and-shift) but not yet wired — today ingest runs the pipeline synchronously in the request, which is fine at demo volume. The live job store that powers the "AI Pipeline" view is process-local in-memory and becomes Redis/DB-backed at scale. These are the two seams to turn on for production throughput; nothing in the pipeline logic needs to change to do it.
+**Current execution:** ingest runs synchronously in the API process. The orchestrator is the pipeline boundary; ARQ/Redis worker execution is a planned scale-out seam, not the current request path. Live progress and the whole-pipeline result cache are process-local; AI-stage results are persisted in the SQL database.
 
 ---
 
-## 🧠 The central engineering decision: AI measures, code decides
+## 🧠 The central engineering decision: Muse estimates, code aggregates and prices
 
-The fill % comes from a ratio of segmentation-mask pixels (`pipeline/geometry.py`), **not** a model saying "looks 80% full." Cubic yards and the monitor-vs-measured difference use exact `Decimal` arithmetic (`tickets/money.py`). Anomalies are plain-Python decisions (`pipeline/anomalies.py`); a model only phrases a flag the rules already raised.
+Muse Spark estimates fill visually in each sampled frame; the pipeline uses the median of those estimates. SAM segmentation is not an input to fill calculation. Cubic yards and the monitor-vs-measured difference use exact `Decimal` arithmetic (`tickets/money.py`). Compliance anomalies are plain-Python decisions (`pipeline/anomalies.py`); monitors review fill quality.
 
 Why this matters as a system property:
 
-- **Auditability** — every number resolves to either a pixel mask or a rule a reviewer can read. There is no "the model felt this was right."
-- **Failure isolation** — a model error can only *surface a draft for review* or *raise a flag*. It cannot change a recorded quantity. The human-confirm step is the backstop, and the deterministic core is what makes that review meaningful.
-- **Testability** — the geometry, money math, registry matching, and rules are pure functions with unit tests; the AI is mocked by content hash, so the whole pipeline runs end-to-end offline and deterministically.
+- **Auditability** — the receipt preserves the source video, Muse's individual frame estimates, and the deterministic median/value calculations.
+- **Failure isolation** — a model error cannot alter pricing rules or silently bypass human review. The monitor can confirm, override, or dispute the resulting draft.
+- **Testability** — median aggregation, money math, registry matching, and compliance rules have unit tests; the AI is mocked by content hash, so the whole pipeline runs end-to-end offline and deterministically.
 
 ---
 
@@ -134,32 +137,34 @@ LoadTruth uses two Meta models for complementary jobs, behind a single **AIClien
 
 | Model | What it does here | Billing shape |
 |---|---|---|
-| **SAM 3.1** (`sam-3.1`) | Text-prompted multi-object **tracking + segmentation** of truck / bed / debris / placard across video frames — the "where and how much" (pixels). | per 1k images |
-| **Muse Spark 1.3** (`muse-spark-1.3`) | **Placard OCR**, **debris classification**, and one-line **anomaly narration** — the "what and who". | per 1M tokens |
+| **SAM 3.1** (`sam-3.1`) | Text-prompted multi-object **tracking + segmentation** of truck / bed / debris / placard across video frames — visual tracking evidence, not fill measurement. | per 1k images |
+| **Muse Spark 1.3** (`muse-spark-1.3`) | **Per-frame visual fill estimation**, **placard OCR**, **debris classification**, and one-line **anomaly narration**. | per 1M tokens |
 | **Muse Wonder** (`muse-wonder-1.0`) | Optional upgrade for the hardest reasoning (e.g. the analyst chat) when capability matters more than cost. | per 1M tokens (premium) |
 
-> SAM gives *where and how much*. Spark gives *what and who*. The deterministic engine turns both into an auditable quantity.
+> SAM tracks the truck and load. Muse Spark estimates the fill visually. Deterministic code takes the median and calculates the resulting volume and value.
 
 ### Per-task model configuration
 
-The pipeline makes **five distinct AI calls**, and each is independently tunable from the admin "AI & Models" screen — model, **reasoning effort**, and **cost mode** — because they have very different difficulty and volume. The catalog (`ai/catalog.py`) is the typed source of truth the settings UI renders.
+The AI catalog defines seven independently configurable task types. The admin "AI & Models" screen tunes each eligible task by model, **reasoning effort**, and **cost mode**; the catalog (`ai/catalog.py`) is the typed source of truth the settings UI renders.
 
 | Task (pipeline stage) | Eligible models | Recommended model · effort | Why |
 |---|---|---|---|
-| `sam_track` — vision track & segment | SAM 3.1 | SAM 3.1 (no effort knob) | The measurement step; segmentation has no reasoning-effort dial |
+| `sam_track` — vision track & segment | SAM 3.1 | SAM 3.1 (no effort knob) | Produces the truck/load tracking evidence; segmentation has no reasoning-effort dial |
 | `spark_ocr` — read placard | Spark 1.1–1.3, Wonder | Spark 1.3 · **low** | Narrow perception task; minimal reasoning is plenty |
-| `spark_classify` — debris class | Spark 1.1–1.3, Wonder | Spark 1.3 · **balanced** | Drives the rate; worth a little more care |
+| `spark_classify` — per-frame fill + debris class | Spark 1.1–1.3, Wonder | Spark 1.3 · **balanced** | Supplies visual fill estimates and debris classification |
+| `name_load` — name load materials for SAM prompts | Spark 1.1–1.3, Wonder | Spark 1.3 · **low** | Adapts SAM's load prompts to the visible material |
 | `narrate_anomaly` — phrase a flag | Spark 1.2–1.3 | Spark 1.3 · **minimal** | Short, low-stakes output; keep it cheap |
+| `explain_pipeline` — stage explanations | Spark 1.2–1.3 | Spark 1.3 · **low** | One text-only, facts-grounded call explains the completed stages |
 | `analyst_chat` — grounded Q&A | Wonder, Spark 1.2–1.3 | Spark 1.3 · **balanced** | Can escalate to Wonder for hard questions |
 
 **Reasoning effort** (`minimal → low → balanced → high → max`) maps to Meta's `reasoning_effort` parameter: higher effort spends more tokens for better quality on hard calls; lower effort is cheaper and faster for high-volume perception. **Cost mode** is `standard` (normal price, content never trained on) or `contributor` (heavily discounted in exchange for Meta training on your content; rate-limited, no `max` effort — never for sensitive data). Admins pick per task so capability and spend are tuned where it matters, not globally.
 
-### Media handling & cost optimization (grounded in Meta's limits)
+### Media handling & cost optimization
 
 The seven stages are unchanged; what's optimized is *how bytes reach the models*, per the Meta docs (50 MB inline, 1 GiB Files-API upload, 50-image VLM budget, SAM billed per frame). `pipeline/media.py` + `frames.py` apply:
 
-- **Sample, don't stream every frame.** Stage 1 samples at 2–4 fps and hard-caps the keyframe count (`max_sampled_frames`), so a 10-minute clip is ~120 frames to SAM, not 18,000 — and SAM is billed per frame, so this is the dominant cost lever.
-- **Upload once, reuse the `file_id`.** A clip above ~8 MB is uploaded to the Files API once and referenced by id across all three per-clip calls (SAM track + Spark OCR + Spark classify) — the bytes travel once, not three times. Smaller clips go inline to skip the round-trip; clips over 1 GiB are rejected with `413`.
+- **Sample, don't stream every frame.** Stage 1 samples at the configured 2–4 fps and applies `max_sampled_frames` (60 by default), rather than sending every source frame to SAM. SAM is billed per frame, so sampling is a major cost lever.
+- **Upload once, reuse the `file_id`.** A clip above ~8 MB is uploaded to the Files API once and referenced by id across per-clip vision calls; the bytes travel once, not once per model. Smaller clips go inline to skip the round-trip; clips over 1 GiB are rejected with `413`.
 - **Few, downscaled keyframes for the VLM.** OCR and classification get a handful of evenly-spaced keyframes (far under the 50-image budget), each downscaled to a 1024 px longest edge so the base64 payload — and the input-token cost — stays small.
 - **Content-hash cache + budget caps** mean repeats cost nothing and a volume spike can't run away. ([Full notes → LEARNINGS.md §5](./LEARNINGS.md))
 
@@ -173,92 +178,91 @@ Each clip is content-hashed; the hash keys both the result cache and the fixture
 
 ### System architecture (current implementation)
 
-This is a component and dependency view of the running code, not a sequence diagram. It includes the user interface, API/auth boundaries, pipeline and model seam, persistence, local artifacts, and optional integrations. The upload pipeline currently runs synchronously in the FastAPI process. Redis is started by Compose, but the current ingest path does not enqueue a worker job. Supabase JWT/RLS support exists as an integration path; the standard app login uses LoadTruth session tokens and API role checks.
+This view shows the active application services and their data paths. Upload processing is synchronous in FastAPI today; the ARQ/Redis worker is a scale-out seam. Supabase JWT/RLS is an integration path, while the standard local app uses LoadTruth sessions and API role checks.
 
 ```mermaid
-architecture-beta
-    group clients(cloud)[Clients]
-    service operator(browser)[Operator] in clients
-    service reviewer(browser)[Reviewer] in clients
+flowchart LR
+    user[Monitor, reviewer<br/>and administrator]
 
-    group web(server)[Next.js application]
-    service next(server)[App Router and API proxy] in web
-    service screens(server)[Screens and components] in web
-    service webapi(server)[Typed API client] in web
-    service authui(server)[Auth and role gates] in web
+    subgraph frontend[Frontend · Next.js]
+        ui[Review console, pipeline,<br/>reports, billing and admin]
+        client[Auth gates + typed API client]
+        ui --> client
+    end
 
-    group backend(server)[FastAPI application]
-    service routes(server)[API routers] in backend
-    service auth(server)[Session verification and RBAC] in backend
-    service tenant(server)[Active tenant context] in backend
-    service ingest(server)[Ingest route] in backend
-    service repo(server)[SQL ticket repository] in backend
-    service exports(server)[Reports billing and exports] in backend
-    service chat(server)[Analyst chat] in backend
+    subgraph backend[Backend · FastAPI]
+        api[API routers]
+        identity[Users, sessions,<br/>roles and tenant context]
+        domain[Tickets, events,<br/>trucks and sources]
+        ingest[Ingest + pipeline orchestrator]
+        subgraph ai[AI and measurement services]
+            adapter[AIClient: live or fixture]
+            sam[SAM 3.1<br/>truck/load tracking evidence]
+            muse[Muse Spark<br/>fill frames, OCR, debris class]
+            median[Median fill estimate]
+            value[CY + dollar valuation<br/>deterministic Decimal]
+            rules[Compliance rules]
+        end
+        reporting[Reports + CSV<br/>audit packet]
+        billing[Billing roll-up<br/>+ invoice]
+        analyst[Grounded analyst chat]
+        api --> identity
+        api --> domain
+        api --> ingest
+        api --> reporting
+        api --> billing
+        api --> analyst
+        ingest --> adapter
+        adapter --> sam
+        adapter --> muse
+        muse --> median
+        median --> value
+        domain --> value
+        value --> rules
+    end
 
-    group pipeline(server)[Pipeline and AI boundary]
-    service media(server)[Upload hash transcode frames] in pipeline
-    service orchestrator(server)[Pipeline orchestrator] in pipeline
-    service sam(server)[SAM tracking and masks] in pipeline
-    service spark(server)[Muse OCR classify narration] in pipeline
-    service geometry(server)[Fill geometry and capacity] in pipeline
-    service anomalies(server)[Deterministic anomaly rules] in pipeline
-    service valuation(server)[Decimal valuation] in pipeline
-    service trace(server)[Trace progress and job store] in pipeline
-    service cache(server)[Result and stage caches] in pipeline
-    service ledger(server)[Cost ledger and budget] in pipeline
+    subgraph persistence[Persistence and cache]
+        db[(SQL database<br/>users, tenants, tickets, traces)]
+        stagecache[(Persistent AI-stage cache)]
+        resultcache[(Process-local pipeline cache)]
+        evidence[(Evidence media store)]
+        redis[(Redis / ARQ<br/>optional worker seam)]
+    end
 
-    group storage(database)[Persistence and local artifacts]
-    service db(database)[SQLAlchemy database] in storage
-    service evidence(disk)[Evidence media] in storage
-    service metalog(disk)[Redacted model API log] in storage
-    service fixtures(disk)[Recorded AI fixtures] in storage
+    meta[Meta Model API<br/>SAM + Muse]
+    supabase[Supabase JWT / Postgres RLS<br/>optional integration]
 
-    group integrations(cloud)[External and optional integrations]
-    service meta(cloud)[Meta Model API] in integrations
-    service supabase(cloud)[Supabase JWT and Postgres RLS] in integrations
-    service redis(cloud)[Redis ARQ queue optional] in integrations
+    user --> frontend
+    client -->|HTTPS API| api
+    identity --> db
+    domain --> db
+    ingest --> stagecache
+    ingest --> resultcache
+    ingest --> evidence
+    ingest --> db
+    reporting --> db
+    billing --> db
+    analyst --> db
+    sam --> meta
+    muse --> meta
+    identity -. optional auth/RLS .-> supabase
+    ingest -. planned background jobs .-> redis
 
-    operator:R --> L:next
-    reviewer:R --> L:next
-    next:B --> T:screens
-    screens:R --> L:webapi
-    authui:B --> T:webapi
-    webapi:R --> L:routes
-    next:R --> L:routes
-
-    routes:B --> T:auth
-    auth:B --> T:tenant
-    routes:R --> L:repo
-    routes:R --> L:ingest
-    routes:R --> L:exports
-    routes:R --> L:chat
-    ingest:B --> T:media
-    media:R --> L:orchestrator
-    orchestrator:L --> R:sam
-    orchestrator:L --> R:spark
-    sam:R --> L:meta
-    spark:R --> L:meta
-    orchestrator:B --> T:geometry
-    geometry:R --> L:anomalies
-    anomalies:R --> L:valuation
-    orchestrator:B --> T:trace
-    orchestrator:B --> T:cache
-    orchestrator:B --> T:ledger
-    cache:B --> T:repo
-    repo:B --> T:db
-    exports:B --> T:repo
-    chat:B --> T:repo
-    ingest:B --> T:evidence
-    trace:R --> L:routes
-    meta:B --> T:metalog
-    fixtures:R --> L:spark
-    fixtures:R --> L:sam
-    tenant:R --> L:supabase
-    redis:R --> L:orchestrator
+    classDef actor fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+    classDef frontendNode fill:#ecfeff,stroke:#0891b2,color:#164e63
+    classDef backendNode fill:#eff6ff,stroke:#2563eb,color:#172554
+    classDef aiNode fill:#f5f3ff,stroke:#7c3aed,color:#2e1065
+    classDef store fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef integration fill:#fff7ed,stroke:#ea580c,color:#7c2d12
+    class user actor
+    class ui,client frontendNode
+    class api,identity,domain,ingest,reporting,billing,analyst backendNode
+    class adapter,sam,muse,median,value,rules aiNode
+    class db,stagecache,resultcache,evidence,redis store
+    class meta,supabase integration
 ```
 
-The database defaults to SQLite on the host and uses Postgres in the Compose stack. AI stage results are persisted in the SQL repository; a separate in-process whole-pipeline cache avoids repeated work within a running process. Evidence media and redacted model logs are local filesystem artifacts by default. Fixture mode routes SAM/Spark calls to recorded scenarios and makes no external model request. The Supabase and Redis links mark integration seams rather than the primary local request path.
+The database defaults to SQLite on the host and uses Postgres in the Compose stack. AI-stage results persist in SQL; the whole-pipeline cache and live progress store are process-local. Evidence media and redacted model logs use local artifacts by default. Fixture mode routes SAM/Muse calls to recorded scenarios without external model requests. Supabase and Redis are optional integration seams, not the primary local ingest path.
 
 ```
 loadtruth/
@@ -276,7 +280,7 @@ loadtruth/
 │   │   ├── ingest.py        #   Stage 0–1: normalize + SHA-256 content hash
 │   │   ├── frames.py        #   Stage 1: keyframe sampling (PyAV, optional)
 │   │   ├── registry.py      #   Stage 4: fuzzy certified-capacity lookup
-│   │   ├── geometry.py      #   Stage 5: DETERMINISTIC fill-% from masks
+│   │   ├── geometry.py      #   Legacy estimator for reproducing historical SAM-based tickets
 │   │   ├── anomalies.py     #   Stage 6: DETERMINISTIC rule engine
 │   │   ├── orchestrator.py  #   runs stages 0–7; cache + ledger injected
 │   │   ├── cache.py         #   content-hash result cache (Redis-ready)
@@ -287,13 +291,13 @@ loadtruth/
 │   │   ├── domain.py        #   Event/Ticket records
 │   │   └── repository.py    #   async, tenant-scoped storage (paginated)
 │   ├── db/                  # SQLAlchemy models, multi-tenant, SQLite→Postgres
-│   └── api/                 # events, tickets, trucks, sources, ingest, reports, chat, system
+│   └── api/                 # auth/users, events, tickets, ingest, sources, billing, reports, chat, system
 │                            # (ARQ worker for off-request video is the planned next seam)
 ├── frontend/                # Next.js 16 operator console (overview, review, pipeline, reports, admin)
 └── infra/rbac/              # Postgres schema + row-level-security policies
 ```
 
-**Stack:** Python 3.12 · FastAPI · SQLAlchemy (async) · pydantic-settings · ARQ (Redis) worker · SQLite for dev → Supabase/Postgres with RLS for multi-tenant prod · Next.js 16 · Meta Model API (`sam-3.1`, `muse-spark-1.3`, `muse-wonder-1.0`).
+**Stack:** Python 3.12 · FastAPI · SQLAlchemy (async) · pydantic-settings · ARQ/Redis worker seam · SQLite for local host and Postgres in Compose/production · Next.js 16 · Meta Model API (`sam-3.1`, `muse-spark-1.3`, `muse-wonder-1.0`).
 
 ### Data flow (one clip → one ticket)
 
@@ -308,15 +312,18 @@ analyst chat → POST /chat → Muse Spark + read-only, tenant-scoped tools over
 ### Invariants (the rules the architecture enforces)
 
 - **Tenant isolation** is enforced in *both* Postgres RLS and the API layer.
-- **Every model call is cached by content hash**; repeats cost nothing.
-- **No model decides a recorded quantity** — fill %, cubic yards, and anomalies are deterministic.
-- **Heavy work stays off the request path** (worker/queue); the demo path reads cache only.
+- **AI-stage results are cached by content hash**; whole-pipeline results are cached in-process.
+- **No model decides pricing or compliance rules** — Muse supplies visual fill estimates, deterministic code takes their median and calculates cubic yards/dollars, and plain rules handle compliance checks.
+- **The ingest path is synchronous today.** Redis/ARQ background execution is planned, not active.
 
 ### API surface (implemented)
 
 | Method | Route | Purpose |
 |---|---|---|
 | `GET` | `/health` | Liveness + whether the Model API key is configured |
+| `GET` | `/auth/directory`, `/auth/me` | Demo member directory and current session member |
+| `POST` | `/auth/login`, `/auth/logout` | Email-based session login and logout |
+| `GET`/`POST`/`PATCH`/`DELETE` | `/users…` | Tenant-scoped member administration with role checks |
 | `GET`/`POST`/`PATCH` | `/events…` | Manage disaster events & per-class rate tables |
 | `POST` | `/events/{id}/ingest` | Run a clip through the pipeline → a draft ticket |
 | `GET` | `/tickets`, `/tickets/{id}` | List/fetch tickets (paginated) with valuation + evidence |
@@ -327,8 +334,11 @@ analyst chat → POST /chat → Muse Spark + read-only, tenant-scoped tools over
 | `GET`/`POST`/… | `/trucks…` | Certified-truck registry (unique per tenant) |
 | `GET`/`POST`/… | `/events/{id}/sources…` | Connected evidence sources (upload, RTSP, bucket) |
 | `GET` | `/events/{id}/dashboard` | Review progress, anomalies, agreement with monitor, summed difference |
+| `GET` | `/events/{id}/reports/summary` | Event report aggregates |
 | `GET` | `/events/{id}/export.csv` | Event tickets as CSV |
 | `GET` | `/events/{id}/audit-packet.html` | Standalone HTML evidence packet for auditors |
+| `GET` | `/events/{id}/billing`, `/billing` | Event and tenant billing roll-ups |
+| `GET` | `/events/{id}/invoice.html`, `/billing/invoice.html` | Printable event or combined invoice |
 | `GET`/`PATCH` | `/system/ai-config…` | Per-task model / effort / cost-mode configuration |
 | `POST` | `/chat` | Grounded analyst Q&A over the event (read-only tools) |
 
@@ -360,12 +370,9 @@ cd backend && uv run pytest        # money math · record matching · rules · i
 
 ---
 
-## ⚠️ Scope & honest limits
+## 👁️ Review and operational workflow
 
-- **Upload-only capture in this build.** Automatic site-camera ingest is architected (sources + adapters) but the non-upload adapters don't do live network I/O yet.
-- **Queue is planned, not wired.** Ingest runs synchronously today; adding an ARQ worker and enqueuing from ingest is the production throughput step and requires no pipeline-logic changes (the orchestrator is already request/DB-decoupled).
-- **Irregular vegetative loads are the hardest to measure.** Mitigated by the human-confirm step, per-stage confidence scoring, and the ±10% accuracy benchmark.
-- **Not a certification.** LoadTruth produces auditable evidence and flags; the responsible monitor retains authority over the official record.
+Every model-generated measurement remains a draft tied to its source clip, SAM tracking evidence, Muse frame estimates and pipeline trace. Monitors retain authority to confirm, correct or dispute the record. The visual pipeline reports estimated cubic yards, not weight; actual weight requires an independent scale integration.
 
 ---
 

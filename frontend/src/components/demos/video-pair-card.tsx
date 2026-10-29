@@ -177,6 +177,7 @@ export function VideoPairCard({
   const [showLayers, setShowLayers] = useState({ bed: true, load: true, body: true });
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [playbackError, setPlaybackError] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(9);
 
@@ -202,22 +203,32 @@ export function VideoPairCard({
   const videoUrl = (useEdgeAsset && edgeVideoUrl) ? edgeVideoUrl : (playback.data?.url ?? null);
 
   // Toggle synchronized play / pause
-  function toggleSyncPlay() {
+  async function toggleSyncPlay() {
     const vReal = realVideoRef.current;
     const vAnalyzed = analyzedVideoRef.current;
+    const videos = [vReal, vAnalyzed].filter(
+      (video): video is HTMLVideoElement => video !== null,
+    );
 
     if (isPlaying) {
-      if (vReal && !vReal.paused) vReal.pause();
-      if (vAnalyzed && !vAnalyzed.paused) vAnalyzed.pause();
+      videos.forEach((video) => video.pause());
       setIsPlaying(false);
-    } else {
-      if (vReal && vAnalyzed) {
-        vAnalyzed.currentTime = vReal.currentTime;
-      }
-      if (vReal) void vReal.play().catch(() => {});
-      if (vAnalyzed) void vAnalyzed.play().catch(() => {});
-      setIsPlaying(true);
+      return;
     }
+
+    const startTime = vReal?.currentTime ?? vAnalyzed?.currentTime ?? 0;
+    videos.forEach((video) => {
+      video.currentTime = startTime;
+    });
+    const results = await Promise.allSettled(videos.map((video) => video.play()));
+    if (results.some((result) => result.status === "rejected")) {
+      videos.forEach((video) => video.pause());
+      setIsPlaying(false);
+      setPlaybackError(true);
+      return;
+    }
+    setPlaybackError(false);
+    setIsPlaying(true);
   }
 
   // Handle timeline scrubbing for both feeds
@@ -416,6 +427,7 @@ export function VideoPairCard({
                   videoUrl={videoUrl}
                   videoRef={analyzedVideoRef}
                   hideControls
+                  autoPlay={false}
                   className="absolute inset-0 flex flex-col bg-black [&_video]:object-cover"
                 />
               ) : (
@@ -554,6 +566,11 @@ export function VideoPairCard({
             Sync
           </span>
         </div>
+        {playbackError && (
+          <p role="status" className="mt-1 text-[10px] text-destructive">
+            Synchronized playback could not start. Try again.
+          </p>
+        )}
       </div>
 
       {/* ── COMPACT SINGLE-ROW FOOTER (NO DEAD SPACE) ── */}

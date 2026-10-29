@@ -171,7 +171,8 @@ class ReportsSummaryData:
 class ReverifyResult:
     """Outcome of replaying a ticket's measurement from its stored evidence.
 
-    ``reproducible`` is True when the fill % recomputed from the stored SAM masks
+    ``reproducible`` is True when the fill % recomputed from stored Muse estimates
+    or legacy SAM masks
     equals the ticket's stored fill %. ``receipt_hash`` is the SHA-256 fingerprint
     of every pinned input; ``receipt_inputs`` is the canonical input record behind
     that hash (shown to an auditor and encoded in the ticket/packet QR).
@@ -513,18 +514,17 @@ class SqlTicketRepository:
         ).scalar_one_or_none()
 
     async def reverify_ticket(self, tenant_id: UUID, ticket_id: UUID) -> ReverifyResult:
-        """Recompute a ticket's fill % from its stored SAM masks and rebuild its
-        receipt, proving the number is reproducible from the evidence.
+        """Recompute a ticket's fill % from its stored model evidence and receipt.
 
-        Deterministic and offline: it reads the persisted SAM track result (the
-        exact masks the model returned for this clip), re-runs the Stage-5
-        geometry over those masks, and compares the recomputed fill % to the
-        stored one. It also rebuilds the evidence receipt (a SHA-256 over every
-        pinned input) so an auditor gets both a matching number and a matching
-        fingerprint. Raises ``TicketNotFoundError`` if the ticket is absent and
-        returns ``reproducible=False`` (never an exception) when the stored
-        evidence is insufficient to replay.
+        Deterministic and offline: Muse's stored per-frame estimates are combined
+        with the same median as ingestion; older/fixture results without those
+        estimates replay from the stored SAM masks. Raises ``TicketNotFoundError``
+        if the ticket is absent and returns ``reproducible=False`` when evidence
+        needed to replay is unavailable.
         """
+        from decimal import ROUND_HALF_UP
+        from statistics import median
+
         from app.ai import serde
         from app.ai.sam_measure import BED_LABEL, LOAD_LABEL
         from app.pipeline.geometry import MaskMeasurement, estimate_fill
@@ -572,14 +572,57 @@ class SqlTicketRepository:
         load_area = sum(debris.mask_areas) / len(debris.mask_areas) if debris.mask_areas else 0.0
         body_type = await self._body_type_for(tenant_id, ticket.truck_id)
 
-        recomputed = estimate_fill(
-            [
-                MaskMeasurement(
-                    bed_area=bed_area,
-                    load_area=load_area,
-                    load_height_ratio=debris.load_height_ratio,
-                )
-            ]
+        classify_key = (
+            f"{serde.STAGE_CLASSIFY}:{evidence.ai_cache_namespace}"
+            if evidence.ai_cache_namespace
+            else serde.STAGE_CLASSIFY
+        )
+        classify_json = await self.get_ai_stage_result(
+            tenant_id, evidence.content_hash, classify_key
+        )
+        if classify_json is None:
+            legacy_classify_key = (
+                f"spark_fill_v2:{evidence.ai_cache_namespace}"
+                if evidence.ai_cache_namespace
+                else "spark_fill_v2"
+            )
+            classify_json = await self.get_ai_stage_result(
+                tenant_id, evidence.content_hash, legacy_classify_key
+            )
+        raw_frame_fills = classify_json.get("frame_fill_pcts") if classify_json else None
+        muse_frame_fills: list[float] = []
+        if isinstance(raw_frame_fills, list):
+            for value in raw_frame_fills:
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, int | float)
+                    or not 0 <= float(value) <= 100
+                ):
+                    return ReverifyResult(
+                        reproducible=False,
+                        reason="Stored Muse frame estimates are invalid.",
+                        stored_fill_pct=ticket.est_fill_pct,
+                        recomputed_fill_pct=None,
+                        receipt_hash=None,
+                        receipt_inputs={},
+                    )
+                muse_frame_fills.append(float(value))
+
+        fill_source = "muse_spark_frame_median" if muse_frame_fills else "sam_mask_coverage"
+        recomputed_fill_pct = (
+            Decimal(str(median(muse_frame_fills))).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            if muse_frame_fills
+            else estimate_fill(
+                [
+                    MaskMeasurement(
+                        bed_area=bed_area,
+                        load_area=load_area,
+                        load_height_ratio=debris.load_height_ratio,
+                    )
+                ]
+            ).fill_pct
         )
 
         served_spark: list[str] = []
@@ -614,9 +657,11 @@ class SqlTicketRepository:
                 est_dollar_value=str(ticket.est_dollar_value),
                 sam_model=str(track_json.get("_model") or settings.sam_model),
                 spark_model="; ".join(served_spark) or settings.spark_model,
+                fill_source=fill_source,
+                muse_frame_fill_pcts=muse_frame_fills,
             )
         )
-        reproducible = recomputed.fill_pct == ticket.est_fill_pct
+        reproducible = recomputed_fill_pct == ticket.est_fill_pct
         return ReverifyResult(
             reproducible=reproducible,
             reason=(
@@ -625,7 +670,7 @@ class SqlTicketRepository:
                 else "Recomputed fill differs from the stored ticket."
             ),
             stored_fill_pct=ticket.est_fill_pct,
-            recomputed_fill_pct=recomputed.fill_pct,
+            recomputed_fill_pct=recomputed_fill_pct,
             receipt_hash=receipt.receipt_hash,
             receipt_inputs=receipt.inputs,
         )

@@ -14,12 +14,12 @@ export function money(value: string | number | null | undefined): string {
   return USD.format(n);
 }
 
-/** Format a decimal-string percentage, e.g. "62.00" -> "62%". */
+/** Format a decimal-string percentage with up to two fractional digits. */
 export function percent(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "N/A";
   const n = typeof value === "number" ? value : Number.parseFloat(value);
-  if (Number.isNaN(n)) return "N/A";
-  return `${n % 1 === 0 ? n.toFixed(0) : n.toFixed(1)}%`;
+  if (!Number.isFinite(n)) return "N/A";
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(n)}%`;
 }
 
 /** Format cubic yards, e.g. "12.400" -> "12.4 CY". */

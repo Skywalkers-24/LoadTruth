@@ -1120,7 +1120,7 @@ textarea,
   animation: lt-fade-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Keep the sign-in panel and its compact proof row inside laptop-height viewports. */
+/* Keep the sign-in panel inside laptop-height viewports. */
 .login-screen-content {
   margin-top: auto;
 }
@@ -1148,15 +1148,6 @@ textarea,
   .login-screen-continue {
     margin-top: 0.875rem;
     min-height: 2.5rem;
-  }
-
-  .login-screen-proof {
-    gap: 0.375rem;
-  }
-
-  .login-screen-features > li {
-    gap: 0.25rem;
-    padding-block: 0.25rem;
   }
 }
 

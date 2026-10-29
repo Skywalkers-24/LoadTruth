@@ -12,7 +12,7 @@
       ]
     },
     "ocr": { "truck_id": "FL-DT-3391", "confidence": 0.97, "frame_ref": "frame_0042.jpg" },
-    "classify": { "debris_class": "construction_demolition", "confidence": 0.94 }
+    "classify": { "debris_class": "construction_demolition", "confidence": 0.94, "frame_fill_pcts": [88.9, 90.2, 89.4, 91.1] }
   },
   "clean-partial-veg": {
     "label": "clean partial vegetative load",
@@ -26,7 +26,7 @@
       ]
     },
     "ocr": { "truck_id": "FL-DT-2204", "confidence": 0.95, "frame_ref": "frame_0205.jpg" },
-    "classify": { "debris_class": "vegetative", "confidence": 0.9 }
+    "classify": { "debris_class": "vegetative", "confidence": 0.9, "frame_fill_pcts": [39.1, 41.8, 40.3, 42.6] }
   },
   "low-confidence-placard": {
     "label": "blurred/angled placard",
@@ -40,7 +40,7 @@
       ]
     },
     "ocr": { "truck_id": null, "confidence": 0.31, "frame_ref": "frame_0303.jpg" },
-    "classify": { "debris_class": "construction_demolition", "confidence": 0.72 }
+    "classify": { "debris_class": "construction_demolition", "confidence": 0.72, "frame_fill_pcts": [53.2, 56.4, 54.7, 55.1] }
   },
   "hollow-load": {
     "label": "surface high, measured depth low (vegetative)",
@@ -54,7 +54,7 @@
       ]
     },
     "ocr": { "truck_id": "FL-DT-4417", "confidence": 0.93, "frame_ref": "frame_0410.jpg" },
-    "classify": { "debris_class": "vegetative", "confidence": 0.88 }
+    "classify": { "debris_class": "vegetative", "confidence": 0.88, "frame_fill_pcts": [35.8, 38.3, 37.2, 39.1] }
   },
   "uncertified-truck": {
     "label": "clear load on a truck that is not in the registry",
@@ -68,12 +68,12 @@
       ]
     },
     "ocr": { "truck_id": "FL-ZZ-0000", "confidence": 0.95, "frame_ref": "frame_0610.jpg" },
-    "classify": { "debris_class": "vegetative", "confidence": 0.9 }
+    "classify": { "debris_class": "vegetative", "confidence": 0.9, "frame_fill_pcts": [67.4, 70.2, 69.1, 71.3] }
   },
   "no-truck": {
     "label": "empty street footage, no truck",
     "track": { "frame_count": 30, "objects": [] },
     "ocr": { "truck_id": null, "confidence": 0.0, "frame_ref": null },
-    "classify": { "debris_class": "other", "confidence": 0.0 }
+    "classify": { "debris_class": "other", "confidence": 0.0, "frame_fill_pcts": [0.0, 0.0, 0.0, 0.0] }
   }
 }
