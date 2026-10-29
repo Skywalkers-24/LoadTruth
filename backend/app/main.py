@@ -80,13 +80,17 @@ app.add_middleware(
 
 @app.api_route("/health", methods=["GET", "HEAD"], response_model=None, tags=["system"])
 async def health(request: Request) -> dict[str, object] | Response:
-    """Liveness probe. Reports whether the Meta Model API key is configured."""
+    """Liveness probe. Reports whether the Meta Model API key and cache are configured."""
     if request.method == "HEAD":
         return Response(status_code=200)
+    from app.api.ingest import get_cache_status
+
+    cache_info = await get_cache_status()
     return {
         "status": "ok",
         "environment": settings.environment,
         "model_api_configured": settings.model_api_configured,
+        "cache": cache_info,
     }
 
 

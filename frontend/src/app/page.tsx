@@ -19,7 +19,13 @@ function greeting(): string {
 /** Overview: what needs action now for the active event. Fits one desktop screen. */
 export default function OverviewPage() {
   const { member } = useAuth();
-  const { selected, selectedId: eventId, isError: eventsError } = useEventContext();
+  const {
+    selected,
+    selectedId: eventId,
+    isError: eventsError,
+    isWakingUp,
+    refetch: refetchEvents,
+  } = useEventContext();
   const dashboard = useDashboard(eventId);
   const summary = useReportsSummary(eventId);
   const tickets = useTickets({ eventId, limit: 100, offset: 0 });
@@ -44,8 +50,13 @@ export default function OverviewPage() {
 
         {eventsError ? (
           <ErrorState
-            title="Events unavailable"
-            description="The server did not return any events. Refresh to try again."
+            title={isWakingUp ? "Backend server is waking up" : "Events unavailable"}
+            description={
+              isWakingUp
+                ? "The backend is hosted on Render (free tier), which spins down after 15 minutes of inactivity. The container is starting up (takes ~30–60 seconds). Retrying automatically..."
+                : "The server did not return any events. Click below to try again."
+            }
+            onRetry={refetchEvents}
           />
         ) : (
           <OverviewDashboard

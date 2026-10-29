@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-import type { EventSummary } from "@/lib/api";
+import { isServerWakingUp, type EventSummary } from "@/lib/api";
 import { useEvents } from "@/lib/hooks";
 
 /**
@@ -18,6 +18,8 @@ interface EventContextValue {
   events: EventSummary[];
   isLoading: boolean;
   isError: boolean;
+  isWakingUp: boolean;
+  error: unknown;
   selected: EventSummary | undefined;
   selectedId: string | undefined;
   setSelectedId: (id: string) => void;
@@ -60,6 +62,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
   );
 
   const refetch = useCallback(() => void query.refetch(), [query]);
+  const isWakingUp = query.isError && isServerWakingUp(query.error);
 
   // Memoized so consumers of this app-wide context don't re-render on every
   // parent render.
@@ -68,12 +71,24 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
       events,
       isLoading: query.isLoading,
       isError: query.isError,
+      isWakingUp,
+      error: query.error,
       selected,
       selectedId,
       setSelectedId,
       refetch,
     }),
-    [events, query.isLoading, query.isError, selected, selectedId, setSelectedId, refetch],
+    [
+      events,
+      query.isLoading,
+      query.isError,
+      isWakingUp,
+      query.error,
+      selected,
+      selectedId,
+      setSelectedId,
+      refetch,
+    ],
   );
 
   return <EventCtx.Provider value={value}>{children}</EventCtx.Provider>;

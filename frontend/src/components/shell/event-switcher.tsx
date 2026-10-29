@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { CheckIcon, ChevronDownIcon, SearchIcon } from "@/components/ui/icons";
 import { EmptyState, Skeleton } from "@/components/ui/primitives";
 import { orgFromEvent, useEventContext } from "@/lib/event-context";
+import { cn } from "@/lib/utils";
 
 /**
  * Disaster-event context selector. `compact` renders a top-bar-styled trigger
@@ -13,7 +14,8 @@ import { orgFromEvent, useEventContext } from "@/lib/event-context";
  * rail/drawer trigger. The popover presents org context and a searchable list.
  */
 export function EventSwitcher({ compact = false }: { compact?: boolean }) {
-  const { events, selected, selectedId, setSelectedId, isLoading, isError } = useEventContext();
+  const { events, selected, selectedId, setSelectedId, isLoading, isError, isWakingUp } =
+    useEventContext();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -40,7 +42,7 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
       .includes(q.trim().toLowerCase()),
   );
 
-  if (isLoading) return <Skeleton className={compact ? "h-9 w-56 rounded-lg" : "h-12 w-full rounded-lg"} />;
+  if (isLoading) return <Skeleton className={compact ? "h-9 w-72 rounded-lg" : "h-12 w-full rounded-lg"} />;
 
   if (compact) {
     return (
@@ -61,7 +63,11 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
           </span>
           <span className="flex min-w-0 flex-1 flex-col leading-none">
             <span className="truncate text-[13px] font-semibold text-foreground">
-              {isError ? "Events unavailable" : (selected?.name ?? "Select an event")}
+              {isError
+                ? isWakingUp
+                  ? "Backend waking up…"
+                  : "Events unavailable"
+                : (selected?.name ?? "Select an event")}
             </span>
           </span>
           <ChevronDownIcon
@@ -93,7 +99,11 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
         </span>
         <span className="flex min-w-0 flex-1 flex-col leading-tight">
           <span className="line-clamp-2 text-[13px] font-semibold text-sidebar-foreground">
-            {isError ? "Events unavailable" : (selected?.name ?? "Select an event")}
+            {isError
+              ? isWakingUp
+                ? "Backend waking up…"
+                : "Events unavailable"
+              : (selected?.name ?? "Select an event")}
           </span>
           <span className="truncate text-[11px] text-sidebar-muted">
             {selected?.location ?? org}
@@ -111,12 +121,15 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
 
   function Popover() {
     return (
-        <div
-          role="dialog"
-          aria-label="Switch event"
-          className="lt-card-shadow absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)]"
-        >
-          {/* Org header */}
+      <div
+        role="dialog"
+        aria-label="Switch event"
+        className={cn(
+          "lt-card-shadow absolute left-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-surface)] shadow-2xl",
+          compact ? "w-[440px] sm:w-[480px] max-w-[calc(100vw-2rem)]" : "left-0 right-0",
+        )}
+      >
+        {/* Org header */}
           <div className="flex items-center gap-2.5 border-b border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2.5">
             <span
               className="grid size-7 shrink-0 place-items-center rounded-md text-[11px] font-bold text-white"
@@ -171,11 +184,11 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
                         style={active ? { backgroundColor: "var(--color-brand-soft)" } : undefined}
                       >
                         <span className="flex min-w-0 flex-1 flex-col leading-tight">
-                          <span className="truncate text-[13px] font-medium text-[var(--color-text)]">
+                          <span className="text-[13px] font-medium leading-snug text-[var(--color-text)]">
                             {e.name}
                           </span>
                           {e.location && (
-                            <span className="truncate text-[11px] text-[var(--color-muted-foreground)]">
+                            <span className="text-[11px] text-[var(--color-muted-foreground)]">
                               {e.location}
                             </span>
                           )}

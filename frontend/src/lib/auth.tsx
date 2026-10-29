@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import {
   type Capabilities,
@@ -55,11 +56,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const signIn = useCallback(async (email: string) => {
-    const result = await apiLogin(email);
-    setAuthToken(result.token);
-    setMember(result.member);
-  }, []);
+  const queryClient = useQueryClient();
+
+  const signIn = useCallback(
+    async (email: string) => {
+      const result = await apiLogin(email);
+      setAuthToken(result.token);
+      setMember(result.member);
+      // Invalidate and refetch all tenant queries fresh with the new session
+      await queryClient.resetQueries();
+    },
+    [queryClient],
+  );
 
   const signOut = useCallback(async () => {
     try {
@@ -69,7 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setAuthToken(null);
     setMember(null);
-  }, []);
+    queryClient.clear();
+  }, [queryClient]);
 
   const can = useCallback(
     (capability: keyof Capabilities) => member?.capabilities?.[capability] ?? false,
