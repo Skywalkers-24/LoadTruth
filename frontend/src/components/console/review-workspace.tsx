@@ -1,6 +1,13 @@
 "use client";
 
-import { ChevronLeftIcon, ChevronRightIcon, ClockIcon, SparklesIcon } from "lucide-react";
+import { useState } from "react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  PanelRightOpenIcon,
+  SparklesIcon,
+} from "lucide-react";
 
 import type { Ticket } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/badge";
@@ -13,6 +20,7 @@ import { ReproducibilityCard } from "@/components/console/reproducibility-card";
 import { CollapsibleSectionCard, SectionCard } from "@/components/console/section-card";
 import { TicketMetadata, shortId } from "@/components/console/ticket-metadata";
 import { PipelineTrace } from "@/components/ai/pipeline-trace";
+import { StageInspectorDrawer } from "@/components/ai/stage-inspector-drawer";
 import { Skeleton } from "@/components/ui/shadcn/skeleton";
 import { useTicketPipeline } from "@/lib/hooks";
 import { debrisLabel, relativeTime } from "@/lib/format";
@@ -151,9 +159,13 @@ function TicketHeader({ ticket, nav }: { ticket: Ticket; nav?: TicketNav }) {
 
 /**
  * The AI's read of this ticket, at the top of the right rail. A branded header
- * names the models that did the work, then the full stage trace sits open.
+ * names the models that did the work. Clicking any stage row opens the 38%
+ * slide-over drawer modal for in-depth inspection.
  */
 function AiAnalysisCard({ ticketId }: { ticketId: string }) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedStageIndex, setSelectedStageIndex] = useState(0);
+
   return (
     // The AI read is the headline of the rail: on a wide pane it takes the
     // leftover height (flex-1 + min-h-0) and scrolls its own body, so the full
@@ -164,18 +176,47 @@ function AiAnalysisCard({ ticketId }: { ticketId: string }) {
           <SparklesIcon size={14} />
         </span>
         <h3 className="lt-card-title shrink-0 whitespace-nowrap">AI analysis</h3>
-        <span className="ml-auto min-w-0 truncate rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-muted-foreground)]">
-          SAM 3.1 · Muse Spark
-        </span>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="min-w-0 truncate rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-muted-foreground)]">
+            SAM 3.1 · Muse Spark
+          </span>
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            title="Open Stage Inspector (Sidebar Drawer)"
+            className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-brand)] transition-colors hover:bg-[var(--color-brand-soft)]"
+          >
+            <PanelRightOpenIcon className="size-3.5" />
+            <span className="hidden sm:inline">Inspect</span>
+          </button>
+        </div>
       </header>
       <div className="lt-card-body lt-scroll min-h-0 flex-1 overflow-y-auto">
-        <AiAnalysis ticketId={ticketId} />
+        <AiAnalysis
+          ticketId={ticketId}
+          drawerOpen={drawerOpen}
+          setDrawerOpen={setDrawerOpen}
+          selectedStageIndex={selectedStageIndex}
+          setSelectedStageIndex={setSelectedStageIndex}
+        />
       </div>
     </section>
   );
 }
 
-function AiAnalysis({ ticketId }: { ticketId: string }) {
+function AiAnalysis({
+  ticketId,
+  drawerOpen,
+  setDrawerOpen,
+  selectedStageIndex,
+  setSelectedStageIndex,
+}: {
+  ticketId: string;
+  drawerOpen: boolean;
+  setDrawerOpen: (open: boolean) => void;
+  selectedStageIndex: number;
+  setSelectedStageIndex: (index: number) => void;
+}) {
   const trace = useTicketPipeline(ticketId);
   if (trace.isLoading) return <Skeleton className="h-28" />;
   if (!trace.data || trace.data.length === 0) {
@@ -185,5 +226,28 @@ function AiAnalysis({ ticketId }: { ticketId: string }) {
       </p>
     );
   }
-  return <PipelineTrace stages={trace.data} compact />;
+  return (
+    <>
+      <div className="mb-2 flex items-center justify-between text-[11px] text-[var(--color-muted-foreground)]">
+        <span>Click stage for details</span>
+        <span className="text-[10px] text-primary">38% right drawer</span>
+      </div>
+      <PipelineTrace
+        stages={trace.data}
+        compact
+        selectedStageIndex={drawerOpen ? selectedStageIndex : undefined}
+        onSelectStage={(stage, index) => {
+          setSelectedStageIndex(index);
+          setDrawerOpen(true);
+        }}
+      />
+      <StageInspectorDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        stages={trace.data}
+        currentStageIndex={selectedStageIndex}
+        onSelectStageIndex={setSelectedStageIndex}
+      />
+    </>
+  );
 }

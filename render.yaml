@@ -41,7 +41,9 @@ services:
       - key: B2_REGION
         sync: false
       - key: PIPELINE_RESULT_CACHE_ENABLED
-        value: "false"
+        value: "true"
+      - key: API_CACHE_ENABLED
+        value: "true"
       - key: ANALYSIS_MAX_BYTES
         value: "20971520"
       - key: DEMO_UPLOAD_MAX_BYTES

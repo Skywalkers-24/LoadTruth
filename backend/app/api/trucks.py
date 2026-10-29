@@ -11,6 +11,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.api.cache import cached_api, invalidate_cache_tags
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_manage_trucks
@@ -26,7 +27,16 @@ ManageTrucks = Depends(require(can_manage_trucks, "You do not have permission to
 @router.get("/trucks", response_model=list[TruckOut])
 async def list_trucks(repo: Repository, tenant: ActiveTenant) -> list[TruckOut]:
     """List certified trucks in the active tenant."""
-    return [TruckOut.model_validate(t) for t in await repo.list_trucks(tenant)]
+    async def _compute() -> list[TruckOut]:
+        return [TruckOut.model_validate(t) for t in await repo.list_trucks(tenant)]
+
+    return await cached_api(
+        tags=[f"tenant:{tenant}:trucks"],
+        key=f"trucks:{tenant}",
+        compute=_compute,
+        to_dict=lambda trucks: [t.model_dump(mode="json") for t in trucks],
+        from_dict=lambda data: [TruckOut.model_validate(t) for t in data],
+    )
 
 
 @router.post(
@@ -47,6 +57,7 @@ async def create_truck(repo: Repository, tenant: ActiveTenant, body: TruckIn) ->
         )
     except DuplicateTruckError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "truck_number already exists") from exc
+    await invalidate_cache_tags(f"tenant:{tenant}:trucks")
     return TruckOut.model_validate(row)
 
 
@@ -69,6 +80,7 @@ async def update_truck(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "truck not found") from exc
     except DuplicateTruckError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "truck_number already exists") from exc
+    await invalidate_cache_tags(f"tenant:{tenant}:trucks")
     return TruckOut.model_validate(row)
 
 
@@ -83,3 +95,4 @@ async def delete_truck(repo: Repository, tenant: ActiveTenant, truck_id: UUID) -
         await repo.delete_truck(tenant, truck_id)
     except TruckNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "truck not found") from exc
+    await invalidate_cache_tags(f"tenant:{tenant}:trucks")

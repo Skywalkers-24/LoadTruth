@@ -376,6 +376,9 @@ async def ingest_clip(
             segments=result.segments,
             ai_cache_namespace=ai_namespace,
         )
+        from app.api.cache import invalidate_cache_tags
+
+        await invalidate_cache_tags(f"event:{event_id}", f"tenant:{tenant}:billing")
     except Exception as exc:  # noqa: BLE001 — return a clean failure and close progress.
         log.error("ingest_persistence_failed", content_hash=ch, exc_info=True)
         await progress.finish(

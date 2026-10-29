@@ -12,6 +12,8 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import HTMLResponse
 
+from app.api.cache import cached_api
+
 from app.api.repo import ActiveTenant, Repository
 from app.tickets.billing import BillingSummary, build_summary
 from app.tickets.domain import Ticket
@@ -64,30 +66,48 @@ async def event_billing(
     repo: Repository, tenant: ActiveTenant, event_id: UUID
 ) -> BillingSummaryOut:
     """Invoice roll-up for a single event."""
-    event = await repo.get_event(tenant, event_id)
-    if event is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "event not found")
-    tickets = await repo.list_tickets(tenant, event_id)
-    summary = build_summary(
-        scope=event.name,
-        event_id=str(event_id),
-        location=event.location,
-        tickets=tickets,
+    async def _compute() -> BillingSummaryOut:
+        event = await repo.get_event(tenant, event_id)
+        if event is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "event not found")
+        tickets = await repo.list_tickets(tenant, event_id)
+        summary = build_summary(
+            scope=event.name,
+            event_id=str(event_id),
+            location=event.location,
+            tickets=tickets,
+        )
+        return _to_out(summary)
+
+    return await cached_api(
+        tags=[f"event:{event_id}"],
+        key=f"billing:{tenant}:{event_id}",
+        compute=_compute,
+        to_dict=lambda b: b.model_dump(mode="json"),
+        from_dict=BillingSummaryOut.model_validate,
     )
-    return _to_out(summary)
 
 
 @router.get("/billing", response_model=BillingSummaryOut)
 async def combined_billing(repo: Repository, tenant: ActiveTenant) -> BillingSummaryOut:
     """Combined invoice roll-up across every event the tenant owns."""
-    tickets = await _all_tickets(repo, tenant)
-    summary = build_summary(
-        scope="All events",
-        event_id=None,
-        location=None,
-        tickets=tickets,
+    async def _compute() -> BillingSummaryOut:
+        tickets = await _all_tickets(repo, tenant)
+        summary = build_summary(
+            scope="All events",
+            event_id=None,
+            location=None,
+            tickets=tickets,
+        )
+        return _to_out(summary)
+
+    return await cached_api(
+        tags=[f"tenant:{tenant}:billing"],
+        key=f"billing_all:{tenant}",
+        compute=_compute,
+        to_dict=lambda b: b.model_dump(mode="json"),
+        from_dict=BillingSummaryOut.model_validate,
     )
-    return _to_out(summary)
 
 
 def _invoice_response(summary: BillingSummary, filename: str) -> HTMLResponse:

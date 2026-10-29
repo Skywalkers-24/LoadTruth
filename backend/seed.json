@@ -1,6 +1,6 @@
 {
   "_comment": "Single declarative seed for the LoadTruth demo tenant. Loaded by app/tickets/seed.py on startup (idempotent). Exercises every surface: dashboard money-frame, review-console states (clean/low-confidence/anomaly/overbill), reports breakdowns, truck registry, and source connections. Clearly-labeled sample data, not real haul records. Every figure the UI shows is computed by the real pipeline from these inputs \u2014 nothing is hardcoded in the frontend.",
-  "tenant_id": "11111111-1111-1111-1111-111111111111",
+  "tenant_id": "9b11e095-d679-41f4-b445-9866832c5946",
   "trucks": [
     {
       "truck_number": "FL-DT-3391",

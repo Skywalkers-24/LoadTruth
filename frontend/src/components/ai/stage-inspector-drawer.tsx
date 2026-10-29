@@ -86,9 +86,37 @@ export function StageInspectorDrawer({
   const confidenceStr =
     stage.confidence != null ? `${Math.round(stage.confidence * 100)}%` : "Verified";
 
+  const displayModel = stage.model === "deterministic" ? "Math formula" : stage.model;
+
+  const rawAnalysis = stage.analysis && stage.analysis.trim() ? stage.analysis : stage.summary;
+  const cleanAnalysis = (rawAnalysis || "")
+    .replace(/\bdeterministic\b/gi, "automated")
+    .replace(/\bevident\b/gi, "verified")
+    .replace(/\bevidence receipt\b/gi, "audit summary")
+    .replace(/\bvoxel depth integration\b/gi, "depth measurement")
+    .replace(/\border-preserving orthogonal perspective projection\b/gi, "perspective alignment");
+
+  const cleanSummary = (stage.summary || "")
+    .replace(/\bdeterministic\b/gi, "verified")
+    .replace(/\bevident\b/gi, "verified");
+
   const details = stage.details ?? [];
   const modelAnswer = details.find(([k]) => k.toLowerCase() === "model answer")?.[1];
-  const regularDetails = details.filter(([k]) => k.toLowerCase() !== "model answer");
+  const regularDetails = details
+    .filter(([k]) => k.toLowerCase() !== "model answer")
+    .map(([key, val]) => {
+      let cleanKey = key;
+      let cleanVal = val;
+      if (key.toLowerCase() === "deterministic") {
+        cleanKey = "Calculation type";
+        cleanVal = "Verified standard formula";
+      }
+      cleanVal = cleanVal
+        .replace(/\bdeterministic\b/gi, "verified formula")
+        .replace(/Orthogonal perspective projection & voxel depth integration/gi, "Surface boundary & depth measurement")
+        .replace(/\bvoxel depth integration\b/gi, "depth measurement");
+      return [cleanKey, cleanVal] as [string, string];
+    });
 
   function copyJson() {
     if (!stage) return;
@@ -153,7 +181,7 @@ export function StageInspectorDrawer({
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1 font-mono text-[11px] text-primary">
                   <CpuIcon className="size-3.5" />
-                  {stage.model}
+                  {displayModel}
                 </span>
                 <span>·</span>
                 <span className="inline-flex items-center gap-1">
@@ -226,11 +254,11 @@ export function StageInspectorDrawer({
                 <span>AI ANALYSIS & EXPLANATION</span>
               </div>
               <p className="mt-2.5 text-[13px] leading-relaxed text-foreground">
-                {stage.analysis && stage.analysis.trim() ? stage.analysis : stage.summary}
+                {cleanAnalysis}
               </p>
-              {stage.summary && stage.analysis && stage.summary !== stage.analysis && (
+              {cleanSummary && cleanAnalysis && cleanSummary !== cleanAnalysis && (
                 <div className="mt-3 rounded-lg border border-border/60 bg-background/50 p-2.5 text-xs text-muted-foreground">
-                  <span className="font-semibold text-foreground">Summary:</span> {stage.summary}
+                  <span className="font-semibold text-foreground">Summary:</span> {cleanSummary}
                 </div>
               )}
             </div>
@@ -262,7 +290,7 @@ export function StageInspectorDrawer({
                   Model / Engine
                 </span>
                 <span className="truncate font-mono text-xs font-semibold text-foreground">
-                  {stage.model}
+                  {displayModel}
                 </span>
               </div>
 

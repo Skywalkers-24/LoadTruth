@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
+from app.api.cache import cached_api, invalidate_cache_tags
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_manage_events, can_manage_settings, can_review_tickets
@@ -68,8 +69,17 @@ async def _require_writable_ticket(repo: Repository, tenant: UUID, ticket_id: UU
 @router.get("/events", response_model=list[EventOut])
 async def list_events(repo: Repository, tenant: ActiveTenant) -> list[EventOut]:
     """List disaster events in the active tenant."""
-    events = await repo.list_events(tenant)
-    return [event_to_out(e) for e in events]
+    async def _compute() -> list[EventOut]:
+        events = await repo.list_events(tenant)
+        return [event_to_out(e) for e in events]
+
+    return await cached_api(
+        tags=[f"tenant:{tenant}:events"],
+        key=f"events:{tenant}",
+        compute=_compute,
+        to_dict=lambda evts: [e.model_dump(mode="json") for e in evts],
+        from_dict=lambda data: [EventOut.model_validate(e) for e in data],
+    )
 
 
 @router.post(
@@ -88,6 +98,7 @@ async def create_event(repo: Repository, tenant: ActiveTenant, body: EventIn) ->
         rate_table=body.rate_table,
         tags=body.tags,
     )
+    await invalidate_cache_tags(f"tenant:{tenant}:events")
     return event_to_out(event)
 
 
@@ -112,6 +123,7 @@ async def update_event(
         )
     except EventNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "event not found") from exc
+    await invalidate_cache_tags(f"tenant:{tenant}:events", f"event:{event_id}")
     return event_to_out(event)
 
 
@@ -322,6 +334,7 @@ async def set_monitor_call(
         t = await repo.set_monitor_call(tenant, ticket_id, body.monitor_fill_pct)
     except TicketNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
+    await invalidate_cache_tags(f"event:{t.event_id}", f"tenant:{tenant}:billing")
     return ticket_to_out(t)
 
 
@@ -337,6 +350,7 @@ async def set_status(
         t = await repo.set_status(tenant, ticket_id, body.status)
     except TicketNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
+    await invalidate_cache_tags(f"event:{t.event_id}", f"tenant:{tenant}:billing")
     return ticket_to_out(t)
 
 
@@ -368,22 +382,32 @@ async def update_ticket(
         )
     except TicketNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
+    await invalidate_cache_tags(f"event:{t.event_id}", f"tenant:{tenant}:billing")
     return ticket_to_out(t)
 
 
 @router.get("/events/{event_id}/dashboard", response_model=DashboardOut)
 async def event_dashboard(repo: Repository, tenant: ActiveTenant, event_id: UUID) -> DashboardOut:
     """Event roll-up: summed dollar-delta, review progress, anomalies, accuracy."""
-    summary = await repo.dashboard(tenant, event_id)
-    return DashboardOut(
-        event_id=summary.event_id,
-        ticket_count=summary.ticket_count,
-        reviewed_count=summary.reviewed_count,
-        anomaly_count=summary.anomaly_count,
-        overbill_ticket_count=summary.overbill_ticket_count,
-        total_delta_cubic_yards=summary.total_delta_cubic_yards,
-        total_delta_dollar_value=summary.total_delta_dollar_value,
-        accuracy_within_10pct=summary.accuracy_within_10pct,
+    async def _compute() -> DashboardOut:
+        summary = await repo.dashboard(tenant, event_id)
+        return DashboardOut(
+            event_id=summary.event_id,
+            ticket_count=summary.ticket_count,
+            reviewed_count=summary.reviewed_count,
+            anomaly_count=summary.anomaly_count,
+            overbill_ticket_count=summary.overbill_ticket_count,
+            total_delta_cubic_yards=summary.total_delta_cubic_yards,
+            total_delta_dollar_value=summary.total_delta_dollar_value,
+            accuracy_within_10pct=summary.accuracy_within_10pct,
+        )
+
+    return await cached_api(
+        tags=[f"event:{event_id}"],
+        key=f"dashboard:{tenant}:{event_id}",
+        compute=_compute,
+        to_dict=lambda d: d.model_dump(mode="json"),
+        from_dict=DashboardOut.model_validate,
     )
 
 
@@ -392,19 +416,28 @@ async def event_reports_summary(
     repo: Repository, tenant: ActiveTenant, event_id: UUID
 ) -> ReportsSummary:
     """Reports-page roll-up: counts by status/class, dollars, overbill, anomalies."""
-    s = await repo.reports_summary(tenant, event_id)
-    return ReportsSummary(
-        event_id=s.event_id,
-        ticket_count=s.ticket_count,
-        counts_by_status=s.counts_by_status,
-        counts_by_debris_class=s.counts_by_debris_class,
-        total_est_dollar_value=s.total_est_dollar_value,
-        total_delta_dollar_value=s.total_delta_dollar_value,
-        overbill_ticket_count=s.overbill_ticket_count,
-        overbill_dollar_value=s.overbill_dollar_value,
-        anomaly_counts_by_severity=s.anomaly_counts_by_severity,
-        reviewed_count=s.reviewed_count,
-        pending_count=s.pending_count,
-        accuracy_within_10pct=s.accuracy_within_10pct,
-        benchmarked_count=s.benchmarked_count,
+    async def _compute() -> ReportsSummary:
+        s = await repo.reports_summary(tenant, event_id)
+        return ReportsSummary(
+            event_id=s.event_id,
+            ticket_count=s.ticket_count,
+            counts_by_status=s.counts_by_status,
+            counts_by_debris_class=s.counts_by_debris_class,
+            total_est_dollar_value=s.total_est_dollar_value,
+            total_delta_dollar_value=s.total_delta_dollar_value,
+            overbill_ticket_count=s.overbill_ticket_count,
+            overbill_dollar_value=s.overbill_dollar_value,
+            anomaly_counts_by_severity=s.anomaly_counts_by_severity,
+            reviewed_count=s.reviewed_count,
+            pending_count=s.pending_count,
+            accuracy_within_10pct=s.accuracy_within_10pct,
+            benchmarked_count=s.benchmarked_count,
+        )
+
+    return await cached_api(
+        tags=[f"event:{event_id}"],
+        key=f"reports_summary:{tenant}:{event_id}",
+        compute=_compute,
+        to_dict=lambda s: s.model_dump(mode="json"),
+        from_dict=ReportsSummary.model_validate,
     )

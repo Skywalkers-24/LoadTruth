@@ -121,7 +121,10 @@ class Settings(BaseSettings):
     superadmin_password: str = Field(default="", alias="SUPERADMIN_PASSWORD", repr=False)
 
     # Redis / background worker
-    pipeline_result_cache_enabled: bool = False
+    pipeline_result_cache_enabled: bool = Field(
+        default=True, alias="PIPELINE_RESULT_CACHE_ENABLED"
+    )
+    api_cache_enabled: bool = Field(default=True, alias="API_CACHE_ENABLED")
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
 
     # Runtime
