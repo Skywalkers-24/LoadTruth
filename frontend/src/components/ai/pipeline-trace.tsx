@@ -285,9 +285,8 @@ function composedAnalysis(stage: PipelineStage): string {
     }
     case "geometry": {
       parts.push(
-        "Calculates the exact fill percentage based on how much debris fills the truck bed rails. This is computed directly from the video outlines to ensure fair and accurate measurements.",
+        "Meta Muse Spark estimates fill visually in each sampled video frame, and the pipeline takes the median. SAM segmentation is not used to calculate the fill percentage.",
       );
-      if (conf) parts.push(`Measurement confidence: ${conf}.`);
       break;
     }
     case "spark_classify": {
@@ -304,7 +303,7 @@ function composedAnalysis(stage: PipelineStage): string {
         );
       } else {
         parts.push(
-          "Quality checks verified the load is within normal limits with no overfill or safety flags.",
+          "Automated checks found no identity, certification, capacity, or cycle-time issue. Monitors can flag visual fill concerns during review.",
         );
       }
       break;

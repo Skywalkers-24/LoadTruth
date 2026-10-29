@@ -14,33 +14,28 @@ import {
 } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
-import { LogoLockup, LogoMark } from "@/components/ui/logo";
+import { LogoLockup } from "@/components/ui/logo";
 import { SHOWCASE_EVENT_ID } from "@/lib/api";
 
 export const metadata: Metadata = {
-  title: "LoadTruth: Verifiable Debris Load Tickets",
+  title: "LoadTruth | Debris Load Review",
   description:
-    "Every debris load ticket used to be a guess nobody could verify. LoadTruth makes it an exact measurement anyone can verify, from the video, in one click.",
+    "Review truck footage, SAM tracking evidence, and Muse visual fill estimates in a human-reviewed load-ticket workflow.",
 };
 
 /**
  * Public showcase (Winner.md B6): the submission's front door, no login. It
- * tells the story, shows the seven-stage pipeline, the product surface, the
- * sourced case studies that frame the problem, names the two people on opposite
- * sides of one ticket, states the honest "where it stands," and links into the
- * live console. Every stat traces to a cited source or the code.
+ * explains the workflow and product surface without presenting unverified
+ * estimates or performance metrics as measured results.
  */
 export default function ShowcasePage() {
   return (
     <main className="min-h-dvh bg-[var(--color-bg)] text-[var(--color-text)]">
       <Nav />
       <Hero />
-      <StatsBand />
       <Anatomy />
       <Features />
-      <CaseStudies />
       <Personas />
-      <BenchmarkCard />
       <Constraint />
       <WhereItStands />
       <Footer />
@@ -51,25 +46,17 @@ export default function ShowcasePage() {
 function Nav() {
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg)_90%,transparent)] backdrop-blur">
-      <div className="mx-auto flex w-full max-w-none items-center justify-between px-6 py-3 sm:px-10 lg:px-12 xl:px-16">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
         <Link href="/" className="transition hover:opacity-90">
           <LogoLockup />
         </Link>
-        <div className="hidden items-center gap-2 text-[12px] md:flex">
-          <span className="rounded-full border border-[var(--color-brand)]/30 bg-[var(--color-brand-soft)] px-2.5 py-0.5 font-semibold text-[var(--color-brand)]">
-            Powered by Meta SAM 3.1 &amp; Muse Spark
-          </span>
-          <span className="text-muted-foreground">
-            Hosted on <strong className="font-semibold text-foreground">Fireworks AI</strong>, <strong className="font-semibold text-foreground">Modal</strong> &amp; <strong className="font-semibold text-foreground">Baseten</strong>
-          </span>
-        </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Link
             href={`/console?event=${SHOWCASE_EVENT_ID}`}
-            className="rounded-md bg-[var(--color-brand)] px-3 py-1.5 text-[13px] font-medium text-white hover:opacity-90"
+            className="rounded-md bg-[var(--color-brand)] px-3 py-2 text-[13px] font-medium text-white hover:opacity-90"
           >
-            Explore benchmarked videos
+            Open the console
           </Link>
         </div>
       </div>
@@ -79,34 +66,29 @@ function Nav() {
 
 function Hero() {
   return (
-    <section className="mx-auto grid w-full max-w-none items-center gap-10 px-6 pb-12 pt-16 sm:px-10 lg:grid-cols-[1.15fr_0.85fr] lg:px-12 xl:px-16">
-      {/* Left: the pitch */}
+    <section className="mx-auto grid w-full max-w-6xl items-center gap-10 px-5 py-14 sm:px-8 sm:py-20 lg:grid-cols-[1.1fr_0.9fr]">
       <div className="min-w-0">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-brand)]/30 bg-[var(--color-brand-soft)] px-3 py-1 text-[11.5px] font-semibold text-[var(--color-brand)]">
-            <SparklesIcon size={13} className="shrink-0" />
-            Powered by Meta SAM 3.1 &amp; Muse Spark
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-[var(--color-surface)] px-3 py-1 text-[11.5px] font-medium text-muted-foreground shadow-xs">
-            Hosted on <strong className="font-semibold text-foreground">Fireworks AI</strong>, <strong className="font-semibold text-foreground">Modal</strong> &amp; <strong className="font-semibold text-foreground">Baseten</strong>
-          </span>
-        </div>
-        <h1 className="text-balance text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl">
-          Every debris load ticket used to be a guess nobody could verify. LoadTruth makes it an exact measurement anyone can verify, from the video, in one click.
+        <p className="mb-4 text-[12px] font-semibold uppercase tracking-[0.16em] text-[var(--color-brand)]">
+          Truck video · visual estimates · human review
+        </p>
+        <h1 className="max-w-2xl text-balance text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl">
+          A clearer record for every debris haul.
         </h1>
-        <p className="mt-6 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
-          After a hurricane, a monitor in a tower eyeballs each dump truck&apos;s fill percentage,
-          and that guess decides federal payments. LoadTruth measures the load from video against
-          the truck&apos;s certified bed, drafts a FEMA-format ticket with evidence frames, and
-          flags the loads that do not add up. A human monitor still confirms or overrides every
-          ticket.
+        <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-muted-foreground">
+          LoadTruth pairs truck footage with SAM tracking and Muse&apos;s frame-by-frame visual fill
+          estimates. It turns those estimates into a draft cubic-yard ticket that a monitor can
+          review, correct, or dispute.
+        </p>
+        <p className="mt-4 max-w-xl text-[13px] leading-relaxed text-muted-foreground">
+          Fill is estimated from video; cubic yards are derived from certified truck capacity.
+          SAM&apos;s masks support visual review and do not determine the fill percentage.
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
           <Link
             href={`/console?event=${SHOWCASE_EVENT_ID}`}
             className="rounded-md bg-[var(--color-brand)] px-5 py-2.5 text-[14px] font-semibold text-white hover:opacity-90"
           >
-            Explore benchmarked videos
+            View the review workflow
           </Link>
           <Link
             href="/guide"
@@ -117,118 +99,54 @@ function Hero() {
         </div>
       </div>
 
-      {/* Right: a visual that fills the other half instead of empty space */}
-      <HeroVisual />
+      <WorkflowCard />
     </section>
   );
 }
 
-/**
- * A compact "one ticket" panel for the hero's right column, so the fold uses the
- * full width instead of leaving the right half blank. Pure presentation.
- */
-function HeroVisual() {
-  const rows: { label: string; value: string; tone?: "money" | "muted" }[] = [
-    { label: "Truck", value: "FL-DT-3391" },
-    { label: "Certified bed", value: "25 CY" },
-    { label: "Measured fill", value: "48%" },
-    { label: "Measured value", value: "$102.00" },
-    { label: "Monitor call", value: "90%", tone: "muted" },
-  ];
-  return (
-    <div className="relative hidden lg:block">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -inset-6 -z-10 rounded-[2rem] opacity-70"
-        style={{
-          background:
-            "radial-gradient(500px 300px at 70% 20%, color-mix(in srgb, var(--color-brand) 22%, transparent), transparent 70%), radial-gradient(400px 300px at 20% 100%, color-mix(in srgb, var(--color-money) 16%, transparent), transparent 70%)",
-        }}
-      />
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xl">
-        <div className="mb-3 flex items-center justify-between">
-          <span className="flex items-center gap-2 text-[13px] font-semibold">
-            <LogoMark size={20} className="shrink-0" />
-            Load ticket LT-2C707D
-          </span>
-          <span className="rounded-full bg-[var(--color-ok-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-ok)]">
-            Verified from video
-          </span>
-        </div>
-        <dl className="flex flex-col divide-y divide-[var(--color-border)]">
-          {rows.map((r) => (
-            <div key={r.label} className="flex items-center justify-between py-2">
-              <dt className="text-[13px] text-muted-foreground">{r.label}</dt>
-              <dd
-                className={`text-[14px] font-semibold tabular-nums ${
-                  r.tone === "muted" ? "text-muted-foreground" : "text-foreground"
-                }`}
-              >
-                {r.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-        <div className="mt-3 flex items-center justify-between rounded-lg bg-[var(--color-money-soft)] px-3 py-2.5">
-          <span className="text-[12px] font-medium text-foreground">Dollar difference</span>
-          <span className="text-[18px] font-bold tabular-nums text-[var(--color-money)]">
-            +$89.25
-          </span>
-        </div>
-        <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
-          Every figure traces directly to the video footage, official county registry, or contract rate. Anyone can re-verify the numbers from the footage in one click.
-        </p>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-1 border-t border-[var(--color-border)] pt-2.5 text-[11px] text-muted-foreground">
-          <span>Vision: <strong className="font-semibold text-foreground">Meta SAM 3.1 &amp; Muse Spark</strong></span>
-          <span>Inference: <strong className="font-semibold text-foreground">Fireworks AI · Modal · Baseten</strong></span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StatsBand() {
-  const stats = [
+function WorkflowCard() {
+  const steps = [
     {
-      value: "107M CY",
-      label: "debris cleared in the 2024 hurricane season",
-      color: "var(--chart-1)",
+      title: "Source footage",
+      detail: "A saved clip is the evidence record.",
+      icon: <CameraIcon size={17} />,
     },
     {
-      value: "$190M",
-      label: "one county's 5-year debris-monitoring contract",
-      color: "var(--chart-2)",
+      title: "Track the truck",
+      detail: "SAM follows the truck and load across frames.",
+      icon: <ScanEyeIcon size={17} />,
     },
     {
-      value: "500%+",
-      label: "of certified capacity logged in a post-Katrina audit",
-      color: "var(--chart-5)",
-    },
-    {
-      value: "±10 pts",
-      label: "the fill-accuracy target we benchmark against",
-      color: "var(--chart-4)",
+      title: "Estimate and review",
+      detail: "Muse estimates fill; a monitor reviews the draft.",
+      icon: <SparklesIcon size={17} />,
     },
   ];
   return (
-    <section className="w-full border-y border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="mx-auto grid w-full max-w-none grid-cols-2 gap-4 px-6 py-8 sm:grid-cols-4 sm:px-10 lg:px-12 xl:px-16">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className="flex flex-col gap-1 rounded-xl border border-[var(--color-border)] p-3"
-            style={{
-              background: `linear-gradient(160deg, color-mix(in srgb, ${s.color} 12%, transparent), transparent 70%)`,
-            }}
-          >
-            <span className="text-2xl font-bold tabular-nums" style={{ color: s.color }}>
-              {s.value}
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-7">
+      <h2 className="text-[15px] font-semibold">From footage to a reviewable draft</h2>
+      <ol className="mt-5 space-y-0">
+        {steps.map((step, index) => (
+          <li key={step.title} className="relative flex gap-3 pb-5 last:pb-0">
+            {index < steps.length - 1 && (
+              <span
+                className="absolute left-[15px] top-8 h-[calc(100%-1rem)] w-px bg-[var(--color-border)]"
+                aria-hidden
+              />
+            )}
+            <span className="relative grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
+              {step.icon}
             </span>
-            <span className="text-[12px] leading-snug text-muted-foreground">{s.label}</span>
-          </div>
+            <span className="pt-0.5">
+              <span className="block text-[13px] font-semibold">{step.title}</span>
+              <span className="mt-1 block text-[12px] leading-relaxed text-muted-foreground">
+                {step.detail}
+              </span>
+            </span>
+          </li>
         ))}
-      </div>
-    </section>
+      </ol>
+    </div>
   );
 }
 
@@ -236,53 +154,54 @@ const STAGES: { n: number; title: string; body: string; icon: React.ReactNode }[
   {
     n: 1,
     title: "Sample the clip",
-    body: "A short clip is sampled to a few keyframes at a cost-safe frame rate.",
+    body: "The clip is normalized and sampled into frames for the analysis stages.",
     icon: <CameraIcon size={18} />,
   },
   {
     n: 2,
     title: "Segment with SAM 3.1",
-    body: "Meta SAM 3.1 tracks the truck bed and debris pile across frames, running on serverless GPU containers hosted on Modal.",
+    body: "SAM tracks the truck, bed, and load across frames. Its masks are saved as visual evidence, not used to calculate fill.",
     icon: <ScanEyeIcon size={18} />,
   },
   {
     n: 3,
     title: "Read placard with Muse Spark",
-    body: "Meta Muse Spark reads the truck's ID placard so the load ties to a certified truck, served with ultra-low latency on Fireworks AI and Baseten.",
+    body: "Muse reads the truck ID from the footage; the result is matched against the truck registry.",
     icon: <SparklesIcon size={18} />,
   },
   {
     n: 4,
     title: "Look up capacity",
-    body: "The read ID matches a certified truck in the registry to get the bed volume.",
+    body: "The registry supplies the truck's certified cubic-yard capacity when a match is found.",
     icon: <TruckIcon size={18} />,
   },
   {
     n: 5,
-    title: "Measure fill and classify",
-    body: "Direct measurement math calculates the bed fill % from outlines. Meta Muse Spark classifies debris via Fireworks AI, Modal, and Baseten.",
+    title: "Estimate fill with Muse",
+    body: "Muse estimates fill in sampled frames. The pipeline takes their median; SAM masks do not affect the result.",
     icon: <GaugeIcon size={18} />,
   },
   {
     n: 6,
-    title: "Flag anomalies",
-    body: "Code rules flag uncertified trucks, capacity mismatches, and surface-versus-depth gaps.",
-    icon: <ShieldCheckIcon size={18} />,
+    title: "Classify debris",
+    body: "Muse assigns a debris class used to select the applicable rate.",
+    icon: <SparklesIcon size={18} />,
   },
   {
     n: 7,
-    title: "Value and draft",
-    body: "Cubic yards times the class rate gives dollars. The ticket is a draft until a human signs.",
-    icon: <CircleDollarSignIcon size={18} />,
+    title: "Check and draft",
+    body: "Deterministic compliance rules run; the fill estimate and certified capacity produce cubic yards and value. The monitor reviews the draft.",
+    icon: <ShieldCheckIcon size={18} />,
   },
 ];
 
 function Anatomy() {
   return (
-    <section className="mx-auto w-full max-w-none px-6 py-12 sm:px-10 lg:px-12 xl:px-16">
-      <h2 className="text-xl font-semibold">One clip, seven stages</h2>
-      <p className="mt-2 text-[14px] text-muted-foreground">
-        Meta AI models outline the load and identify debris, and exact math calculates the billing. Every number on the ticket traces directly to the video, county records, or contract rates.
+    <section className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
+      <h2 className="text-xl font-semibold">How a clip becomes a draft ticket</h2>
+      <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">
+        Models handle visual tasks; application code combines the fill estimates, applies rates, and
+        runs compliance checks. A monitor remains responsible for the final call.
       </p>
       <ol className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {STAGES.map((s) => (
@@ -310,19 +229,19 @@ function Anatomy() {
 const FEATURES: { title: string; body: string; icon: React.ReactNode; color: string }[] = [
   {
     title: "Multi-tenant by design",
-    body: "Each agency runs its own events, trucks, rates, members, and evidence, isolated in the database with row-level security and enforced again in the API.",
+    body: "Events, trucks, rates, members, and evidence are scoped to a tenant and protected by API role checks.",
     icon: <BuildingIcon size={18} />,
     color: "var(--chart-1)",
   },
   {
-    title: "The money frame",
-    body: "Every ticket shows the measured value against the monitor's call and the exact signed dollar delta, rolled up per event so flagged exposure is one number.",
+    title: "Ticket comparison",
+    body: "Compare the draft estimate with a monitor's recorded call and see the resulting difference.",
     icon: <CircleDollarSignIcon size={18} />,
     color: "var(--color-money)",
   },
   {
     title: "Reporting and exports",
-    body: "Totals by status, debris class, and anomaly severity, the full ticket ledger, a FEMA-format audit packet, and CSV, all from live tenant data.",
+    body: "Review event summaries and ticket records; export CSV data or a printable audit packet.",
     icon: <FileCheck2Icon size={18} />,
     color: "var(--chart-2)",
   },
@@ -333,14 +252,14 @@ const FEATURES: { title: string; body: string; icon: React.ReactNode; color: str
     color: "var(--chart-4)",
   },
   {
-    title: "Multi-provider AI inference",
-    body: "Meta SAM 3.1 and Muse Spark run across Fireworks AI, Modal, and Baseten with automated fallback routing and per-call spend cap enforcement.",
+    title: "Configurable Muse inference",
+    body: "The app supports Meta directly and configurable Muse backends. Fireworks AI, Modal, and Baseten are provider options; availability depends on task capability and configuration.",
     icon: <SparklesIcon size={18} />,
     color: "var(--color-brand)",
   },
   {
-    title: "One-click verification and audit trail",
-    body: "Every video clip, Meta SAM outline, and measurement is permanently saved. An auditor or monitor can re-verify the exact fill % from the footage anytime.",
+    title: "Reproducible estimate",
+    body: "Stored Muse frame estimates and their median can be replayed without another model call. The original source video and SAM masks remain available as review evidence.",
     icon: <ShieldCheckIcon size={18} />,
     color: "var(--chart-5)",
   },
@@ -349,11 +268,11 @@ const FEATURES: { title: string; body: string; icon: React.ReactNode; color: str
 function Features() {
   return (
     <section className="w-full border-t border-[var(--color-border)]">
-      <div className="mx-auto w-full max-w-none px-6 py-12 sm:px-10 lg:px-12 xl:px-16">
-        <h2 className="text-xl font-semibold">A product, not a demo</h2>
+      <div className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
+        <h2 className="text-xl font-semibold">The review tools around the estimate</h2>
         <p className="mt-2 text-[14px] text-muted-foreground">
-          The pipeline is the engine. Around it is the operator console an agency actually runs on:
-          tenancy, money, reporting, billing, and an audit trail that holds up years later.
+          Ticket management, reporting, billing, and saved evidence support the monitor&apos;s
+          review process.
         </p>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
@@ -380,120 +299,19 @@ function Features() {
   );
 }
 
-interface CaseStudy {
-  stat: string;
-  title: string;
-  body: string;
-  source: string;
-  href: string;
-  color: string;
-}
-
-// Each figure is paraphrased from a government report or news coverage and
-// links to the primary source. They establish the scale of the measurement
-// problem, not any claim of certification (see Research.md).
-const CASE_STUDIES: CaseStudy[] = [
-  {
-    stat: "107M+ CY",
-    title: "The 2024 hurricane season",
-    body: "After Helene and Milton, FEMA reported more than 107 million cubic yards of debris cleared across the Southeast. Every cubic yard flows through a load-ticket count someone has to verify.",
-    source: "FEMA",
-    href: "https://www.fema.gov/blog/recovery-efforts-continue-one-year-after-hurricanes-helene-and-milton",
-    color: "var(--chart-1)",
-  },
-  {
-    stat: "$190M",
-    title: "Miami-Dade monitoring contract",
-    body: "A single county recommended a disaster-debris-removal monitoring contract worth $190,070,000 over five years. That is monitoring alone, which shows how much governments already pay just to verify loads.",
-    source: "Miami-Dade County",
-    href: "https://www.miamidade.gov/govaction/legistarfiles/Matters/Y2026/261096.pdf",
-    color: "var(--chart-2)",
-  },
-  {
-    stat: "500%+",
-    title: "Trucks logged over capacity (Katrina)",
-    body: "A DHS Inspector General audit of Kenner, Louisiana questioned $5.5M in Katrina debris costs after finding trucks recorded at more than 95% full, with some loads at over 500% of certified capacity.",
-    source: "DHS OIG",
-    href: "https://www.oig.dhs.gov/sites/default/files/assets/GrantReports/OIG_DD-09-04_Jan09.pdf",
-    color: "var(--chart-5)",
-  },
-  {
-    stat: "$716,677",
-    title: "Fake load slips, prosecuted",
-    body: "The DOJ prosecuted a conspiracy built on false debris-removal load slips, and separately charged a subcontractor with bribing a monitor for tickets on debris never dumped. Load tickets are the fraud surface.",
-    source: "US DOJ",
-    href: "https://www.justice.gov",
-    color: "var(--chart-3)",
-  },
-  {
-    stat: "15M+ CY",
-    title: "Hurricane Sandy cleanup",
-    body: "FEMA supported removal of more than 15 million cubic yards of debris after Sandy, enough to fill the Empire State Building several times over. Scale makes manual verification impossible.",
-    source: "FEMA",
-    href: "https://news.va.gov/wp-content/uploads/sites/3/2013/10/FEMA-Sandy-One-Year-Fact-Sheet.pdf",
-    color: "var(--chart-4)",
-  },
-  {
-    stat: "$2B",
-    title: "Florida Helene/Milton reimbursement",
-    body: "Florida's debris-removal reimbursement after the 2024 storms ran into the billions, with tens of millions approved for individual cities based on cubic-yard counts.",
-    source: "FEMA",
-    href: "https://www.fema.gov",
-    color: "var(--chart-1)",
-  },
-];
-
-function CaseStudies() {
-  return (
-    <section className="w-full border-t border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="mx-auto w-full max-w-none px-6 py-12 sm:px-10 lg:px-12 xl:px-16">
-        <h2 className="text-xl font-semibold">Why this is worth measuring</h2>
-        <p className="mt-2 text-[14px] text-muted-foreground">
-          The problem is large, expensive, and already a known fraud surface. Every figure below
-          links to its primary source. They frame the scale, not a claim of certification.
-        </p>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {CASE_STUDIES.map((c) => (
-            <a
-              key={c.title}
-              href={c.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex flex-col gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 transition-colors hover:border-[var(--color-border-strong)]"
-            >
-              <span className="text-2xl font-bold tabular-nums" style={{ color: c.color }}>
-                {c.stat}
-              </span>
-              <h3 className="text-[14px] font-semibold">{c.title}</h3>
-              <p className="text-[13px] leading-snug text-muted-foreground">{c.body}</p>
-              <span className="mt-auto inline-flex items-center gap-1 pt-1 text-[12px] font-medium text-[var(--color-brand)] group-hover:underline">
-                Source: {c.source}
-              </span>
-            </a>
-          ))}
-        </div>
-        <p className="mt-4 text-[11px] text-muted-foreground">
-          Figures are paraphrased from government reports (FEMA, DHS OIG, DOJ) and news coverage
-          linked above. Content rephrased for compliance with licensing restrictions.
-        </p>
-      </div>
-    </section>
-  );
-}
-
 function Personas() {
   return (
     <section className="w-full border-t border-[var(--color-border)]">
-      <div className="mx-auto grid w-full max-w-none gap-6 px-6 py-12 sm:grid-cols-2 sm:px-10 lg:px-12 xl:px-16">
+      <div className="mx-auto grid w-full max-w-6xl gap-5 px-5 py-12 sm:grid-cols-2 sm:px-8 sm:py-16">
         <Persona
-          role="The tower monitor"
-          side="Records the ticket"
-          body="Watches truck after truck in a tower and calls a fill % under time pressure. LoadTruth gives a starting number, the evidence behind it, and a one-click override, so the call is faster and defensible."
+          role="Field monitor"
+          side="Reviews the draft"
+          body="See the source clip, SAM tracking evidence, and Muse's per-frame fill estimates together. Confirm the draft or enter a corrected call."
         />
         <Persona
-          role="The county finance director"
-          side="Pays the ticket"
-          body="Signs off on reimbursements that FEMA may audit years later. LoadTruth hands over an audit packet where every ticket links to the video and can be reproduced from it, so a disputed number is a click away from proof."
+          role="County reviewer"
+          side="Checks the record"
+          body="Review ticket values, compliance flags, billing summaries, and exported evidence in one workflow."
         />
       </div>
     </section>
@@ -512,39 +330,17 @@ function Persona({ role, side, body }: { role: string; side: string; body: strin
   );
 }
 
-function BenchmarkCard() {
-  return (
-    <section className="mx-auto w-full max-w-none px-6 py-12 sm:px-10 lg:px-12 xl:px-16">
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-        <h2 className="text-xl font-semibold">How we measure accuracy</h2>
-        <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
-          We benchmark the fill-% estimator against known volumes: a scale-model truck with a
-          measured bed filled to marked levels, plus real loads bought by the cubic yard, filmed
-          across angles and lighting. The harness reports the mean error, the share within 10
-          points, and the error broken down by condition.
-        </p>
-        <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
-          This is separate from{" "}
-          <span className="font-medium text-foreground">agreement with the monitor</span>, which
-          measures how often the machine lands within 10 points of the human&apos;s own call. Both
-          are shown, and neither is dressed up as the other.
-        </p>
-        <div className="mt-4 inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-[13px] text-muted-foreground">
-          Benchmark results publish from <code className="font-mono">data_bench/results.json</code>{" "}
-          as clips are filmed.
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function Constraint() {
   return (
     <section className="w-full border-t border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="mx-auto w-full max-w-none px-6 py-12 sm:px-10 lg:px-12 xl:px-16">
-        <h2 className="text-xl font-semibold">Inference architecture and constraints</h2>
-        <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
-          Meta SAM 3.1 runs on GPU endpoints hosted on <strong>Modal</strong>, while Muse Spark vision reasoning is served through high-throughput inference on <strong>Fireworks AI</strong> and <strong>Baseten</strong>. Because SAM 3.1 takes one concept per request, bed and debris segmentation are combined in our code. We cache every call by content hash and reuse keyframes across calls, so a re-run costs nothing and the whole demo runs within budget.
+      <div className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
+        <h2 className="text-xl font-semibold">Model roles and inference options</h2>
+        <p className="mt-2 max-w-3xl text-[14px] leading-relaxed text-muted-foreground">
+          SAM 3.1 tracks the truck and load for evidence. Muse Spark estimates fill from sampled
+          video frames, and deterministic code takes the median and converts the estimate to cubic
+          yards using certified truck capacity. Muse inference can use Meta directly or a configured
+          backend: Fireworks AI, Modal, or Baseten. These are supported routes; the active provider
+          depends on deployment configuration.
         </p>
       </div>
     </section>
@@ -553,28 +349,25 @@ function Constraint() {
 
 function WhereItStands() {
   const working = [
-    "Video to draft ticket through all seven stages",
-    "Live SAM 3.1 segmentation and Muse Spark placard read and debris class",
-    "Multi-provider inference: Meta, Fireworks AI, Modal, and Baseten routing",
-    "Dollar difference per ticket and per event",
-    "Confirm, override, and dispute with a human in the loop",
-    "FEMA-format audit packet and CSV export",
-    "Re-verify: recalculate the fill % from the saved video in one click",
-    "Per-clip cost ledger with a spend cap",
+    "Video ingest and draft-ticket pipeline",
+    "SAM tracking evidence and Muse estimates across sampled frames",
+    "Deterministic median, cubic-yard calculation, and compliance checks",
+    "Monitor confirm, correction, and dispute workflow",
+    "Ticket reports, CSV export, billing, and printable audit packet",
+    "Replay of stored Muse estimates without another model call",
   ];
-  const inProgress = [
-    "Known-volume benchmark across 50+ filmed clips",
-    "Streamed stage feed during a live run",
-  ];
+  const inProgress = ["Independent known-volume benchmark; no accuracy result is published yet"];
   const roadmap = [
     "3D load reconstruction for a second, independent volume estimate",
     "Spoken monitor call captured and transcribed",
-    "Live camera feeds beyond direct upload",
+    "Live camera ingestion beyond direct upload",
   ];
   return (
-    <section className="mx-auto w-full max-w-none px-6 py-12 sm:px-10 lg:px-12 xl:px-16">
+    <section className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
       <h2 className="text-xl font-semibold">Where it stands</h2>
-      <p className="mt-2 text-[14px] text-muted-foreground">An honest status, not a wish list.</p>
+      <p className="mt-2 text-[14px] text-muted-foreground">
+        Current features and planned validation, stated separately.
+      </p>
       <div className="mt-6 grid gap-6 sm:grid-cols-3">
         <StatusColumn title="Working" tone="var(--color-ok)" items={working} />
         <StatusColumn title="In progress" tone="var(--color-warn)" items={inProgress} />
@@ -605,15 +398,10 @@ function StatusColumn({ title, tone, items }: { title: string; tone: string; ite
 function Footer() {
   return (
     <footer className="w-full border-t border-[var(--color-border)]">
-      <div className="mx-auto flex w-full max-w-none flex-col gap-2 px-6 py-8 text-[13px] text-muted-foreground sm:px-10 lg:px-12 xl:px-16">
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span>Powered by <strong className="font-semibold text-foreground">Meta SAM 3.1 &amp; Muse Spark</strong></span>
-          <span>·</span>
-          <span>Hosted on <strong className="font-semibold text-foreground">Fireworks AI</strong>, <strong className="font-semibold text-foreground">Modal</strong> &amp; <strong className="font-semibold text-foreground">Baseten</strong></span>
-        </p>
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-start gap-2 px-5 py-8 text-[13px] text-muted-foreground sm:px-8">
         <p>
-          Built in 10 days. LoadTruth produces evidence and flags inconsistencies; the responsible
-          monitor keeps authority over the official record.
+          Fill estimates are AI-assisted; the monitor remains responsible for the final record.
+          Independent known-volume accuracy results are not yet published.
         </p>
         <Link
           href="/console"

@@ -97,8 +97,8 @@ _ANALYSIS_STYLE = (
     "Write it for an operations console in an impersonal, declarative voice, the way a "
     "monitoring report reads. State what was found and what it means. Never use first "
     "person ('I', 'my', 'we') and do not address the reader. Name the stage or model "
-    "doing the work when it helps (for example 'SAM 3.1 segmented ...', 'Muse Spark "
-    "read ...'). Be concise and confident and do not use dashes or parentheses."
+    "doing the work when it helps (for example 'Muse Spark read ...'). Be concise and "
+    "confident and do not use dashes or parentheses."
 )
 
 _OCR_PROMPT = (
@@ -122,15 +122,15 @@ _CLASSIFY_PROMPT = (
     "(anything else, or not visible). Pick the class that makes up most of the load. "
     "confidence is your probability, from 0 to 1, that the class is right. Estimate "
     "truck-bed volume fill from 0 to 100, where 0 is empty and 100 is full to the side "
-    "wall tops across the bed. The prompt includes SAM's measured cargo coverage of the "
-    "bed opening. Use that segmentation as spatial evidence, not as the fill answer: "
-    "visible 2D coverage is not the same as 3D volume. Inspect every supplied frame, "
-    "consider the cargo height relative to the bed rails and how the pile changes along "
-    "the bed, and return one continuous estimate per frame in the exact frame order. "
-    "Do not round to tens or other fixed buckets; return each estimate to two decimal "
-    "places. Do not copy the same estimate to every frame unless the evidence supports "
-    "it. analysis is two or three plain sentences explaining the load and the visual "
-    f"evidence for the fill estimates. {_ANALYSIS_STYLE}"
+    "wall tops across the bed. Base fill estimates only on the visible truck and load "
+    "in each supplied frame. Inspect every frame, consider cargo height relative to "
+    "the bed rails and how the pile changes along the bed, and return one continuous "
+    "estimate per frame in the exact frame order. Do not use segmentation coverage or "
+    "other pixel-area ratios as the fill percentage. Do not round to tens or other "
+    "fixed buckets; return each estimate to two decimal places. Do not copy the same "
+    "estimate to every frame unless the evidence supports it. analysis is two or three "
+    "plain sentences explaining the load and visual evidence for the fill estimates. "
+    f"{_ANALYSIS_STYLE}"
 )
 
 _NAME_LOAD_PROMPT = (
@@ -177,16 +177,16 @@ _EXPLAIN_PROMPT = (
     "load. Use only the facts given and never invent numbers. "
     f"{_ANALYSIS_STYLE} "
     "The stages are: sam_track (SAM 3.1 segmented and tracked the truck, bed, and load "
-    "across the frames, producing the masks every later measurement reads); capacity "
-    "(the identified truck was looked up in the certified registry for its registered "
-    "cubic-yard capacity); geometry (SAM supplied the bed and cargo regions, Muse Spark "
-    "estimated fill for multiple keyframes, and the pipeline combined those estimates "
-    "with a median); anomalies (deterministic rules "
-    "checked the facts and raised any flags); dollar_math (exact arithmetic multiplies "
-    "fill percent by certified capacity for cubic yards, then by the rate for the "
-    "dollar value). State plainly that capacity, geometry, anomalies, and dollar_math "
-    "are deterministic steps, not model judgements, while sam_track is the vision "
-    "model's own work."
+    "as visual evidence); capacity (the identified truck was looked up in the certified "
+    "registry for its registered cubic-yard capacity); geometry (Muse Spark estimated "
+    "fill from each sampled video frame, and deterministic code combined those "
+    "estimates using their median; SAM masks are not used to estimate fill); anomalies "
+    "(deterministic rules may flag identity, certification, capacity, and cycle issues, "
+    "but do not automatically flag fill quality; monitors can flag visual concerns "
+    "during review); dollar_math (exact arithmetic multiplies fill percent by certified "
+    "capacity for cubic yards, then by the rate for the dollar value). State plainly "
+    "that capacity, geometry, anomalies, and dollar_math are deterministic steps, not "
+    "model judgements, while sam_track is the vision model's own work."
 )
 
 _EXPLAIN_SCHEMA: dict[str, Any] = {
@@ -741,23 +741,11 @@ class LiveAIClient:
             analysis=_clean_paragraph(str(answer.get("analysis") or "")),
         )
 
-    async def classify_debris(
-        self, clip: ClipMedia, *, sam_coverage_pct: list[float] | None = None
-    ) -> ClassifyResult:
+    async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
         media = await self._media(clip)
-        coverage = (
-            ", ".join(f"{value:.2f}%" for value in sam_coverage_pct)
-            if sam_coverage_pct
-            else "unavailable"
-        )
-        prompt = (
-            f"{_CLASSIFY_PROMPT}\n\nSAM segmentation context: measured opening coverage "
-            f"for {len(sam_coverage_pct or [])} usable frames, in measurement order: "
-            f"{coverage}. These are projected mask-area ratios, not ground-truth volume."
-        )
         response, usage = await self._spark(
             "spark_classify",
-            [{"type": "input_text", "text": prompt}, media.part],
+            [{"type": "input_text", "text": _CLASSIFY_PROMPT}, media.part],
             _CLASSIFY_SCHEMA,
             media=media,
         )

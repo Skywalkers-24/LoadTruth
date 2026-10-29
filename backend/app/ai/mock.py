@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from functools import lru_cache
 from pathlib import Path
+from statistics import median
 from typing import Any, cast
 
 from app.ai.base import (
@@ -24,14 +25,6 @@ from app.ai.base import (
 
 _FIXTURES_PATH = Path(__file__).parent / "fixtures" / "scenarios.json"
 _DEFAULT_KEY = "clean-full-cd"
-
-
-def _pct(value: object) -> str:
-    """A 0..1 fraction as a rounded percentage string (e.g. 0.82 -> '82%')."""
-    try:
-        return f"{float(value):.0%}"  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return "most of"
 
 
 @lru_cache
@@ -108,12 +101,12 @@ class MockAIClient:
             analysis=analysis,
         )
 
-    async def classify_debris(
-        self, clip: ClipMedia, *, sam_coverage_pct: list[float] | None = None
-    ) -> ClassifyResult:
+    async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
         c = self._scenario(clip.content_hash)["classify"]
         debris_class = c["debris_class"]
         confidence = float(c["confidence"])
+        frame_fill_pcts = tuple(float(value) for value in c["frame_fill_pcts"])
+        visual_fill_pct = float(median(frame_fill_pcts))
         label = debris_class.replace("_", " ")
         analysis = (
             f"Muse Spark classified the load as {label} at {confidence:.0%} confidence, from the "
@@ -124,6 +117,8 @@ class MockAIClient:
             debris_class=debris_class,
             confidence=confidence,
             analysis=analysis,
+            visual_fill_pct=visual_fill_pct,
+            frame_fill_pcts=frame_fill_pcts,
         )
 
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:
@@ -146,8 +141,7 @@ class MockAIClient:
         truck = s("truck_id", "the truck")
         certified = s("certified_cubic_yards", "0")
         fill = s("fill_pct", "0")
-        fill_source = s("fill_source", "SAM mask geometry")
-        coverage = _pct(facts.get("planar_coverage"))
+        fill_source = s("fill_source", "Muse Spark frame median")
         debris = s("debris_class", "other").replace("_", " ")
         rate = s("rate_per_cy", "0")
         est_cy = s("est_cubic_yards", "0")
@@ -160,9 +154,8 @@ class MockAIClient:
         out: dict[str, str] = {
             "sam_track": (
                 f"SAM 3.1 tracked the truck, its bed, and the load across {frame_count} frames "
-                "and returned a segmentation mask for each. These masks are the pixel evidence "
-                "every downstream measurement reads from, so the rest of the pipeline works from "
-                "what was segmented, not from an assumption."
+                "and returned segmentation masks. These masks provide visual tracking evidence; "
+                "Muse Spark estimates the fill percentage separately."
             ),
             "capacity": (
                 f"Truck {truck} matched a certified record carrying {certified} cubic yards of "
@@ -174,9 +167,9 @@ class MockAIClient:
                 "verification before it can be certified."
             ),
             "geometry": (
-                f"Estimated the bed at {fill}% full using {fill_source}. SAM segmented the load "
-                f"across {coverage} of the bed opening above the tailgate rim and supplied that "
-                "spatial evidence to the fill estimate."
+                f"Muse Spark estimated fill in {s('muse_frame_count', 'multiple')} sampled frames. "
+                f"The pipeline combined those visual estimates using their median: {fill}% full "
+                f"({fill_source})."
             ),
             "dollar_math": (
                 f"Exact arithmetic valued the load at ${value}: {fill}% of {certified} cubic "
@@ -189,15 +182,15 @@ class MockAIClient:
             noun = "anomaly" if count == 1 else "anomalies"
             out["anomalies"] = (
                 "Automated compliance rules checked the measured facts against this truck's "
-                "certification, capacity, and the surface-versus-depth relationship, and raised "
-                f"{count} {noun} for review. The rules decide whether a flag fires; the model only "
-                "phrases each one in plain language for the monitor."
+                "certification and capacity, and raised "
+                f"{count} {noun} for review. Fill estimates are not automatically flagged; "
+                "monitors can flag visual concerns during review."
             )
         else:
             out["anomalies"] = (
                 "Automated compliance rules checked the measured facts against certification, "
-                "capacity, "
-                "and the surface-versus-depth relationship, and found nothing to flag on this load."
+                "capacity, identity, and cycle-time rules, and found nothing to flag. "
+                "Visual fill concerns are left for the monitor to flag."
             )
         return out
 

@@ -84,7 +84,7 @@ export function StageInspectorDrawer({
       : `${stage.duration_ms.toLocaleString()} ms`;
 
   const confidenceStr =
-    stage.confidence != null ? `${Math.round(stage.confidence * 100)}%` : "Verified";
+    stage.confidence != null ? `${Math.round(stage.confidence * 100)}%` : "Not reported";
 
   const displayModel = stage.model === "deterministic" ? "Math formula" : stage.model;
 

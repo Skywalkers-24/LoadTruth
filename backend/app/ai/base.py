@@ -81,10 +81,7 @@ class TrackedObject:
     # For the bed this is the bed opening (above the tailgate rim); for the load
     # it is the load inside that opening.
     mask_areas: list[float] = field(default_factory=list)
-    # Load only: the share of the bed's depth the measured coverage stands for
-    # (0..1). The gate camera's opening coverage already reads depth (a lower
-    # load shows more inner wall), so live measurement reports 1.0; fixtures
-    # carry a hand-set depth so their scenarios keep their intended fills.
+    # Legacy SAM geometry metadata. Current fill estimates are Muse-only.
     load_height_ratio: float = 0.0
 
 
@@ -105,12 +102,9 @@ class TrackResult:
     # the model did not supply one (e.g. the fixture mock); the trace then falls
     # back to the stage summary.
     analysis: str = field(default="", compare=False, repr=False)
-    # How the load was measured: "segmented" (a SAM load phrase matched inside
-    # the bed) or "none" (no phrase matched). "none" reads 0% and flags the
-    # ticket for review; the pipeline never substitutes a non-AI guess.
+    # Whether SAM matched a load phrase; retained for tracking and audit only.
     load_source: str = "segmented"
-    # Interquartile spread of the per-frame coverages (0..1); a wide spread means
-    # the frames disagree and lowers confidence.
+    # Legacy per-frame SAM coverage spread; no longer used for fill confidence.
     coverage_spread: float = 0.0
     # Version of the measurement method that produced these numbers
     # (app.ai.sam_measure.MEASURE_VERSION); 0 for fixtures. A stored result from
@@ -144,7 +138,7 @@ class OCRResult:
 
 @dataclass(frozen=True, slots=True)
 class ClassifyResult:
-    """Muse Spark Stage-5 debris classification."""
+    """Muse Spark Stage-5 debris classification and per-frame visual fill estimates."""
 
     debris_class: str
     confidence: float
@@ -192,10 +186,8 @@ class AIClient(Protocol):
         """Muse Spark: read the truck placard from the clearest frame."""
         ...
 
-    async def classify_debris(
-        self, clip: ClipMedia, *, sam_coverage_pct: list[float] | None = None
-    ) -> ClassifyResult:
-        """Muse Spark: classify the load and estimate fill from SAM-grounded frames."""
+    async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
+        """Muse Spark: classify debris and estimate fill from the supplied video frames."""
         ...
 
     async def narrate_anomaly(self, anomaly_type: str, facts: dict[str, str]) -> Narration:

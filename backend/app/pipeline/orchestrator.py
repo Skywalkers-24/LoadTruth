@@ -17,6 +17,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
+from statistics import median
 from uuid import UUID, uuid4
 
 from app.ai.base import AIClient, CallUsage, ClipMedia, OCRResult, StageExplanations
@@ -27,23 +28,12 @@ from app.ai.serde import MUSE_FILL_VERSION
 from app.config import get_settings
 from app.pipeline.anomalies import Anomaly, AnomalyInput, evaluate
 from app.pipeline.cache import ResultCache
-from app.pipeline.geometry import FillEstimate, MaskMeasurement, estimate_fill
 from app.pipeline.ingest import IngestedArtifact
 from app.pipeline.ledger import BudgetExceededError, CostLedger
 from app.pipeline.registry import TruckRegistry
 from app.pipeline.trace import PipelineTrace, StageRecord
 from app.tickets.domain import Ticket, new_ticket
 from app.tickets.schemas import DebrisClass
-
-# How the load was measured, in the trace's plain words.
-_LOAD_SOURCE_LABEL = {
-    "segmented": "SAM load mask",
-    "none": "No SAM load phrase matched inside the bed",
-}
-_BED_SOURCE_LABEL = {
-    "bed": "SAM truck bed mask",
-    "truck": "SAM whole-truck mask (no bed phrase matched)",
-}
 
 # Stage names used in the cost ledger (also the dashboard's per-stage buckets).
 _AI_STAGES = ("sam_track", "spark_ocr", "spark_classify")
@@ -55,25 +45,11 @@ class PipelineResult:
     ticket: Ticket
     anomalies: list[Anomaly] = field(default_factory=list)
     identity_confidence: float = 0.0
-    fill_confidence: float = 0.0
+    fill_confidence: float | None = None
     no_truck: bool = False
     trace: PipelineTrace | None = None
     # SAM's raw output per concept, for the Review console overlay.
     segments: dict[str, str] = field(default_factory=dict)
-
-
-def _mask_measurement(track_bed_area: float, load_area: float, height: float) -> MaskMeasurement:
-    return MaskMeasurement(bed_area=track_bed_area, load_area=load_area, load_height_ratio=height)
-
-
-def _sam_coverage_pct(bed_areas: list[float], load_areas: list[float]) -> list[float]:
-    """Return aligned per-frame SAM opening coverage for Muse's visual estimate."""
-    if len(bed_areas) != len(load_areas):
-        raise ValueError("SAM bed and load areas must align frame by frame.")
-    return [
-        round(100 * load / bed, 2) if bed > 0 else 0.0
-        for bed, load in zip(bed_areas, load_areas, strict=True)
-    ]
 
 
 async def run_pipeline(
@@ -218,12 +194,11 @@ async def _compute_pipeline(
             duration_ms=_latency(tracks.usage),
         )
 
-    # Stage 3 (Spark OCR) and the Stage 5 debris class (Spark classify) are
-    # independent of each other and of the geometry, so they run concurrently.
-    sam_coverage_pct = _sam_coverage_pct(bed.mask_areas, debris.mask_areas)
+    # Stage 3 (Spark OCR) and Stage 5 (Spark classification and visual fill)
+    # are independent of each other and run concurrently.
     ocr, classify = await asyncio.gather(
         ai.read_placard(clip),
-        ai.classify_debris(clip, sam_coverage_pct=sam_coverage_pct),
+        ai.classify_debris(clip),
     )
     await _record(ledger, "spark_ocr", ocr.usage)
     if trace:
@@ -272,62 +247,35 @@ async def _compute_pipeline(
             ],
         )
 
-    # Stage 5 — SAM supplies spatial evidence; Muse's multi-frame median sets fill.
-    bed_area = _avg(bed.mask_areas)
-    load_area = _avg(debris.mask_areas)
-    fill = estimate_fill(
-        [_mask_measurement(bed_area, load_area, debris.load_height_ratio)],
-        load_source=tracks.load_source,
-        bed_source=tracks.bed_source,
-        coverage_spread=tracks.coverage_spread,
+    # Stage 5 — Muse estimates fill from the supplied video frames. SAM masks
+    # are kept for tracking/evidence, but do not determine or validate fill.
+    muse_frame_fills = list(classify.frame_fill_pcts)
+    if not muse_frame_fills:
+        raise ValueError("Muse Spark did not return any per-frame fill estimates.")
+    fill_pct = Decimal(str(median(muse_frame_fills))).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
     )
-    muse_frame_fills = classify.frame_fill_pcts
-    muse_fill_pct = classify.visual_fill_pct
-    fill_pct = (
-        Decimal(str(muse_fill_pct)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        if muse_fill_pct is not None
-        else fill.fill_pct
-    )
-    fill_source = (
-        f"Muse Spark median of {len(muse_frame_fills)} frame estimates"
-        if muse_fill_pct is not None
-        else "SAM mask geometry"
-    )
+    fill_source = "Muse Spark per-frame median"
     await _record(ledger, "geometry")
     if trace:
-        weak = bool(fill.quality_notes)
         geometry_details = [
-            ["Frames measured", str(len(bed.mask_areas))],
-            ["Bed opening, average", f"{bed_area:,.0f} px"],
-            ["Load inside the opening, average", f"{load_area:,.0f} px"],
-            ["Bed measured by", _BED_SOURCE_LABEL.get(tracks.bed_source, tracks.bed_source)],
-            ["Load measured by", _LOAD_SOURCE_LABEL.get(tracks.load_source, tracks.load_source)],
-            ["Opening coverage", f"{fill.planar_coverage:.0%}"],
-            ["SAM mask-based fill", f"{fill.fill_pct:.2f}%"],
-            ["Depth factor", f"{fill.depth_factor:.2f}"],
-            ["Frame agreement (spread)", f"{tracks.coverage_spread:.0%}"],
+            ["Fill estimated by", "Muse Spark visual assessment"],
+            ["Frames estimated", str(len(muse_frame_fills))],
+            ["SAM used for fill", "No"],
+            ["Muse per-frame fill", ", ".join(f"{value:.2f}%" for value in muse_frame_fills)],
+            ["Muse combined fill (median)", f"{fill_pct:.2f}%"],
+            ["Fill selected from", fill_source],
+            ["Fill", f"{fill_pct:.2f}%"],
         ]
-        if muse_frame_fills:
-            geometry_details.append(
-                ["Muse per-frame fill", ", ".join(f"{value:.2f}%" for value in muse_frame_fills)]
-            )
-        if muse_fill_pct is not None:
-            geometry_details.append(["Muse combined fill (median)", f"{muse_fill_pct:.2f}%"])
-        geometry_details.append(["Fill selected from", fill_source])
-        geometry_details += [["Review note", n] for n in fill.quality_notes]
-        geometry_details.append(["Fill", f"{fill_pct:.2f}%"])
         trace.stage(
             "geometry",
             "Measure fill",
             "geometry",
             (
-                f"Estimated bed fill at {fill_pct:.2f}%; flagged for review "
-                "because the measurement is weak."
-                if weak
-                else f"Estimated bed fill at {fill_pct:.2f}% using {fill_source}."
+                f"Muse Spark estimated fill across {len(muse_frame_fills)} frames; "
+                f"the median is {fill_pct:.2f}%."
             ),
-            status="flagged" if weak else "ok",
-            confidence=fill.confidence,
+            status="ok",
             details=geometry_details,
         )
     await _record(ledger, "spark_classify", classify.usage)
@@ -372,9 +320,6 @@ async def _compute_pipeline(
             truck_is_certified=match.found,
             certified_cubic_yards=certified if match.found else None,
             est_cubic_yards=ticket.est_cubic_yards,
-            est_fill_pct=ticket.est_fill_pct,
-            fill_confidence=fill.confidence,
-            planar_coverage=fill.planar_coverage,
             identity_confidence=ocr.confidence,
             evidence_frame=ocr.frame_ref,
         )
@@ -439,7 +384,6 @@ async def _compute_pipeline(
                 match_found=match.found,
                 certified=certified,
                 body_type=body_type,
-                fill=fill,
                 fill_pct=fill_pct,
                 fill_source=fill_source,
                 muse_frame_fills=list(muse_frame_fills),
@@ -456,7 +400,7 @@ async def _compute_pipeline(
         ticket=ticket,
         anomalies=anomalies,
         identity_confidence=ocr.confidence,
-        fill_confidence=fill.confidence,
+        fill_confidence=None,
         segments=dict(tracks.segments),
     )
 
@@ -507,7 +451,6 @@ def _explain_facts(
     match_found: bool,
     certified: Decimal,
     body_type: str | None,
-    fill: FillEstimate,
     fill_pct: Decimal,
     fill_source: str,
     muse_frame_fills: list[float],
@@ -530,12 +473,8 @@ def _explain_facts(
         "body_type": body_type or "unknown",
         "fill_pct": str(fill_pct),
         "fill_source": fill_source,
-        "sam_mask_fill_pct": str(fill.fill_pct),
+        "muse_frame_count": len(muse_frame_fills),
         "muse_frame_fill_pcts": muse_frame_fills,
-        "fill_confidence": round(fill.confidence, 2),
-        "fill_review_notes": list(fill.quality_notes),
-        "planar_coverage": round(fill.planar_coverage, 2),
-        "depth_factor": round(fill.depth_factor, 2),
         "debris_class": debris_class.value,
         "rate_per_cy": str(rate),
         "est_cubic_yards": str(ticket.est_cubic_yards),
@@ -660,10 +599,6 @@ def _empty_ticket(tenant_id: UUID, event_id: UUID, _hash: str) -> Ticket:
         rate_per_cy=0,
         est_fill_pct=0,
     )
-
-
-def _avg(values: list[float]) -> float:
-    return sum(values) / len(values) if values else 0.0
 
 
 def _safe_debris_class(value: str) -> DebrisClass:

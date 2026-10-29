@@ -59,9 +59,7 @@ class CountingAIClient:
         self.ocr_calls += 1
         return OCRResult(truck_id="FL-DT-3391", confidence=0.93, frame_ref="frame-7")
 
-    async def classify_debris(
-        self, clip: ClipMedia, *, sam_coverage_pct: list[float] | None = None
-    ) -> ClassifyResult:
+    async def classify_debris(self, clip: ClipMedia) -> ClassifyResult:
         self.classify_calls += 1
         return ClassifyResult(
             debris_class="construction_demolition",
@@ -109,7 +107,7 @@ async def test_first_run_calls_model_and_persists(session: AsyncSession) -> None
     # And the raw outputs are now persisted, tenant+hash+stage scoped.
     assert await repo.get_ai_stage_result(TENANT, HASH, "sam_track") is not None
     assert await repo.get_ai_stage_result(TENANT, HASH, "spark_ocr") is not None
-    assert await repo.get_ai_stage_result(TENANT, HASH, "spark_fill_v2") is not None
+    assert await repo.get_ai_stage_result(TENANT, HASH, "spark_fill_v3") is not None
     # Returned values are the model's.
     assert track.frame_count == 12
     assert ocr.truck_id == "FL-DT-3391"
@@ -306,4 +304,4 @@ async def test_parallel_perception_does_not_share_a_database_session_concurrentl
     client = CachingAIClient(CountingAIClient(), repo, TENANT)
     await asyncio.gather(client.read_placard(CLIP), client.classify_debris(CLIP))
     assert await original_get(TENANT, HASH, "spark_ocr") is not None
-    assert await original_get(TENANT, HASH, "spark_fill_v2") is not None
+    assert await original_get(TENANT, HASH, "spark_fill_v3") is not None

@@ -49,7 +49,7 @@ export default function GuidePage() {
               n={2}
               icon={<GaugeIcon className="size-5" />}
               title="Measure the fill"
-              body="Meta SAM 3.1 segments the bed and the debris; the geometry estimator turns those masks into a fill percentage, then applies the truck's certified capacity to get cubic yards."
+              body="Muse Spark estimates fill visually from multiple sampled frames, and the pipeline takes their median. SAM tracks the truck and load but does not calculate fill."
             />
             <Step
               n={3}
@@ -87,16 +87,17 @@ export default function GuidePage() {
                   get the bed&apos;s registered cubic-yard capacity.
                 </li>
                 <li>
-                  <B>Measure fill.</B> Combines the video outlines with bed height to calculate the
-                  fill percentage directly from video pixels.
+                  <B>Measure fill.</B> Meta Muse Spark estimates fill from each sampled frame; the
+                  pipeline combines the estimates using their median. SAM segmentation is not used
+                  to calculate fill.
                 </li>
                 <li>
                   <B>Classify debris.</B> Meta Muse Spark labels the load as vegetative, C&amp;D, white
                   goods, hazardous, or other, which selects the contract rate.
                 </li>
                 <li>
-                  <B>Flag anomalies.</B> Safety checks inspect the load and raise flags for
-                  issues like overfilling or empty voids. Meta Muse Spark explains each one clearly for a reviewer.
+                  <B>Flag anomalies.</B> Automated rules can flag identity, certification, capacity,
+                  and cycle-time issues. Monitors review fill quality and can flag visual concerns.
                 </li>
                 <li>
                   <B>Value the load.</B> Exact billing calculations produce the measured dollar value
@@ -104,7 +105,8 @@ export default function GuidePage() {
                 </li>
               </ol>
               <p className="text-[12px] text-[var(--color-subtle)]">
-                Visual detection uses Meta SAM 3.1 and Muse Spark. Capacity, fill percentage, and dollar calculations follow exact math so the AI never guesses prices.
+                SAM tracks the truck and load; Muse Spark estimates fill visually. Certified capacity,
+                rates, and dollar calculations use deterministic records and exact arithmetic.
               </p>
             </Section>
 
@@ -176,8 +178,8 @@ export default function GuidePage() {
               title="Anomaly flags and what they mean"
             >
               <p>
-                Flags are automatic prompts to look closer. They never block a decision, they focus
-                it.
+                Compliance flags are automatic prompts to look closer. Fill quality is not
+                automatically flagged; monitors review the video and may dispute the ticket.
               </p>
               <div className="overflow-hidden rounded-lg border border-border">
                 <table className="w-full text-[13px]">
@@ -201,16 +203,6 @@ export default function GuidePage() {
                       sev="Warn"
                       flag="Placard unreadable"
                       meaning="The truck ID could not be read confidently. Identify it manually before certifying."
-                    />
-                    <FlagRow
-                      sev="Warn"
-                      flag="Surface high, depth low"
-                      meaning="The load surface spans most of the bed opening but the measured depth is low. Review the surface against the depth before crediting the volume."
-                    />
-                    <FlagRow
-                      sev="Info"
-                      flag="Low confidence"
-                      meaning="The fill estimate is uncertain from occlusion or extreme fill. Confirm the measurement manually."
                     />
                   </tbody>
                 </table>

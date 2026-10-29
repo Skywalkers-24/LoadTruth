@@ -146,7 +146,7 @@ class FakeMeta:
             answer = {
                 "sam_track": "I tracked the truck, bed, and debris across the frames.",
                 "capacity": "The truck matched a certified record.",
-                "geometry": "I measured the bed fill from the masks.",
+                "geometry": "Muse Spark estimated fill visually in each frame.",
                 "anomalies": "The rules found nothing to flag.",
                 "dollar_math": "I valued the load by exact arithmetic.",
             }
@@ -276,8 +276,8 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     )
     classify_content = classify_body["input"][0]["content"]
     assert sum(part["type"] == "input_image" for part in classify_content) == 4
-    assert "SAM segmentation context" in classify_content[0]["text"]
-    assert "projected mask-area ratios" in classify_content[0]["text"]
+    assert "SAM" not in classify_content[0]["text"]
+    assert "pixel-area ratios" in classify_content[0]["text"]
     for body in fake.responses:
         content = body["input"][0]["content"]
         if (body.get("text") or {}).get("format", {}).get("name") != "spark_classify":
@@ -302,7 +302,9 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert stages["sam_track"]["Billed"] == "300 frames (6 requests)"
     assert stages["sam_track"]["Bed measured from"] == '"open truck bed interior"'
     assert stages["sam_track"]["Load named by Muse Spark"] == '"steel drums"'
-    assert stages["geometry"]["Frames measured"] == "2"
+    assert stages["geometry"]["Frames estimated"] == "4"
+    assert stages["geometry"]["SAM used for fill"] == "No"
+    assert stages["geometry"]["Muse per-frame fill"] == "50.00%, 50.00%, 50.00%, 50.00%"
 
     # Meta AI authored the per-stage "AI analysis": OCR/classify carry their own,
     # and the batched explain_pipeline call fills in the rest.
@@ -310,7 +312,7 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert analysis["spark_ocr"] == "I read the placard from the clearest frame."
     assert analysis["spark_classify"] == "The load is mostly damaged building materials."
     assert analysis["sam_track"] == "I tracked the truck, bed, and debris across the frames."
-    assert analysis["geometry"] == "I measured the bed fill from the masks."
+    assert analysis["geometry"] == "Muse Spark estimated fill visually in each frame."
     assert analysis["dollar_math"] == "I valued the load by exact arithmetic."
 
     rows = {r.stage: r for r in await ledger.rows()}
@@ -384,9 +386,10 @@ async def test_muse_multiframe_median_sets_two_decimal_fill() -> None:
     geometry = dict(next(s for s in result.trace.stages if s.key == "geometry").details)
     assert geometry["Muse per-frame fill"] == "91.23%, 89.87%, 90.01%, 40.00%"
     assert geometry["Muse combined fill (median)"] == "89.94%"
-    assert geometry["Fill selected from"] == "Muse Spark median of 4 frame estimates"
+    assert geometry["Fill selected from"] == "Muse Spark per-frame median"
     assert geometry["Fill"] == "89.94%"
-    assert "Review note" not in geometry
+    assert geometry["SAM used for fill"] == "No"
+    assert "SAM mask-based fill" not in geometry
     assert "low_confidence" not in {a.type.value for a in result.anomalies}
 
 

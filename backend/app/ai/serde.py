@@ -19,9 +19,9 @@ from app.ai.base import ClassifyResult, OCRResult, TrackedObject, TrackResult
 # Stage keys — must match the pipeline's AI stages and the cost-ledger buckets.
 STAGE_TRACK = "sam_track"
 STAGE_OCR = "spark_ocr"
-# New SAM-guided, multi-frame Muse fill output must not replay old classify-only rows.
-STAGE_CLASSIFY = "spark_fill_v2"
-MUSE_FILL_VERSION = 1
+# Muse-only, multi-frame fill output must not replay older SAM-guided results.
+STAGE_CLASSIFY = "spark_fill_v3"
+MUSE_FILL_VERSION = 2
 
 
 def track_to_json(r: TrackResult) -> dict[str, Any]:

@@ -6,6 +6,7 @@ from decimal import Decimal
 
 import pytest
 
+from app.ai.base import ClipMedia, TrackedObject, TrackResult
 from app.ai.mock import MockAIClient
 from app.pipeline.anomalies import AnomalyInput, AnomalyType, evaluate
 from app.pipeline.geometry import MaskMeasurement, estimate_fill
@@ -85,9 +86,6 @@ def _base(**kw: object) -> AnomalyInput:
         truck_is_certified=True,
         certified_cubic_yards=Decimal(20),
         est_cubic_yards=Decimal(10),
-        est_fill_pct=Decimal(50),
-        fill_confidence=0.9,
-        planar_coverage=0.5,
         identity_confidence=0.95,
     )
     return dataclasses.replace(base, **kw)  # type: ignore[arg-type]
@@ -101,11 +99,6 @@ def test_uncertified_truck_flagged() -> None:
 def test_capacity_exceeded_flagged() -> None:
     flags = evaluate(_base(est_cubic_yards=Decimal(30), certified_cubic_yards=Decimal(20)))
     assert any(f.type is AnomalyType.CAPACITY_EXCEEDED for f in flags)
-
-
-def test_surface_depth_mismatch_flagged() -> None:
-    flags = evaluate(_base(planar_coverage=0.9, est_fill_pct=Decimal(30)))
-    assert any(f.type is AnomalyType.SURFACE_DEPTH_MISMATCH for f in flags)
 
 
 def test_unreadable_identity_flagged() -> None:
@@ -177,6 +170,53 @@ async def test_pipeline_drafts_ticket_from_fixture() -> None:
     assert result.ticket.truck_id == "FL-DT-3391"
     assert result.ticket.est_dollar_value > 0
     assert result.ticket.est_fill_pct > Decimal(60)
+    assert result.fill_confidence is None
+    assert not any(
+        anomaly.type in {AnomalyType.LOW_CONFIDENCE, AnomalyType.SURFACE_DEPTH_MISMATCH}
+        for anomaly in result.anomalies
+    )
+    assert result.trace is not None
+    geometry = next(stage for stage in result.trace.stages if stage.key == "geometry")
+    geometry_details = dict(geometry.details)
+    assert geometry.status == "ok"
+    assert geometry_details["SAM used for fill"] == "No"
+    assert "SAM mask-based fill" not in geometry_details
+
+
+@pytest.mark.asyncio
+async def test_empty_sam_load_mask_does_not_override_muse_or_flag_fill() -> None:
+    class NoLoadSAM(MockAIClient):
+        async def track(self, clip: ClipMedia) -> TrackResult:
+            result = await super().track(clip)
+            return TrackResult(
+                objects=[
+                    TrackedObject(
+                        item.label,
+                        item.sam_object_id,
+                        (
+                            [0.0] * len(item.mask_areas)
+                            if item.label == "debris pile"
+                            else item.mask_areas
+                        ),
+                        item.load_height_ratio,
+                    )
+                    for item in result.objects
+                ],
+                frame_count=result.frame_count,
+                load_source="none",
+            )
+
+    result = await run_pipeline(
+        artifact=_artifact("clean-full-cd"),
+        tenant_id=DEMO_TENANT_ID,
+        event_id=DEMO_EVENT_ID,
+        registry=TruckRegistry([CertifiedTruck("FL-DT-3391", Decimal(20), "tandem")]),
+        rate_table={"construction_demolition": 12.0},
+        ai=NoLoadSAM(),
+    )
+
+    assert result.ticket.est_fill_pct == Decimal("89.80")
+    assert result.anomalies == []
 
 
 @pytest.mark.asyncio

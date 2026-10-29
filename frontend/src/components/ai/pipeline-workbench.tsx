@@ -21,7 +21,7 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Meta SAM 3.1 watches the truck footage and draws outlines around the truck bed and the loaded debris across each frame. These outlines show exactly how full the truck is without manual measuring.",
+      "Meta SAM 3.1 tracks the truck, bed, and visible load across the footage. Its masks support visual evidence and tracking; Muse Spark estimates the fill percentage separately.",
     details: [
       ["Vision Model", "Meta SAM 3.1 (Segment Anything Model)"],
       ["Input Footage", "High-definition video clip or sequential camera frames"],
@@ -66,17 +66,17 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
   {
     key: "geometry",
     label: "Measure fill",
-    model: "Load Math",
+    model: "Muse Spark + deterministic median",
     status: "ok",
-    summary: "Calculates the exact percentage the truck bed is filled from the video outlines.",
+    summary: "Combines Muse Spark's visual fill estimates from sampled video frames.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Combines the Meta SAM 3.1 outlines with the truck bed height to calculate the exact fill percentage (0% to 100%). This calculates load volume directly from video frames instead of human guesswork.",
+      "Meta Muse Spark visually estimates fill from each sampled video frame, and the pipeline takes the median of those estimates. SAM mask coverage does not determine the fill percentage.",
     details: [
-      ["Calculation Basis", "Visual load outline compared against bed rails"],
-      ["Measurement Range", "0% (empty) to 100%+ (heaped load)"],
-      ["Transparency", "Calculated directly from video pixels without guessing"],
+      ["Calculation Basis", "Muse Spark's visual assessment of each sampled frame"],
+      ["Measurement Range", "0% (empty) to 100% (full to bed rails)"],
+      ["Combination", "Median of Muse Spark's per-frame estimates"],
       ["Live Status", "Ready to process on video upload"],
     ],
   },
@@ -102,14 +102,14 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
     label: "Flag anomalies",
     model: "Meta Muse Spark 1.3",
     status: "ok",
-    summary: "Checks for billing discrepancies like overfilling or empty pockets.",
+    summary: "Checks identity, certification, capacity, and cycle-time rules.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Automated compliance checks and Meta Muse Spark check for anything abnormal, such as an overfilled bed, hidden empty voids, or an uncertified truck. If an issue is found, it flags the ticket for supervisor review.",
+      "Automated rules can flag identity, certification, capacity, and cycle-time issues. Fill quality is not automatically flagged; monitors can flag visual concerns during review.",
     details: [
-      ["Audit Checks", "Overfilled loads, large voids, uncertified vehicles"],
-      ["Supervisor Review", "Automatically alerts reviewers if an anomaly is detected"],
+      ["Audit Checks", "Identity, certification, capacity, and cycle time"],
+      ["Supervisor Review", "Monitors review the visual estimate and can flag concerns"],
       ["Compliance Standard", "FEMA disaster-debris reimbursement guidelines"],
       ["Live Status", "Ready to process on video upload"],
     ],

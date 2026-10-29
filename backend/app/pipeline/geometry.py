@@ -1,10 +1,7 @@
-"""Stage 5 — fill-% estimation from segmentation geometry (PLAN.md §5).
+"""Legacy SAM mask-geometry estimator for reproducing historical tickets.
 
-This module computes the deterministic SAM mask-coverage baseline. SAM 3.1
-gives per-frame masks for the truck bed and load; :mod:`app.ai.sam_measure`
-turns them into the bed **opening** and load area inside it. The live pipeline
-also sends that spatial evidence to Muse Spark, whose multi-frame median is the
-ticket fill estimate; this module remains the reproducible mask-only fallback.
+Current tickets use Muse Spark's per-frame visual estimates. This module remains
+only for offline reproduction of historical tickets that predate Muse estimates.
 
 Model (measurement v2):
 
@@ -23,13 +20,8 @@ divided by the whole bed mask, tailgate face included, which read a full bed at
 roughly a third of its real fill; it also keyed a depth prior by debris class
 while being handed the truck's body type, so the prior never applied.
 
-Confidence starts from how extreme the estimate is and how well views agree,
-then is capped by measurement quality: no load phrase matched inside the bed,
-the bed outline came from the whole truck, frames that disagree, or a large gap
-from Muse Spark's independent visual read of the same clip. A capped confidence
-trips the low-confidence review flag rather than letting a weak number pass
-silently. Every input here comes from SAM or Muse Spark; this module is the
-local arithmetic that cross-checks them.
+This legacy arithmetic is not used to select or automatically flag current fill
+estimates.
 """
 
 from __future__ import annotations
@@ -39,8 +31,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 _PCT = Decimal("0.01")
 
-# Confidence cap when the fill rests on a weak measurement. Below the anomaly
-# engine's low-confidence threshold (0.45), so the ticket is flagged for review.
+# Legacy confidence cap retained for reproducing historical SAM-based estimates.
 _WEAK_CAP = 0.40
 # Points of disagreement with Muse Spark's visual read that count as a conflict.
 _CROSS_CHECK_POINTS = 20.0

@@ -111,7 +111,7 @@ def _stage_rows(
             "Measure fill",
             "geometry",
             "ok",
-            f"Measured bed fill at {row.est_fill_pct}% from the segmentation masks.",
+            f"Muse Spark's visual fill estimate is {row.est_fill_pct}%; review the footage to confirm.",
             0.9,
         ),
         (

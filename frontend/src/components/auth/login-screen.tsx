@@ -4,16 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowRightIcon,
-  BuildingIcon,
-  DollarSignIcon,
-  FileCheck2Icon,
-  Loader2Icon,
-  ScanEyeIcon,
-  ShieldAlertIcon,
-  SparklesIcon,
-} from "lucide-react";
+import { ArrowRightIcon, Loader2Icon } from "lucide-react";
 
 import { getDirectory, isServerWakingUp, type DirectoryMember, type Role } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -121,18 +112,16 @@ export function LoginScreen() {
           <div className="relative flex max-w-md flex-col gap-3.5 [text-shadow:0_2px_18px_rgba(0,0,0,0.85),0_1px_3px_rgba(0,0,0,0.9)]">
             <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-sm [text-shadow:none]">
               <span className="size-1.5 rounded-full bg-[var(--color-brand)]" aria-hidden />
-              Disaster-debris billing, verified
+              Evidence-backed load review
             </span>
             {/* Highlighted headline: brighter, heavier, with a glow so it pops
                 over the footage. */}
             <h1 className="text-[clamp(26px,2.25vw,32px)] font-extrabold leading-[1.12] tracking-tight text-white">
-              Every debris haul, <span className="text-[#7dd3fc]">measured and verified</span> from
-              real video.
+              A clearer record for every <span className="text-[#7dd3fc]">debris haul.</span>
             </h1>
             <p className="text-[14px] font-medium leading-relaxed text-white/90">
-              Counties pay contractors by the cubic yard to clear debris. LoadTruth measures each
-              truckload from the footage, checks it against the monitor&apos;s call, and produces a
-              payment record ready for a Federal Emergency Management Agency (FEMA) audit.
+              LoadTruth pairs truck video with SAM tracking and Muse&apos;s visual fill estimates,
+              then gives a monitor the evidence and a draft ticket to review.
             </p>
           </div>
         </div>
@@ -140,31 +129,31 @@ export function LoginScreen() {
         {/* Spacer so the footer stays pinned to the bottom. */}
         <div className="flex-1" aria-hidden />
 
-        <div className="relative flex flex-col gap-2 text-[12px] font-medium text-white [text-shadow:0_1px_10px_rgba(0,0,0,0.9),0_1px_2px_rgba(0,0,0,0.9)] sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full bg-[#7dd3fc]" aria-hidden />
-              <span>Powered by <strong className="font-semibold text-white">Meta SAM 3.1 &amp; Muse Spark</strong></span>
-            </span>
-            <span className="text-white/60">·</span>
-            <span className="text-white/90">
-              Hosted on <strong className="font-semibold text-white">Fireworks AI</strong>, <strong className="font-semibold text-white">Modal</strong> &amp; <strong className="font-semibold text-white">Baseten</strong>
-            </span>
+        <div className="relative flex flex-col items-start gap-2 text-[12px] font-medium text-white [text-shadow:0_1px_10px_rgba(0,0,0,0.9),0_1px_2px_rgba(0,0,0,0.9)]">
+          <div className="space-y-1">
+            <p>
+              Models:{" "}
+              <strong className="font-semibold text-white">Meta SAM 3.1 · Muse Spark</strong>
+            </p>
+            <p className="text-white/85">
+              Muse inference options:{" "}
+              <strong className="font-semibold text-white">
+                Meta direct · Fireworks AI · Modal · Baseten
+              </strong>
+            </p>
           </div>
           <a
             href="/showcase"
             className="inline-flex shrink-0 items-center gap-1 font-semibold text-white underline-offset-4 hover:underline"
           >
-            View the public showcase
+            Project overview
             <ArrowRightIcon className="size-3.5" />
           </a>
         </div>
       </div>
 
-      {/* Sign-in panel. The left edge fades in from the video (no hard seam at
-          the column split); the rest sits on the themed background so the card
-          and capability strip stay fully legible. z-10 lifts it above the video
-          layer. Scrolls when the content exceeds the viewport. */}
+      {/* Sign-in panel. The left edge fades in from the video; the card stays
+          legible on the themed background and scrolls on short viewports. */}
       <div className="login-screen-panel relative z-10 flex min-h-0 flex-col items-center justify-start gap-5 overflow-y-auto bg-gradient-to-r from-transparent via-background/80 to-background px-6 pb-6 pt-16 backdrop-blur-md lg:pt-16 xl:pt-20">
         {/* Theme picker — reachable before sign-in so users land in their preferred look. */}
         <div className="absolute right-5 top-5 z-10">
@@ -182,17 +171,6 @@ export function LoginScreen() {
               Choose a member to sign in as. Each role sees a different set of actions.
             </p>
 
-            {/* Sponsor / tech partner badges */}
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              <span className="inline-flex items-center gap-1 rounded-md border border-[var(--color-brand)]/30 bg-[var(--color-brand-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-brand)]">
-                <SparklesIcon className="size-3" />
-                Meta SAM 3.1 &amp; Muse Spark
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/60 px-2 py-0.5 text-[10.5px] font-medium text-muted-foreground">
-                Hosted on <strong className="font-semibold text-foreground">Fireworks AI</strong>, <strong className="font-semibold text-foreground">Modal</strong> &amp; <strong className="font-semibold text-foreground">Baseten</strong>
-              </span>
-            </div>
-
             <div className="login-screen-member-list mt-5 flex flex-col gap-2">
               {directory.isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
@@ -206,7 +184,8 @@ export function LoginScreen() {
                       <span>Backend server is waking up on Render...</span>
                     </div>
                     <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
-                      Render&apos;s free tier spins down after 15 minutes of inactivity. Starting the container takes ~30–60 seconds. Reconnecting automatically...
+                      Render&apos;s free tier spins down after 15 minutes of inactivity. Starting
+                      the container takes ~30–60 seconds. Reconnecting automatically...
                     </p>
                   </div>
                 ) : (
@@ -285,94 +264,7 @@ export function LoginScreen() {
             </div>
           </div>
         </div>
-
-        {/* Condensed proof strip below the card. It spans the full right-side
-            width (not the card's max-w) so the three numbers and the six
-            capabilities each read in a single row on desktop. */}
-        <div className="login-screen-proof flex w-full max-w-3xl flex-col gap-2.5">
-          <div className="grid grid-cols-3 gap-2">
-            <MiniStat value="$1,402" label="Over-calls / event" />
-            <MiniStat value="7" label="AI stages / clip" />
-            <MiniStat value="100%" label="Verified by video" />
-          </div>
-          {/* Six compact capabilities in one horizontal row on desktop. They
-            wrap to a 3-up then 2-up grid only on narrow screens where a single
-            row can't fit, keeping each card equal width. */}
-          <ul className="login-screen-features grid grid-cols-2 gap-1.5 min-[480px]:grid-cols-3 lg:grid-cols-6">
-            <MiniFeature
-              icon={<ScanEyeIcon className="size-3.5" />}
-              title="Measured"
-              subtitle="SAM 3.1"
-            />
-            <MiniFeature
-              icon={<DollarSignIcon className="size-3.5" />}
-              title="Money frame"
-              subtitle="Video proof"
-            />
-            <MiniFeature
-              icon={<ShieldAlertIcon className="size-3.5" />}
-              title="Anomaly"
-              subtitle="Risk checks"
-            />
-            <MiniFeature
-              icon={<SparklesIcon className="size-3.5" />}
-              title="AI analyst"
-              subtitle="Muse Spark"
-            />
-            <MiniFeature
-              icon={<FileCheck2Icon className="size-3.5" />}
-              title="Audit exports"
-              subtitle="Audit trail"
-            />
-            <MiniFeature
-              icon={<BuildingIcon className="size-3.5" />}
-              title="Multi-tenant"
-              subtitle="Role isolation"
-            />
-          </ul>
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-[var(--color-surface)]/70 px-3 py-1.5 text-[11px] text-muted-foreground backdrop-blur-sm">
-            <span>Inference infrastructure:</span>
-            <span className="font-medium text-foreground">
-              Fireworks AI · Modal · Baseten
-            </span>
-          </div>
-        </div>
       </div>
     </div>
-  );
-}
-
-/** Compact stat chip shown under the sign-in card (short label, no sentence). */
-function MiniStat({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-[var(--color-surface)]/70 px-2 py-1.5 text-center backdrop-blur-sm">
-      <div className="text-[13px] font-bold tabular-nums text-foreground">{value}</div>
-      <div className="mt-0.5 text-[9.5px] leading-tight text-muted-foreground">{label}</div>
-    </div>
-  );
-}
-
-/**
- * Compact capability card: small icon above a short title and a one-word
- * subtitle naming the model or evidence behind it. Sized to sit six across in
- * one row under the sign-in card; wraps to a 3-up/2-up grid on narrow screens.
- */
-function MiniFeature({
-  icon,
-  title,
-  subtitle,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <li className="flex flex-col items-center gap-1 rounded-lg border border-border bg-[var(--color-surface)]/70 px-1.5 py-1.5 text-center backdrop-blur-sm">
-      <span className="grid size-5 shrink-0 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
-        {icon}
-      </span>
-      <span className="text-[10px] font-semibold leading-tight text-foreground">{title}</span>
-      <span className="text-[9px] leading-tight text-muted-foreground">{subtitle}</span>
-    </li>
   );
 }

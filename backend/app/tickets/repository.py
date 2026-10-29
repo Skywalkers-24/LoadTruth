@@ -171,7 +171,8 @@ class ReportsSummaryData:
 class ReverifyResult:
     """Outcome of replaying a ticket's measurement from its stored evidence.
 
-    ``reproducible`` is True when the fill % recomputed from the stored SAM masks
+    ``reproducible`` is True when the fill % recomputed from stored Muse estimates
+    or legacy SAM masks
     equals the ticket's stored fill %. ``receipt_hash`` is the SHA-256 fingerprint
     of every pinned input; ``receipt_inputs`` is the canonical input record behind
     that hash (shown to an auditor and encoded in the ticket/packet QR).
@@ -579,6 +580,15 @@ class SqlTicketRepository:
         classify_json = await self.get_ai_stage_result(
             tenant_id, evidence.content_hash, classify_key
         )
+        if classify_json is None:
+            legacy_classify_key = (
+                f"spark_fill_v2:{evidence.ai_cache_namespace}"
+                if evidence.ai_cache_namespace
+                else "spark_fill_v2"
+            )
+            classify_json = await self.get_ai_stage_result(
+                tenant_id, evidence.content_hash, legacy_classify_key
+            )
         raw_frame_fills = classify_json.get("frame_fill_pcts") if classify_json else None
         muse_frame_fills: list[float] = []
         if isinstance(raw_frame_fills, list):

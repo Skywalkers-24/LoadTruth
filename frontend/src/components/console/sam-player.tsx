@@ -74,6 +74,7 @@ interface Props {
   videoUrl?: string | null;
   videoRef?: React.RefObject<HTMLVideoElement | null>;
   hideControls?: boolean;
+  autoPlay?: boolean;
   className?: string;
 }
 
@@ -90,10 +91,12 @@ export function SamPlayer({
   videoUrl,
   videoRef: externalVideoRef,
   hideControls,
+  autoPlay = true,
   className,
 }: Props) {
   const [url, setUrl] = useState<string | null>(videoUrl ?? null);
   const [failed, setFailed] = useState(false);
+  const [readyUrl, setReadyUrl] = useState<string | null>(null);
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(true);
@@ -198,6 +201,8 @@ export function SamPlayer({
   const layers = frameLayers(tracks.bed, tracks.load, tracks.rim, frame);
   const bodyShapes = tracks.body.frames.get(frame) ?? [];
   const { bed, rim, loads } = layers;
+  const videoReady = url !== null && readyUrl === url;
+  const showMasks = isImage || videoReady;
   const openingId = `${loadClipId}-opening`;
   const exteriorId = `${loadClipId}-exterior`;
   const bodyMaskId = `${loadClipId}-body-mask`;
@@ -239,7 +244,7 @@ export function SamPlayer({
               ref={videoRef}
               src={url}
               className="size-full object-contain"
-              autoPlay
+              autoPlay={autoPlay}
               muted={muted}
               loop
               playsInline
@@ -247,11 +252,20 @@ export function SamPlayer({
               onPause={() => setPlaying(false)}
               onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
               onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+              onLoadedData={() => setReadyUrl(url)}
               onError={() => setFailed(true)}
               aria-label="Evidence clip with segmentation overlay"
             />
           ))}
-        {width > 0 && height > 0 && (
+        {url && !isImage && !videoReady && (
+          <div className="absolute inset-0 grid place-items-center bg-black/80 text-xs text-white/80">
+            <span className="flex items-center gap-2">
+              <Loader2Icon className="size-4 animate-spin" />
+              Synchronizing footage and masks…
+            </span>
+          </div>
+        )}
+        {showMasks && width > 0 && height > 0 && (
           <svg
             viewBox={`0 0 ${width} ${height}`}
             preserveAspectRatio="xMidYMid meet"

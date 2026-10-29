@@ -84,8 +84,8 @@ double underscore `__`):
 |---|---|---|---|---|
 | `clean-full-cd` | FL-DT-3391 | Construction & demolition | ~90% (full) | none (baseline) |
 | `clean-partial-veg` | FL-DT-2204 | Vegetative | ~40% (partial) | none |
-| `hollow-load` | FL-DT-4417 | Vegetative | surface high, depth low | surface_depth_mismatch |
-| `low-confidence-placard` | (unreadable) | Construction & demolition | ~55% | identity_unreadable / low_confidence |
+| `hollow-load` | FL-DT-4417 | Vegetative | ~38% from Muse frame median | none; monitor reviews fill |
+| `low-confidence-placard` | (unreadable) | Construction & demolition | ~55% | identity_unreadable |
 | `uncertified-truck` | FL-ZZ-0000 (not in registry) | Vegetative | ~70% | uncertified_truck |
 | `no-truck` | (none) | none | n/a | empty footage, no ticket |
 
@@ -417,7 +417,8 @@ anomalies. The "everything works" reference clip.
 **Filename:** `hollow-load__demo.mp4`
 **Truck:** T4 walking-floor trailer, FL-DT-4417, certified 30 CY.
 **Pipeline shows:** FL-DT-4417, vegetative, surface spans the bed but shallow
-depth, trips `surface_depth_mismatch` (the classic fluffed load).
+depth. Muse Spark estimates the fill visually from the sampled frames; the pipeline
+does not automatically flag fill quality, leaving that decision to the monitor.
 
 > Fixed CCTV security camera mounted high on a steel gate arch at the entrance to a
 > temporary disaster debris management site (TDMS), angled down and forward over the lane
@@ -762,11 +763,12 @@ the rails, trips `capacity_exceeded`. Vegetative.
 > the top-left corner: "CAM 01" on the first line and a running date-time stamp
 > "2026-10-28 12:55:40" on the second. 10 seconds, 24 fps, realistic surveillance look.
 
-## 15 — T4 walking-floor, fluffed load (surface_depth_mismatch)
+## 15 — T4 walking-floor, shallow visible load
 
 **Filename:** `live-15-walkingfloor-fluffed.mp4`
 **Truck:** T4 walking-floor, FL-DT-9014, certified 32 CY. **Load:** surface spans
-the trailer but shallow, trips `surface_depth_mismatch`. Vegetative.
+the trailer but shallow. Muse Spark estimates the fill from the video frames;
+the monitor decides whether the visual estimate needs a dispute or override.
 
 > Fixed CCTV security camera mounted high on a steel gate arch at the gate of a green-waste
 > composting yard, angled down and forward at about a 45 degree angle, completely locked
