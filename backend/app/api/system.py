@@ -7,14 +7,10 @@ pipeline (and whether they are live or fixture-backed). Read-only.
 
 from __future__ import annotations
 
-import asyncio
-import json
-from collections.abc import AsyncIterator
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.ai import catalog
@@ -31,10 +27,9 @@ from app.auth.roles import can_manage_events
 from app.config import get_settings
 from app.pipeline.trace import (
     PipelineTrace,
-    ProgressEvent,
     StageRecord,
     get_job_store,
-    get_progress_broker,
+    get_progress_store,
 )
 from app.tickets.repository import TicketNotFoundError
 
@@ -272,60 +267,56 @@ async def job_for_ticket(
     return _job_out(str(ticket.event_id), tr) if tr else None
 
 
-# ── Live pipeline progress (SSE) ──────────────────────────────────────────────
+# ── Live pipeline progress (polled) ───────────────────────────────────────────
 
 
-def _progress_payload(ev: ProgressEvent) -> dict[str, object]:
-    """One progress event as a JSON-safe dict for the SSE stream."""
-    return {
-        "kind": ev.kind,
-        "content_hash": ev.content_hash,
-        "stage": _stage_out(ev.stage).model_dump() if ev.stage is not None else None,
-        "outcome": ev.outcome,
-        "ticket_id": ev.ticket_id,
-        "truck_id": ev.truck_id,
-        "detail": ev.detail,
-        "at": ev.at,
-    }
+class ProgressOut(BaseModel):
+    """The current (or most recent) pipeline run for an event, for the UI to poll.
+
+    ``status`` is "running" or "done"; the UI keeps polling while it is running
+    and stops once it is done. Because the server holds this, a page refreshed
+    mid-run still shows the in-flight run instead of a blank upload box.
+    """
+
+    event_id: str
+    content_hash: str
+    status: str
+    outcome: str | None = None
+    ticket_id: str | None = None
+    truck_id: str | None = None
+    detail: str | None = None
+    started_at: float
+    updated_at: float
+    revision: int
+    stages: list[StageOut]
 
 
-async def _progress_stream(event_id: UUID) -> AsyncIterator[bytes]:
-    """Server-sent events for one event's in-flight pipeline runs.
-
-    Replays the recent backlog (so a page that connects mid-run still sees the
-    stages that already happened), then streams new events as they arrive. A
-    periodic comment keeps the connection alive through proxies."""
-    broker = get_progress_broker()
-    backlog, queue = await broker.subscribe(event_id)
-    try:
-        for ev in backlog:
-            yield f"data: {json.dumps(_progress_payload(ev))}\n\n".encode()
-        while True:
-            try:
-                ev = await asyncio.wait_for(queue.get(), timeout=20.0)
-            except TimeoutError:
-                yield b": keep-alive\n\n"
-                continue
-            yield f"data: {json.dumps(_progress_payload(ev))}\n\n".encode()
-    finally:
-        await broker.unsubscribe(event_id, queue)
-
-
-@router.get("/events/{event_id}/pipeline-progress")
+@router.get("/events/{event_id}/pipeline-progress", response_model=ProgressOut | None)
 async def pipeline_progress(
     _: CurrentMember, tenant: ActiveTenant, repo: Repository, event_id: UUID
-) -> StreamingResponse:
-    """Stream live pipeline stage events for an event (SSE).
+) -> ProgressOut | None:
+    """The latest pipeline run for an event (polled every few seconds by the UI).
 
-    Tenant-scoped: a caller can only watch events their tenant owns, so one
-    tenant's live runs are never visible to another."""
+    Returns null when no run has happened for this event yet. Tenant-scoped: a
+    caller can only see runs for events their tenant owns."""
     owned = {str(e.id) for e in await repo.list_events(tenant)}
     if str(event_id) not in owned:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "event not found")
-    return StreamingResponse(
-        _progress_stream(event_id),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    snap = await get_progress_store().latest(event_id)
+    if snap is None:
+        return None
+    return ProgressOut(
+        event_id=snap.event_id,
+        content_hash=snap.content_hash,
+        status=snap.status,
+        outcome=snap.outcome,
+        ticket_id=snap.ticket_id,
+        truck_id=snap.truck_id,
+        detail=snap.detail,
+        started_at=snap.started_at,
+        updated_at=snap.updated_at,
+        revision=snap.revision,
+        stages=[_stage_out(s) for s in snap.stages],
     )
 
 

@@ -140,9 +140,9 @@ def _cross_load_rules(load: AnomalyInput, prior: list[AnomalyInput]) -> list[Ano
     flags: list[Anomaly] = []
     if not load.truck_id or load.observed_at is None:
         return flags
-    same_truck = [p for p in prior if p.truck_id == load.truck_id and p.observed_at is not None]
-    for p in same_truck:
-        assert p.observed_at is not None  # narrowed above  # noqa: S101
+    for p in prior:
+        if p.truck_id != load.truck_id or p.observed_at is None:
+            continue
         gap_min = abs((load.observed_at - p.observed_at).total_seconds()) / 60.0
         if gap_min < _MIN_CYCLE_MINUTES:
             flags.append(

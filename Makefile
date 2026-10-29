@@ -23,7 +23,7 @@ FRONTEND := frontend
 PY := $(BACKEND)/.venv/bin
 
 .DEFAULT_GOAL := check
-.PHONY: check fmt test ci check-be check-fe test-be test-fe up down logs live-check meta-log
+.PHONY: check fmt test ci check-be check-fe test-be test-fe up down logs live-check meta-log db-migrate
 
 # ── Run the app (always Docker, standard ports) ─────────────────────────────
 up:
@@ -77,3 +77,7 @@ test-fe:
 ci:
 	@echo "==> full quality gate (mirrors GitHub CI)"
 	@./scripts/eval.sh
+
+# Apply backend Alembic revisions to DATABASE_URL from the repo-root .env.
+db-migrate:
+	@cd $(BACKEND) && .venv/bin/alembic upgrade head

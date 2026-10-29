@@ -80,16 +80,20 @@ async def run_pipeline(
     ``data`` is the clip's bytes; the live client sends them to Meta (the mock
     and the durable cache only need the content hash, so tests may omit them).
     ``cache`` and ``ledger`` are optional and injected. When a ``cache`` is given
-    and already holds a result for this clip's content hash, the cached result is
-    returned for free (every stage recorded as a $0 cache hit) and no AI call is
-    made — the cost rule in LESSONS: no uncached model call on a repeated path.
+    and already holds a result for this event and clip content hash, the cached
+    result is returned for free (every stage recorded as a $0 cache hit) and no
+    AI call is made — the cost rule in LESSONS: no uncached model call on a
+    repeated path.
     ``on_stage`` is called with each stage the instant it is recorded, so a live
     progress view can stream the run.
     """
     h = artifact.content_hash
+    # Results include tenant/event-specific ticket fields and pricing, so they
+    # must never be shared across tenants or events for identical media bytes.
+    cache_key = f"{tenant_id}:{event_id}:{h}"
 
     if cache is not None:
-        hit = await cache.get(h)
+        hit = await cache.get(cache_key)
         if hit is not None:
             await _record_cached(ledger)
             # Rebuild a trace for the cached run so the UI still shows the work.
@@ -120,7 +124,7 @@ async def run_pipeline(
     )
     result.trace = trace
     if cache is not None:
-        await cache.set(h, result)
+        await cache.set(cache_key, result)
     return result
 
 

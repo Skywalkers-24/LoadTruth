@@ -69,14 +69,14 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="relative grid min-h-dvh overflow-hidden lg:grid-cols-2">
+    <div className="relative grid h-dvh min-h-dvh overflow-hidden lg:grid-cols-2">
       {/* Mode-aware video background behind everything (lazy, muted, looped). */}
       <LoginVideoBg />
 
       {/* Brand panel. Transparent with no panel-wide blur so the truck footage
           stays crisp; legibility comes from a soft left-edge gradient and a
           text-shadow on the copy instead. The z-10 lifts it above the video. */}
-      <div className="relative z-10 hidden flex-col justify-start overflow-hidden p-10 text-sidebar-foreground lg:flex">
+      <div className="relative z-10 hidden flex-col justify-start overflow-hidden p-7 text-sidebar-foreground xl:p-10 lg:flex">
         {/* Legibility scrim concentrated at the TOP-LEFT, where the logo + copy
             now sit (the clear studio area above/left of the truck). A radial
             wash anchored top-left plus a gentle top-edge wash fade fully to
@@ -98,7 +98,7 @@ export function LoginScreen() {
         <div className="relative flex flex-col gap-6">
           <div className="flex items-center gap-3 [text-shadow:0_1px_12px_rgba(0,0,0,0.55)]">
             <LogoMark size={48} />
-            <span className="text-[26px] font-bold tracking-tight">LoadTruth</span>
+            <span className="text-[26px] font-bold tracking-tight text-white">LoadTruth</span>
           </div>
 
           {/* The copy sits directly on the gradient scrim with a strong
@@ -110,7 +110,7 @@ export function LoginScreen() {
             </span>
             {/* Highlighted headline: brighter, heavier, with a glow so it pops
                 over the footage. */}
-            <h1 className="text-[32px] font-extrabold leading-[1.12] tracking-tight text-white">
+            <h1 className="text-[clamp(26px,2.25vw,32px)] font-extrabold leading-[1.12] tracking-tight text-white">
               Every debris haul, <span className="text-[#7dd3fc]">measured and paid</span> on the
               evidence.
             </h1>
@@ -144,7 +144,7 @@ export function LoginScreen() {
           the column split); the rest sits on the themed background so the card
           and capability strip stay fully legible. z-10 lifts it above the video
           layer. Scrolls when the content exceeds the viewport. */}
-      <div className="relative z-10 flex flex-col items-center justify-start gap-5 overflow-y-auto bg-gradient-to-r from-transparent via-background/80 to-background px-6 pb-6 pt-16 backdrop-blur-md lg:pt-24">
+      <div className="relative z-10 flex min-h-0 flex-col items-center justify-start gap-5 overflow-y-auto bg-gradient-to-r from-transparent via-background/80 to-background px-6 pb-6 pt-16 backdrop-blur-md lg:pt-16 xl:pt-20">
         {/* Theme picker — reachable before sign-in so users land in their preferred look. */}
         <div className="absolute right-5 top-5 z-10">
           <ThemeToggle />
@@ -157,7 +157,7 @@ export function LoginScreen() {
             </div>
 
             <h2 className="text-[22px] font-semibold tracking-tight">Sign in</h2>
-            <p className="mt-1 text-[13px] text-muted-foreground">
+            <p className="mt-1 text-[13px] font-medium text-foreground/75">
               Choose a member to sign in as. Each role sees a different set of actions.
             </p>
 

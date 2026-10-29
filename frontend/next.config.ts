@@ -15,7 +15,12 @@ const nextConfig: NextConfig = {
   },
   // API calls proxy to the FastAPI backend.
   async rewrites() {
-    const backend = process.env.BACKEND_URL ?? "http://localhost:8000";
+    const backend =
+      process.env.BACKEND_URL ??
+      process.env.NEXT_PUBLIC_API_URL ??
+      (process.env.NODE_ENV === "production"
+        ? "https://loadtruth-api.onrender.com"
+        : "http://localhost:8000");
     return [{ source: "/api/:path*", destination: `${backend}/:path*` }];
   },
   // The login background clips and posters are content-stable: serve them with a

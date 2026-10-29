@@ -8,9 +8,15 @@ is found in the footage).
 
 from __future__ import annotations
 
+import json
+from collections.abc import Callable
+from dataclasses import asdict, replace
+from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from redis.asyncio import Redis
 
 from app.ai import clip_session, get_ai_client
 from app.ai.cached_client import CachingAIClient
@@ -26,29 +32,127 @@ from app.auth.roles import can_ingest
 from app.config import get_settings
 from app.log import get_logger
 from app.pipeline import evidence_store
-from app.pipeline.cache import InMemoryResultCache
+from app.pipeline.anomalies import Anomaly, AnomalyType, Severity
+from app.pipeline.cache import InMemoryResultCache, RedisResultCache, ResultCache
 from app.pipeline.frames import sample_frames
 from app.pipeline.ingest import ingest_upload
 from app.pipeline.ledger import BudgetExceededError, CostLedger
 from app.pipeline.media import MediaTooLargeError, guess_mime, plan_transport
 from app.pipeline.orchestrator import PipelineResult, run_pipeline
 from app.pipeline.registry import CertifiedTruck, TruckRegistry
-from app.pipeline.trace import ProgressEvent, StageRecord, get_job_store, get_progress_broker
-from app.tickets.schemas import TicketOut, ticket_to_out
+from app.pipeline.trace import StageRecord, get_job_store, get_progress_store
+from app.tickets.domain import Ticket
+from app.tickets.schemas import DebrisClass, TicketOut, TicketStatus, ticket_to_out
 
 router = APIRouter(tags=["ingest"])
 log = get_logger("ingest")
 
-# Process-local pipeline cache + cost ledger. In-memory now (per the cache's
-# ResultCache protocol, swap for Redis later); the ledger backs the future cost
-# dashboard. Shared across requests so a re-run of the same clip is free.
-_pipeline_cache: InMemoryResultCache[PipelineResult] = InMemoryResultCache()
+# Use Render Key Value (Redis-compatible) when REDIS_URL is configured. Keep
+# the local in-memory cache for development and as a fallback during outages.
+_local_pipeline_cache: InMemoryResultCache[PipelineResult] = InMemoryResultCache()
+_redis_client: Redis | None = None
+_pipeline_cache: ResultCache[PipelineResult] | None = None
 _cost_ledger = CostLedger()
 
 
-def get_pipeline_cache() -> InMemoryResultCache[PipelineResult]:
-    """The shared pipeline result cache (content-hash keyed)."""
+def _encode_pipeline_result(value: PipelineResult) -> bytes:
+    """Encode the shared cache value as JSON without request-local trace callbacks."""
+    result = replace(value, trace=None)
+
+    def encode_scalar(item: object) -> str:
+        if isinstance(item, (UUID, Decimal)):
+            return str(item)
+        if isinstance(item, datetime):
+            return item.isoformat()
+        raise TypeError(f"Unsupported cache value: {type(item).__name__}")
+
+    return json.dumps(asdict(result), default=encode_scalar, separators=(",", ":")).encode()
+
+
+def _decode_pipeline_result(payload: bytes) -> PipelineResult:
+    """Rebuild pipeline domain records from their shared JSON cache form."""
+    data = json.loads(payload)
+    ticket_data = data["ticket"]
+    for field in ("tenant_id", "event_id", "clip_id", "id"):
+        if ticket_data[field] is not None:
+            ticket_data[field] = UUID(ticket_data[field])
+    for field in (
+        "certified_cubic_yards",
+        "rate_per_cy",
+        "est_fill_pct",
+        "est_cubic_yards",
+        "est_dollar_value",
+        "monitor_call_fill_pct",
+        "monitor_cubic_yards",
+        "monitor_dollar_value",
+        "delta_cubic_yards",
+        "delta_dollar_value",
+        "confirmed_fill_pct",
+    ):
+        if ticket_data[field] is not None:
+            ticket_data[field] = Decimal(ticket_data[field])
+    ticket_data["debris_class"] = DebrisClass(ticket_data["debris_class"])
+    ticket_data["status"] = TicketStatus(ticket_data["status"])
+    ticket_data["created_at"] = datetime.fromisoformat(ticket_data["created_at"])
+    anomalies = [
+        Anomaly(
+            type=AnomalyType(row["type"]),
+            severity=Severity(row["severity"]),
+            explanation=row["explanation"],
+            evidence_frame=row["evidence_frame"],
+        )
+        for row in data["anomalies"]
+    ]
+    return PipelineResult(
+        ticket=Ticket(**ticket_data),
+        anomalies=anomalies,
+        identity_confidence=data["identity_confidence"],
+        fill_confidence=data["fill_confidence"],
+        no_truck=data["no_truck"],
+        segments=data["segments"],
+    )
+
+
+def get_pipeline_cache() -> ResultCache[PipelineResult]:
+    """Return the shared result cache, using Render Key Value when configured."""
+    global _pipeline_cache, _redis_client
+    if _pipeline_cache is None:
+        settings = get_settings()
+        if settings.redis_url != "redis://localhost:6379/0":
+            _redis_client = Redis.from_url(
+                settings.redis_url,
+                socket_connect_timeout=3,
+                socket_timeout=3,
+                health_check_interval=30,
+            )
+            _pipeline_cache = RedisResultCache(
+                _redis_client,
+                fallback=_local_pipeline_cache,
+                encode=_encode_pipeline_result,
+                decode=_decode_pipeline_result,
+            )
+        else:
+            _pipeline_cache = _local_pipeline_cache
     return _pipeline_cache
+
+
+async def initialize_pipeline_cache() -> bool:
+    """Check the configured shared cache at startup; cache failure is non-fatal."""
+    get_pipeline_cache()
+    if _redis_client is None:
+        return False
+    try:
+        await _redis_client.ping()
+        return True
+    except Exception:  # noqa: BLE001 — Redis is optional; local fallback remains usable.
+        log.warning("redis_cache_unavailable; using process-local fallback", exc_info=True)
+        return False
+
+
+async def close_pipeline_cache() -> None:
+    """Close the shared Redis connection pool during application shutdown."""
+    if _redis_client is not None:
+        await _redis_client.aclose()
 
 
 def get_cost_ledger() -> CostLedger:
@@ -77,7 +181,7 @@ async def ingest_clip(
 ) -> TicketOut:
     """Ingest one clip/image and return the drafted ticket.
 
-    ``bypass_cache`` forces a live run: the process-local result cache and the
+    ``bypass_cache`` forces a live run: the result cache and the
     durable per-stage cache are both skipped, so the vision models are actually
     called again. It is the proof, for a judge, that a re-run is the real
     pipeline and not a replay.
@@ -139,8 +243,8 @@ async def ingest_clip(
     # Wrap the model client in the durable, content-hash-keyed cache so each
     # vision stage runs at most once per clip, ever. On a re-ingest (or after a
     # restart) the raw outputs are replayed from the DB with no model call and
-    # no media sent. The process-local result cache below is now just a fast
-    # same-process shortcut layered on top of that durable store.
+    # no media sent. The result cache below is an additional shortcut layered
+    # over that durable store, shared through Render Key Value when configured.
     model_label = f"{settings.sam_model} · {settings.spark_model}"
     inner = get_ai_client()
     # Judge-mode "bypass cache": call the raw client and skip both caches so the
@@ -148,18 +252,13 @@ async def ingest_clip(
     ai = inner if bypass_cache else CachingAIClient(inner, repo, tenant, model_label=model_label)
     result_cache = None if bypass_cache else get_pipeline_cache()
 
-    # Live progress: broadcast "started", then each stage as it lands, so the
-    # Pipeline page shows the run moving left to right instead of a long wait.
-    broker = get_progress_broker()
+    # Live progress: record "started", then each stage as it lands, in a store
+    # the UI polls, so the New Ticket / Pipeline pages show the run moving left
+    # to right (and still see it after a page refresh) instead of a long wait.
+    progress = get_progress_store()
     ch = artifact.content_hash
-    emit = broker.publisher(event_id)
-
-    def _on_stage(record: StageRecord) -> None:
-        emit(ProgressEvent(kind="stage", content_hash=ch, stage=record))
-
-    await broker.publish(
-        str(event_id), ProgressEvent(kind="started", content_hash=ch, truck_id=None)
-    )
+    await progress.start(event_id, ch)
+    _on_stage: Callable[[StageRecord], None] = progress.stage_sink(event_id, ch)
 
     try:
         async with clip_session(inner, artifact.content_hash):
@@ -183,21 +282,11 @@ async def ingest_clip(
             "new clips.",
         ) from exc
     except ModelAPIError as exc:
-        await broker.publish(
-            str(event_id),
-            ProgressEvent(
-                kind="done", content_hash=ch, outcome="failed", detail="AI service error"
-            ),
-        )
+        await progress.finish(event_id, ch, outcome="failed", detail="AI service error")
         raise _model_api_http_error(exc) from exc
     except Exception as exc:  # noqa: BLE001 — surface a clean 500, never a stack trace
         log.error("ingest_pipeline_failed", content_hash=artifact.content_hash, exc_info=True)
-        await broker.publish(
-            str(event_id),
-            ProgressEvent(
-                kind="done", content_hash=ch, outcome="failed", detail="The pipeline failed."
-            ),
-        )
+        await progress.finish(event_id, ch, outcome="failed", detail="The pipeline failed.")
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             "The analysis pipeline failed on that clip. Please try again.",
@@ -209,14 +298,11 @@ async def ingest_clip(
         await get_job_store().add(event_id, result.trace)
 
     if result.no_truck:
-        await broker.publish(
-            str(event_id),
-            ProgressEvent(
-                kind="done",
-                content_hash=ch,
-                outcome="no_truck",
-                detail="No truck or load was detected in that footage.",
-            ),
+        await progress.finish(
+            event_id,
+            ch,
+            outcome="no_truck",
+            detail="No truck or load was detected in that footage.",
         )
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -243,15 +329,12 @@ async def ingest_clip(
         fps=stored.fps if stored else None,
         segments=result.segments,
     )
-    await broker.publish(
-        str(event_id),
-        ProgressEvent(
-            kind="done",
-            content_hash=ch,
-            outcome="cached" if result.trace is not None and result.trace.cached else "drafted",
-            ticket_id=str(saved.id),
-            truck_id=saved.truck_id,
-        ),
+    await progress.finish(
+        event_id,
+        ch,
+        outcome="cached" if result.trace is not None and result.trace.cached else "drafted",
+        ticket_id=str(saved.id),
+        truck_id=saved.truck_id,
     )
     return ticket_to_out(saved)
 

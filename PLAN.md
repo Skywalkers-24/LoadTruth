@@ -366,7 +366,7 @@ Design system: Tailwind v4 + shadcn/ui, Inter/Geist, one accent for "needs revie
 
 ## 10. Enterprise-grade standards (non-negotiables)
 
-- **Repo:** monorepo — `/frontend` (Next.js), `/backend` (FastAPI), `/infra` (Supabase migrations + RLS SQL), `/docs`.
+- **Repo:** monorepo — `/frontend` (Next.js), `/backend` (FastAPI + Alembic schema migrations), `/infra` (Supabase RLS SQL), `/docs`.
 - **Config:** everything via env (`MODEL_API_KEY`, Supabase URL/anon/service keys, DB URL, Redis URL). `.env` stays gitignored. Pydantic `BaseSettings` validates on boot. Service-role key is server-side only.
 - **Multi-tenancy & RBAC:** RLS on every table + API-level role checks (defense in depth). Tenant isolation is tested, not assumed.
 - **Typing & lint:** backend — `ruff` + `mypy` strict + Pydantic v2; frontend — TypeScript strict, ESLint, Prettier.

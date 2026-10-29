@@ -1,21 +1,22 @@
-# infra/ — Supabase schema, migrations & RLS
+# infra/ — Supabase RLS and platform SQL
 
-Database layer for LoadTruth: the multi-tenant schema (PLAN.md §7), Row-Level Security policies keyed on `tenant_id`, Storage buckets, and Alembic migrations.
+Supabase-specific database assets for LoadTruth: Row-Level Security policies keyed on `tenant_id` and platform SQL. The application schema and Alembic migrations are owned by `backend/`.
 
 ## Planned contents
 
 ```
 infra/
-  migrations/          # Alembic migrations (schema + indexes)
-  policies/            # RLS policy SQL per tenant table
-  seed/                # demo tenant, event, truck registry, rate table, sample clips
-  storage.sql          # bucket definitions (clips, frames, masks, tickets, reports)
+  rbac/                 # RLS policies, roles, and vendored RBAC SQL
 ```
 
 ## Rules (from the agent protocol)
 
 - Every tenant table has an RLS policy keyed on `tenant_id`; isolation is tested (`backend/tests` RLS tests), not assumed.
-- Index every foreign key and every hot-path `WHERE`/`ORDER BY` column in the same migration that introduces the access pattern.
-- `./scripts/db-migrate.sh` applies migrations and verifies RLS coverage.
+- Index every foreign key and every hot-path `WHERE`/`ORDER BY` column in the backend migration that introduces the access pattern.
+- `make db-migrate` applies backend Alembic revisions. Apply the SQL in `rbac/` as part of Supabase provisioning to enable RLS.
 
-Status: not yet implemented — next after the API round-trips land (PROGRESS.md).
+Alembic starts at `backend/migrations/versions/0001_initial_schema.py`. Revision
+0001 freezes the current backend table DDL and includes the Supabase RBAC
+installer, LoadTruth roles, operational tables, and RLS policies. The SQL under
+`infra/rbac/` remains the readable upstream/provisioning source; future schema
+changes should use explicit Alembic operations in backend revisions.

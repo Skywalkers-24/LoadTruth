@@ -1,20 +1,94 @@
-# Deployment & Caching (zero-budget, free tiers only)
+# Deployment & Caching (Render + Cloudflare)
 
-LoadTruth must ship without paid infrastructure. This documents the free-tier
-targets and, more importantly, the **caching strategy** that keeps it fast and
-keeps us inside the $150 Meta Model API credit budget.
+This documents the Render backend and Cloudflare frontend setup, plus the
+**caching strategy** that keeps repeat processing inside the $150 Meta Model
+API credit budget.
 
 ## Deploy targets (all free tier)
 
 | Layer | Free service | Why |
 |---|---|---|
-| Frontend (Next.js) | **Vercel Hobby** or **Cloudflare Pages** | Free static + SSR, global CDN, zero config for Next. |
-| Backend (FastAPI) | **Fly.io** free allowance or **Render** free web service | Containers from our Dockerfile; Fly keeps a small always-on VM in free allowance. |
-| Worker (ARQ) | Same Fly app, second process, or fold into backend for the demo | Avoids a second paid service. |
-| Database + Auth + Storage | **Supabase free tier** | 500MB Postgres, auth, storage, RLS — covers the whole data model. |
-| Cache / queue | **Upstash Redis free tier** | Serverless Redis, generous free requests; used for ARQ + response cache. |
+| Frontend (Next.js) | **Cloudflare Workers** via OpenNext | Runs the Next App Router on Cloudflare's Workers runtime. |
+| Backend (FastAPI) | **Render** web service | `render.yaml` deploys `backend/`, applies Alembic, and checks `/health`. |
+| Database + Auth + Storage | **Supabase Postgres** | Use its session pooler URL in Render; the migration installs Supabase RBAC. |
+| Shared pipeline cache | Render Key Value (Redis-compatible) | The Render Blueprint creates a private Frankfurt instance and links its internal URL as `REDIS_URL`. |
 
-CI/CD never auto-deploys: `.github/workflows/deploy.yml` is `workflow_dispatch` only and no-ops when the relevant secret is absent, so we never fail a run or spend minutes before we opt in.
+On pushes to `main`, CI deploys the frontend to Cloudflare after backend and
+frontend checks pass. Render deploys the backend from the same branch after CI
+checks pass.
+
+## First-time setup
+
+### Render backend
+
+1. Connect this Git repository in Render and create a Blueprint from `render.yaml`.
+2. Set `DATABASE_URL` to the Supabase **Session pooler** URL. Keep the
+   `postgresql+asyncpg://` driver prefix; use the pooler's host, port, and
+   database, and require TLS (`?ssl=require`).
+3. Set `MODEL_API_KEY` and `SUPABASE_JWT_SECRET` in the Render environment.
+   Set `CORS_ORIGINS` to the exact Cloudflare Worker origin, for example
+   `https://loadtruth-console.<your-workers-subdomain>.workers.dev`.
+   `REDIS_URL` is linked to the private Render Key Value instance by `render.yaml`;
+   local development keeps using the in-memory pipeline cache unless `REDIS_URL`
+   is explicitly configured.
+4. Deploy `main`. Render runs `alembic upgrade head` before Uvicorn starts and
+   uses `/health` for its health check. The service URL is
+   `https://loadtruth-api.onrender.com`.
+
+The free Render service may sleep when idle and its local filesystem is
+ephemeral. Evidence files and model logs are written under `/tmp`; configure
+durable object storage before relying on them across restarts. The free Render
+Key Value plan is non-persistent and small, so it is used as a disposable cache;
+the database remains the system of record.
+
+### Cloudflare frontend
+
+The frontend is Next.js with server rendering, so it deploys as a Cloudflare
+Worker through `@opennextjs/cloudflare`, not as the reference repo's static Vite
+asset bundle. Browser API calls use the Worker's same-origin `/api` rewrite to
+reach Render, so sign-in works without cross-origin CORS settings.
+
+Manual build and deploy from the repo root:
+
+```bash
+cd frontend
+npm ci
+export BACKEND_URL=https://loadtruth-api.onrender.com
+npm run cf:build                 # Cloudflare-compatible Next build
+npm run preview                  # optional local Workers-runtime preview
+npx wrangler login               # one-time local authentication
+npm run deploy                   # rebuild and deploy the Worker
+```
+
+For GitHub Actions auto-deploys, add repository secrets `CLOUDFLARE_API_TOKEN`
+(Edit Cloudflare Workers permission) and `CLOUDFLARE_ACCOUNT_ID`. The CI workflow
+builds and deploys `loadtruth-console` when those secrets are set and a push to
+`main` passes the backend and frontend jobs. Without them, the deploy step is
+skipped so a directly connected Cloudflare Workers Build can deploy the push.
+`frontend/wrangler.jsonc` contains the Worker entry point and Render backend URL.
+
+For Cloudflare Workers Builds connected directly to GitHub, set these build
+settings so commands run in the Next.js project directory:
+
+| Setting | Value |
+|---|---|
+| Root directory | `frontend` |
+| Build command | `npm run cf:build` |
+| Deploy command | `npx wrangler deploy` |
+
+Add this **build variable** so Next.js bakes the correct rewrite destination:
+
+```text
+BACKEND_URL=https://loadtruth-api.onrender.com
+```
+
+With root directory set to `frontend`, Cloudflare detects `package-lock.json`,
+installs dependencies, and finds `wrangler.jsonc`. Leaving the root directory at
+`/` makes npm look for `/package.json`, which fails before the build starts.
+
+The production build defaults `BACKEND_URL` to the Render API if the Cloudflare
+build variable is unset. The Render CORS allowlist is not used for browser API
+requests because they stay on the Worker's origin.
 
 ## Caching strategy (this is what makes it fast *and* cheap)
 
@@ -32,9 +106,9 @@ Caching is layered so the expensive thing — Meta Model API calls on video — 
 ### 3. Edge / CDN cache
 - Frontend static output and images cached at the edge automatically on Vercel/Cloudflare Pages — free global acceleration.
 
-### 4. In-process + Redis cache
-- Hot, small lookups (truck registry by number, rate tables) cached in-process with a TTL and backed by Upstash Redis so all backend instances share it.
-- Supabase signed Storage URLs cached until just before expiry to avoid re-signing per request.
+### 4. Shared pipeline-result cache
+- `REDIS_URL` points to the private Render Key Value instance. It shares completed pipeline results across backend instances for seven days, scoped to a tenant and event.
+- If Key Value is unavailable, the backend falls back to an in-process cache; PostgreSQL remains the durable system of record.
 
 ### Security scanning on a free private repo
 CodeQL code scanning is free only for **public** repos; on a free **private** repo it needs paid GitHub Advanced Security and fails at the upload step. So CI uses free equivalents: `gitleaks` (secret scan) in `.github/workflows/security.yml`, plus `bandit`, `pip-audit`, and `npm audit` in `scripts/eval.sh` and CI. Re-enable CodeQL only if the repo goes public or gets Advanced Security.
@@ -51,6 +125,5 @@ CodeQL code scanning is free only for **public** repos; on a free **private** re
 
 ## Promotion flow
 
-1. Push to a feature branch → CI runs (lint, type, test, build, docker build, CodeQL).
-2. PR → review → merge to `main`.
-3. Manually dispatch `Deploy` when ready (and once deploy secrets are set).
+1. Push a feature branch and open a PR; CI checks code, tests, and builds.
+2. Merge to `main`; Render and Cloudflare deploy after their respective checks.
