@@ -52,8 +52,8 @@ function ingestErrorMessage(err: unknown): string {
 
 /**
  * New Ticket: upload a clip or image of a loaded truck; the pipeline measures
- * the fill and drafts a ticket with a real valuation. Left: the capture flow.
- * Right: the tickets already captured for this event.
+ * the fill and drafts a ticket with a real valuation. Capture and results sit
+ * above the event ticket table; content can grow without overlapping rows.
  */
 export default function NewTicketPage() {
   const { selected, selectedId: eventId } = useEventContext();
@@ -106,8 +106,8 @@ export default function NewTicketPage() {
 
   return (
     <AppShell section="New Ticket">
-      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:overflow-hidden">
-        <div className="flex min-w-0 flex-col">
+      <div className="lt-scroll flex min-h-0 flex-1 flex-col gap-4 lg:overflow-y-auto">
+        <div className="flex min-w-0 shrink-0 flex-col">
           <h1 className="lt-page-title">Capture a new ticket</h1>
           <p className="text-[12px] text-muted-foreground">
             Upload evidence for{" "}
@@ -116,7 +116,7 @@ export default function NewTicketPage() {
           </p>
         </div>
 
-        <div className="grid min-h-[360px] gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-2">
+        <div className="grid shrink-0 items-start gap-4 lg:grid-cols-2">
           {/* Upload stays beside the live analysis and draft summary. */}
           <div className="min-w-0">
             <FadeIn>
@@ -162,14 +162,14 @@ export default function NewTicketPage() {
                         ? "Analyzing the clip"
                         : showcaseReadOnly
                           ? "Preprocessed showcase event"
-                        : "Drop a clip here, or click to browse"}
+                          : "Drop a clip here, or click to browse"}
                     </span>
                     <span className="text-[12px] text-muted-foreground">
                       {ingest.isPending
                         ? "Measuring fill and drafting the ticket"
                         : showcaseReadOnly
                           ? "Stored Meta results are shown read-only. Browsing them makes no Meta calls."
-                        : "Video or image, up to a few hundred MB"}
+                          : "Video or image, up to a few hundred MB"}
                     </span>
                   </div>
                 </label>
@@ -182,7 +182,6 @@ export default function NewTicketPage() {
                 </div>
               </Card>
             </FadeIn>
-
           </div>
 
           <div className="flex min-w-0 flex-col gap-3">
@@ -204,9 +203,15 @@ export default function NewTicketPage() {
             {result && (
               <FadeIn>
                 <Card className="gap-0 border-[var(--color-ok)]/40 p-5">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2Icon className="size-5 text-[var(--color-ok)]" />
-                    <h2 className="text-[15px] font-semibold">Ticket drafted</h2>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2Icon className="size-5 text-[var(--color-ok)]" />
+                      <h2 className="text-[15px] font-semibold">Ticket drafted</h2>
+                    </div>
+                    <Button size="sm" onClick={() => router.push(`/console?ticket=${result.id}`)}>
+                      Open ticket
+                      <ArrowRightIcon />
+                    </Button>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <Field label="Ticket" value={shortId(result.id)} />
@@ -224,23 +229,14 @@ export default function NewTicketPage() {
                       }
                     />
                   </div>
-                  <Button
-                    className="mt-4 self-start"
-                    size="sm"
-                    onClick={() => router.push(`/console?ticket=${result.id}`)}
-                  >
-                    Open in Review Console
-                    <ArrowRightIcon />
-                  </Button>
                 </Card>
               </FadeIn>
             )}
-
           </div>
         </div>
 
         {/* Full-width event ledger below the capture and analysis workspace. */}
-        <Card className="lt-fab-safe flex min-h-[320px] flex-col gap-0 overflow-hidden py-0 lg:min-h-0 lg:flex-1">
+        <Card className="lt-fab-safe flex min-h-[320px] shrink-0 flex-col gap-0 overflow-hidden py-0 lg:flex-1">
           <header className="flex items-center justify-between border-b border-border px-4 py-3">
             <h2 className="text-[14px] font-semibold">Tickets in this event</h2>
             <span className="text-[12px] tabular-nums text-muted-foreground">
@@ -261,7 +257,11 @@ export default function NewTicketPage() {
             ) : (
               <>
                 <div className="sticky top-0 z-10 hidden grid-cols-[minmax(110px,0.75fr)_minmax(220px,1.6fr)_minmax(120px,1fr)_minmax(130px,0.9fr)_minmax(100px,0.7fr)] items-center gap-3 border-b border-border bg-card px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground md:grid">
-                  <span>Ticket</span><span>Truck · debris</span><span>Captured</span><span>Status</span><span className="text-right">Delta</span>
+                  <span>Ticket</span>
+                  <span>Truck · debris</span>
+                  <span>Captured</span>
+                  <span>Status</span>
+                  <span className="text-right">Delta</span>
                 </div>
                 <ul className="divide-y divide-border">
                   {recent.map((t) => (
@@ -271,7 +271,9 @@ export default function NewTicketPage() {
                         onClick={() => router.push(`/console?ticket=${t.id}`)}
                         className="grid w-full grid-cols-1 items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-accent md:grid-cols-[minmax(110px,0.75fr)_minmax(220px,1.6fr)_minmax(120px,1fr)_minmax(130px,0.9fr)_minmax(100px,0.7fr)] md:gap-3"
                       >
-                        <span className="text-[13px] font-semibold tabular-nums">{shortId(t.id)}</span>
+                        <span className="text-[13px] font-semibold tabular-nums">
+                          {shortId(t.id)}
+                        </span>
                         <span className="flex min-w-0 flex-col leading-tight">
                           <span className="truncate text-[12px] text-foreground">
                             <span className="tabular-nums">{t.truck_id ?? "Unidentified"}</span>
@@ -279,8 +281,12 @@ export default function NewTicketPage() {
                             {debrisLabel(t.debris_class)}
                           </span>
                         </span>
-                        <span className="text-[11px] text-muted-foreground">{relativeTime(t.created_at)}</span>
-                        <span><StatusBadge status={t.status} /></span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {relativeTime(t.created_at)}
+                        </span>
+                        <span>
+                          <StatusBadge status={t.status} />
+                        </span>
                         <span className="text-left text-[13px] font-semibold tabular-nums text-[var(--color-money)] md:text-right">
                           {t.valuation.delta_dollar_value
                             ? signedMoney(t.valuation.delta_dollar_value)

@@ -90,15 +90,14 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
     setOverlays((prev) => ({ ...prev, [o]: !prev[o] }));
   }
 
-  // Narrow pane: a 2:1 box in the scrolling column. Wide pane: the viewer takes
-  // whatever height the center column has left, so the evidence grows on a tall
-  // monitor and shrinks (to a readable minimum) on a short laptop screen.
+  // Preserve a readable video area at every pane width. The surrounding
+  // column scrolls instead of squeezing the footage between summary cards.
   const viewer = (
-    <div className="flex flex-col gap-3 @[46rem]:min-h-[13rem] @[46rem]:flex-1">
+    <div className="flex shrink-0 flex-col gap-3">
       <div
         ref={viewerRef}
         data-expanded={expanded || undefined}
-        className="lt-evidence-viewer overflow-hidden rounded-lg border border-[var(--color-border)] @[46rem]:flex @[46rem]:min-h-0 @[46rem]:flex-1 @[46rem]:flex-col"
+        className="lt-evidence-viewer overflow-hidden rounded-lg border border-[var(--color-border)]"
       >
         {/* Viewer header: title, frame, overlay toggles */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5">
@@ -176,7 +175,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
         </div>
 
         {/* The media and SVG overlays letterbox inside this box at any size. */}
-        <div className="lt-evidence-media relative aspect-[16/8] max-h-[17rem] w-full shrink-0 overflow-hidden bg-[var(--color-bg)] @[46rem]:aspect-auto @[46rem]:max-h-none @[46rem]:min-h-0 @[46rem]:shrink @[46rem]:flex-1">
+        <div className="lt-evidence-media relative aspect-video min-h-[14rem] w-full shrink-0 overflow-hidden bg-[var(--color-bg)]">
           {live && evidence ? (
             <>
               <SamPlayer

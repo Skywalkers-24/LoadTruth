@@ -71,14 +71,14 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
   ];
 
   return (
-    <div className="@container">
+    <div className="@container shrink-0">
       <div
         className="lt-card-shadow grid overflow-hidden rounded-xl border bg-[var(--color-surface)] @[36rem]:grid-cols-[minmax(0,1fr)_minmax(0,14rem)] @2xl:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]"
         style={{ borderColor: `color-mix(in srgb, ${tone.color} 40%, var(--color-border))` }}
       >
         {/* Measured over monitor, per quantity */}
         <div className="min-w-0">
-          <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-subtle)]">
+          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-border)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-subtle)]">
             <span>Money frame</span>
             <span className="ml-auto flex items-center gap-2 normal-case tracking-normal">
               <HeadTip
@@ -95,25 +95,27 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
           </div>
           <div className="grid grid-cols-3 divide-x divide-[var(--color-border)]">
             {cells.map((c) => (
-              <div key={c.label} className="flex min-w-0 flex-col gap-0.5 px-3 py-2">
+              <div key={c.label} className="flex min-w-0 flex-col gap-0.5 px-2.5 py-1.5">
                 <span className="text-[11px] font-medium text-[var(--color-subtle)]">
                   {c.label}
                 </span>
-                <span className="truncate text-[15px] font-semibold leading-tight tabular-nums text-[var(--color-money)]">
+                <span className="truncate text-[14px] font-semibold leading-tight tabular-nums text-[var(--color-money)]">
                   {c.measured}
                 </span>
-                <span className="truncate text-[12px] tabular-nums text-[var(--color-muted-foreground)]">
-                  {c.monitor === null ? (
-                    "Not called"
-                  ) : (
-                    <>
-                      {c.monitor}{" "}
-                      <span style={{ color: tone.color }} className="font-medium">
-                        {c.delta}
-                      </span>
-                    </>
-                  )}
-                </span>
+                {hasCall && (
+                  <span className="truncate text-[11px] tabular-nums text-[var(--color-muted-foreground)]">
+                    {c.monitor === null ? (
+                      "Not called"
+                    ) : (
+                      <>
+                        {c.monitor}{" "}
+                        <span style={{ color: tone.color }} className="font-medium">
+                          {c.delta}
+                        </span>
+                      </>
+                    )}
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -121,7 +123,7 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
 
         {/* Hero: the dollar difference */}
         <div
-          className="flex flex-col justify-center gap-1 border-t px-4 py-2.5 @[36rem]:border-l @[36rem]:border-t-0"
+          className="flex flex-col justify-center gap-1 border-t px-3 py-2 @[36rem]:border-l @[36rem]:border-t-0"
           style={{
             borderColor: "var(--color-border)",
             background: `linear-gradient(160deg, color-mix(in srgb, ${tone.color} 16%, var(--color-surface)), color-mix(in srgb, ${tone.color} 4%, var(--color-surface)))`,
@@ -129,7 +131,7 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
         >
           <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
             <span className="inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-medium text-[var(--color-muted-foreground)]">
-              Dollar difference <DeltaTip />
+              Difference <DeltaTip />
             </span>
             <span
               className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold"
@@ -146,15 +148,19 @@ export function MoneyFrame({ v, reviewed = false }: { v: Valuation; reviewed?: b
               {tone.label}
             </span>
           </div>
-          <span
-            className="text-[24px] font-bold leading-none tracking-tight tabular-nums"
-            style={{ color: tone.color }}
-          >
-            {hasCall ? signedMoney(v.delta_dollar_value) : "No call"}
-          </span>
-          <p className="text-[12px] leading-snug text-[var(--color-muted-foreground)]">
-            {interpretation}
-          </p>
+          {hasCall && (
+            <span
+              className="text-[18px] font-bold leading-none tracking-tight tabular-nums"
+              style={{ color: tone.color }}
+            >
+              {hasCall ? signedMoney(v.delta_dollar_value) : "No call"}
+            </span>
+          )}
+          {hasCall && (
+            <p className="text-[11px] leading-snug text-[var(--color-muted-foreground)]">
+              {interpretation}
+            </p>
+          )}
         </div>
       </div>
     </div>
