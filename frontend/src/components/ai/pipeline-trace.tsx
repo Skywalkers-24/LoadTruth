@@ -115,16 +115,17 @@ export function PipelineTrace({
                     : !onSelectStage && isOpen && "bg-accent/60",
                 )}
               >
-                <ChevronRightIcon
-                  className={cn(
-                    "size-3.5 shrink-0 text-muted-foreground transition-transform",
-                    !onSelectStage && isOpen && "rotate-90",
-                    onSelectStage && "group-hover:translate-x-0.5 group-hover:text-primary transition-all",
-                  )}
-                />
+                {!onSelectStage && (
+                  <ChevronRightIcon
+                    className={cn(
+                      "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                      isOpen && "rotate-90",
+                    )}
+                  />
+                )}
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
-                    <span className="truncate text-[13px] font-semibold">{s.label}</span>
+                    <span className="text-[13px] font-semibold leading-tight">{s.label}</span>
                     {s.confidence != null && (
                       <span
                         className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
@@ -138,13 +139,13 @@ export function PipelineTrace({
                     )}
                   </span>
                   {!isOpen && (
-                    <span className="mt-0.5 block truncate text-[12px] leading-snug text-muted-foreground">
+                    <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground break-words">
                       {s.summary}
                     </span>
                   )}
                 </span>
                 {onSelectStage ? (
-                  <span className="hidden shrink-0 items-center gap-1 rounded border border-border/50 bg-background/50 px-1.5 py-0.5 text-[10px] text-muted-foreground transition-all group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary sm:flex">
+                  <span className="shrink-0 inline-flex items-center gap-1 rounded border border-border/60 bg-secondary/60 px-1.5 py-0.5 text-[10px] text-muted-foreground transition-all group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary">
                     <span>Inspect</span>
                     <ChevronRightIcon className="size-2.5" />
                   </span>

@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+import hashlib
+from collections.abc import Callable
+from typing import Any
+from uuid import UUID
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.api.deps import current_member
+from app.config import get_settings
+from app.db.models import User
 from app.main import app
+from app.tickets.repository import SqlTicketRepository
 
 
-def _no_default_auth():
+def _no_default_auth() -> Callable[..., Any] | None:
     """Context-free helper: drop the conftest super_admin override."""
     return app.dependency_overrides.pop(current_member, None)
 
@@ -80,10 +88,10 @@ def test_logout_requires_auth_and_succeeds(client: TestClient) -> None:
 
 
 def test_superadmin_login_success(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    import hashlib
-    from app.config import get_settings
     monkeypatch.setenv("SUPERADMIN_USERNAME_HASH", hashlib.sha256(b"testdev").hexdigest())
-    monkeypatch.setenv("SUPERADMIN_PASSWORD_HASH", hashlib.sha256(b"TestDevPassword123!").hexdigest())
+    monkeypatch.setenv(
+        "SUPERADMIN_PASSWORD_HASH", hashlib.sha256(b"TestDevPassword123!").hexdigest()
+    )
     get_settings.cache_clear()
     saved = _no_default_auth()
     try:
@@ -103,13 +111,47 @@ def test_superadmin_login_success(client: TestClient, monkeypatch: pytest.Monkey
             app.dependency_overrides[current_member] = saved
 
 
+def test_superadmin_login_creates_missing_account(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SUPERADMIN_USERNAME_HASH", hashlib.sha256(b"testdev").hexdigest())
+    monkeypatch.setenv(
+        "SUPERADMIN_PASSWORD_HASH", hashlib.sha256(b"TestDevPassword123!").hexdigest()
+    )
+    get_settings.cache_clear()
+    original_lookup = SqlTicketRepository.get_user_by_email
+
+    async def no_existing_superadmin(
+        self: SqlTicketRepository, tenant_id: UUID, email: str
+    ) -> User | None:
+        if email in ("developer@loadtruth.io", "root@loadtruth.io"):
+            return None
+        return await original_lookup(self, tenant_id, email)
+
+    monkeypatch.setattr(SqlTicketRepository, "get_user_by_email", no_existing_superadmin)
+    saved = _no_default_auth()
+    try:
+        resp = client.post(
+            "/auth/superadmin/login",
+            json={"username": "testdev", "password": "TestDevPassword123!"},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["member"]["email"] == "developer@loadtruth.io"
+        assert body["member"]["role"] == "super_admin"
+    finally:
+        get_settings.cache_clear()
+        if saved is not None:
+            app.dependency_overrides[current_member] = saved
+
+
 def test_superadmin_login_invalid_credentials_rejected(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import hashlib
-    from app.config import get_settings
     monkeypatch.setenv("SUPERADMIN_USERNAME_HASH", hashlib.sha256(b"testdev").hexdigest())
-    monkeypatch.setenv("SUPERADMIN_PASSWORD_HASH", hashlib.sha256(b"TestDevPassword123!").hexdigest())
+    monkeypatch.setenv(
+        "SUPERADMIN_PASSWORD_HASH", hashlib.sha256(b"TestDevPassword123!").hexdigest()
+    )
     get_settings.cache_clear()
     saved = _no_default_auth()
     try:

@@ -263,7 +263,7 @@ export function LoginScreen() {
                 href="/superadmin"
                 className="text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
-                Developer / SuperAdmin Sign In →
+                Administrator
               </Link>
             </div>
           </div>

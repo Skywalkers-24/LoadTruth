@@ -346,7 +346,7 @@ function CaptureWorkspace() {
             <div className="flex flex-col gap-3">
               <PipelineWorkbench stages={DEFAULT_PIPELINE_STAGES} />
               <p className="text-xs text-muted-foreground">
-                Drop a truck clip above to run this pipeline live on your footage. Click any stage to inspect its purpose and model output in the 38% right-side drawer.
+                Drop a truck clip above to run this pipeline live on your footage. Click any stage to inspect its purpose and model output in the sidebar inspector.
               </p>
             </div>
           )}

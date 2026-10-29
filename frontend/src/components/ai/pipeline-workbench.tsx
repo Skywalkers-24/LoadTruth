@@ -177,7 +177,7 @@ export function PipelineWorkbench({
           className="h-6 gap-1.5 border-primary/30 px-2.5 text-[11px] font-medium hover:bg-primary/10"
         >
           <PanelRightOpenIcon className="size-3 text-primary" />
-          <span>Open Inspector Drawer (38%)</span>
+          <span>Open Stage Inspector</span>
         </Button>
       </div>
 

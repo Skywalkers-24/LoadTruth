@@ -72,11 +72,10 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
           </div>
         </div>
 
-        {/* Right rail: the AI read is the highlight and takes the leftover
-            height with its own scroll; the flags and reproducibility sit below
-            at their natural size. On a narrow pane the whole rail scrolls as one
-            column. Bottom padding (lt-fab-safe) clears the AI analyst launcher. */}
-        <div className="lt-fab-safe flex min-w-0 flex-col gap-3 @[46rem]:min-h-0 @[46rem]:overflow-hidden">
+        {/* Right rail: dynamic content-hugging cards that scroll cleanly
+            without artificial empty gaps at the bottom. Bottom padding (lt-fab-safe)
+            clears the AI analyst launcher. */}
+        <div className="lt-fab-safe flex min-w-0 flex-col gap-3 @[46rem]:min-h-0 @[46rem]:overflow-y-auto lt-scroll">
           <AiAnalysisCard ticketId={ticket.id} />
           <CollapsibleSectionCard
             id="anomaly-flags"
@@ -159,7 +158,7 @@ function TicketHeader({ ticket, nav }: { ticket: Ticket; nav?: TicketNav }) {
 
 /**
  * The AI's read of this ticket, at the top of the right rail. A branded header
- * names the models that did the work. Clicking any stage row opens the 38%
+ * names the models that did the work. Clicking any stage row opens the
  * slide-over drawer modal for in-depth inspection.
  */
 function AiAnalysisCard({ ticketId }: { ticketId: string }) {
@@ -167,10 +166,8 @@ function AiAnalysisCard({ ticketId }: { ticketId: string }) {
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
 
   return (
-    // The AI read is the headline of the rail: on a wide pane it takes the
-    // leftover height (flex-1 + min-h-0) and scrolls its own body, so the full
-    // 7-stage trace is reachable instead of being clipped in a short card.
-    <section className="lt-card-shadow flex min-h-0 shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] @[46rem]:min-h-[16rem] @[46rem]:shrink @[46rem]:flex-1">
+    // Dynamic height card that wraps the 7 stages without empty whitespace at the bottom.
+    <section className="lt-card-shadow flex shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
       <header className="lt-card-head shrink-0 border-b border-[var(--color-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-brand)_14%,transparent),transparent)]">
         <span className="grid size-6 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
           <SparklesIcon size={14} />
@@ -183,7 +180,7 @@ function AiAnalysisCard({ ticketId }: { ticketId: string }) {
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            title="Open Stage Inspector (Sidebar Drawer)"
+            title="Open Stage Inspector"
             className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-brand)] transition-colors hover:bg-[var(--color-brand-soft)]"
           >
             <PanelRightOpenIcon className="size-3.5" />
@@ -191,7 +188,7 @@ function AiAnalysisCard({ ticketId }: { ticketId: string }) {
           </button>
         </div>
       </header>
-      <div className="lt-card-body lt-scroll min-h-0 flex-1 overflow-y-auto">
+      <div className="lt-card-body p-3">
         <AiAnalysis
           ticketId={ticketId}
           drawerOpen={drawerOpen}
@@ -229,8 +226,7 @@ function AiAnalysis({
   return (
     <>
       <div className="mb-2 flex items-center justify-between text-[11px] text-[var(--color-muted-foreground)]">
-        <span>Click stage for details</span>
-        <span className="text-[10px] text-primary">38% right drawer</span>
+        <span>Click any stage to inspect output</span>
       </div>
       <PipelineTrace
         stages={trace.data}

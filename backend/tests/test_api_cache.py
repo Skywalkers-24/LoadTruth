@@ -170,3 +170,4 @@ async def test_redis_pipeline_mock_integration(monkeypatch):
     mock_pipe.incr.assert_called_with("lt:tag:ver:event:ev-999")
     mock_pipe.expire.assert_called_with("lt:tag:ver:event:ev-999", 30 * 86400)
     mock_pipe.execute.assert_awaited_once()
+

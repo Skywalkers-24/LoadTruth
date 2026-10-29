@@ -202,3 +202,4 @@ async def cached_api(
         log.warning("caching_serialized_result_failed", exc_info=True)
 
     return result
+
