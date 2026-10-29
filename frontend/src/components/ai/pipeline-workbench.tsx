@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2Icon, ChevronRightIcon, PanelRightOpenIcon, TriangleAlertIcon } from "lucide-react";
+import {
+  ArrowUpRightIcon,
+  CheckCircle2Icon,
+  PanelRightOpenIcon,
+  SparklesIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import type { PipelineStage } from "@/lib/api";
 import { PipelineTrace } from "./pipeline-trace";
 import { StageInspectorDrawer } from "./stage-inspector-drawer";
@@ -11,7 +17,7 @@ import { cn } from "@/lib/utils";
 export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
   {
     key: "sam_track",
-    label: "Track and segment",
+    label: "Track & segment",
     model: "Meta SAM 3.1",
     status: "ok",
     summary: "Meta SAM 3.1 outlines the truck bed and debris pile across video frames.",
@@ -63,7 +69,7 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
   {
     key: "geometry",
     label: "Measure fill",
-    model: "Load Measurement Math",
+    model: "Load Math",
     status: "ok",
     summary: "Calculates the exact percentage the truck bed is filled from the video outlines.",
     confidence: null,
@@ -120,7 +126,7 @@ export interface PipelineWorkbenchSummary {
   flags?: number | string;
 }
 
-/** CI-style stage graph with 38% right-side inspector modal. */
+/** CI-style stage graph with 38% right-side inspector modal. Fits completely on screen. */
 export function PipelineWorkbench({
   stages,
   summary,
@@ -145,10 +151,10 @@ export function PipelineWorkbench({
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="flex w-full min-w-0 flex-col gap-3">
       {/* Top summary row if provided */}
       {summary && (
-        <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-secondary/40 p-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 rounded-xl border border-border bg-secondary/40 p-3 sm:grid-cols-4">
           <SummaryField label="Truck" value={summary.truck ?? "Unidentified"} />
           <SummaryField label="Debris" value={summary.debris ?? "N/A"} />
           <SummaryField label="Value" value={summary.value ?? "N/A"} />
@@ -156,73 +162,83 @@ export function PipelineWorkbench({
         </div>
       )}
 
-      {/* Stage Cards Horizontal Row */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-muted-foreground">
-          Pipeline Stages · Click any stage to inspect output in right-side drawer
-        </span>
+      {/* Prominent interactive prompt banner */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3.5 py-2 text-xs">
+        <div className="flex items-center gap-2 text-foreground">
+          <SparklesIcon className="size-4 shrink-0 text-primary" />
+          <span>
+            <strong className="font-semibold text-primary">Interactive AI Pipeline:</strong> Click any stage below to inspect its detailed AI analysis, model outputs, and measurements in the sidebar.
+          </span>
+        </div>
         <Button
           variant="outline"
           size="sm"
           onClick={() => setDrawerOpen(true)}
-          className="h-7 gap-1.5 text-xs"
+          className="h-6 gap-1.5 border-primary/30 px-2.5 text-[11px] font-medium hover:bg-primary/10"
         >
-          <PanelRightOpenIcon className="size-3.5" />
-          <span>Stage Inspector (Sidebar)</span>
+          <PanelRightOpenIcon className="size-3 text-primary" />
+          <span>Open Inspector Drawer (38%)</span>
         </Button>
       </div>
 
-      <div className="overflow-x-auto pb-2">
-        <ol aria-label="Analysis stages" className="flex min-w-max items-stretch gap-2">
-          {displayStages.map((s, i) => {
-            const isSelected = i === selectedIndex;
-            return (
-              <li key={`${s.key}-${i}`} className="flex items-center gap-2">
-                <button
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => handleStageClick(i)}
-                  className={cn(
-                    "group flex w-44 flex-col gap-2 rounded-xl border border-border bg-secondary/30 p-3 text-left transition-all hover:bg-accent hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                    isSelected && "border-primary bg-primary/10 ring-1 ring-primary shadow-xs",
-                  )}
-                >
-                  <span className="flex items-center justify-between text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                    Stage {String(i + 1).padStart(2, "0")}
+      {/* Responsive stage cards grid: exactly 6 columns on desktop so full pipeline fits screen width */}
+      <ol
+        aria-label="Analysis stages"
+        className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-6"
+      >
+        {displayStages.map((s, i) => {
+          const isSelected = i === selectedIndex;
+          const isReady = s.duration_ms == null || s.duration_ms === 0;
+          return (
+            <li key={`${s.key}-${i}`} className="min-w-0">
+              <button
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => handleStageClick(i)}
+                className={cn(
+                  "group relative flex h-full w-full flex-col justify-between rounded-xl border border-border bg-secondary/30 p-2.5 text-left transition-all hover:border-primary/60 hover:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  isSelected && "border-primary bg-primary/10 ring-1 ring-primary shadow-xs",
+                )}
+              >
+                <div>
+                  <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <span>Stage {String(i + 1).padStart(2, "0")}</span>
                     {s.status === "flagged" ? (
-                      <TriangleAlertIcon className="size-4 text-[var(--color-warn)]" />
+                      <TriangleAlertIcon className="size-3.5 text-[var(--color-warn)]" />
                     ) : (
-                      <CheckCircle2Icon className="size-4 text-[var(--color-ok)]" />
+                      <CheckCircle2Icon className="size-3.5 text-[var(--color-ok)]" />
                     )}
-                  </span>
-                  <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                  </div>
+                  <div className="mt-1 text-[12px] font-semibold leading-tight text-foreground group-hover:text-primary transition-colors truncate">
                     {s.label}
-                  </span>
-                  <span className="max-w-full truncate font-mono text-[10px] text-muted-foreground">
+                  </div>
+                  <div className="mt-0.5 truncate font-mono text-[9.5px] text-muted-foreground">
                     {s.model}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
+                  </div>
+                </div>
+
+                <div className="mt-2 flex items-center justify-between border-t border-border/40 pt-1.5 text-[10px]">
+                  <span className="text-muted-foreground truncate">
                     {s.status === "flagged"
                       ? "Flagged"
                       : s.status === "skipped"
                         ? "Skipped"
-                        : s.duration_ms == null || s.duration_ms === 0
+                        : isReady
                           ? "Ready"
-                          : "Completed"}{" "}
-                    ·{" "}
-                    {s.duration_ms == null || s.duration_ms === 0
-                      ? "Live"
-                      : `${(s.duration_ms / 1000).toFixed(1)} s`}
+                          : "Done"}
+                    {" · "}
+                    {isReady ? "Live" : `${(s.duration_ms! / 1000).toFixed(1)}s`}
                   </span>
-                </button>
-                {i < displayStages.length - 1 && (
-                  <ChevronRightIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-                )}
-              </li>
-            );
-          })}
-        </ol>
-      </div>
+                  <span className="inline-flex items-center text-[9px] font-medium text-primary opacity-70 group-hover:opacity-100 transition-opacity">
+                    Inspect
+                    <ArrowUpRightIcon className="ml-0.5 size-2.5" />
+                  </span>
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
 
       {/* Inline Stage Output Panel - ONLY rendered if explicitly enabled (e.g., test harness) */}
       {showInlineTrace && (
@@ -245,7 +261,7 @@ export function PipelineWorkbench({
 
 function SummaryField({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col min-w-0">
       <span className="text-[11px] text-muted-foreground">{label}</span>
       <span className="truncate text-[13px] font-semibold tabular-nums text-foreground">{value}</span>
     </div>
