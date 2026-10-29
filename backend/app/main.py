@@ -69,6 +69,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
         await stop_ingest_jobs()
         await close_pipeline_cache()
+        from app.api.cache import close_redis_client
+
+        await close_redis_client()
         log.info("shutdown")
 
 

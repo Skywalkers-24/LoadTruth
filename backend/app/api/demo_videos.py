@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 
+from app.api.cache import cached_api, invalidate_cache_tags
 from app.api.deps import CurrentMember, require
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_manage_demo_videos
@@ -78,31 +79,40 @@ async def list_videos(
     limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ) -> VideoPage:
-    where = DemoVideo.tenant_id == tenant
-    total = int(
-        (
-            await repo.session.execute(select(func.count()).select_from(DemoVideo).where(where))
-        ).scalar_one()
-    )
-    rows = (
-        (
-            await repo.session.execute(
-                select(DemoVideo)
-                .where(where)
-                .order_by(DemoVideo.created_at.desc(), DemoVideo.id.desc())
-                .limit(limit)
-                .offset(offset)
-            )
+    async def _compute() -> VideoPage:
+        where = DemoVideo.tenant_id == tenant
+        total = int(
+            (
+                await repo.session.execute(select(func.count()).select_from(DemoVideo).where(where))
+            ).scalar_one()
         )
-        .scalars()
-        .all()
-    )
-    s = get_settings()
-    return VideoPage(
-        items=[VideoOut.model_validate(row) for row in rows],
-        total=total,
-        analysis_max_bytes=s.analysis_max_bytes,
-        upload_max_bytes=s.demo_upload_max_bytes,
+        rows = (
+            (
+                await repo.session.execute(
+                    select(DemoVideo)
+                    .where(where)
+                    .order_by(DemoVideo.created_at.desc(), DemoVideo.id.desc())
+                    .limit(limit)
+                    .offset(offset)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        s = get_settings()
+        return VideoPage(
+            items=[VideoOut.model_validate(row) for row in rows],
+            total=total,
+            analysis_max_bytes=s.analysis_max_bytes,
+            upload_max_bytes=s.demo_upload_max_bytes,
+        )
+
+    return await cached_api(
+        tags=[f"tenant:{tenant}:demo_videos"],
+        key=f"demo_videos:{tenant}:{limit}:{offset}",
+        compute=_compute,
+        to_dict=lambda page: page.model_dump(mode="json"),
+        from_dict=VideoPage.model_validate,
     )
 
 
@@ -176,6 +186,7 @@ async def complete_upload(repo: Repository, tenant: ActiveTenant, video_id: UUID
     row.object_version = str(version)
     row.status = "ready"
     await repo.session.flush()
+    await invalidate_cache_tags(f"tenant:{tenant}:demo_videos")
     return VideoOut.model_validate(row)
 
 
