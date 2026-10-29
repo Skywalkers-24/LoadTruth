@@ -118,20 +118,27 @@ jobs:
       BACKEND_URL: https://loadtruth-api.onrender.com
     steps:
       - name: Check Cloudflare credentials
+        id: cloudflare
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "::error::Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets."
-            exit 1
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GitHub Actions Cloudflare deploy is disabled; Cloudflare Workers Builds can deploy from the repository directly."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/checkout@v4
+        if: steps.cloudflare.outputs.configured == 'true'
       - uses: actions/setup-node@v4
+        if: steps.cloudflare.outputs.configured == 'true'
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Install frontend dependencies
+        if: steps.cloudflare.outputs.configured == 'true'
         working-directory: frontend
         run: npm ci
       - name: Build and deploy to Cloudflare
+        if: steps.cloudflare.outputs.configured == 'true'
         working-directory: frontend
         run: npm run deploy

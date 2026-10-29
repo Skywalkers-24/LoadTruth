@@ -60,11 +60,12 @@ npx wrangler login               # one-time local authentication
 npm run deploy                   # rebuild and deploy the Worker
 ```
 
-For GitHub auto-deploys, add repository secrets `CLOUDFLARE_API_TOKEN` (Edit
-Cloudflare Workers permission) and `CLOUDFLARE_ACCOUNT_ID`. The CI workflow
-builds and deploys `loadtruth-console` when a push to `main` passes the backend
-and frontend jobs. `frontend/wrangler.jsonc` contains the Worker entry point and
-Render backend URL.
+For GitHub Actions auto-deploys, add repository secrets `CLOUDFLARE_API_TOKEN`
+(Edit Cloudflare Workers permission) and `CLOUDFLARE_ACCOUNT_ID`. The CI workflow
+builds and deploys `loadtruth-console` when those secrets are set and a push to
+`main` passes the backend and frontend jobs. Without them, the deploy step is
+skipped so a directly connected Cloudflare Workers Build can deploy the push.
+`frontend/wrangler.jsonc` contains the Worker entry point and Render backend URL.
 
 For Cloudflare Workers Builds connected directly to GitHub, set these build
 settings so commands run in the Next.js project directory:
