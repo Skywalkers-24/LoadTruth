@@ -76,7 +76,7 @@ export function LoginScreen() {
       {/* Brand panel. Transparent with no panel-wide blur so the truck footage
           stays crisp; legibility comes from a soft left-edge gradient and a
           text-shadow on the copy instead. The z-10 lifts it above the video. */}
-      <div className="relative z-10 hidden flex-col justify-start overflow-hidden p-7 text-sidebar-foreground xl:p-10 lg:flex">
+      <div className="relative z-10 hidden min-h-0 flex-col justify-start overflow-hidden p-7 pb-4 text-sidebar-foreground xl:p-10 xl:pb-5 lg:flex">
         {/* Legibility scrim concentrated at the TOP-LEFT, where the logo + copy
             now sit (the clear studio area above/left of the truck). A radial
             wash anchored top-left plus a gentle top-edge wash fade fully to

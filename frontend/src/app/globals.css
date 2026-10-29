@@ -1156,6 +1156,13 @@ textarea,
   }
 }
 
+@media (min-height: 901px) {
+  .login-screen-panel {
+    justify-content: flex-end;
+    padding-bottom: 1rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
