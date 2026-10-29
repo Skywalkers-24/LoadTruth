@@ -26,3 +26,51 @@ describe("parseSam", () => {
     expect(track.frames.size).toBe(0);
   });
 });
+
+import { frameLayers, loadTexts, type SamShape, type SamTrack } from "./sam-player";
+
+function shape(
+  objectId: string,
+  left: number,
+  top: number,
+  right: number,
+  bottom: number,
+): SamShape {
+  return { objectId, left, top, right, bottom, path: "M0 0L1 0L1 1Z" };
+}
+function track(shapes: SamShape[]): SamTrack {
+  return { frames: new Map([[0, shapes]]), width: 1024, height: 576, frameCount: 1 };
+}
+
+describe("evidence overlay regions", () => {
+  const bed = shape("bed", 100, 100, 300, 400);
+  const rim = shape("tailgate", 100, 260, 300, 400);
+  it("uses the rear rim to separate bed interior from the tailgate and plate", () => {
+    const cargo = shape("appliance", 140, 130, 210, 220);
+    const plate = shape("plate", 160, 300, 200, 330);
+    const outside = shape("yard debris", 310, 120, 420, 230);
+    const result = frameLayers(track([bed]), track([cargo, plate, outside]), track([rim]), 0);
+    expect(result.rim).toBe(260);
+    expect(result.loads).toEqual([cargo]);
+  });
+  it("retains cargo whose mask does not intersect the visible metal mask", () => {
+    const cargo = shape("cargo", 150, 120, 250, 200);
+    expect(frameLayers(track([bed]), track([cargo]), track([rim]), 0).loads).toEqual([cargo]);
+  });
+  it("uses all named material prompts instead of only the best legacy phrase", () => {
+    expect(
+      loadTexts({ "debris pile": "best", "load: washers": "washers", "load: heaters": "heaters" }),
+    ).toEqual(["washers", "heaters"]);
+    expect(loadTexts({ "debris pile": "legacy" })).toEqual(["legacy"]);
+  });
+  it("does not switch to a background truck when the main bed leaves the frame", () => {
+    const beds = track([bed, shape("small", 0, 0, 20, 20)]);
+    beds.frames.set(1, [shape("small", 0, 0, 20, 20)]);
+    expect(frameLayers(beds, track([]), track([]), 1).bed).toBeUndefined();
+  });
+  it("ignores unrelated and implausibly high tailgate detections", () => {
+    const unrelated = shape("other rim", 500, 200, 600, 300);
+    const cab = shape("cab", 100, 110, 300, 140);
+    expect(frameLayers(track([bed]), track([]), track([unrelated, cab, rim]), 0).rim).toBe(260);
+  });
+});

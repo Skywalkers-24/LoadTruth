@@ -51,6 +51,20 @@ ManageEvents = Depends(require(can_manage_events, _NO_EVENTS))
 ReviewTickets = Depends(require(can_review_tickets, _NO_REVIEW))
 
 
+async def _require_writable_ticket(repo: Repository, tenant: UUID, ticket_id: UUID) -> None:
+    """Keep curated benchmark tickets immutable for every role."""
+    try:
+        ticket = await repo.get_ticket(tenant, ticket_id)
+    except TicketNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
+    event = await repo.get_event(tenant, ticket.event_id)
+    if event is not None and "read-only" in event.tags:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "This preprocessed showcase event is read-only.",
+        )
+
+
 @router.get("/events", response_model=list[EventOut])
 async def list_events(repo: Repository, tenant: ActiveTenant) -> list[EventOut]:
     """List disaster events in the active tenant."""
@@ -72,6 +86,7 @@ async def create_event(repo: Repository, tenant: ActiveTenant, body: EventIn) ->
         location=body.location,
         status=body.status,
         rate_table=body.rate_table,
+        tags=body.tags,
     )
     return event_to_out(event)
 
@@ -81,6 +96,9 @@ async def update_event(
     repo: Repository, tenant: ActiveTenant, event_id: UUID, body: EventPatch
 ) -> EventOut:
     """Update an event; only supplied fields change."""
+    event_row = await repo.get_event(tenant, event_id)
+    if event_row is not None and "read-only" in event_row.tags:
+        raise HTTPException(status.HTTP_409_CONFLICT, "This showcase event is read-only.")
     try:
         event = await repo.update_event(
             tenant,
@@ -89,6 +107,7 @@ async def update_event(
             location=body.location,
             status=body.status,
             rate_table=body.rate_table,
+            tags=body.tags,
             fields_set=set(body.model_fields_set),
         )
     except EventNotFoundError as exc:
@@ -289,6 +308,7 @@ async def set_monitor_call(
     repo: Repository, tenant: ActiveTenant, ticket_id: UUID, body: MonitorCallIn
 ) -> TicketOut:
     """Record the monitor's fill-% call; recomputes and persists the §7a delta."""
+    await _require_writable_ticket(repo, tenant, ticket_id)
     try:
         t = await repo.set_monitor_call(tenant, ticket_id, body.monitor_fill_pct)
     except TicketNotFoundError as exc:
@@ -301,6 +321,7 @@ async def set_status(
     repo: Repository, tenant: ActiveTenant, ticket_id: UUID, body: StatusIn
 ) -> TicketOut:
     """Confirm, override, or dispute a ticket (the review action)."""
+    await _require_writable_ticket(repo, tenant, ticket_id)
     if body.status is TicketStatus.DRAFT:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "cannot set a ticket back to draft")
     try:
@@ -321,6 +342,7 @@ async def update_ticket(
     math so cubic yards, the monitor delta, and the value stay consistent.
     """
     fields = set(body.model_fields_set)
+    await _require_writable_ticket(repo, tenant, ticket_id)
     if not fields:
         # Nothing to change — return the ticket as-is.
         try:

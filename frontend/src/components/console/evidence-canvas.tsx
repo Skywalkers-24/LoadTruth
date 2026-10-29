@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { MaximizeIcon, MinimizeIcon } from "lucide-react";
 
 import type { Ticket } from "@/lib/api";
 import { useTicketEvidence } from "@/lib/hooks";
@@ -17,12 +19,53 @@ import { percent } from "@/lib/format";
  * measured fill, the bed-rail reference plane, and a marker at the monitor's
  * claimed fill so the gap between the two is visible at a glance.
  */
-type Overlay = "rail" | "load" | "call";
+type Overlay = "body" | "rail" | "load" | "call";
 
 export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    const changed = () => setFullscreen(document.fullscreenElement === viewerRef.current);
+    document.addEventListener("fullscreenchange", changed);
+    return () => document.removeEventListener("fullscreenchange", changed);
+  }, []);
+  useEffect(() => {
+    if (!expanded) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExpanded(false);
+    };
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.body.style.overflow = previous;
+      document.removeEventListener("keydown", escape);
+    };
+  }, [expanded]);
+  async function toggleFullscreen() {
+    if (expanded) {
+      setExpanded(false);
+      return;
+    }
+    if (document.fullscreenElement === viewerRef.current) {
+      await document.exitFullscreen();
+      return;
+    }
+    try {
+      if (!viewerRef.current?.requestFullscreen) {
+        setExpanded(true);
+        return;
+      }
+      await viewerRef.current.requestFullscreen();
+    } catch {
+      setExpanded(true);
+    }
+  }
   const frames = ticket.evidence_frames;
   const [frameIdx, setFrameIdx] = useState(0);
   const [overlays, setOverlays] = useState<Record<Overlay, boolean>>({
+    body: false,
     rail: true,
     load: true,
     call: true,
@@ -50,9 +93,13 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
   // Narrow pane: a 2:1 box in the scrolling column. Wide pane: the viewer takes
   // whatever height the center column has left, so the evidence grows on a tall
   // monitor and shrinks (to a readable minimum) on a short laptop screen.
-  return (
+  const viewer = (
     <div className="flex flex-col gap-3 @[46rem]:min-h-[13rem] @[46rem]:flex-1">
-      <div className="overflow-hidden rounded-lg border border-[var(--color-border)] @[46rem]:flex @[46rem]:min-h-0 @[46rem]:flex-1 @[46rem]:flex-col">
+      <div
+        ref={viewerRef}
+        data-expanded={expanded || undefined}
+        className="lt-evidence-viewer overflow-hidden rounded-lg border border-[var(--color-border)] @[46rem]:flex @[46rem]:min-h-0 @[46rem]:flex-1 @[46rem]:flex-col"
+      >
         {/* Viewer header: title, frame, overlay toggles */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5">
           <div className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-[var(--color-text)]">
@@ -61,7 +108,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
             <Tooltip
               content={
                 live
-                  ? "The clip the models analyzed. Blue outlines are the truck bed and violet outlines are the load, exactly as SAM 3.1 segmented each frame."
+                  ? "SAM 3.1 masks: amber is the exterior and tailgate, blue is the visible bed interior above the rear rim, and purple is the load. Each color can be toggled."
                   : "Drawn from the segmented load surface relative to the calibrated truck-bed geometry."
               }
             >
@@ -84,7 +131,15 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
             )}
           </div>
           {hasViewer && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {live && (
+                <OverlayToggle
+                  label="Body"
+                  color="#f59e0b"
+                  on={overlays.body}
+                  onClick={() => toggle("body")}
+                />
+              )}
               <OverlayToggle
                 label={live ? "Bed" : "Rail"}
                 color="var(--color-info)"
@@ -97,6 +152,17 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
                 on={overlays.load}
                 onClick={() => toggle("load")}
               />
+              <button
+                type="button"
+                onClick={() => void toggleFullscreen()}
+                aria-label={
+                  fullscreen || expanded ? "Exit evidence fullscreen" : "Fullscreen evidence"
+                }
+                title={fullscreen || expanded ? "Exit fullscreen" : "Fullscreen with masks"}
+                className="rounded-md border border-[var(--color-border)] p-1.5 hover:bg-[var(--color-surface-2)]"
+              >
+                {fullscreen || expanded ? <MinimizeIcon size={16} /> : <MaximizeIcon size={16} />}
+              </button>
               {!live && monitor !== null && (
                 <OverlayToggle
                   label="Call"
@@ -110,13 +176,14 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
         </div>
 
         {/* The media and SVG overlays letterbox inside this box at any size. */}
-        <div className="relative aspect-[16/8] max-h-[17rem] w-full shrink-0 overflow-hidden bg-[var(--color-bg)] @[46rem]:aspect-auto @[46rem]:max-h-none @[46rem]:min-h-0 @[46rem]:shrink @[46rem]:flex-1">
+        <div className="lt-evidence-media relative aspect-[16/8] max-h-[17rem] w-full shrink-0 overflow-hidden bg-[var(--color-bg)] @[46rem]:aspect-auto @[46rem]:max-h-none @[46rem]:min-h-0 @[46rem]:shrink @[46rem]:flex-1">
           {live && evidence ? (
             <>
               <SamPlayer
+                key={ticket.id}
                 ticketId={ticket.id}
                 evidence={evidence}
-                show={{ bed: overlays.rail, load: overlays.load }}
+                show={{ body: overlays.body, bed: overlays.rail, load: overlays.load }}
                 onFrame={onFrame}
               />
               <div className="pointer-events-none absolute right-3 top-3 hidden gap-2 sm:flex">
@@ -190,6 +257,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
       </div>
     </div>
   );
+  return expanded ? createPortal(viewer, document.body) : viewer;
 }
 
 function Readout({ label, value, color }: { label: string; value: string; color: string }) {

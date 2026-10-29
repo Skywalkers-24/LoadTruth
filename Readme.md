@@ -12,6 +12,8 @@ Built for the [Meta Global AI Developer Hackathon](https://cerebralvalley.ai/e/m
 
 </div>
 
+> **Developer setup:** see [CONTRIBUTING.md](CONTRIBUTING.md) for requirements, local startup, commands, repository map, and configuration.
+
 ---
 
 ## 📌 TL;DR
@@ -168,6 +170,95 @@ Each clip is content-hashed; the hash keys both the result cache and the fixture
 ---
 
 ## 🛠️ Architecture
+
+### System architecture (current implementation)
+
+This is a component and dependency view of the running code, not a sequence diagram. It includes the user interface, API/auth boundaries, pipeline and model seam, persistence, local artifacts, and optional integrations. The upload pipeline currently runs synchronously in the FastAPI process. Redis is started by Compose, but the current ingest path does not enqueue a worker job. Supabase JWT/RLS support exists as an integration path; the standard app login uses LoadTruth session tokens and API role checks.
+
+```mermaid
+architecture-beta
+    group clients(cloud)[Clients]
+    service operator(browser)[Operator] in clients
+    service reviewer(browser)[Reviewer] in clients
+
+    group web(server)[Next.js application]
+    service next(server)[App Router and API proxy] in web
+    service screens(server)[Screens and components] in web
+    service webapi(server)[Typed API client] in web
+    service authui(server)[Auth and role gates] in web
+
+    group backend(server)[FastAPI application]
+    service routes(server)[API routers] in backend
+    service auth(server)[Session verification and RBAC] in backend
+    service tenant(server)[Active tenant context] in backend
+    service ingest(server)[Ingest route] in backend
+    service repo(server)[SQL ticket repository] in backend
+    service exports(server)[Reports billing and exports] in backend
+    service chat(server)[Analyst chat] in backend
+
+    group pipeline(server)[Pipeline and AI boundary]
+    service media(server)[Upload hash transcode frames] in pipeline
+    service orchestrator(server)[Pipeline orchestrator] in pipeline
+    service sam(server)[SAM tracking and masks] in pipeline
+    service spark(server)[Muse OCR classify narration] in pipeline
+    service geometry(server)[Fill geometry and capacity] in pipeline
+    service anomalies(server)[Deterministic anomaly rules] in pipeline
+    service valuation(server)[Decimal valuation] in pipeline
+    service trace(server)[Trace progress and job store] in pipeline
+    service cache(server)[Result and stage caches] in pipeline
+    service ledger(server)[Cost ledger and budget] in pipeline
+
+    group storage(database)[Persistence and local artifacts]
+    service db(database)[SQLAlchemy database] in storage
+    service evidence(disk)[Evidence media] in storage
+    service metalog(disk)[Redacted model API log] in storage
+    service fixtures(disk)[Recorded AI fixtures] in storage
+
+    group integrations(cloud)[External and optional integrations]
+    service meta(cloud)[Meta Model API] in integrations
+    service supabase(cloud)[Supabase JWT and Postgres RLS] in integrations
+    service redis(cloud)[Redis ARQ queue optional] in integrations
+
+    operator:R --> L:next
+    reviewer:R --> L:next
+    next:B --> T:screens
+    screens:R --> L:webapi
+    authui:B --> T:webapi
+    webapi:R --> L:routes
+    next:R --> L:routes
+
+    routes:B --> T:auth
+    auth:B --> T:tenant
+    routes:R --> L:repo
+    routes:R --> L:ingest
+    routes:R --> L:exports
+    routes:R --> L:chat
+    ingest:B --> T:media
+    media:R --> L:orchestrator
+    orchestrator:L --> R:sam
+    orchestrator:L --> R:spark
+    sam:R --> L:meta
+    spark:R --> L:meta
+    orchestrator:B --> T:geometry
+    geometry:R --> L:anomalies
+    anomalies:R --> L:valuation
+    orchestrator:B --> T:trace
+    orchestrator:B --> T:cache
+    orchestrator:B --> T:ledger
+    cache:B --> T:repo
+    repo:B --> T:db
+    exports:B --> T:repo
+    chat:B --> T:repo
+    ingest:B --> T:evidence
+    trace:R --> L:routes
+    meta:B --> T:metalog
+    fixtures:R --> L:spark
+    fixtures:R --> L:sam
+    tenant:R --> L:supabase
+    redis:R --> L:orchestrator
+```
+
+The database defaults to SQLite on the host and uses Postgres in the Compose stack. AI stage results are persisted in the SQL repository; a separate in-process whole-pipeline cache avoids repeated work within a running process. Evidence media and redacted model logs are local filesystem artifacts by default. Fixture mode routes SAM/Spark calls to recorded scenarios and makes no external model request. The Supabase and Redis links mark integration seams rather than the primary local request path.
 
 ```
 loadtruth/

@@ -41,6 +41,9 @@ responses.log
 logs/
 # Stored evidence clips (customer media); see backend/app/pipeline/evidence_store.py
 media/
+# Explicitly curated clips that the user requested for the public, read-only showcase.
+!backend/showcase/media/
+!backend/showcase/media/**
 *.local
 
 # Local scratch / experiment scripts and logs (not part of the app)

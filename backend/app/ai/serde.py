@@ -30,6 +30,7 @@ def track_to_json(r: TrackResult) -> dict[str, Any]:
         "load_source": r.load_source,
         "coverage_spread": r.coverage_spread,
         "measure_version": r.measure_version,
+        "sam_prompt_version": r.sam_prompt_version,
         "bed_source": r.bed_source,
         "objects": [
             {
@@ -65,6 +66,7 @@ def track_from_json(d: dict[str, Any]) -> TrackResult:
         load_source=str(d.get("load_source") or "segmented"),
         coverage_spread=float(d.get("coverage_spread") or 0.0),
         measure_version=int(d.get("measure_version") or 0),
+        sam_prompt_version=int(d.get("sam_prompt_version") or 0),
         bed_source=str(d.get("bed_source") or "bed"),
     )
 
@@ -86,6 +88,13 @@ def track_is_outdated(d: dict[str, Any], current_version: int) -> bool:
     raw = d.get("sam_output")
     has_raw = isinstance(raw, dict) and any(str(v).strip() for v in raw.values())
     return has_raw and int(d.get("measure_version") or 0) < current_version
+
+
+def track_prompt_is_outdated(d: dict[str, Any], current_version: int) -> bool:
+    """True when raw track masks came from an older SAM prompt set."""
+    raw = d.get("sam_output")
+    has_raw = isinstance(raw, dict) and any(str(v).strip() for v in raw.values())
+    return has_raw and int(d.get("sam_prompt_version") or 0) < current_version
 
 
 def track_has_load(d: dict[str, Any]) -> bool:

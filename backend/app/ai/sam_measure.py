@@ -12,14 +12,14 @@ How the bed reads from a gate camera (measurement v2)
 The camera sits high behind the truck and looks down into the bed. Three SAM
 concepts carry the measurement:
 
-* **bed** (``truck bed``) — the dump body: the tailgate face and, above it, the
-  visible inside of the bed (side walls, headboard, floor) wherever the load
-  does not cover it.
+* **bed** (``truck bed``) — the visible bed interior. Its SAM box bounds the
+  cargo region; its mask marks visible metal surfaces, which cargo may occlude.
 * **tailgate** — SAM's tailgate mask. Its top edge is the rear rim of the bed.
   Everything of the bed above that line is the bed **opening**.
-* **load** (``debris pile``, ``pile``) — the material in the bed. Several
-  phrases run in parallel because one phrase misses some loads (palm fronds
-  are a "pile" but not a "debris pile"); their masks are merged.
+* **load** — specific material names returned for the event's debris class.
+  Several phrases run in parallel because one phrase can miss part of a mixed
+  load; detections are bounded by the bed box and tailgate, not clipped to the
+  visible metal mask.
 
 Per frame: the **opening** is every row from the top of the bed to the tailgate
 rim, counted wall to wall (bed OR load), so shadows stay in the denominator.
@@ -63,12 +63,13 @@ log = get_logger("ai.sam_measure")
 # Keys of the stored SAM output (TrackResult.segments). The overlay draws the
 # bed and load keys; every load phrase is also kept under LOAD_PREFIX + phrase.
 BED_LABEL = "truck bed"
+TRUCK_BODY_LABEL = "truck body"
 LOAD_LABEL = "debris pile"
 RIM_LABEL = "tailgate"
 LOAD_PREFIX = "load: "
 
-# Which SAM phrase gave the bed: the bed itself, or (when no bed phrase matched)
-# the whole truck, a coarser outline that lowers confidence.
+# Historical source markers. New runs measure only the open-bed interior; an
+# exterior-body mask is displayed separately and is never used as bed geometry.
 BED_FROM_BED = "bed"
 BED_FROM_TRUCK = "truck"
 
@@ -77,8 +78,11 @@ BED_FROM_TRUCK = "truck"
 # stored masks suffice, else re-run through SAM (to pick up new/named load
 # concepts). v3: Muse Spark now names the load concepts per clip and the load
 # set gained "barrels and containers", so a v2 track that found no load must get
-# another SAM pass rather than keep its stale 0%.
-MEASURE_VERSION = 3
+# another SAM pass rather than keep its stale result. v4 rejects detections
+# mostly outside the bed box. v5 stops intersecting load masks with the visible
+# metal mask, which had erased cargo pixels hidden behind the appliances.
+MEASURE_VERSION = 5
+SAM_PROMPT_VERSION = 3
 
 # How the load was measured on the selected frames.
 LOAD_SEGMENTED = "segmented"  # a SAM load phrase matched inside the bed
@@ -227,6 +231,14 @@ def _overlaps(a: Box, b: Box) -> bool:
     )
 
 
+def _box_overlap_share(inner: Box, region: Box) -> float:
+    """Share of a detection box that lies within a candidate bed opening."""
+    area = max(1, inner.area)
+    width = max(0, min(inner.right, region.right) - max(inner.left, region.left))
+    height = max(0, min(inner.bottom, region.bottom) - max(inner.top, region.top))
+    return width * height / area
+
+
 def _rim_y(bed: Box, tailgates: list[Detection]) -> int | None:
     """The bed's rear rim: the top of SAM's tailgate mask on this bed, if any."""
     floor = bed.top + (bed.bottom - bed.top) * _RIM_MIN_SHARE
@@ -244,7 +256,9 @@ def measure_frame(
     x0, x1 = box.left, box.right
     rim = _rim_y(box, tailgates or [])
     rim_line = rim if rim is not None else box.bottom
-    in_bed = [ld for ld in loads if _overlaps(ld.box, box)]
+    in_bed = [
+        ld for ld in loads if _overlaps(ld.box, box) and _box_overlap_share(ld.box, box) >= 0.5
+    ]
     bed_rows = _Rows(bed, x0, x1)
     load_rows = [_Rows(ld, x0, x1) for ld in in_bed]
     y_start = min([box.top] + [ld.box.top for ld in in_bed])
@@ -256,6 +270,11 @@ def measure_frame(
         lr = zero
         for rows in load_rows:
             lr = _or(lr, rows.row(y))
+        # `open truck bed interior` often segments the visible metal surfaces,
+        # while cargo occludes those pixels. It is a useful visual guide but
+        # cannot be a hard mask for the cargo: doing so removes the load itself.
+        # Keep load pixels within the bed's SAM box and tailgate-bounded opening;
+        # detections mostly outside the bed box were filtered above.
         load_count = lr.count(1)
         if y < box.top:
             heap_px += load_count  # load heaped above the front rim
@@ -403,5 +422,6 @@ def remeasure(stored: TrackResult, *, media_kind: str, max_frames: int) -> Track
         load_source=fresh.load_source,
         coverage_spread=fresh.coverage_spread,
         measure_version=fresh.measure_version,
+        sam_prompt_version=stored.sam_prompt_version,
         bed_source=stored.bed_source,
     )

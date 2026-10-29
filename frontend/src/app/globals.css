@@ -1168,3 +1168,28 @@ textarea,
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Fullscreen belongs to the evidence card so video, SVG and layer toggles stay together. */
+.lt-evidence-viewer:fullscreen,
+.lt-evidence-viewer[data-expanded="true"] {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100dvh;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+}
+.lt-evidence-viewer[data-expanded="true"] {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+.lt-evidence-viewer:fullscreen .lt-evidence-media,
+.lt-evidence-viewer[data-expanded="true"] .lt-evidence-media {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  aspect-ratio: auto;
+}

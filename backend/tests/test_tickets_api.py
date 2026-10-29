@@ -31,7 +31,7 @@ def _draft_without_call_id(client: TestClient) -> str:
 
 def test_list_events(client: TestClient) -> None:
     events = client.get("/events").json()
-    assert len(events) == 3  # Hurricane, Camp Fire, Winter Storm Uri
+    assert len(events) == 4  # Hurricane, Camp Fire, Winter Storm Uri, curated showcase
     ids = {e["id"] for e in events}
     assert str(DEMO_EVENT_ID) in ids
     demo = next(e for e in events if e["id"] == str(DEMO_EVENT_ID))

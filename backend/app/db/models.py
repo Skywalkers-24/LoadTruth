@@ -34,6 +34,7 @@ class Event(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     # $/CY by debris class, e.g. {"vegetative": 8, "construction_demolition": 12}.
     rate_table: Mapped[dict[str, float]] = mapped_column(JSON, nullable=False, default=dict)
+    tags: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
 
 
 class Source(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):

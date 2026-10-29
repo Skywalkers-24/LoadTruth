@@ -35,6 +35,7 @@ class Event:
     status: str = "active"
     # $/CY by debris class, e.g. {"vegetative": 8, "construction_demolition": 12}.
     rate_table: dict[str, float] = field(default_factory=dict)
+    tags: list[str] = field(default_factory=list)
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=_now)
 

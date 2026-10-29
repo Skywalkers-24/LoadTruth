@@ -23,7 +23,7 @@ import { Skeleton } from "@/components/ui/shadcn/skeleton";
 import { FadeIn } from "@/components/ui/motion";
 import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
-import { useDashboard, useIngest, useTickets } from "@/lib/hooks";
+import { useIngest, useTickets } from "@/lib/hooks";
 import { debrisLabel, money, relativeTime, signedMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -65,15 +65,15 @@ export default function NewTicketPage() {
   const [result, setResult] = useState<Ticket | null>(null);
   const [error, setError] = useState<string | null>(null);
   const tickets = useTickets({ eventId, limit: 100, offset: 0 });
-  const dashboard = useDashboard(eventId);
   const recent = (tickets.data?.items ?? [])
     .slice()
     .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
 
   const allowed = can("ingest");
+  const showcaseReadOnly = Boolean(selected?.tags.includes("read-only"));
 
   function submit(file: File) {
-    if (!eventId) return;
+    if (!eventId || showcaseReadOnly) return;
     setError(null);
     setResult(null);
     ingest.mutate(
@@ -106,7 +106,7 @@ export default function NewTicketPage() {
 
   return (
     <AppShell section="New Ticket">
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:overflow-hidden">
         <div className="flex min-w-0 flex-col">
           <h1 className="lt-page-title">Capture a new ticket</h1>
           <p className="text-[12px] text-muted-foreground">
@@ -116,11 +116,11 @@ export default function NewTicketPage() {
           </p>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          {/* Left: capture flow */}
-          <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
+        <div className="grid min-h-[360px] gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-2">
+          {/* Upload stays beside the live analysis and draft summary. */}
+          <div className="min-w-0">
             <FadeIn>
-              <Card className="gap-0 p-4">
+              <Card className="h-full gap-0 p-4">
                 <label
                   onDragOver={(e) => {
                     e.preventDefault();
@@ -138,7 +138,7 @@ export default function NewTicketPage() {
                     dragging
                       ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)]"
                       : "border-border hover:border-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]/40",
-                    ingest.isPending && "pointer-events-none opacity-70",
+                    (ingest.isPending || showcaseReadOnly) && "pointer-events-none opacity-70",
                   )}
                 >
                   <input
@@ -147,7 +147,7 @@ export default function NewTicketPage() {
                     accept="video/*,image/*"
                     onChange={onPick}
                     className="hidden"
-                    disabled={ingest.isPending}
+                    disabled={ingest.isPending || showcaseReadOnly}
                   />
                   <span className="grid size-14 place-items-center rounded-2xl bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
                     {ingest.isPending ? (
@@ -160,11 +160,15 @@ export default function NewTicketPage() {
                     <span className="text-[15px] font-semibold">
                       {ingest.isPending
                         ? "Analyzing the clip"
+                        : showcaseReadOnly
+                          ? "Preprocessed showcase event"
                         : "Drop a clip here, or click to browse"}
                     </span>
                     <span className="text-[12px] text-muted-foreground">
                       {ingest.isPending
                         ? "Measuring fill and drafting the ticket"
+                        : showcaseReadOnly
+                          ? "Stored Meta results are shown read-only. Browsing them makes no Meta calls."
                         : "Video or image, up to a few hundred MB"}
                     </span>
                   </div>
@@ -179,82 +183,17 @@ export default function NewTicketPage() {
               </Card>
             </FadeIn>
 
-            {/* Live stage flow: polls the event's current run and lights each
-                stage left to right. Shows the in-flight run even after a page
-                refresh (the server holds the progress). */}
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-3">
             <LivePipelineFlow
               eventId={eventId}
+              active={ingest.isPending}
+              showIdle
               onComplete={() => {
                 void tickets.refetch();
-                void dashboard.refetch();
               }}
             />
-
-            {/* What happens to the clip — fills the column with context */}
-            {!result && !error && (
-              <FadeIn delay={0.05}>
-                <Card className="gap-0 p-4">
-                  <h2 className="text-[13px] font-semibold">What happens to your clip</h2>
-                  <ol className="mt-3 flex flex-col gap-3">
-                    <HowStep
-                      n={1}
-                      title="SAM 3.1 segments the load"
-                      body="The truck bed and the debris pile are tracked across frames, so the fill is measured from pixels, not guessed."
-                    />
-                    <HowStep
-                      n={2}
-                      title="Muse Spark reads and classifies"
-                      body="The ID placard is read and the debris is classified, which ties the load to a certified truck and the right rate."
-                    />
-                    <HowStep
-                      n={3}
-                      title="Deterministic math values it"
-                      body="Fill percent times certified capacity gives cubic yards; cubic yards times the class rate gives the dollar value. No model sets the price."
-                    />
-                    <HowStep
-                      n={4}
-                      title="You review the draft"
-                      body="Nothing is final until a monitor confirms, overrides, or disputes it. Every number links back to its evidence frame."
-                    />
-                  </ol>
-                </Card>
-              </FadeIn>
-            )}
-
-            {/* Event at a glance — real numbers, keeps the column balanced */}
-            <FadeIn delay={0.1}>
-              <Card className="gap-0 p-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-[13px] font-semibold">Event at a glance</h2>
-                  <span className="truncate text-[11px] text-muted-foreground">
-                    {selected?.name ?? "This event"}
-                  </span>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                  <Glance
-                    label="Tickets"
-                    value={dashboard.data ? String(dashboard.data.ticket_count) : "—"}
-                  />
-                  <Glance
-                    label="Awaiting review"
-                    value={
-                      dashboard.data
-                        ? String(dashboard.data.ticket_count - dashboard.data.reviewed_count)
-                        : "—"
-                    }
-                  />
-                  <Glance
-                    label="Over-called"
-                    value={dashboard.data ? String(dashboard.data.overbill_ticket_count) : "—"}
-                  />
-                  <Glance
-                    label="Flagged exposure"
-                    value={dashboard.data ? money(dashboard.data.total_delta_dollar_value) : "—"}
-                    tone="money"
-                  />
-                </div>
-              </Card>
-            </FadeIn>
 
             {error && (
               <Card className="border-[var(--color-destructive)]/40 bg-[var(--color-danger-soft)] p-4">
@@ -297,54 +236,52 @@ export default function NewTicketPage() {
               </FadeIn>
             )}
 
-            {/* Absorbs any leftover height on very tall screens so the column
-                does not leave a white gap below its content. */}
-            <div aria-hidden className="hidden flex-1 lg:block" />
           </div>
+        </div>
 
-          {/* Right: tickets in this event */}
-          <Card className="flex min-h-0 flex-col gap-0 overflow-hidden py-0">
-            <header className="flex items-center justify-between border-b border-border px-4 py-3">
-              <h2 className="text-[14px] font-semibold">Tickets in this event</h2>
-              <span className="text-[12px] tabular-nums text-muted-foreground">
-                {tickets.data?.total ?? recent.length} tickets
-              </span>
-            </header>
-            <div className="lt-scroll lt-fab-safe min-h-0 flex-1 overflow-y-auto">
-              {tickets.isLoading ? (
-                <div className="flex flex-col gap-2 p-3">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12" />
-                  ))}
+        {/* Full-width event ledger below the capture and analysis workspace. */}
+        <Card className="lt-fab-safe flex min-h-[320px] flex-col gap-0 overflow-hidden py-0 lg:min-h-0 lg:flex-1">
+          <header className="flex items-center justify-between border-b border-border px-4 py-3">
+            <h2 className="text-[14px] font-semibold">Tickets in this event</h2>
+            <span className="text-[12px] tabular-nums text-muted-foreground">
+              {tickets.data?.total ?? recent.length} tickets
+            </span>
+          </header>
+          <div className="lt-scroll min-h-0 flex-1 overflow-auto">
+            {tickets.isLoading ? (
+              <div className="flex flex-col gap-2 p-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12" />
+                ))}
+              </div>
+            ) : recent.length === 0 ? (
+              <p className="px-4 py-10 text-center text-[13px] text-muted-foreground">
+                No tickets yet. Upload a clip to create the first one.
+              </p>
+            ) : (
+              <>
+                <div className="sticky top-0 z-10 hidden grid-cols-[minmax(110px,0.75fr)_minmax(220px,1.6fr)_minmax(120px,1fr)_minmax(130px,0.9fr)_minmax(100px,0.7fr)] items-center gap-3 border-b border-border bg-card px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                  <span>Ticket</span><span>Truck · debris</span><span>Captured</span><span>Status</span><span className="text-right">Delta</span>
                 </div>
-              ) : recent.length === 0 ? (
-                <p className="px-4 py-10 text-center text-[13px] text-muted-foreground">
-                  No tickets yet. Upload a clip to create the first one.
-                </p>
-              ) : (
                 <ul className="divide-y divide-border">
                   {recent.map((t) => (
                     <li key={t.id}>
                       <button
                         type="button"
                         onClick={() => router.push(`/console?ticket=${t.id}`)}
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-accent"
+                        className="grid w-full grid-cols-1 items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-accent md:grid-cols-[minmax(110px,0.75fr)_minmax(220px,1.6fr)_minmax(120px,1fr)_minmax(130px,0.9fr)_minmax(100px,0.7fr)] md:gap-3"
                       >
-                        <span className="w-20 shrink-0 text-[13px] font-semibold tabular-nums">
-                          {shortId(t.id)}
-                        </span>
-                        <span className="flex min-w-0 flex-1 flex-col leading-tight">
-                          <span className="truncate text-[12px] text-muted-foreground">
+                        <span className="text-[13px] font-semibold tabular-nums">{shortId(t.id)}</span>
+                        <span className="flex min-w-0 flex-col leading-tight">
+                          <span className="truncate text-[12px] text-foreground">
                             <span className="tabular-nums">{t.truck_id ?? "Unidentified"}</span>
                             <span className="opacity-60"> · </span>
                             {debrisLabel(t.debris_class)}
                           </span>
-                          <span className="text-[11px] text-muted-foreground opacity-70">
-                            {relativeTime(t.created_at)}
-                          </span>
                         </span>
-                        <StatusBadge status={t.status} />
-                        <span className="w-16 shrink-0 text-right text-[13px] font-semibold tabular-nums text-[var(--color-money)]">
+                        <span className="text-[11px] text-muted-foreground">{relativeTime(t.created_at)}</span>
+                        <span><StatusBadge status={t.status} /></span>
+                        <span className="text-left text-[13px] font-semibold tabular-nums text-[var(--color-money)] md:text-right">
                           {t.valuation.delta_dollar_value
                             ? signedMoney(t.valuation.delta_dollar_value)
                             : "N/A"}
@@ -353,10 +290,10 @@ export default function NewTicketPage() {
                     </li>
                   ))}
                 </ul>
-              )}
-            </div>
-          </Card>
-        </div>
+              </>
+            )}
+          </div>
+        </Card>
       </div>
     </AppShell>
   );
@@ -369,36 +306,6 @@ function Step({ icon, label }: { icon: React.ReactNode; label: string }) {
         {icon}
       </span>
       <span className="text-[11px] font-medium leading-tight">{label}</span>
-    </div>
-  );
-}
-
-function HowStep({ n, title, body }: { n: number; title: string; body: string }) {
-  return (
-    <li className="flex gap-3">
-      <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-[var(--color-brand-soft)] text-[11px] font-bold text-[var(--color-brand)]">
-        {n}
-      </span>
-      <span className="flex min-w-0 flex-col">
-        <span className="text-[13px] font-semibold">{title}</span>
-        <span className="text-[12px] leading-snug text-muted-foreground">{body}</span>
-      </span>
-    </li>
-  );
-}
-
-function Glance({ label, value, tone }: { label: string; value: string; tone?: "money" }) {
-  return (
-    <div className="flex flex-col rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
-      <span className="text-[11px] text-muted-foreground">{label}</span>
-      <span
-        className={cn(
-          "mt-0.5 text-[16px] font-bold tabular-nums",
-          tone === "money" ? "text-[var(--color-money)]" : "text-foreground",
-        )}
-      >
-        {value}
-      </span>
     </div>
   );
 }

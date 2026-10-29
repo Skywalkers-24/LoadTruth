@@ -187,6 +187,7 @@ class EventOut(BaseModel):
     location: str | None = None
     status: str
     rate_table: dict[str, float] = Field(default_factory=dict)
+    tags: list[str] = Field(default_factory=list)
     created_at: datetime
 
 
@@ -197,6 +198,7 @@ class EventIn(BaseModel):
     location: str | None = Field(default=None, max_length=200)
     status: str = Field(default="active")
     rate_table: dict[str, float] = Field(default_factory=dict)
+    tags: list[str] = Field(default_factory=list)
 
 
 class EventPatch(BaseModel):
@@ -206,6 +208,7 @@ class EventPatch(BaseModel):
     location: str | None = Field(default=None, max_length=200)
     status: str | None = None
     rate_table: dict[str, float] | None = None
+    tags: list[str] | None = None
 
 
 class TruckOut(BaseModel):
@@ -471,5 +474,6 @@ def event_to_out(e: DomainEvent) -> EventOut:
         location=e.location,
         status=e.status,
         rate_table=dict(e.rate_table),
+        tags=list(e.tags),
         created_at=e.created_at,
     )

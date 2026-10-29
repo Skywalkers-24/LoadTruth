@@ -42,7 +42,7 @@ from app.ai.base import (
     StageExplanations,
     TrackResult,
 )
-from app.ai.sam_measure import MEASURE_VERSION, RIM_LABEL, remeasure
+from app.ai.sam_measure import MEASURE_VERSION, RIM_LABEL, SAM_PROMPT_VERSION, remeasure
 from app.config import get_settings
 from app.log import get_logger
 
@@ -95,9 +95,24 @@ class CachingAIClient:
         h = clip.content_hash
         cached = await self._repo.get_ai_stage_result(self._tenant, h, serde.STAGE_TRACK)
         outdated = cached is not None and serde.track_is_outdated(cached, MEASURE_VERSION)
-        if cached is not None and serde.track_is_current(cached) and not outdated:
+        prompt_outdated = (
+            cached is not None
+            and get_settings().live_ai_enabled
+            and serde.track_prompt_is_outdated(cached, SAM_PROMPT_VERSION)
+        )
+        if (
+            cached is not None
+            and serde.track_is_current(cached)
+            and not outdated
+            and not prompt_outdated
+        ):
             return replace(serde.track_from_json(cached), usage=self._hit())
-        if cached is not None and outdated and serde.track_can_remeasure(cached, RIM_LABEL):
+        if (
+            cached is not None
+            and outdated
+            and not prompt_outdated
+            and serde.track_can_remeasure(cached, RIM_LABEL)
+        ):
             # Older measurement method, and SAM already returned every concept the
             # current one reads (rim + a load mask): re-measure offline, no call.
             stored = await asyncio.to_thread(
@@ -116,6 +131,8 @@ class CachingAIClient:
         # costs at most one run per clip per measurement-version bump.
         if cached is not None and outdated and not serde.track_has_load(cached):
             log.info("ai_track_reran_no_stored_load", content_hash=h, version=MEASURE_VERSION)
+        if prompt_outdated:
+            log.info("ai_track_reran_prompt_version", content_hash=h, version=SAM_PROMPT_VERSION)
         result = await self._inner.track(clip)
         await self._persist(h, serde.STAGE_TRACK, serde.track_to_json(result))
         return result

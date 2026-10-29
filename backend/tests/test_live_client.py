@@ -109,7 +109,7 @@ class FakeMeta:
         self.responses.append(body)
         if body["model"].startswith("sam"):
             concept = body["input"][0]["content"][0]["text"]
-            line = _bed_line if concept == "truck bed" else _load_line
+            line = _bed_line if concept in {"truck bed", "open truck bed interior"} else _load_line
             text = "\n".join(line(f) for f in range(self.frames)) + "\n"
             image = body["input"][0]["content"][1]["type"] == "input_image"
             usage = {"images_processed": 1} if image else {}
@@ -118,7 +118,11 @@ class FakeMeta:
             )
         task = (body.get("text") or {}).get("format", {}).get("name")
         if task == "name_load":
-            answer = {"concepts": self.named_load, "visible_fill_pct": self.visual_fill or 50.0}
+            answer = {
+                "concepts": self.named_load,
+                "debris_class": "construction_demolition",
+                "visible_fill_pct": self.visual_fill or 50.0,
+            }
             return httpx.Response(200, json=_spark(json.dumps(answer)))
         if task == "spark_ocr":
             ocr = {"analysis": "I read the placard from the clearest frame.", **self.ocr}
@@ -213,14 +217,15 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     # The overlay keys plus the tailgate rim and every load phrase, kept so a
     # later measurement change can re-measure offline.
     # Muse Spark named "steel drums"; the merged load set is that plus the two
-    # top defaults, capped at sam_load_max_concepts (3).
+    # class-specific defaults, capped at sam_load_max_concepts (3).
     assert set(result.segments) == {
         "truck bed",
+        "truck body",
         "debris pile",
         "tailgate",
         "load: steel drums",
-        "load: debris pile",
-        "load: pile",
+        "load: lumber",
+        "load: concrete rubble",
     }
     assert result.segments["truck bed"].startswith("<0f>0<|box;")
     from app.pipeline import evidence_store
@@ -234,12 +239,12 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     spark = [b for b in fake.responses if not b["model"].startswith("sam")]
     # Bed phrases, the tailgate rim, and the load phrases all go out in parallel.
     assert sorted(b["input"][0]["content"][0]["text"] for b in sam) == [
-        "debris pile",
-        "dump truck",
-        "pile",
+        "concrete rubble",
+        "dump truck exterior",
+        "lumber",
+        "open truck bed interior",
         "steel drums",
         "tailgate",
-        "truck bed",
     ]
     for body in fake.responses:
         part = body["input"][0]["content"][-1]
@@ -259,9 +264,9 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert stages["spark_ocr"]["Model answer"].startswith("{")
     assert "1,000 in, 200 out" in stages["spark_ocr"]["Tokens"]
     assert stages["spark_ocr"]["Cost"] == "$0.0021"
-    assert stages["sam_track"]['Prompt "truck bed"'] == "1 object on 2 of 2 frames"
+    assert stages["sam_track"]['Prompt "open truck bed interior"'] == "1 object on 2 of 2 frames"
     assert stages["sam_track"]["Billed"] == "300 frames (6 requests)"
-    assert stages["sam_track"]["Bed measured from"] == '"truck bed"'
+    assert stages["sam_track"]["Bed measured from"] == '"open truck bed interior"'
     assert stages["sam_track"]["Load named by Muse Spark"] == '"steel drums"'
     assert stages["geometry"]["Frames measured"] == "2"
 
