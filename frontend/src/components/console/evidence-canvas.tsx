@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Loader2Icon, MaximizeIcon, MinimizeIcon } from "lucide-react";
 
 import type { Ticket } from "@/lib/api";
-import { useTicketEvidence } from "@/lib/hooks";
+import { useTicketEvidence, useTicketPipeline } from "@/lib/hooks";
 import { SamPlayer } from "@/components/console/sam-player";
 import { Badge } from "@/components/ui/badge";
 import { CameraIcon, SkipBackIcon, SkipForwardIcon } from "@/components/ui/icons";
@@ -73,12 +73,19 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
 
   // The clip the models analyzed, with SAM's per-frame output, when stored.
   const evidenceQuery = useTicketEvidence(ticket.id);
+  const pipelineQuery = useTicketPipeline(ticket.id);
   const evidence = evidenceQuery.data ?? null;
   const loadingEvidence = Boolean(evidenceQuery.isLoading && !evidence);
   const live = Boolean(evidence?.has_media);
   const [samFrame, setSamFrame] = useState({ frame: 0, total: 0 });
+  const [loadMaskCoverage, setLoadMaskCoverage] = useState({ covered: 0, total: 0 });
   const onFrame = useCallback((frame: number, total: number) => {
     setSamFrame((prev) => (prev.frame === frame && prev.total === total ? prev : { frame, total }));
+  }, []);
+  const onLoadCoverage = useCallback((covered: number, total: number) => {
+    setLoadMaskCoverage((prev) =>
+      prev.covered === covered && prev.total === total ? prev : { covered, total },
+    );
   }, []);
   const hasViewer = live && !loadingEvidence;
 
@@ -87,6 +94,22 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
   const monitor =
     v.monitor_fill_pct !== null ? clamp(Number.parseFloat(v.monitor_fill_pct), 0, 100) : null;
   const selectedFrame = frames[frameIdx];
+  const loadMaskFrameTotal = loadMaskCoverage.total;
+  const displayedLoadMaskFrameCount = loadMaskCoverage.covered;
+  const loadMaskCoverageText =
+    evidence?.media_kind === "image"
+      ? displayedLoadMaskFrameCount > 0
+        ? "Load mask available"
+        : "No load mask"
+      : `Load masks ${displayedLoadMaskFrameCount}/${loadMaskFrameTotal} frames`;
+  const loadMaskCoverageDescription =
+    displayedLoadMaskFrameCount === 0
+      ? "SAM returned no load mask for this clip. Fill estimation is independent, and this does not create a ticket anomaly."
+      : `SAM returned load masks in ${displayedLoadMaskFrameCount} of ${loadMaskFrameTotal} frames. Frames without masks have no purple overlay. Fill estimation is independent of these masks.`;
+  const loadTrackingSource = pipelineQuery.data
+    ?.find((stage) => stage.key === "sam_track")
+    ?.details?.find(([label]) => label === "Load tracking source")?.[1];
+  const spatiallyGuided = loadTrackingSource?.toLowerCase().includes("spatially guided") ?? false;
 
   function toggle(o: Overlay) {
     setOverlays((prev) => ({ ...prev, [o]: !prev[o] }));
@@ -129,6 +152,27 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
               <span className="hidden truncate text-[12px] font-normal tabular-nums text-[var(--color-subtle)] md:inline">
                 Frame {samFrame.frame + 1} of {samFrame.total}
               </span>
+            )}
+            {live && loadMaskFrameTotal > 0 && (
+              <Tooltip content={loadMaskCoverageDescription}>
+                <span tabIndex={0}>
+                  <Badge
+                    tone={displayedLoadMaskFrameCount === loadMaskFrameTotal ? "neutral" : "info"}
+                    className="font-medium"
+                  >
+                    {loadMaskCoverageText}
+                  </Badge>
+                </span>
+              </Tooltip>
+            )}
+            {live && spatiallyGuided && (
+              <Tooltip content="These purple masks were generated with reviewed spatial guidance. This describes the segmentation method and is not a ticket anomaly.">
+                <span tabIndex={0}>
+                  <Badge tone="info" className="font-medium">
+                    Spatially guided
+                  </Badge>
+                </span>
+              </Tooltip>
             )}
           </div>
           {hasViewer && (
@@ -183,6 +227,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
                 evidence={evidence}
                 show={{ body: overlays.body, bed: overlays.rail, load: overlays.load }}
                 onFrame={onFrame}
+                onLoadCoverage={onLoadCoverage}
               />
               <div className="pointer-events-none absolute right-3 top-3 hidden gap-2 sm:flex">
                 <Readout

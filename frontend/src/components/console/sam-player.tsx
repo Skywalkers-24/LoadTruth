@@ -71,6 +71,7 @@ interface Props {
   evidence: TicketEvidence;
   show: { body: boolean; bed: boolean; load: boolean };
   onFrame?: (frame: number, total: number) => void;
+  onLoadCoverage?: (coveredFrames: number, totalFrames: number) => void;
   videoUrl?: string | null;
   videoRef?: React.RefObject<HTMLVideoElement | null>;
   hideControls?: boolean;
@@ -88,6 +89,7 @@ export function SamPlayer({
   evidence,
   show,
   onFrame,
+  onLoadCoverage,
   videoUrl,
   videoRef: externalVideoRef,
   hideControls,
@@ -154,6 +156,17 @@ export function SamPlayer({
     tracks.load.frameCount,
     tracks.rim.frameCount,
   );
+  const visibleLoadFrames = useMemo(() => {
+    let covered = 0;
+    for (let f = 0; f < total; f++) {
+      if (frameLayers(tracks.bed, tracks.load, tracks.rim, f).loads.length > 0) covered += 1;
+    }
+    return covered;
+  }, [tracks, total]);
+
+  useEffect(() => {
+    onLoadCoverage?.(visibleLoadFrames, total);
+  }, [onLoadCoverage, visibleLoadFrames, total]);
 
   // Follow playback: map media time to a SAM frame index.
   useEffect(() => {
