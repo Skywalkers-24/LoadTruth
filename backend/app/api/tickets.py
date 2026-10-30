@@ -21,6 +21,7 @@ from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_manage_settings, can_review_tickets
 from app.pipeline import evidence_store
+from app.pipeline.benchmark_media import benchmark_media_url
 from app.pipeline.trace import display_stage_summary
 from app.tickets.repository import EventNotFoundError, TicketNotFoundError
 from app.tickets.schemas import (
@@ -237,6 +238,7 @@ class EvidenceOut(BaseModel):
     # Frame rate of the stored video when known; SAM frame N plays at N / fps.
     fps: float | None = None
     has_media: bool
+    media_url: str | None = None
     # Concept label ("truck bed", "debris pile") -> SAM 3.1 output text.
     segments: dict[str, str] = Field(default_factory=dict)
 
@@ -247,13 +249,15 @@ async def ticket_evidence(repo: Repository, tenant: ActiveTenant, ticket_id: UUI
     row = await repo.get_ticket_evidence(tenant, ticket_id)
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no evidence for this ticket")
-    stored = await evidence_store.load(row.content_hash)
+    public_url = benchmark_media_url(row.content_hash)
+    stored = await evidence_store.load(row.content_hash) if public_url is None else None
     raw = row.segments if isinstance(row.segments, dict) else {}
     return EvidenceOut(
         media_kind=row.media_kind,
         mime=stored.mime if stored else row.mime,
         fps=float(row.fps) if row.fps is not None else (stored.fps if stored else None),
-        has_media=stored is not None,
+        has_media=public_url is not None or stored is not None,
+        media_url=public_url,
         segments={str(k): str(v) for k, v in raw.items()},
     )
 
@@ -264,6 +268,8 @@ async def ticket_evidence_media(
 ) -> RedirectResponse:
     """Authorize once, then play private B2 evidence without proxying video bytes."""
     row = await repo.get_ticket_evidence(tenant, ticket_id)
+    if row is not None and (public_url := benchmark_media_url(row.content_hash)):
+        return RedirectResponse(public_url, status_code=307)
     stored = await evidence_store.load(row.content_hash) if row is not None else None
     if row is None or stored is None:
         raise HTTPException(404, "no evidence media for this ticket")
@@ -279,6 +285,8 @@ async def ticket_evidence_url(
     repo: Repository, tenant: ActiveTenant, ticket_id: UUID
 ) -> dict[str, str]:
     row = await repo.get_ticket_evidence(tenant, ticket_id)
+    if row is not None and (public_url := benchmark_media_url(row.content_hash)):
+        return {"url": public_url}
     if row is None or await evidence_store.load(row.content_hash) is None:
         raise HTTPException(404, "no evidence media for this ticket")
     return {"url": await evidence_store.media_url(row.content_hash)}
