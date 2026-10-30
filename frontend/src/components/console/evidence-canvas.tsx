@@ -225,6 +225,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
                 key={ticket.id}
                 ticketId={ticket.id}
                 evidence={evidence}
+                videoUrl={evidence.media_url}
                 show={{ body: overlays.body, bed: overlays.rail, load: overlays.load }}
                 onFrame={onFrame}
                 onLoadCoverage={onLoadCoverage}

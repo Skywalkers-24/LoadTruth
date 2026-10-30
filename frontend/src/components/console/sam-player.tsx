@@ -76,6 +76,7 @@ interface Props {
   videoRef?: React.RefObject<HTMLVideoElement | null>;
   hideControls?: boolean;
   autoPlay?: boolean;
+  poster?: string;
   className?: string;
 }
 
@@ -94,6 +95,7 @@ export function SamPlayer({
   videoRef: externalVideoRef,
   hideControls,
   autoPlay = true,
+  poster,
   className,
 }: Props) {
   const [url, setUrl] = useState<string | null>(videoUrl ?? null);
@@ -256,6 +258,8 @@ export function SamPlayer({
             <video
               ref={videoRef}
               src={url}
+              poster={poster}
+              preload="metadata"
               className="size-full object-contain"
               autoPlay={autoPlay}
               muted={muted}

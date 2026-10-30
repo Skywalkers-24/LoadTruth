@@ -20,6 +20,9 @@ import { Pagination } from "@/components/pagination";
 import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
 import { BenchmarkVideoLibrary } from "@/components/demos/benchmark-video-library";
+import { BENCHMARK_PAIRS, VideoPairCard } from "@/components/demos/video-pair-card";
+import manifest from "@/lib/benchmark-videos.json";
+import { cn } from "@/lib/utils";
 import { useInView } from "@/lib/use-in-view";
 
 const button =
@@ -35,6 +38,7 @@ export default function DemoVideosPage() {
   const router = useRouter();
 
   const [offset, setOffset] = useState(0);
+  const [tab, setTab] = useState<"pairs-with-mask" | "unprocessed" | "all">("pairs-with-mask");
   const videos = useQuery({
     queryKey: ["demo-videos", offset],
     queryFn: () => listDemoVideos(offset),
@@ -127,10 +131,10 @@ export default function DemoVideosPage() {
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-sm sm:text-base font-bold tracking-tight text-foreground flex items-center gap-1.5">
               <FilmIcon className="size-4 text-primary" />
-              Benchmark Videos
+              Benchmark Footage
             </h1>
             <span className="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-              50 fresh clips · awaiting batch processing
+              {BENCHMARK_PAIRS.length} With Masks · {manifest.videos.length} Awaiting Processing
             </span>
             <span className="text-[11px] text-muted-foreground hidden lg:inline">
               · Configurable Muse inference options:{" "}
@@ -157,6 +161,62 @@ export default function DemoVideosPage() {
             )}
           </div>
         </header>
+
+        {/* ── TWO-SECTION CATEGORY TABS (MASKS VS UNPROCESSED) ── */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setTab("pairs-with-mask")}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md px-3 py-1.5 font-semibold transition-all cursor-pointer",
+                tab === "pairs-with-mask"
+                  ? "bg-background text-foreground shadow-xs border border-border/80"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <SparklesIcon className="size-3.5 text-primary" />
+              <span>Pairs With Masks</span>
+              <span className="rounded bg-primary/10 px-1.5 py-0.2 text-[10px] font-bold text-primary">
+                {BENCHMARK_PAIRS.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTab("unprocessed")}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md px-3 py-1.5 font-semibold transition-all cursor-pointer",
+                tab === "unprocessed"
+                  ? "bg-background text-foreground shadow-xs border border-border/80"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <FilmIcon className="size-3.5 text-amber-500" />
+              <span>Unprocessed Footage</span>
+              <span className="rounded bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                {manifest.videos.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTab("all")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer",
+                tab === "all"
+                  ? "bg-background text-foreground shadow-xs border border-border/80"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <span>All ({BENCHMARK_PAIRS.length + manifest.videos.length})</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="hidden sm:inline">Meta SAM 3.1 & Muse Spark · Live Polygon Overlays</span>
+          </div>
+        </div>
 
         {/* ── OPTIONAL SUPERADMIN UPLOAD DRAWER ── */}
         {isSuperAdmin && showUpload && (
@@ -234,7 +294,47 @@ export default function DemoVideosPage() {
           </div>
         )}
 
-        <BenchmarkVideoLibrary />
+        {/* ── SECTION 1: PROCESSED BENCHMARK PAIRS WITH MASKS & REPLAY ── */}
+        {(tab === "pairs-with-mask" || tab === "all") && (
+          <section aria-label="Processed pairs with segmentation masks" className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="flex size-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="font-semibold text-foreground">
+                  Processed Benchmark Pairs · With Masks & Replay Option
+                </span>
+                <span className="text-muted-foreground hidden md:inline">
+                  — Synchronized raw CCTV & SAM 3.1 segmentation with Bed, Load, Body layer toggles, HUD fill %, and interactive replay.
+                </span>
+              </div>
+              <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                {BENCHMARK_PAIRS.length} Verified Pairs
+              </span>
+            </div>
+
+            <div className="grid gap-3.5 lg:grid-cols-2">
+              {BENCHMARK_PAIRS.map((pair) => (
+                <VideoPairCard
+                  key={pair.id}
+                  pair={pair}
+                  canAnalyze={Boolean(writable)}
+                  isAnalyzing={analyze.isPending}
+                  onAnalyze={(id) => analyze.mutate(id)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── SECTION 2: UNPROCESSED BENCHMARK FOOTAGE (50 CLIPS) ── */}
+        {(tab === "unprocessed" || tab === "all") && (
+          <section aria-label="Unprocessed source clips" className="flex flex-col gap-3">
+            {tab === "all" && (
+              <div className="my-2 border-t border-border/80" />
+            )}
+            <BenchmarkVideoLibrary />
+          </section>
+        )}
 
         {/* ── ADDITIONAL / CUSTOM UPLOADED CLIPS (IF ANY) ── */}
         {customVideos.length > 0 && (

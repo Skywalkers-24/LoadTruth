@@ -11,6 +11,7 @@ import {
   Loader2Icon,
   PauseIcon,
   PlayIcon,
+  RotateCcwIcon,
   SparklesIcon,
   Volume2Icon,
   VolumeXIcon,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/api";
 import { useTicketEvidence } from "@/lib/hooks";
 import { useInView } from "@/lib/use-in-view";
+import showcaseEvidence from "@/lib/showcase-evidence.json";
 import { SamPlayer } from "@/components/console/sam-player";
 import { Badge } from "@/components/ui/shadcn/badge";
 import { cn } from "@/lib/utils";
@@ -48,6 +50,109 @@ export interface BenchmarkPairDef {
   resolution: string;
   lane: string;
 }
+
+export const BENCHMARK_PAIRS: BenchmarkPairDef[] = [
+  {
+    id: "pair-1",
+    pairNumber: 1,
+    truckId: "FL-DT-8043",
+    ticketId: "8af7c63d-8020-5bc7-8c9c-823ddcd95970",
+    debrisClass: "white_goods",
+    debrisLabel: "White Goods",
+    debrisDescription: "Refrigerators, washers & appliances",
+    certifiedCubicYards: 16.0,
+    measuredFillPct: 41.83,
+    measuredCubicYards: 6.69,
+    ratePerCy: 22.0,
+    dollarValue: 147.25,
+    matchFilename: "showcase-1.mp4",
+    contentHash: "8a3c6673949fbb9f4b6d26e8efb9270690fd9254ab97c56573bc936de09ea558",
+    notes: "Appliances haul, bed isolated from cargo.",
+    fps: 6.022,
+    resolution: "1024 × 576",
+    lane: "Lane 01",
+  },
+  {
+    id: "pair-2",
+    pairNumber: 2,
+    truckId: "FL-DT-7788",
+    ticketId: "ba556e1e-a844-5dcf-96b4-94ac7724f124",
+    debrisClass: "hazardous",
+    debrisLabel: "Hazardous",
+    debrisDescription: "Chemical barrels & paint cans",
+    certifiedCubicYards: 20.0,
+    measuredFillPct: 11.98,
+    measuredCubicYards: 2.4,
+    ratePerCy: 100.0,
+    dollarValue: 240.0,
+    matchFilename: "showcase-2.mp4",
+    contentHash: "398b452b4325d4e02a5cae50a026a1b4f7bfb4c09b9eea4d2f1a1a8046130484",
+    notes: "Sparse barrels resting on bed floor.",
+    fps: 3.0,
+    resolution: "1024 × 576",
+    lane: "Lane 03",
+  },
+  {
+    id: "pair-3",
+    pairNumber: 3,
+    truckId: "FL-DT-3391",
+    ticketId: "df0e9c7b-ce86-5251-ad6d-335914200daa",
+    debrisClass: "construction_demolition",
+    debrisLabel: "C&D",
+    debrisDescription: "Lumber, drywall & broken concrete",
+    certifiedCubicYards: 20.0,
+    measuredFillPct: 54.64,
+    measuredCubicYards: 10.93,
+    ratePerCy: 12.0,
+    dollarValue: 131.14,
+    matchFilename: "showcase-3.mp4",
+    contentHash: "a3ba19079602dbdf381dba518fd90ea4734970e283fd580568ea31b837f7c400",
+    notes: "Demolition rubble and concrete debris.",
+    fps: 3.0,
+    resolution: "1024 × 576",
+    lane: "Lane 02",
+  },
+  {
+    id: "pair-4",
+    pairNumber: 4,
+    truckId: "FL-DT-2204",
+    ticketId: "9e5b4ae9-4727-5547-bb08-c8c8eb714e5a",
+    debrisClass: "vegetative",
+    debrisLabel: "Vegetative",
+    debrisDescription: "Clean sweep empty return bed (0%)",
+    certifiedCubicYards: 25.0,
+    measuredFillPct: 0.0,
+    measuredCubicYards: 0.0,
+    ratePerCy: 8.0,
+    dollarValue: 0.0,
+    matchFilename: "showcase-4.mp4",
+    contentHash: "3e66bfed29744563adf6b5f16542cfaed9773f63f6917b9eb96ed95a4d54bf88",
+    notes: "Empty contractor return haul, fraud guard.",
+    fps: 3.0,
+    resolution: "1024 × 576",
+    lane: "Lane 01",
+  },
+  {
+    id: "pair-5",
+    pairNumber: 5,
+    truckId: "FL-DT-3391",
+    ticketId: "654d5e5f-d61c-52b8-9e1d-c6dc6c7ec110",
+    debrisClass: "construction_demolition",
+    debrisLabel: "C&D",
+    debrisDescription: "Roofing shingles & plywood",
+    certifiedCubicYards: 20.0,
+    measuredFillPct: 37.85,
+    measuredCubicYards: 7.57,
+    ratePerCy: 12.0,
+    dollarValue: 90.84,
+    matchFilename: "showcase-5.mp4",
+    contentHash: "968754e7cea9b1e38861cf0be414b18e89ba8aba349a287bd63da9f6a3e69e73",
+    notes: "Roofing shingles haul in twilight lighting.",
+    fps: 3.0,
+    resolution: "1024 × 576",
+    lane: "Lane 02",
+  },
+];
 
 interface VideoPairCardProps {
   pair: BenchmarkPairDef;
@@ -97,12 +202,33 @@ export function VideoPairCard({
 
   // Ticket evidence with SAM segmentation records (lazy-fetched when visible)
   const evidence = useTicketEvidence(pair.ticketId, isVisible);
+  const fallback = (showcaseEvidence as Record<string, any>)[pair.ticketId] ?? null;
+  const evidenceData = evidence.data ?? fallback;
 
   // Prefer instant Cloudflare edge static asset (/videos/showcase-N.mp4) for benchmark pairs;
   // Fall back to dynamic upload playback URL for newly uploaded clips
   const edgeVideoUrl = pair.matchFilename ? `/videos/${pair.matchFilename}` : null;
+  const posterUrl = pair.matchFilename ? `/videos/thumbnails/${pair.matchFilename.replace('.mp4', '.jpg')}` : undefined;
   const [useEdgeAsset, setUseEdgeAsset] = useState(true);
   const videoUrl = (useEdgeAsset && edgeVideoUrl) ? edgeVideoUrl : (playback.data?.url ?? null);
+
+  // Replay both feeds from 0:00
+  function handleReplay(e?: React.MouseEvent) {
+    e?.stopPropagation();
+    const vReal = realVideoRef.current;
+    const vAnalyzed = analyzedVideoRef.current;
+    if (vReal) {
+      vReal.currentTime = 0;
+      void vReal.play();
+    }
+    if (vAnalyzed) {
+      vAnalyzed.currentTime = 0;
+      void vAnalyzed.play();
+    }
+    setCurrentTime(0);
+    setIsPlaying(true);
+    setPlaybackError(false);
+  }
 
   // Toggle synchronized play / pause
   async function toggleSyncPlay() {
@@ -111,6 +237,11 @@ export function VideoPairCard({
     const videos = [vReal, vAnalyzed].filter(
       (video): video is HTMLVideoElement => video !== null,
     );
+
+    if (currentTime >= duration - 0.2) {
+      handleReplay();
+      return;
+    }
 
     if (isPlaying) {
       videos.forEach((video) => video.pause());
@@ -204,47 +335,59 @@ export function VideoPairCard({
           </span>
         </div>
 
-        {/* View Switcher: Dual / Real / SAM */}
-        <div className="inline-flex rounded border border-border bg-background p-0.5 text-[10px]">
+        {/* View Switcher & Replay */}
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setViewMode("side-by-side")}
-            className={cn(
-              "rounded px-1.5 py-0.5 transition-colors font-medium",
-              viewMode === "side-by-side"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-            title="Side-by-Side Dual View"
+            onClick={handleReplay}
+            className="inline-flex items-center gap-1 rounded border border-border/80 bg-background px-1.5 py-0.5 text-[10px] font-medium text-foreground hover:bg-accent transition-colors shadow-2xs"
+            title="Replay from start (0:00)"
           >
-            Dual
+            <RotateCcwIcon className="size-2.5 text-primary" />
+            <span className="hidden sm:inline">Replay</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("real")}
-            className={cn(
-              "rounded px-1.5 py-0.5 transition-colors font-medium",
-              viewMode === "real"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-            title="Raw CCTV Only"
-          >
-            Real
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("analyzed")}
-            className={cn(
-              "rounded px-1.5 py-0.5 transition-colors font-medium",
-              viewMode === "analyzed"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-            title="AI SAM 3.1 Only"
-          >
-            SAM
-          </button>
+
+          <div className="inline-flex rounded border border-border bg-background p-0.5 text-[10px]">
+            <button
+              type="button"
+              onClick={() => setViewMode("side-by-side")}
+              className={cn(
+                "rounded px-1.5 py-0.5 transition-colors font-medium",
+                viewMode === "side-by-side"
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Side-by-Side Dual View"
+            >
+              Dual
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("real")}
+              className={cn(
+                "rounded px-1.5 py-0.5 transition-colors font-medium",
+                viewMode === "real"
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Raw CCTV Only"
+            >
+              Real
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("analyzed")}
+              className={cn(
+                "rounded px-1.5 py-0.5 transition-colors font-medium",
+                viewMode === "analyzed"
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="AI SAM 3.1 Only"
+            >
+              SAM
+            </button>
+          </div>
         </div>
       </div>
 
@@ -282,6 +425,7 @@ export function VideoPairCard({
                   <video
                     ref={realVideoRef}
                     src={videoUrl}
+                    poster={posterUrl}
                     playsInline
                     preload="metadata"
                     muted={isMuted}
@@ -314,7 +458,9 @@ export function VideoPairCard({
                   )}
                 >
                   <div className="grid size-7 place-items-center rounded-full bg-black/60 text-white shadow-lg backdrop-blur-xs border border-white/20">
-                    {isPlaying ? (
+                    {currentTime >= duration - 0.2 ? (
+                      <RotateCcwIcon className="size-3.5" />
+                    ) : isPlaying ? (
                       <PauseIcon className="size-3.5 fill-current" />
                     ) : (
                       <PlayIcon className="size-3.5 fill-current ml-0.5" />
@@ -330,18 +476,19 @@ export function VideoPairCard({
                 className="group relative aspect-video w-full overflow-hidden rounded-md bg-black cursor-pointer select-none"
                 onClick={toggleSyncPlay}
               >
-                {!videoUrl || evidence.isLoading ? (
+                {!videoUrl || (evidence.isLoading && !evidenceData) ? (
                   <div className="flex size-full flex-col items-center justify-center gap-1 text-[10px] text-muted-foreground">
                     <Loader2Icon className="size-3.5 animate-spin text-primary" />
                     <span>Loading SAM…</span>
                   </div>
-                ) : evidence.data ? (
+                ) : evidenceData ? (
                   <SamPlayer
                     ticketId={pair.ticketId}
-                    evidence={evidence.data}
+                    evidence={evidenceData}
                     show={showLayers}
                     videoUrl={videoUrl}
                     videoRef={analyzedVideoRef}
+                    poster={posterUrl}
                     hideControls
                     autoPlay={false}
                     className="absolute inset-0 flex flex-col bg-black [&_video]:object-cover"
@@ -350,6 +497,7 @@ export function VideoPairCard({
                   <video
                     ref={analyzedVideoRef}
                     src={videoUrl}
+                    poster={posterUrl}
                     playsInline
                     preload="metadata"
                     muted={isMuted}
@@ -424,7 +572,9 @@ export function VideoPairCard({
                   )}
                 >
                   <div className="grid size-7 place-items-center rounded-full bg-black/60 text-white shadow-lg backdrop-blur-xs border border-white/20">
-                    {isPlaying ? (
+                    {currentTime >= duration - 0.2 ? (
+                      <RotateCcwIcon className="size-3.5" />
+                    ) : isPlaying ? (
                       <PauseIcon className="size-3.5 fill-current" />
                     ) : (
                       <PlayIcon className="size-3.5 fill-current ml-0.5" />
@@ -449,6 +599,17 @@ export function VideoPairCard({
             ) : (
               <PlayIcon className="size-3 fill-current ml-0.5" />
             )}
+          </button>
+
+          {/* Replay Button */}
+          <button
+            type="button"
+            onClick={handleReplay}
+            className="flex items-center gap-1 rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-medium text-white hover:bg-white/25 transition-colors shrink-0"
+            title="Replay from start (0:00)"
+          >
+            <RotateCcwIcon className="size-2.5" />
+            <span>Replay</span>
           </button>
 
           {/* Time Display */}

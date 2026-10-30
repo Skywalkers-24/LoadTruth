@@ -13,6 +13,10 @@ vi.mock("@/lib/hooks", () => ({
       segments: { "truck bed": "", "debris pile": "" },
     },
   }),
+  useTicketPipeline: () => ({
+    data: null,
+    isLoading: false,
+  }),
 }));
 vi.mock("@/lib/api", () => ({ fetchEvidenceMediaUrl: vi.fn(async () => "blob:evidence") }));
 const ticket = {
