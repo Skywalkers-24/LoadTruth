@@ -45,6 +45,10 @@ class TruckRegistry:
     def __init__(self, trucks: list[CertifiedTruck]) -> None:
         self._by_norm: dict[str, CertifiedTruck] = {_normalize(t.truck_number): t for t in trucks}
 
+    @property
+    def has_certifications(self) -> bool:
+        return bool(self._by_norm)
+
     def lookup(self, ocr_truck_id: str | None) -> CapacityMatch:
         if not ocr_truck_id:
             return CapacityMatch(truck=None, matched_id=None, confidence=0.0)

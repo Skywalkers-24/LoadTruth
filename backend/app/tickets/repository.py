@@ -558,18 +558,10 @@ class SqlTicketRepository:
         track = serde.track_from_json(track_json)
         bed = track.by_label(BED_LABEL)
         debris = track.by_label(LOAD_LABEL)
-        if bed is None or debris is None or not bed.mask_areas:
-            return ReverifyResult(
-                reproducible=False,
-                reason="The stored segmentation does not contain both the bed and the load.",
-                stored_fill_pct=ticket.est_fill_pct,
-                recomputed_fill_pct=None,
-                receipt_hash=None,
-                receipt_inputs={},
-            )
-
-        bed_area = sum(bed.mask_areas) / len(bed.mask_areas)
-        load_area = sum(debris.mask_areas) / len(debris.mask_areas) if debris.mask_areas else 0.0
+        bed_area = sum(bed.mask_areas) / len(bed.mask_areas) if bed and bed.mask_areas else 0.0
+        load_area = (
+            sum(debris.mask_areas) / len(debris.mask_areas) if debris and debris.mask_areas else 0.0
+        )
         body_type = await self._body_type_for(tenant_id, ticket.truck_id)
 
         classify_key = (
@@ -609,17 +601,24 @@ class SqlTicketRepository:
                 muse_frame_fills.append(float(value))
 
         fill_source = "muse_spark_frame_median" if muse_frame_fills else "sam_mask_coverage"
-        recomputed_fill_pct = (
-            Decimal(str(median(muse_frame_fills))).quantize(
-                Decimal("0.01"), rounding=ROUND_HALF_UP
+        if not muse_frame_fills and (bed is None or debris is None or not bed.mask_areas):
+            return ReverifyResult(
+                reproducible=False,
+                reason="No stored Muse frame estimates or usable bed segmentation are available.",
+                stored_fill_pct=ticket.est_fill_pct,
+                recomputed_fill_pct=None,
+                receipt_hash=None,
+                receipt_inputs={},
             )
+        recomputed_fill_pct = (
+            Decimal(str(median(muse_frame_fills))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             if muse_frame_fills
             else estimate_fill(
                 [
                     MaskMeasurement(
                         bed_area=bed_area,
                         load_area=load_area,
-                        load_height_ratio=debris.load_height_ratio,
+                        load_height_ratio=debris.load_height_ratio if debris else 0.0,
                     )
                 ]
             ).fill_pct
@@ -646,7 +645,7 @@ class SqlTicketRepository:
                 ),
                 bed_area=bed_area,
                 load_area=load_area,
-                load_height_ratio=debris.load_height_ratio,
+                load_height_ratio=debris.load_height_ratio if debris else 0.0,
                 body_type=body_type,
                 truck_id=ticket.truck_id,
                 debris_class=ticket.debris_class.value,

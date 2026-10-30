@@ -19,8 +19,9 @@ from pydantic import BaseModel, Field
 from app.api.cache import cached_api, invalidate_cache_tags
 from app.api.deps import require
 from app.api.repo import ActiveTenant, Repository
-from app.auth.roles import can_manage_events, can_manage_settings, can_review_tickets
+from app.auth.roles import can_manage_settings, can_review_tickets
 from app.pipeline import evidence_store
+from app.pipeline.trace import display_stage_summary
 from app.tickets.repository import EventNotFoundError, TicketNotFoundError
 from app.tickets.schemas import (
     AnomalyOut,
@@ -69,6 +70,7 @@ async def _require_writable_ticket(repo: Repository, tenant: UUID, ticket_id: UU
 @router.get("/events", response_model=list[EventOut])
 async def list_events(repo: Repository, tenant: ActiveTenant) -> list[EventOut]:
     """List disaster events in the active tenant."""
+
     async def _compute() -> list[EventOut]:
         events = await repo.list_events(tenant)
         return [event_to_out(e) for e in events]
@@ -213,7 +215,7 @@ async def ticket_pipeline(
             label=r.label,
             model=r.model,
             status=r.status,
-            summary=r.summary,
+            summary=display_stage_summary(r.stage_key, r.summary, r.details),
             confidence=float(r.confidence) if r.confidence is not None else None,
             duration_ms=float(r.duration_ms),
             details=[
@@ -389,6 +391,7 @@ async def update_ticket(
 @router.get("/events/{event_id}/dashboard", response_model=DashboardOut)
 async def event_dashboard(repo: Repository, tenant: ActiveTenant, event_id: UUID) -> DashboardOut:
     """Event roll-up: summed dollar-delta, review progress, anomalies, accuracy."""
+
     async def _compute() -> DashboardOut:
         summary = await repo.dashboard(tenant, event_id)
         return DashboardOut(
@@ -416,6 +419,7 @@ async def event_reports_summary(
     repo: Repository, tenant: ActiveTenant, event_id: UUID
 ) -> ReportsSummary:
     """Reports-page roll-up: counts by status/class, dollars, overbill, anomalies."""
+
     async def _compute() -> ReportsSummary:
         s = await repo.reports_summary(tenant, event_id)
         return ReportsSummary(

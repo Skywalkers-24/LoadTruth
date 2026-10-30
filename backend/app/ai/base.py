@@ -117,6 +117,11 @@ class TrackResult:
     # "truck" (no bed phrase matched, so the whole truck was used; coarser,
     # lowers confidence).
     bed_source: str = "bed"
+    # Scene presence is independent of whether a particular SAM concept matched.
+    # None preserves compatibility with older recordings and fixture clients.
+    truck_present: bool | None = None
+    presence_confidence: float = 0.0
+    presence_raw: str = ""
 
     def by_label(self, label: str) -> TrackedObject | None:
         return next((o for o in self.objects if o.label == label), None)

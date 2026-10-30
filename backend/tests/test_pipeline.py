@@ -110,6 +110,37 @@ def test_clean_load_has_no_flags() -> None:
     assert evaluate(_base()) == []
 
 
+def test_empty_registry_is_not_an_uncertified_truck_violation() -> None:
+    assert evaluate(_base(truck_is_certified=False, registry_available=False)) == []
+
+
+def test_missing_placard_still_flags_when_registry_is_empty() -> None:
+    flags = evaluate(_base(truck_id=None, identity_confidence=0.0, registry_available=False))
+    assert {flag.type for flag in flags} == {AnomalyType.IDENTITY_UNREADABLE}
+
+
+def test_uncertain_ocr_does_not_also_assert_uncertified_truck() -> None:
+    flags = evaluate(_base(truck_is_certified=False, identity_confidence=0.2))
+    assert {flag.type for flag in flags} == {AnomalyType.IDENTITY_UNREADABLE}
+
+
+def test_legacy_summary_does_not_claim_nonexistent_load_masks() -> None:
+    from app.pipeline.trace import display_stage_summary
+
+    details = [
+        ["Bed measured from", '"open truck bed interior"'],
+        ['Prompt "open truck bed interior"', "1 object on 54 of 60 frames"],
+        ["Load phrases merged", '"drywall", "lumber"'],
+        ['Prompt "drywall"', "No match"],
+        ['Prompt "lumber"', "No match"],
+    ]
+    original = "Tracked truck, bed, and debris across 60 frames."
+    assert display_stage_summary("sam_track", original, details) == (
+        "Tracked the truck bed; load masks were not detected."
+    )
+    assert details[3][1] == "No match"
+
+
 # ── registry ────────────────────────────────────────────────────────────────
 def _registry() -> TruckRegistry:
     return TruckRegistry(

@@ -52,6 +52,7 @@ class AnomalyInput:
     identity_confidence: float
     observed_at: datetime | None = None
     evidence_frame: str | None = None
+    registry_available: bool = True
 
 
 # Minimum realistic minutes between two loads from the same truck at one site.
@@ -69,7 +70,12 @@ def evaluate(
     flags: list[Anomaly] = []
     ev = load.evidence_frame
 
-    if load.truck_id and not load.truck_is_certified:
+    if (
+        load.registry_available
+        and load.truck_id
+        and not load.truck_is_certified
+        and load.identity_confidence >= _LOW_IDENTITY_CONFIDENCE
+    ):
         flags.append(
             Anomaly(
                 AnomalyType.UNCERTIFIED_TRUCK,

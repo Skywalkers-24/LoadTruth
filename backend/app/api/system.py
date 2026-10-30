@@ -28,6 +28,7 @@ from app.config import get_settings
 from app.pipeline.trace import (
     PipelineTrace,
     StageRecord,
+    display_stage_summary,
     get_job_store,
     get_progress_store,
 )
@@ -139,7 +140,7 @@ def _stage_out(s: StageRecord) -> StageOut:
         label=s.label,
         model=s.model,
         status=s.status,
-        summary=s.summary,
+        summary=display_stage_summary(s.key, s.summary, s.details),
         confidence=s.confidence,
         duration_ms=s.duration_ms,
         details=s.details,
@@ -241,7 +242,7 @@ async def _persisted_jobs(
                         label=s.label,
                         model=s.model,
                         status=s.status,
-                        summary=s.summary,
+                        summary=display_stage_summary(s.stage_key, s.summary, s.details),
                         confidence=float(s.confidence) if s.confidence is not None else None,
                         duration_ms=float(s.duration_ms),
                         details=_details(s.details),

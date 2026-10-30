@@ -34,6 +34,9 @@ def track_to_json(r: TrackResult) -> dict[str, Any]:
         "measure_version": r.measure_version,
         "sam_prompt_version": r.sam_prompt_version,
         "bed_source": r.bed_source,
+        "truck_present": r.truck_present,
+        "presence_confidence": r.presence_confidence,
+        "presence_raw": r.presence_raw,
         "objects": [
             {
                 "label": o.label,
@@ -70,6 +73,9 @@ def track_from_json(d: dict[str, Any]) -> TrackResult:
         measure_version=int(d.get("measure_version") or 0),
         sam_prompt_version=int(d.get("sam_prompt_version") or 0),
         bed_source=str(d.get("bed_source") or "bed"),
+        truck_present=d.get("truck_present") if isinstance(d.get("truck_present"), bool) else None,
+        presence_confidence=float(d.get("presence_confidence") or 0.0),
+        presence_raw=str(d.get("presence_raw") or ""),
     )
 
 

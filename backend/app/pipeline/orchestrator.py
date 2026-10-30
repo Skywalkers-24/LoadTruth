@@ -167,30 +167,61 @@ async def _compute_pipeline(
     await _record(ledger, "sam_track", tracks.usage)
     bed = tracks.by_label("truck bed")
     debris = tracks.by_label("debris pile")
-    if bed is None or debris is None or not bed.mask_areas:
-        # No measurable truck in frame — report it; draft nothing.
+    bed_segmented = bed is not None and bool(bed.mask_areas)
+    load_segmented = (
+        tracks.load_source == "segmented" and debris is not None and any(debris.mask_areas)
+    )
+    presence_confirmed = tracks.truck_present is True and tracks.presence_confidence >= 0.8
+    if not bed_segmented and not presence_confirmed:
+        outcome = (
+            "no_truck"
+            if tracks.truck_present is False or not tracks.presence_raw
+            else "segmentation_failed"
+        )
         if trace:
             trace.stage(
                 "sam_track",
                 "Track and segment",
                 sam,
-                "No truck or load could be segmented in the footage.",
-                status="flagged",
+                "No foreground truck detected."
+                if outcome == "no_truck"
+                else "Truck presence could not be confirmed; no ticket was created.",
+                status="skipped" if outcome == "no_truck" else "flagged",
                 details=_notes(tracks.notes) + _usage_details(tracks.usage),
                 duration_ms=_latency(tracks.usage),
             )
-            trace.outcome = "no_truck"
+            trace.outcome = outcome
         return PipelineResult(
             ticket=_empty_ticket(tenant_id, event_id, h),
             no_truck=True,
+            segments=dict(tracks.segments),
         )
     if trace:
         trace.stage(
             "sam_track",
             "Track and segment",
             sam,
-            f"Tracked truck, bed, and debris across {tracks.frame_count} frames.",
-            details=_notes(tracks.notes) + _usage_details(tracks.usage),
+            (
+                f"Tracked the truck bed and load across {tracks.frame_count} frames."
+                if bed_segmented and load_segmented
+                else (
+                    f"Tracked the truck bed across {tracks.frame_count} frames; "
+                    "load masks were not detected."
+                )
+                if bed_segmented
+                else (
+                    "Truck presence confirmed; SAM bed segmentation unavailable. "
+                    "Muse visual analysis continues."
+                )
+            ),
+            status="ok" if bed_segmented else "skipped",
+            details=_notes(tracks.notes)
+            + [
+                ["Truck present", "Yes"],
+                ["Bed segmentation", "Available" if bed_segmented else "Unavailable"],
+                ["Load segmentation", "Available" if load_segmented else "Unavailable"],
+            ]
+            + _usage_details(tracks.usage),
             duration_ms=_latency(tracks.usage),
         )
 
@@ -236,13 +267,15 @@ async def _compute_pipeline(
                 f"Matched certified capacity {certified} CY ({body_type})."
                 if match.found
                 else "Truck not found in the certified registry."
+                if registry.has_certifications
+                else "Registry unavailable; certified capacity has not been supplied."
             ),
-            status="ok" if match.found else "flagged",
+            status="ok" if match.found else "flagged" if registry.has_certifications else "skipped",
             details=[
                 ["Placard read", ocr.truck_id or "None"],
                 ["Registry match", match.matched_id or "None"],
                 ["Match score", f"{match.confidence:.0%}"],
-                ["Certified capacity", f"{certified} CY"],
+                ["Certified capacity", f"{certified} CY" if match.found else "Unavailable"],
                 ["Body type", body_type or "Unknown"],
             ],
         )
@@ -322,6 +355,7 @@ async def _compute_pipeline(
             est_cubic_yards=ticket.est_cubic_yards,
             identity_confidence=ocr.confidence,
             evidence_frame=ocr.frame_ref,
+            registry_available=registry.has_certifications,
         )
     )
     # Stage 6b — Muse Spark phrases a human narrative for each flag (PLAN.md §5,
@@ -392,6 +426,8 @@ async def _compute_pipeline(
                 ticket=ticket,
                 anomalies=anomalies,
                 frame_count=tracks.frame_count,
+                bed_segmented=bed_segmented,
+                load_segmented=load_segmented,
             ),
         )
         await _record(ledger, "spark_explain", explain_usage)
@@ -459,6 +495,8 @@ def _explain_facts(
     ticket: Ticket,
     anomalies: list[Anomaly],
     frame_count: int,
+    bed_segmented: bool = True,
+    load_segmented: bool = True,
 ) -> dict[str, object]:
     """The measured facts Muse Spark narrates into per-stage analysis.
 
@@ -466,6 +504,8 @@ def _explain_facts(
     it never fetches or invents figures."""
     return {
         "frame_count": frame_count,
+        "bed_segmented": bed_segmented,
+        "load_segmented": load_segmented,
         "truck_id": ocr.truck_id or "unidentified",
         "identity_confidence": round(ocr.confidence, 2),
         "truck_certified": match_found,

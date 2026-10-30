@@ -82,7 +82,7 @@ BED_FROM_TRUCK = "truck"
 # mostly outside the bed box. v5 stops intersecting load masks with the visible
 # metal mask, which had erased cargo pixels hidden behind the appliances.
 MEASURE_VERSION = 5
-SAM_PROMPT_VERSION = 3
+SAM_PROMPT_VERSION = 4
 
 # How the load was measured on the selected frames.
 LOAD_SEGMENTED = "segmented"  # a SAM load phrase matched inside the bed
