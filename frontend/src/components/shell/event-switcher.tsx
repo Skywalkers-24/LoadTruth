@@ -72,7 +72,7 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
                 : (selected?.name ?? "Select an event")}
             </span>
           </span>
-          {selected?.tags.includes("read-only") && <Badge tone="neutral">Read only</Badge>}
+          {selected?.tags.includes("read-only") && <Badge tone="neutral">Read-Only</Badge>}
           <ChevronDownIcon
             size={15}
             className="shrink-0 text-muted-foreground transition-transform"
@@ -227,7 +227,9 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
 
 function eventTagBadges(tags: string[]) {
   const badges: { key: string; label: string; tone: "neutral" | "accent" | "ok" | "info" }[] = [];
-  if (tags.includes("judge") || tags.includes("benchmarked") || tags.includes("benchmark")) {
+  if (tags.includes("dataset-1")) {
+    badges.push({ key: "dataset-1", label: "DataSet-1", tone: "ok" });
+  } else if (tags.includes("judge") || tags.includes("benchmarked") || tags.includes("benchmark")) {
     badges.push({
       key: "judge-benchmarked",
       label: tags.includes("judge")
@@ -238,7 +240,9 @@ function eventTagBadges(tags: string[]) {
       tone: "ok",
     });
   }
-  if (tags.includes("meta-processed")) {
+  if (tags.includes("meta-processed-muse")) {
+    badges.push({ key: "meta-processed-muse", label: "Meta Processed Muse", tone: "info" });
+  } else if (tags.includes("meta-processed")) {
     badges.push({ key: "meta-processed", label: "Meta processed", tone: "info" });
   }
   if (tags.includes("muse-medium")) {
@@ -249,7 +253,7 @@ function eventTagBadges(tags: string[]) {
   if (tags.includes("admin-only"))
     badges.push({ key: "admin-only", label: "Administrator edits only", tone: "neutral" });
   if (tags.includes("read-only")) {
-    badges.push({ key: "read-only", label: "Read only", tone: "neutral" });
+    badges.push({ key: "read-only", label: "Read-Only", tone: "neutral" });
   }
   return badges;
 }

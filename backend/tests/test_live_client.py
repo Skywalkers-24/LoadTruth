@@ -81,10 +81,14 @@ class FakeMeta:
         frames: int = 2,
         ocr: dict[str, Any] | None = None,
         visual_fill: float | None = None,
-        frame_fill_pcts: list[float] | None = None,
+        frame_fill_pcts: list[float | None] | None = None,
         named_load: list[str] | None = None,
     ) -> None:
-        self.named_load = named_load if named_load is not None else ["steel drums"]
+        self.named_load = (
+            named_load
+            if named_load is not None
+            else ["steel drums", "broken lumber", "concrete rubble"]
+        )
         self.frames = frames
         self.visual_fill = visual_fill
         self.frame_fill_pcts = frame_fill_pcts
@@ -126,6 +130,7 @@ class FakeMeta:
         if task == "name_load":
             answer = {
                 "concepts": self.named_load,
+                "load_concept": "mixed construction debris",
                 "debris_class": "construction_demolition",
                 "visible_fill_pct": self.visual_fill or 50.0,
                 "truck_present": True,
@@ -253,6 +258,7 @@ class RecoveryMeta(FakeMeta):
                         json.dumps(
                             {
                                 "concepts": ["steel drums"] if self.present else [],
+                                "load_concept": "mixed hazardous waste" if self.present else "",
                                 "debris_class": "construction_demolition"
                                 if self.present
                                 else "other",
@@ -273,7 +279,7 @@ async def test_real_alternate_bed_prompt_only_after_primary_miss() -> None:
     assert not result.no_truck
     track = next(s for s in result.trace.stages if s.key == "sam_track")
     assert dict(track.details)["Bed measured from"] == '"dump truck bed"'
-    assert sum(b["model"].startswith("sam") for b in fake.responses) == 7
+    assert sum(b["model"].startswith("sam") for b in fake.responses) == 6
 
 
 @pytest.mark.asyncio
@@ -345,7 +351,7 @@ async def test_empty_scene_stops_before_any_sam_or_downstream_call() -> None:
 
 @pytest.mark.asyncio
 async def test_missing_load_masks_are_truthful_trace_details_without_anomaly() -> None:
-    fake = RecoveryMeta(missing={"steel drums", "lumber", "concrete rubble"})
+    fake = RecoveryMeta(missing={"steel drums", "mixed hazardous waste"})
     result, _ = await _run(_client(fake))
     assert not result.no_truck
     assert result.anomalies == []
@@ -372,15 +378,15 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     # media the models saw is stored for playback.
     # The overlay keys plus the tailgate rim and every load phrase, kept so a
     # later measurement change can re-measure offline.
-    # Muse Spark named "steel drums"; the merged load set is that plus the two
-    # class-specific defaults, capped at sam_load_max_concepts (3).
+    # Muse Spark supplied the per-clip broad material and specific visible items.
     assert set(result.segments) == {
         "truck bed",
         "truck body",
         "debris pile",
         "tailgate",
         "load: steel drums",
-        "load: lumber",
+        "load: mixed construction debris",
+        "load: broken lumber",
         "load: concrete rubble",
     }
     assert result.segments["truck bed"].startswith("<0f>0<|box;")
@@ -398,9 +404,10 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
         [
             "concrete rubble",
             "truck",
-            "lumber",
+            "broken lumber",
             "truck bed",
             "steel drums",
+            "mixed construction debris",
             "tailgate",
         ]
     )
@@ -434,9 +441,14 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert "1,000 in, 200 out" in stages["spark_ocr"]["Tokens"]
     assert stages["spark_ocr"]["Cost"] == "$0.0021"
     assert stages["sam_track"]['Prompt "truck bed"'] == "1 object on 2 of 2 frames"
-    assert stages["sam_track"]["Billed"] == "300 frames (6 requests)"
+    assert stages["sam_track"]["Billed"] == "350 frames (7 requests)"
     assert stages["sam_track"]["Bed measured from"] == '"truck bed"'
-    assert stages["sam_track"]["Load named by Muse Spark"] == '"steel drums"'
+    assert stages["sam_track"]["Load named by Muse Spark"] == (
+        '"steel drums", "broken lumber", "concrete rubble"'
+    )
+    assert stages["sam_track"]["Broad load concept from Muse Spark"] == (
+        "mixed construction debris"
+    )
     assert stages["geometry"]["Frames estimated"] == "4"
     assert stages["geometry"]["SAM used for fill"] == "No"
     assert stages["geometry"]["Muse per-frame fill"] == "50.00%, 50.00%, 50.00%, 50.00%"
@@ -451,9 +463,9 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert analysis["dollar_math"] == "I valued the load by exact arithmetic."
 
     rows = {r.stage: r for r in await ledger.rows()}
-    # Six SAM video requests at the 50-frame minimum ($0.06) plus the name_load
+    # Seven SAM video requests at the 50-frame minimum ($0.07) plus the name_load
     # Spark call folded into this stage ($0.0021).
-    assert rows["sam_track"].cost_usd == pytest.approx(0.0621)
+    assert rows["sam_track"].cost_usd == pytest.approx(0.0721)
     # 1000 in at $1.25/1M + 200 out at $4.25/1M.
     assert rows["spark_ocr"].cost_usd == pytest.approx(0.0021)
     assert rows["spark_ocr"].tokens_in == 1000
@@ -461,7 +473,7 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     # The batched per-stage analysis is one more Spark call, billed like the rest.
     assert rows["spark_explain"].cost_usd == pytest.approx(0.0021)
     assert rows["spark_explain"].model == "muse-spark-1.3"
-    assert ledger.summarize().total_cost_usd == pytest.approx(0.0684)
+    assert ledger.summarize().total_cost_usd == pytest.approx(0.0784)
 
 
 @pytest.mark.asyncio
@@ -475,8 +487,8 @@ async def test_image_goes_inline_and_bills_per_image() -> None:
     assert part["type"] == "input_image"
     assert part["image_url"].startswith("data:image/png;base64,")
     rows = {r.stage: r for r in await ledger.rows()}
-    # 6 SAM images at $2.50 / 1k ($0.015) plus the name_load Spark call ($0.0021).
-    assert rows["sam_track"].cost_usd == pytest.approx(0.0171)
+    # 7 SAM images at $2.50 / 1k ($0.0175) plus name_load ($0.0021).
+    assert rows["sam_track"].cost_usd == pytest.approx(0.0196)
     assert result.ticket.evidence_frames == ["haul.png"]
 
 
@@ -526,6 +538,27 @@ async def test_muse_multiframe_median_sets_two_decimal_fill() -> None:
     assert geometry["SAM used for fill"] == "No"
     assert "SAM mask-based fill" not in geometry
     assert "low_confidence" not in {a.type.value for a in result.anomalies}
+
+
+@pytest.mark.asyncio
+async def test_obstructed_frames_do_not_bias_fill_toward_empty() -> None:
+    fake = FakeMeta(frame_fill_pcts=[None, 49.5, 50.5, None])
+    result, _ = await _run(_client(fake))
+
+    assert result.ticket.est_fill_pct == Decimal("50.00")
+    assert result.trace is not None
+    geometry = dict(next(s for s in result.trace.stages if s.key == "geometry").details)
+    assert geometry["Frames estimated"] == "2"
+    assert geometry["Muse per-frame fill"] == "49.50%, 50.50%"
+
+
+@pytest.mark.asyncio
+async def test_unassessable_clip_does_not_produce_a_guessed_ticket_fill() -> None:
+    from app.ai.meta_http import ModelAPIResponseError
+
+    fake = FakeMeta(frame_fill_pcts=[None, None, None, None])
+    with pytest.raises(ModelAPIResponseError, match="could not assess truck fill"):
+        await _run(_client(fake))
 
 
 @pytest.mark.asyncio

@@ -263,7 +263,7 @@ async def ticket_evidence(repo: Repository, tenant: ActiveTenant, ticket_id: UUI
         has_media=public_url is not None or stored is not None,
         media_url=public_url,
         media_storage=row.media_storage,
-        footage_expired=row.media_storage == "memory" and stored is None,
+        footage_expired=(row.media_storage == "memory" and stored is None and public_url is None),
         segments={str(k): str(v) for k, v in raw.items()},
     )
 
@@ -274,10 +274,7 @@ async def ticket_evidence_media(
 ) -> Response:
     """Authorize once, then play private B2 evidence without proxying video bytes."""
     row = await repo.get_ticket_evidence(tenant, ticket_id)
-    if (
-        row is not None
-        and (public_url := benchmark_media_url(row.content_hash))
-    ):
+    if row is not None and (public_url := benchmark_media_url(row.content_hash)):
         return RedirectResponse(public_url, status_code=307)
     if row is not None and row.media_storage == "memory":
         entry = evidence_store.memory_entry(row.content_hash)
@@ -306,10 +303,7 @@ async def ticket_evidence_url(
     quality: str = "high",
 ) -> dict[str, str]:
     row = await repo.get_ticket_evidence(tenant, ticket_id)
-    if (
-        row is not None
-        and (public_url := benchmark_media_url(row.content_hash, quality=quality))
-    ):
+    if row is not None and (public_url := benchmark_media_url(row.content_hash, quality=quality)):
         return {"url": public_url}
     if (
         row is None

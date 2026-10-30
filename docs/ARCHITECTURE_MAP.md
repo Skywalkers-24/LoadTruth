@@ -23,6 +23,7 @@ loadtruth/
 | Change | Location | Notes |
 |---|---|---|
 | App config / new env var | `backend/app/config.py` + `.env.example` | pydantic-settings; validated on boot |
+| Local benchmark batches / approved promotion | `scripts/reprocess-benchmark-batch.sh`, `scripts/benchmark_batch.py`, `scripts/benchmark_db.py` | Local Postgres only for ingest; immutable run manifests, resumable checkpoints, insert-only Supabase promotion after explicit approval. Usage in `scripts/README.md`. |
 | Logging / observability | `backend/app/log.py` | structlog JSON; add request/tenant context here |
 | New API route | `backend/app/api/<resource>.py` (router) → include in `app/main.py` | one router per resource |
 | DB model / table | `backend/app/db/models.py` (base/mixins `app/db/base.py`, portable types `app/db/types.py`) + schema SQL in `infra/rbac/20_loadtruth_schema.sql` | SQLite is the local-host default; Compose and production use Postgres; `DATABASE_URL` selects the engine |

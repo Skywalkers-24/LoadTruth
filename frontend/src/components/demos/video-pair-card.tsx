@@ -74,13 +74,6 @@ export function VideoPairCard({
     retry: 1,
   });
   const { resolvedTier } = useVideoQuality();
-  const hasSavedLoadMasks = evidence.data
-    ? Object.entries(evidence.data.segments).some(
-        ([key, value]) =>
-          value.trim().length > 0 &&
-          (key.startsWith("load: ") || key === "debris pile"),
-      )
-    : true;
   const rawUrl = `/videos/${pair.matchFilename}`;
   const url = getVideoVariantUrl(rawUrl, resolvedTier) ?? rawUrl;
   const poster = `/videos/thumbnails/${pair.matchFilename.replace(".mp4", ".jpg")}`;
@@ -294,14 +287,10 @@ export function VideoPairCard({
                   autoPlay={false}
                   hideControls
                   poster={poster}
-                  fallbackLoadFillPct={pair.measuredFillPct}
                   className="size-full"
                 />
                 <div className="pointer-events-none absolute right-2 bottom-2 rounded bg-black/85 px-2 py-0.5 text-[10px] font-bold text-emerald-400 backdrop-blur-xs border border-emerald-500/30">
                   {pair.measuredFillPct.toFixed(1)}% Fill
-                  {!hasSavedLoadMasks && (
-                    <span className="ml-1 font-medium text-violet-200">· estimated cover</span>
-                  )}
                 </div>
               </>
             ) : evidence.isError ? (

@@ -123,25 +123,51 @@ _CLASSIFY_PROMPT = (
     "tanks, oil, pesticides); other (anything else, or not visible). Pick the class "
     "that makes up most of the load. confidence is your probability, from 0 to 1, that "
     "the class is right. "
-    "Estimate truck-bed volume fill from 0 to 100, where 0 is empty and 100 is full to "
-    "the side wall tops across the bed. "
-    "CRITICAL FILL RULES: "
-    "1. Full and Overflowing Loads: If cargo is heaped, crowned, mounded, or overflowing "
-    "up to or above the side wall tops or bed rails, the bed is completely full: return 100.00 "
-    "for that frame. Never return a partial estimate (such as 90-95%) when debris reaches or "
-    "exceeds the side walls or rails. "
-    "2. Open-Back and Walking-Floor Trailers: For walking-floor trailers, bulk trailers, "
-    "or trucks where the back is open, open-top, or has tall side walls: assess the load by "
-    "looking through the open rear/top at how much of the trailer bed is filled from front to "
-    "back. When the load occupies the bed length and fills the cargo hold up towards the open "
-    "back or tailgate level, evaluate it as nearly full (typically ~85-90%+), rather than "
-    "penalizing it because the tall upper side walls extend above the load. "
-    "3. Inspect every frame and return one continuous estimate per frame in exact frame order. "
+    "Estimate occupied bulk volume as a percentage of the foreground truck's usable load "
+    "compartment, from 0 to 100. Adapt to the actual vehicle and contents visible in each "
+    "frame; never assign a typical percentage from truck type or material category. "
+    "FILL RULES: "
+    "1. Establish the compartment's floor, front, sides, rear boundary, and full-height "
+    "reference from structural evidence. Account for tapered walls, sloped floors, wheel "
+    "housings, and genuine load-retaining extensions. Exclude the cab, chassis, decorative "
+    "rails, tarp bows, and background. For a container carried on a truck, assess the "
+    "container's interior, not the space around it. If capacity boundaries cannot be "
+    "established, return null for that frame. "
+    "2. An open, missing, lowered, or partly open tailgate does not reduce the compartment's "
+    "full-height reference. Infer the rear boundary from the floor end and fixed side walls; "
+    "do not use the moving door edge as the fill line or count a lowered gate as extra floor. "
+    "This applies to open-back, walking-floor, and tall-sided trailers as well. Judge the "
+    "material's depth and occupied length, including visible empty space beyond the rear "
+    "pile. An open rear does not by itself imply either an empty or a nearly full truck. "
+    "3. Consider front, middle, rear, and both sides in three dimensions. Combine occupied "
+    "length, width, and depth relative to the compartment geometry, weighting regions by "
+    "their actual capacity rather than their apparent image size. Distinguish a shallow "
+    "layer covering the whole floor from a deep pile covering only part of it. Account for "
+    "sloped heaps, central mounds, uneven loading, and large empty channels or cavities. "
     "Do not use segmentation coverage or other pixel-area ratios as the fill percentage. "
-    "Do not round to tens or other fixed buckets; return each estimate to two decimal places. "
-    "Do not copy the same estimate to every frame unless the evidence supports it. "
-    "analysis is two or three plain sentences explaining the load, truck type, and visual "
-    f"evidence for the fill estimates. {_ANALYSIS_STYLE}"
+    "4. Estimate bulk occupied volume, not mass, density, or solid-material volume. Include "
+    "ordinary small gaps within a loose pile and the external volume of bulky objects, "
+    "while excluding substantial empty spaces between separated objects. Do not treat "
+    "isolated tall branches or objects as a solid block extending across the bed. "
+    "5. Use 0 only for a visibly empty compartment. A heap above the walls may be overloaded, "
+    "but a protruding item alone does not prove 100% fill. Consider excess heap volume "
+    "together with unfilled regions; cap the reported percentage at 100 when total bulk "
+    "volume reaches or exceeds the compartment capacity. Describe visible overflow in "
+    "analysis without inventing a percentage above 100. "
+    "6. Correct for perspective, camera angle, and a tilted bed using the truck's own "
+    "structure. Shadows, glare, dust, tarps, closed doors, opaque walls, and clipped views "
+    "are not evidence of empty space. Return null when obstruction or blur prevents a "
+    "defensible whole-compartment estimate; do not assume hidden regions are full or empty. "
+    "A cover's outer shape alone does not reveal the contents beneath it. "
+    "7. Inspect every supplied frame and return exactly one entry per frame in order. "
+    "Estimate from each frame's evidence without copying values across frames or forcing "
+    "variation when the load is unchanged. If loading or unloading occurs, estimate each "
+    "visible state and mention the change in analysis. Use continuous estimates formatted "
+    "to two decimal places, without rounding to fixed buckets; formatting does not imply "
+    "measurement precision. "
+    "analysis is two or three plain sentences explaining the compartment reference, load "
+    "distribution, and any visibility limitations or overflow. If no frame is assessable, "
+    f"say so and return null entries. {_ANALYSIS_STYLE}"
 )
 
 _NAME_LOAD_PROMPT = (
@@ -151,19 +177,29 @@ _NAME_LOAD_PROMPT = (
     "Inspect only the material physically inside the open bed of the foreground haul truck. "
     "Ignore background piles, ground debris, and other vehicles. Classify the dominant load "
     "as exactly one of vegetative, hazardous, white_goods, construction_demolition, or other. "
-    "Also return one to three short, concrete object noun phrases for items visibly inside "
-    "that bed, ordered most visible first, so SAM can segment those objects. Examples: tree "
-    "branches or logs; paint cans or propane cylinders; refrigerators or washing machines; "
-    "lumber, drywall, concrete, or roofing; tires or mixed household items. Do not name the "
-    "truck, bed, background material, or generic phrases like 'debris pile' or 'pile'. If the "
-    "bed is visibly empty, return an empty concepts list and class other. visible_fill_pct is "
-    "an estimate from 0 to 100 of bed volume occupied, based only on the foreground bed."
+    "Also return one to three short, concrete object noun phrases for distinct item types "
+    "visibly inside that bed, ordered by how clearly and substantially each type appears, "
+    "so SAM can segment those objects. Name whatever item types are visible, including "
+    "unusual or mixed materials, without limiting the answer to a known waste category. "
+    "Use one item type per phrase. Put different visible types in separate array entries; "
+    "do not join alternatives with 'or', combine several materials into one "
+    "phrase, or repeat synonyms for the same item. Do not name the "
+    "truck, bed, or background material. Also return load_concept: one broad, short noun "
+    "phrase that describes the dominant visible material in this clip. Whenever the bed "
+    "contains visible material, provide this phrase even if its type is unfamiliar. Choose "
+    "it from what is actually visible, including mixed load contents; do not use the same "
+    "generic word for every clip, and do not "
+    "include the truck, bed, or background. Keep it to one concept, not a list. If the bed is "
+    "visibly empty, return an empty concepts list and empty load_concept, and class other. "
+    "visible_fill_pct is an estimate from 0 to 100 of bed volume occupied, based only on the "
+    "foreground bed."
 )
 
 _NAME_LOAD_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "concepts": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
+        "load_concept": {"type": "string"},
         "debris_class": {
             "type": "string",
             "enum": ["vegetative", "hazardous", "white_goods", "construction_demolition", "other"],
@@ -174,6 +210,7 @@ _NAME_LOAD_SCHEMA: dict[str, Any] = {
     },
     "required": [
         "concepts",
+        "load_concept",
         "debris_class",
         "visible_fill_pct",
         "truck_present",
@@ -239,7 +276,9 @@ _CLASSIFY_SCHEMA: dict[str, Any] = {
         "confidence": {"type": "number"},
         "frame_fill_pcts": {
             "type": "array",
-            "items": {"type": "number", "minimum": 0, "maximum": 100},
+            "items": {
+                "anyOf": [{"type": "number", "minimum": 0, "maximum": 100}, {"type": "null"}]
+            },
             "minItems": 1,
             "maxItems": 8,
         },
@@ -273,8 +312,6 @@ class _SegmentRun:
 # Raw SAM text kept per concept for the Review overlay (about 400 chars per
 # object per frame); a very long clip beyond this keeps its measurements only.
 _MAX_SEGMENT_CHARS = 4_000_000
-
-
 def _clamp01(value: object) -> float:
     try:
         number = float(value)  # type: ignore[arg-type]
@@ -284,13 +321,15 @@ def _clamp01(value: object) -> float:
 
 
 def _frame_fill_estimates(value: object, *, media_kind: str) -> tuple[float, ...]:
-    """Validate Muse's ordered per-frame fill estimates and retain two decimals."""
+    """Retain assessable frame estimates; unknown views must not become zeros."""
     if not isinstance(value, list) or not 1 <= len(value) <= 8:
         raise ModelAPIResponseError("Muse did not return a fill estimate for each keyframe.")
     if media_kind == "video" and len(value) < 2:
         raise ModelAPIResponseError("Muse fill estimation requires multiple video frames.")
     estimates: list[float] = []
     for estimate in value:
+        if estimate is None:
+            continue
         if (
             isinstance(estimate, bool)
             or not isinstance(estimate, int | float)
@@ -301,6 +340,8 @@ def _frame_fill_estimates(value: object, *, media_kind: str) -> tuple[float, ...
         estimates.append(
             float(Decimal(str(estimate)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
         )
+    if not estimates:
+        raise ModelAPIResponseError("Muse could not assess truck fill in any supplied frame.")
     return tuple(estimates)
 
 
@@ -510,13 +551,12 @@ class LiveAIClient:
     # ── SAM 3.1 ──────────────────────────────────────────────────────────────
     async def _name_load_concepts(
         self, media: PreparedMedia
-    ) -> tuple[list[str], str, CallUsage | None, bool | None, float, str]:
+    ) -> tuple[list[str], str, str, CallUsage | None, bool | None, float, str]:
         """Ask Muse Spark what noun phrases name the load, for SAM to segment.
 
-        The vision model identifies the debris class and names visible objects,
-        so SAM is not tied to a fixed phrase list. Returns the cleaned phrases,
-        class, and call usage. On failure the caller uses class-specific fallback
-        phrases, so naming can never prevent a SAM pass."""
+        The vision model identifies the debris class and names both the dominant
+        material and visible objects, so SAM is not tied to a fixed load phrase.
+        If naming fails, no guessed load prompts are sent to SAM."""
         try:
             response, usage = await self._spark(
                 "name_load",
@@ -526,16 +566,18 @@ class LiveAIClient:
             )
             answer = _json_answer(response)
         except (ModelAPIResponseError, ModelAPIRequestError):
-            return [], "other", None, None, 0.0, '{"presence_check":"unavailable"}'
+            return [], "", "other", None, None, 0.0, '{"presence_check":"unavailable"}'
         raw = answer.get("concepts")
         phrases = [_clean_concept(p) for p in raw] if isinstance(raw, list) else []
         phrases = [p for p in dict.fromkeys(phrases) if p][: get_settings().sam_load_max_concepts]
+        load_concept = _clean_concept(answer.get("load_concept"))
         debris_class = str(answer.get("debris_class") or "other").strip().lower()
         present = answer.get("truck_present")
         confidence = answer.get("presence_confidence", 0.0)
         confidence = float(confidence) if isinstance(confidence, int | float) else 0.0
         return (
             phrases,
+            load_concept,
             debris_class if debris_class in DEBRIS_CLASSES else "other",
             usage,
             present if isinstance(present, bool) else None,
@@ -546,10 +588,11 @@ class LiveAIClient:
     async def track(self, clip: ClipMedia) -> TrackResult:
         media = await self._media(clip)
         s = get_settings()
-        # Muse Spark names the load and class first; category-specific phrases
-        # ensure SAM still has useful prompts if the naming call returns no items.
+        # Muse Spark names the load and visible items first; its per-clip
+        # phrases drive segmentation without a fixed material vocabulary.
         (
             named,
+            load_concept,
             debris_class,
             name_usage,
             present,
@@ -569,16 +612,12 @@ class LiveAIClient:
                 notes={"Truck present": "No", "SAM": "Skipped for confidently empty scene"},
             )
         bed_concepts = list(dict.fromkeys(s.sam_bed_concepts))
-        class_concepts = {
-            "vegetative": ["tree branches", "logs", "yard waste"],
-            "hazardous": ["paint cans", "chemical containers", "propane cylinders"],
-            "white_goods": ["refrigerators", "washing machines", "water heaters"],
-            "construction_demolition": ["lumber", "concrete rubble", "drywall"],
-            "other": ["discarded tires", "furniture", "mixed bulky items"],
-        }
-        load_concepts = list(dict.fromkeys([*named, *class_concepts[debris_class]]))[
-            : max(1, s.sam_load_max_concepts)
-        ]
+        # Ask SAM for Muse's per-clip broad material phrase first, then its
+        # specific visible items. This stays adaptable to any load and avoids
+        # category-based guesses that are not visible in the clip.
+        load_concepts = list(
+            dict.fromkeys([load_concept, *named])
+        )[: max(1, s.sam_load_max_concepts)]
         # Every concept goes to SAM in one parallel round: the bed phrases (in
         # priority order), the tailgate (the rear rim that bounds the opening),
         # and the load phrases (merged, since one phrase misses some loads).
@@ -635,13 +674,19 @@ class LiveAIClient:
         )
         # The overlay draws the bed and the load phrase that found the most;
         # every phrase's raw output is also kept so Re-measure can replay it.
-        best_load = max(loads, key=lambda r: _in_bed_pixels(r.detections, bed.detections))
-        best_load_overlap = _in_bed_pixels(best_load.detections, bed.detections)
+        best_load = max(
+            loads,
+            key=lambda r: _in_bed_pixels(r.detections, bed.detections),
+            default=None,
+        )
+        best_load_overlap = (
+            _in_bed_pixels(best_load.detections, bed.detections) if best_load else 0
+        )
         segments = {
             BED_LABEL: bed.text,
             **({TRUCK_BODY_LABEL: runs[body_concept].text} if body_concept else {}),
             # An off-truck background match must not become the Review overlay.
-            LOAD_LABEL: best_load.text if best_load_overlap else "",
+            LOAD_LABEL: best_load.text if best_load and best_load_overlap else "",
             RIM_LABEL: rim.text,
             **{f"{LOAD_PREFIX}{c}": runs[c].text for c in load_concepts},
         }
@@ -651,6 +696,7 @@ class LiveAIClient:
             "Load named by Muse Spark": (
                 ", ".join(f'"{c}"' for c in named) if named else "no specific objects named"
             ),
+            "Broad load concept from Muse Spark": load_concept or "unavailable",
             "Load class from Muse Spark": debris_class,
             **result.notes,
         }

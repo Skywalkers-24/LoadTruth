@@ -85,8 +85,6 @@ interface Props {
   hideControls?: boolean;
   autoPlay?: boolean;
   poster?: string;
-  /** Draw a clearly marked estimate when benchmark evidence has no saved load mask. */
-  fallbackLoadFillPct?: number;
   className?: string;
 }
 
@@ -106,7 +104,6 @@ export function SamPlayer({
   hideControls,
   autoPlay = false,
   poster,
-  fallbackLoadFillPct,
   className,
 }: Props) {
   const [rawUrl, setRawUrl] = useState<string | null>(videoUrl ?? null);
@@ -470,19 +467,8 @@ export function SamPlayer({
                 <Shape s={bed} color="#0284c7" />
               </g>
             )}
-            {show.load && loads.length === 0 && fallbackLoadFillPct !== undefined && bed && (
-              <g clipPath={`url(#${openingId})`}>
-                <path
-                  d={`M ${bed.left + (bed.right - bed.left) * 0.18} ${rim * (1 - Math.max(0, Math.min(100, fallbackLoadFillPct)) / 100)} L ${bed.right - (bed.right - bed.left) * 0.18} ${rim * (1 - Math.max(0, Math.min(100, fallbackLoadFillPct)) / 100)} L ${bed.right - (bed.right - bed.left) * 0.08} ${rim} L ${bed.left + (bed.right - bed.left) * 0.08} ${rim} Z`}
-                  fill="#8b5cf6"
-                  fillOpacity={0.42}
-                  stroke="#a78bfa"
-                  strokeWidth={Math.max(2, width / 400)}
-                />
-              </g>
-            )}
             {show.load && (
-              <g>
+              <g clipPath={`url(#${openingId})`}>
                 {loads.map((s) => (
                   <Shape key={s.objectId} s={s} color="#8b5cf6" prominent />
                 ))}

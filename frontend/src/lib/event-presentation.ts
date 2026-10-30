@@ -1,17 +1,14 @@
 import type { EventSummary } from "./api";
 
-const BENCHMARK_EVENT_ID = "a64be422-dbb3-5bf9-9ce6-305cf96fb379";
+const BENCHMARK_EVENT_ID = "60cdc03c-ae67-4ff3-a482-6e6f08372dff";
 
-/** Give the packaged benchmark its operational label; preserve its identity and access tags. */
+/** Keep the promoted 25-video dataset's display labels stable across deployments. */
 export function presentEvent(event: EventSummary): EventSummary {
-  if (event.id !== BENCHMARK_EVENT_ID || !/^50 Video Benchmark(?:\s|$)/i.test(event.name))
-    return event;
+  if (event.id !== BENCHMARK_EVENT_ID) return event;
   return {
     ...event,
     name: "Hurricane Debris Recovery 2026",
     location: event.location?.trim() || "Pinellas County, FL",
-    tags: [
-      ...new Set([...event.tags, "benchmark", "benchmark-50", "meta-processed", "muse-medium"]),
-    ],
+    tags: [...new Set([...event.tags, "dataset-1", "meta-processed-muse", "read-only"])],
   };
 }

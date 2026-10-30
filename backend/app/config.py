@@ -187,14 +187,11 @@ class Settings(BaseSettings):
     # outline above is evidence, never a substitute for the cargo opening.
     sam_bed_fallback_concept: str = "dump truck bed"
     sam_rim_concept: str = Field(default="tailgate")
-    #   load: Muse Spark names visible objects by class per clip. The legacy
-    #         setting below remains accepted for env compatibility; runtime
-    #         fallbacks are class-specific. `sam_load_max_concepts` caps the
-    #         load requests (each is one SAM request).
-    sam_load_concepts: list[str] = Field(
-        default_factory=lambda: ["debris pile", "pile", "barrels and containers"]
-    )
-    sam_load_max_concepts: int = Field(default=3, ge=1, le=6)
+    #   load: Muse Spark names the broad material and visible objects per clip.
+    #         `sam_load_max_concepts` caps these one-phrase-per-request prompts.
+    # Retained for old environment files; live tracking uses Muse's clip-specific prompts.
+    sam_load_concepts: list[str] = Field(default_factory=list)
+    sam_load_max_concepts: int = Field(default=4, ge=1, le=6)
     # SAM pricing (dev.meta.ai/docs/pricing-rate-limits): images per 1k, video per
     # 1k frames with a 50-frame minimum per request.
     sam_image_price_per_1k: float = Field(default=2.50)
