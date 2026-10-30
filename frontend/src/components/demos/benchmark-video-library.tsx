@@ -2,21 +2,34 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { FilmIcon, PlayIcon, PauseIcon, RotateCcwIcon, SparklesIcon, VideoIcon } from "lucide-react";
+import {
+  FilmIcon,
+  PlayIcon,
+  PauseIcon,
+  RotateCcwIcon,
+  SparklesIcon,
+  VideoIcon,
+} from "lucide-react";
 
 import manifest from "@/lib/benchmark-videos.json";
 import { useInView } from "@/lib/use-in-view";
 import { cn } from "@/lib/utils";
 
 /** Source footage awaiting batch processing (without masks yet) */
-export function BenchmarkVideoLibrary({ className }: { className?: string }) {
+export function BenchmarkVideoLibrary({
+  className,
+  videos = manifest.videos,
+}: {
+  className?: string;
+  videos?: typeof manifest.videos;
+}) {
   return (
     <section aria-label="Benchmark source videos" className={cn("flex flex-col gap-3", className)}>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs">
         <div className="flex items-center gap-2">
           <span className="flex size-2 rounded-full bg-amber-500 animate-pulse" />
           <span className="font-semibold text-foreground">
-            {manifest.videos.length} Unprocessed Source Clips
+            {videos.length} Unprocessed Source Clips
           </span>
           <span className="text-muted-foreground hidden sm:inline">
             · Awaiting batch processing (no masks recorded yet)
@@ -32,7 +45,7 @@ export function BenchmarkVideoLibrary({ className }: { className?: string }) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {manifest.videos.map((video) => (
+        {videos.map((video) => (
           <BenchmarkClip key={video.id} video={video} />
         ))}
       </div>

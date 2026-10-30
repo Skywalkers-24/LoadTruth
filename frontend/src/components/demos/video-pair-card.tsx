@@ -17,15 +17,9 @@ import {
   VolumeXIcon,
 } from "lucide-react";
 
-import {
-  demoPlayback,
-  SHOWCASE_EVENT_ID,
-  type DebrisClass,
-  type DemoVideo,
-} from "@/lib/api";
-import { useTicketEvidence } from "@/lib/hooks";
+import { demoPlayback, type DebrisClass, type DemoVideo, type TicketEvidence } from "@/lib/api";
 import { useInView } from "@/lib/use-in-view";
-import showcaseEvidence from "@/lib/showcase-evidence.json";
+import processedPairs from "@/lib/processed-benchmark-pairs.json";
 import { SamPlayer } from "@/components/console/sam-player";
 import { Badge } from "@/components/ui/shadcn/badge";
 import { cn } from "@/lib/utils";
@@ -35,6 +29,7 @@ export interface BenchmarkPairDef {
   pairNumber: number;
   truckId: string;
   ticketId: string;
+  eventId: string;
   debrisClass: DebrisClass;
   debrisLabel: string;
   debrisDescription: string;
@@ -51,108 +46,7 @@ export interface BenchmarkPairDef {
   lane: string;
 }
 
-export const BENCHMARK_PAIRS: BenchmarkPairDef[] = [
-  {
-    id: "pair-1",
-    pairNumber: 1,
-    truckId: "FL-DT-8043",
-    ticketId: "8af7c63d-8020-5bc7-8c9c-823ddcd95970",
-    debrisClass: "white_goods",
-    debrisLabel: "White Goods",
-    debrisDescription: "Refrigerators, washers & appliances",
-    certifiedCubicYards: 16.0,
-    measuredFillPct: 41.83,
-    measuredCubicYards: 6.69,
-    ratePerCy: 22.0,
-    dollarValue: 147.25,
-    matchFilename: "showcase-1.mp4",
-    contentHash: "8a3c6673949fbb9f4b6d26e8efb9270690fd9254ab97c56573bc936de09ea558",
-    notes: "Appliances haul, bed isolated from cargo.",
-    fps: 6.022,
-    resolution: "1024 × 576",
-    lane: "Lane 01",
-  },
-  {
-    id: "pair-2",
-    pairNumber: 2,
-    truckId: "FL-DT-7788",
-    ticketId: "ba556e1e-a844-5dcf-96b4-94ac7724f124",
-    debrisClass: "hazardous",
-    debrisLabel: "Hazardous",
-    debrisDescription: "Chemical barrels & paint cans",
-    certifiedCubicYards: 20.0,
-    measuredFillPct: 11.98,
-    measuredCubicYards: 2.4,
-    ratePerCy: 100.0,
-    dollarValue: 240.0,
-    matchFilename: "showcase-2.mp4",
-    contentHash: "398b452b4325d4e02a5cae50a026a1b4f7bfb4c09b9eea4d2f1a1a8046130484",
-    notes: "Sparse barrels resting on bed floor.",
-    fps: 3.0,
-    resolution: "1024 × 576",
-    lane: "Lane 03",
-  },
-  {
-    id: "pair-3",
-    pairNumber: 3,
-    truckId: "FL-DT-3391",
-    ticketId: "df0e9c7b-ce86-5251-ad6d-335914200daa",
-    debrisClass: "construction_demolition",
-    debrisLabel: "C&D",
-    debrisDescription: "Lumber, drywall & broken concrete",
-    certifiedCubicYards: 20.0,
-    measuredFillPct: 54.64,
-    measuredCubicYards: 10.93,
-    ratePerCy: 12.0,
-    dollarValue: 131.14,
-    matchFilename: "showcase-3.mp4",
-    contentHash: "a3ba19079602dbdf381dba518fd90ea4734970e283fd580568ea31b837f7c400",
-    notes: "Demolition rubble and concrete debris.",
-    fps: 3.0,
-    resolution: "1024 × 576",
-    lane: "Lane 02",
-  },
-  {
-    id: "pair-4",
-    pairNumber: 4,
-    truckId: "FL-DT-2204",
-    ticketId: "9e5b4ae9-4727-5547-bb08-c8c8eb714e5a",
-    debrisClass: "vegetative",
-    debrisLabel: "Vegetative",
-    debrisDescription: "Clean sweep empty return bed (0%)",
-    certifiedCubicYards: 25.0,
-    measuredFillPct: 0.0,
-    measuredCubicYards: 0.0,
-    ratePerCy: 8.0,
-    dollarValue: 0.0,
-    matchFilename: "showcase-4.mp4",
-    contentHash: "3e66bfed29744563adf6b5f16542cfaed9773f63f6917b9eb96ed95a4d54bf88",
-    notes: "Empty contractor return haul, fraud guard.",
-    fps: 3.0,
-    resolution: "1024 × 576",
-    lane: "Lane 01",
-  },
-  {
-    id: "pair-5",
-    pairNumber: 5,
-    truckId: "FL-DT-3391",
-    ticketId: "654d5e5f-d61c-52b8-9e1d-c6dc6c7ec110",
-    debrisClass: "construction_demolition",
-    debrisLabel: "C&D",
-    debrisDescription: "Roofing shingles & plywood",
-    certifiedCubicYards: 20.0,
-    measuredFillPct: 37.85,
-    measuredCubicYards: 7.57,
-    ratePerCy: 12.0,
-    dollarValue: 90.84,
-    matchFilename: "showcase-5.mp4",
-    contentHash: "968754e7cea9b1e38861cf0be414b18e89ba8aba349a287bd63da9f6a3e69e73",
-    notes: "Roofing shingles haul in twilight lighting.",
-    fps: 3.0,
-    resolution: "1024 × 576",
-    lane: "Lane 02",
-  },
-];
+export const BENCHMARK_PAIRS = processedPairs as BenchmarkPairDef[];
 
 interface VideoPairCardProps {
   pair: BenchmarkPairDef;
@@ -200,17 +94,28 @@ export function VideoPairCard({
     retry: 1,
   });
 
-  // Ticket evidence with SAM segmentation records (lazy-fetched when visible)
-  const evidence = useTicketEvidence(pair.ticketId, isVisible);
-  const fallback = (showcaseEvidence as Record<string, any>)[pair.ticketId] ?? null;
-  const evidenceData = evidence.data ?? fallback;
+  // Fetch saved masks only when the card approaches the viewport.
+  const evidence = useQuery<TicketEvidence>({
+    queryKey: ["benchmark-evidence", pair.id],
+    queryFn: async () => {
+      const response = await fetch(
+        `/evidence/benchmark/${String(pair.pairNumber).padStart(3, "0")}.json`,
+      );
+      if (!response.ok) throw new Error("Saved masks could not be loaded");
+      return response.json();
+    },
+    enabled: isVisible,
+    staleTime: Infinity,
+  });
+  const evidenceData = evidence.data;
 
-  // Prefer instant Cloudflare edge static asset (/videos/showcase-N.mp4) for benchmark pairs;
-  // Fall back to dynamic upload playback URL for newly uploaded clips
+  // Source clips and saved masks are served from Cloudflare static assets.
   const edgeVideoUrl = pair.matchFilename ? `/videos/${pair.matchFilename}` : null;
-  const posterUrl = pair.matchFilename ? `/videos/thumbnails/${pair.matchFilename.replace('.mp4', '.jpg')}` : undefined;
+  const posterUrl = pair.matchFilename
+    ? `/videos/thumbnails/${pair.matchFilename.replace(".mp4", ".jpg")}`
+    : undefined;
   const [useEdgeAsset, setUseEdgeAsset] = useState(true);
-  const videoUrl = (useEdgeAsset && edgeVideoUrl) ? edgeVideoUrl : (playback.data?.url ?? null);
+  const videoUrl = useEdgeAsset && edgeVideoUrl ? edgeVideoUrl : (playback.data?.url ?? null);
 
   // Replay both feeds from 0:00
   function handleReplay(e?: React.MouseEvent) {
@@ -234,9 +139,7 @@ export function VideoPairCard({
   async function toggleSyncPlay() {
     const vReal = realVideoRef.current;
     const vAnalyzed = analyzedVideoRef.current;
-    const videos = [vReal, vAnalyzed].filter(
-      (video): video is HTMLVideoElement => video !== null,
-    );
+    const videos = [vReal, vAnalyzed].filter((video): video is HTMLVideoElement => video !== null);
 
     if (currentTime >= duration - 0.2) {
       handleReplay();
@@ -324,9 +227,7 @@ export function VideoPairCard({
           <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary shrink-0">
             P0{pair.pairNumber}
           </span>
-          <span className="font-mono text-xs font-bold text-foreground">
-            {pair.truckId}
-          </span>
+          <span className="font-mono text-xs font-bold text-foreground">{pair.truckId}</span>
           <span className="rounded border border-border/80 bg-background px-1.5 py-0 text-[10px] font-medium text-muted-foreground hidden sm:inline-flex">
             {pair.debrisLabel}
           </span>
@@ -355,7 +256,7 @@ export function VideoPairCard({
                 "rounded px-1.5 py-0.5 transition-colors font-medium",
                 viewMode === "side-by-side"
                   ? "bg-primary text-primary-foreground font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
               title="Side-by-Side Dual View"
             >
@@ -368,7 +269,7 @@ export function VideoPairCard({
                 "rounded px-1.5 py-0.5 transition-colors font-medium",
                 viewMode === "real"
                   ? "bg-primary text-primary-foreground font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
               title="Raw CCTV Only"
             >
@@ -381,7 +282,7 @@ export function VideoPairCard({
                 "rounded px-1.5 py-0.5 transition-colors font-medium",
                 viewMode === "analyzed"
                   ? "bg-primary text-primary-foreground font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
               title="AI SAM 3.1 Only"
             >
@@ -401,13 +302,15 @@ export function VideoPairCard({
             <div className="grid size-9 place-items-center rounded-full bg-white/10 text-white shadow-xs">
               <PlayIcon className="size-4 fill-current ml-0.5" />
             </div>
-            <span className="text-[11px] font-medium text-muted-foreground">Click or scroll to preview {pair.truckId}</span>
+            <span className="text-[11px] font-medium text-muted-foreground">
+              Click or scroll to preview {pair.truckId}
+            </span>
           </div>
         ) : (
           <div
             className={cn(
               "grid gap-1.5",
-              viewMode === "side-by-side" ? "grid-cols-2" : "grid-cols-1"
+              viewMode === "side-by-side" ? "grid-cols-2" : "grid-cols-1",
             )}
           >
             {/* ── LEFT: REAL CCTV FOOTAGE ── */}
@@ -454,7 +357,7 @@ export function VideoPairCard({
                 <div
                   className={cn(
                     "pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity duration-200",
-                    isPlaying ? "opacity-0 group-hover:opacity-80" : "opacity-90 bg-black/20"
+                    isPlaying ? "opacity-0 group-hover:opacity-80" : "opacity-90 bg-black/20",
                   )}
                 >
                   <div className="grid size-7 place-items-center rounded-full bg-black/60 text-white shadow-lg backdrop-blur-xs border border-white/20">
@@ -525,7 +428,7 @@ export function VideoPairCard({
                       "rounded px-1.5 py-0.5 text-[8px] font-bold transition-all shadow-xs",
                       showLayers.bed
                         ? "bg-sky-500 text-white shadow-sky-500/30"
-                        : "bg-black/60 text-white/50 border border-white/10"
+                        : "bg-black/60 text-white/50 border border-white/10",
                     )}
                     title="Toggle Bed Outline"
                   >
@@ -538,7 +441,7 @@ export function VideoPairCard({
                       "rounded px-1.5 py-0.5 text-[8px] font-bold transition-all shadow-xs",
                       showLayers.load
                         ? "bg-amber-500 text-black shadow-amber-500/30"
-                        : "bg-black/60 text-white/50 border border-white/10"
+                        : "bg-black/60 text-white/50 border border-white/10",
                     )}
                     title="Toggle Load Mask"
                   >
@@ -551,7 +454,7 @@ export function VideoPairCard({
                       "rounded px-1.5 py-0.5 text-[8px] font-bold transition-all shadow-xs",
                       showLayers.body
                         ? "bg-purple-500 text-white shadow-purple-500/30"
-                        : "bg-black/60 text-white/50 border border-white/10"
+                        : "bg-black/60 text-white/50 border border-white/10",
                     )}
                     title="Toggle Body Mask"
                   >
@@ -568,7 +471,7 @@ export function VideoPairCard({
                 <div
                   className={cn(
                     "pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity duration-200",
-                    isPlaying ? "opacity-0 group-hover:opacity-80" : "opacity-90 bg-black/20"
+                    isPlaying ? "opacity-0 group-hover:opacity-80" : "opacity-90 bg-black/20",
                   )}
                 >
                   <div className="grid size-7 place-items-center rounded-full bg-black/60 text-white shadow-lg backdrop-blur-xs border border-white/20">
@@ -678,7 +581,7 @@ export function VideoPairCard({
           )}
 
           <Link
-            href={`/console?event=${SHOWCASE_EVENT_ID}&ticket=${pair.ticketId}`}
+            href={`/console?event=${pair.eventId}&ticket=${pair.ticketId}`}
             className="inline-flex h-6 items-center rounded border border-border bg-background px-2 text-[10px] font-medium text-foreground transition-colors hover:bg-accent hover:border-primary/40"
           >
             Console →
