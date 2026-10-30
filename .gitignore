@@ -23,6 +23,7 @@
 **/coverage/
 *.tsbuildinfo
 **/next-env.d.ts
+**/.vite/
 
 # OS / editor
 .DS_Store

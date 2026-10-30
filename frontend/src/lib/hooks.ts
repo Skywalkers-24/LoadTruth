@@ -28,6 +28,7 @@ export function useEvents() {
     queryKey: ["events"],
     queryFn: () => api.listEvents(),
     enabled: Boolean(member),
+    staleTime: 60_000,
   });
 }
 
@@ -60,6 +61,7 @@ export function useTickets(query: TicketQuery) {
     // Normally scoped to an event; `allTenant` opts into the whole-tenant list
     // (admin "All events" reports) where there is intentionally no event id.
     enabled: Boolean(query.eventId) || query.allTenant === true,
+    staleTime: 15_000,
     placeholderData: (previous, previousQuery) =>
       (previousQuery?.queryKey[1] as TicketQuery | undefined)?.eventId === query.eventId
         ? previous
@@ -73,6 +75,7 @@ export function useTicket(id: string | null) {
     queryKey: ["ticket", id],
     queryFn: () => api.getTicket(id as string),
     enabled: Boolean(id),
+    staleTime: 60_000,
   });
 }
 
@@ -147,8 +150,17 @@ export function useIngest() {
 export function useSubmitIngestJob() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ eventId, file }: { eventId: string; file: File }) =>
-      submitIngestJob(eventId, file),
+    mutationFn: ({
+      eventId,
+      file,
+      bypassCache,
+      keepFootage,
+    }: {
+      eventId: string;
+      file: File;
+      bypassCache?: boolean;
+      keepFootage?: boolean;
+    }) => submitIngestJob(eventId, file, { bypassCache, keepFootage }),
     onSuccess: (job, { eventId }) => {
       qc.setQueryData(["ingest-job", eventId], job);
       void qc.invalidateQueries({ queryKey: ["pipeline-progress", eventId] });
@@ -198,6 +210,7 @@ export function useUpdateTicket() {
 function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   return () => {
     void qc.invalidateQueries({ queryKey: ["tickets"] });
+    void qc.invalidateQueries({ queryKey: ["ticket-search"] });
     void qc.invalidateQueries({ queryKey: ["ticket"] });
     void qc.invalidateQueries({ queryKey: ["dashboard"] });
     void qc.invalidateQueries({ queryKey: ["reports-summary"] });
@@ -337,6 +350,7 @@ export function useTicketPipeline(ticketId: string | null) {
     queryKey: ["ticket-pipeline", ticketId],
     queryFn: () => api.getTicketPipeline(ticketId as string),
     enabled: Boolean(ticketId),
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -347,6 +361,7 @@ export function useTicketEvidence(ticketId: string | null, enabled: boolean = tr
     queryFn: () => api.getTicketEvidence(ticketId as string),
     enabled: Boolean(ticketId) && enabled,
     staleTime: 5 * 60_000,
+    refetchInterval: (query) => (query.state.data?.media_storage === "memory" ? 15_000 : false),
   });
 }
 

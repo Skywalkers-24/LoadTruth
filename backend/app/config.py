@@ -214,13 +214,11 @@ class Settings(BaseSettings):
     )
     model_api_log_max_chars: int = Field(default=200_000)
     # Processed evidence media (the exact clip the models saw), by content hash.
-    # Target number of frames sampled from any clip, whatever its length. The
-    # transcode step picks the fps per clip (target / duration) so a 10s clip and
-    # a 40s clip both yield ~60 evenly spaced frames. `max_sampled_frames` is the
-    # hard ceiling SAM's output is downsampled to; kept equal to the target so the
-    # Review overlay always steps through the same count and scrubs smoothly.
+    # Sampled mode targets this many evenly spaced frames. In native mode, every
+    # source frame is kept; set max_sampled_frames=0 to leave SAM uncapped too.
     target_sampled_frames: int = Field(default=60)
     max_sampled_frames: int = Field(default=60)
+    preserve_source_frames: bool = Field(default=False)
     # Longest edge (px) to downscale a frame to before sending to a VLM. Keeps
     # the base64 payload small and the per-call token cost down (LEARNINGS §1).
     frame_downscale_longest_edge: int = Field(default=1024)

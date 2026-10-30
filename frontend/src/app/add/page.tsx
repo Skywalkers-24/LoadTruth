@@ -6,10 +6,18 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightIcon, CheckCircle2Icon, Loader2Icon, UploadCloudIcon } from "lucide-react";
 
-import { ApiError, getTicketPipeline, listDemoVideos, type PipelineProgress } from "@/lib/api";
+import {
+  createPracticeTicket,
+  listPracticeSources,
+  ApiError,
+  getTicketPipeline,
+  listDemoVideos,
+  type PipelineProgress,
+} from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
 import { LivePipelineFlow } from "@/components/ai/live-pipeline-flow";
 import { DEFAULT_PIPELINE_STAGES, PipelineWorkbench } from "@/components/ai/pipeline-workbench";
+import { EvidenceCanvas } from "@/components/console/evidence-canvas";
 import { shortId } from "@/components/console/ticket-metadata";
 import { Button } from "@/components/ui/shadcn/button";
 import { Card } from "@/components/ui/shadcn/card";
@@ -55,7 +63,11 @@ export default function NewTicketPage() {
 
 function CaptureWorkspace() {
   const { selected, selectedId: eventId } = useEventContext();
-  const { can } = useAuth();
+  const { can, member } = useAuth();
+  const canRunFresh = member?.role === "super_admin";
+  const [bypassCache, setBypassCache] = useState(false);
+  const [keepFootage, setKeepFootage] = useState(true);
+  const [showSaved, setShowSaved] = useState(false);
   const router = useRouter();
   const ingest = useSubmitIngestJob();
   const latest = useLatestIngestJob(eventId);
@@ -90,7 +102,7 @@ function CaptureWorkspace() {
     staleTime: 60_000,
   });
 
-  const allowed = can("ingest");
+  const allowed = can("ingest") && canRunFresh;
   const showcaseReadOnly = Boolean(selected?.tags.includes("read-only"));
 
   function submit(file: File) {
@@ -116,7 +128,7 @@ function CaptureWorkspace() {
     ]);
     setIgnoredAttempt(previousRun ? pipelineAttemptKey(previousRun) : undefined);
     ingest.mutate(
-      { eventId, file },
+      { eventId, file, bypassCache: canRunFresh && bypassCache, keepFootage },
       {
         onError: (err) => setError(ingestErrorMessage(err)),
       },
@@ -129,16 +141,15 @@ function CaptureWorkspace() {
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  if (!allowed) {
+  if (!allowed || showcaseReadOnly || selected?.tags.includes("playground") || showSaved) {
     return (
-      <AppShell section="New Ticket">
-        <Card className="mx-auto mt-10 max-w-md p-8 text-center">
-          <h1 className="text-[16px] font-semibold">Not available for your role</h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Capturing tickets requires review access. Ask an admin if you need it.
-          </p>
-        </Card>
-      </AppShell>
+      <SavedFootagePicker
+        onUpload={
+          allowed && !showcaseReadOnly && !selected?.tags.includes("playground")
+            ? () => setShowSaved(false)
+            : undefined
+        }
+      />
     );
   }
 
@@ -154,9 +165,9 @@ function CaptureWorkspace() {
           </Link>
           <div className="flex items-center justify-between gap-3">
             <h1 className="lt-page-title">New Ticket</h1>
-            <Link href="/demos" className="text-sm font-medium text-primary hover:underline">
-              Choose a demo video →
-            </Link>
+            <Button variant="outline" onClick={() => setShowSaved(true)}>
+              Replay a processed video
+            </Button>
           </div>
           <p className="text-[12px] text-muted-foreground">
             Upload evidence for{" "}
@@ -170,6 +181,47 @@ function CaptureWorkspace() {
           <div className="min-w-0">
             <FadeIn>
               <Card className="h-full gap-0 p-4">
+                {canRunFresh && (
+                  <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 p-3">
+                    <input
+                      type="checkbox"
+                      checked={bypassCache}
+                      onChange={(e) => setBypassCache(e.target.checked)}
+                      disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
+                      className="mt-1 size-4 shrink-0 accent-[var(--brand)]"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium">
+                        Run fresh analysis (bypass cache)
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                        Run the AI again instead of reusing saved analysis. Takes longer and may
+                        incur additional model usage charges.
+                      </span>
+                    </span>
+                  </label>
+                )}
+                {canRunFresh && (
+                  <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3">
+                    <input
+                      type="checkbox"
+                      checked={keepFootage}
+                      onChange={(e) => setKeepFootage(e.target.checked)}
+                      disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
+                      className="mt-1 size-4 shrink-0 accent-[var(--brand)]"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium">
+                        Keep footage for later replay
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                        Tickets and analysis are always saved. Uncheck to keep footage only in
+                        server memory for up to seven days; replay ends sooner if memory is full or
+                        the server restarts.
+                      </span>
+                    </span>
+                  </label>
+                )}
                 <label
                   role="button"
                   aria-label="Choose truck video or image"
@@ -221,7 +273,9 @@ function CaptureWorkspace() {
                       {ingest.isPending
                         ? "Uploading clip"
                         : processing
-                          ? "Analysis in progress"
+                          ? latest.data?.bypass_cache
+                            ? "Fresh analysis in progress"
+                            : "Analysis in progress"
                           : showcaseReadOnly
                             ? "Preprocessed showcase event"
                             : "Drop a clip here, or click to browse"}
@@ -375,5 +429,117 @@ function Field({ label, value }: { label: string; value: string }) {
       <span className="text-[12px] text-muted-foreground">{label}</span>
       <span className="text-[14px] font-semibold tabular-nums">{value}</span>
     </div>
+  );
+}
+
+/** Replay saved evidence in any event; practice copies go only to the playground. */
+function SavedFootagePicker({ onUpload }: { onUpload?: () => void }) {
+  const { events, selected, setSelectedId } = useEventContext();
+  const query = useQuery({ queryKey: ["practice-sources"], queryFn: listPracticeSources });
+  const [source, setSource] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const qc = useQueryClient();
+  const chosen = query.data?.find((ticket) => ticket.id === source) ?? query.data?.[0];
+  const playground = selected?.tags.includes("playground")
+    ? selected
+    : events.find((event) => event.tags.includes("playground"));
+
+  async function create() {
+    if (!chosen || !playground || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const ticket = await createPracticeTicket(playground.id, chosen.id);
+      await qc.invalidateQueries({ queryKey: ["tickets"] });
+      setSelectedId(playground.id);
+      router.push(`/console?event=${playground.id}&ticket=${ticket.id}`);
+    } catch (err) {
+      setError(ingestErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <AppShell section="Add footage">
+      <div className="lt-scroll lt-fab-safe min-h-0 flex-1 overflow-y-auto pb-6">
+        <Card className="mx-auto w-full max-w-4xl gap-4 p-4 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-semibold">Replay a processed video</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Watch saved footage and reuse its analysis. No new AI calls or credits.
+              </p>
+            </div>
+            {onUpload && (
+              <Button variant="outline" onClick={onUpload}>
+                Upload new footage
+              </Button>
+            )}
+          </div>
+          <label htmlFor="practice-video" className="text-sm font-medium">
+            Processed video
+          </label>
+          <select
+            id="practice-video"
+            className="min-h-11 w-full min-w-0 rounded-md border border-border bg-card px-3 text-foreground"
+            value={chosen?.id ?? ""}
+            onChange={(e) => setSource(e.target.value)}
+            disabled={busy || query.isLoading || !query.data?.length}
+          >
+            {!query.data?.length && (
+              <option value="">
+                {query.isLoading ? "Loading processed videos…" : "No processed videos available"}
+              </option>
+            )}
+            {query.data?.map((ticket) => (
+              <option key={ticket.id} value={ticket.id}>
+                {ticket.truck_id ?? "Unidentified truck"} · {debrisLabel(ticket.debris_class)} ·{" "}
+                {percent(ticket.valuation.est_fill_pct)} fill · {ticket.id.slice(0, 8)}
+              </option>
+            ))}
+          </select>
+          {query.isError && (
+            <p role="alert">
+              Processed videos could not be loaded.{" "}
+              <button className="underline" onClick={() => void query.refetch()}>
+                Retry
+              </button>
+            </p>
+          )}
+          {chosen && (
+            <>
+              <div className="min-w-0" key={chosen.id}>
+                <EvidenceCanvas ticket={chosen} />
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  href={`/console?event=${chosen.event_id}&ticket=${chosen.id}`}
+                  onClick={() => setSelectedId(chosen.event_id)}
+                  className="inline-flex min-h-10 items-center rounded-md border border-border px-4 text-sm font-medium hover:bg-secondary"
+                >
+                  Open saved ticket
+                </Link>
+                {playground && (
+                  <Button onClick={() => void create()} disabled={busy}>
+                    {busy ? "Creating practice ticket…" : "Review a practice copy"}
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Replay keeps the original ticket unchanged. Practice copies are saved in the
+                Practice Playground.
+              </p>
+            </>
+          )}
+          {error && (
+            <p role="alert" className="text-destructive">
+              {error}
+            </p>
+          )}
+        </Card>
+      </div>
+    </AppShell>
   );
 }

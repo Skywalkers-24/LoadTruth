@@ -80,7 +80,7 @@ async def list_videos(
     offset: int = Query(0, ge=0),
 ) -> VideoPage:
     async def _compute() -> VideoPage:
-        where = DemoVideo.tenant_id == tenant
+        where = (DemoVideo.tenant_id == tenant) & ~DemoVideo.object_key.startswith("memory/")
         total = int(
             (
                 await repo.session.execute(select(func.count()).select_from(DemoVideo).where(where))

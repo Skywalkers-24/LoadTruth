@@ -192,3 +192,114 @@ def test_bucket_unavailable_does_not_create_a_library_upload(
     )
     assert response.status_code == 503
     assert client.get("/demo-videos").json()["total"] == before
+
+
+@pytest.mark.parametrize("role", ["super_admin"])
+def test_fresh_analysis_survives_restart_and_skips_both_result_caches(
+    client: TestClient,
+    b2_objects,
+    as_role,
+    monkeypatch: pytest.MonkeyPatch,
+    sessionmaker: async_sessionmaker[AsyncSession],
+    role: str,
+) -> None:  # type: ignore[no-untyped-def]
+    from app.api import ingest as ingest_api
+
+    video = upload(client, b2_objects)
+    as_role(role)
+    original_worker = ingest_jobs.ensure_worker
+    monkeypatch.setattr(ingest_jobs, "ensure_worker", lambda: None)
+    response = client.post(
+        f"/events/{DEMO_EVENT_ID}/demo-videos/{video['id']}/analyze?bypass_cache=true"
+    )
+    assert response.status_code == 202
+    job = response.json()
+    assert job["bypass_cache"] is True
+
+    async def simulate_restart() -> None:
+        async with sessionmaker() as session:
+            row = await session.get(AnalysisJob, UUID(job["id"]))
+            assert row is not None and row.bypass_cache is True
+            row.status = "running"
+            await session.commit()
+
+    def cache_not_allowed(*args, **kwargs):  # type: ignore[no-untyped-def]
+        raise AssertionError("Fresh analysis must not read either result cache")
+
+    monkeypatch.setattr(ingest_api, "CachingAIClient", cache_not_allowed)
+    monkeypatch.setattr(ingest_api, "get_pipeline_cache", cache_not_allowed)
+    assert client.portal is not None
+    client.portal.call(simulate_restart)
+    monkeypatch.setattr(ingest_jobs, "ensure_worker", original_worker)
+    client.portal.call(ingest_jobs.recover_ingest_jobs)
+    completed = wait_for_job(client)
+    assert completed["status"] == "completed", completed
+    assert completed["bypass_cache"] is True
+
+
+@pytest.mark.parametrize("role", ["monitor", "supervisor", "auditor", "county_admin"])
+def test_non_admin_cannot_force_fresh_analysis(
+    client: TestClient,
+    b2_objects,
+    as_role,
+    monkeypatch: pytest.MonkeyPatch,
+    role: str,
+) -> None:  # type: ignore[no-untyped-def]
+    video = upload(client, b2_objects)
+    as_role(role)
+    monkeypatch.setattr(ingest_jobs, "ensure_worker", lambda: None)
+    base = f"/events/{DEMO_EVENT_ID}"
+    assert (
+        client.post(f"{base}/demo-videos/{video['id']}/analyze?bypass_cache=true").status_code
+        == 403
+    )
+    assert (
+        client.post(
+            f"{base}/ingest?bypass_cache=true", files={"file": ("haul.mp4", b"sample", "video/mp4")}
+        ).status_code
+        == 403
+    )
+    assert client.get(f"{base}/ingest-jobs").json() is None
+    if role != "auditor":
+        cached = client.post(f"{base}/demo-videos/{video['id']}/analyze")
+        assert cached.status_code == 403
+
+
+@pytest.mark.parametrize("role", ["county_admin", "monitor"])
+def test_ticket_upload_requires_administrator_login(
+    client: TestClient,
+    b2_objects,
+    as_role,
+    role: str,
+) -> None:  # type: ignore[no-untyped-def]
+    as_role(role)
+    body = {
+        "title": "Ticket evidence",
+        "filename": "haul.mp4",
+        "mime": "video/mp4",
+        "size_bytes": 12,
+    }
+    assert client.post("/demo-videos/uploads", json=body).status_code == 403
+    response = client.post(f"/events/{DEMO_EVENT_ID}/ingest-uploads", json=body)
+    assert response.status_code == 403
+
+
+def test_ticket_upload_respects_read_only_events_and_auditor_access(
+    client: TestClient,
+    as_role,
+) -> None:  # type: ignore[no-untyped-def]
+    body = {
+        "title": "Ticket evidence",
+        "filename": "haul.mp4",
+        "mime": "video/mp4",
+        "size_bytes": 12,
+    }
+    upload_url = f"/events/{DEMO_EVENT_ID}/ingest-uploads"
+    response = client.post(upload_url, json=body)
+    assert response.status_code == 201
+    video_id = response.json()["video"]["id"]
+    assert client.patch(f"/events/{DEMO_EVENT_ID}", json={"tags": ["read-only"]}).status_code == 200
+    assert client.post(upload_url, json=body).status_code == 409
+    assert client.post(f"{upload_url}/{video_id}/complete").status_code == 409
+    as_role("auditor")
+    assert client.post(upload_url, json=body).status_code == 403

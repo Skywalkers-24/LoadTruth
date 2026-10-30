@@ -2,8 +2,9 @@
 
 SAM 3.1 bills per video frame and Muse Spark bills per input token, so the clip
 we send is the main cost lever (LEARNINGS.md §5). When ``ffmpeg`` is installed
-(it is in the backend Docker image) a video is resampled to ``frame_sample_fps``,
-its audio is dropped, its longest edge is capped at
+(it is in the backend Docker image) a video is sampled to the configured frame
+target, or keeps every source frame in native-frame mode. Audio is dropped and
+the longest edge is capped at
 ``frame_downscale_longest_edge``, and it is re-encoded as H.264 MP4 with the
 index at the front (the only video type Muse Spark accepts). A still image is
 downscaled to a JPEG the same way.
@@ -18,6 +19,7 @@ import asyncio
 import shutil
 import tempfile
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 
 from app.config import get_settings
@@ -70,6 +72,33 @@ async def _probe_duration_s(ffmpeg_dir_hint: str, src: Path) -> float | None:
     return seconds if seconds > 0 else None
 
 
+async def _probe_fps(src: Path) -> float | None:
+    """Read average source FPS for a frame-preserving transcode."""
+    ffprobe = shutil.which("ffprobe")
+    if ffprobe is None:
+        return None
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            ffprobe,
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=avg_frame_rate",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            str(src),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        out, _ = await asyncio.wait_for(proc.communicate(), timeout=20.0)
+        rate = float(Fraction(out.decode().strip()))
+    except (OSError, ValueError, ZeroDivisionError, TimeoutError):
+        return None
+    return rate if rate > 0 else None
+
+
 def _fps_for_target(duration_s: float | None, target_frames: int) -> float:
     """fps that samples ~``target_frames`` evenly across a clip of this duration.
 
@@ -89,17 +118,18 @@ def _scale_filter(longest_edge: int) -> str:
 
 
 def ffmpeg_args(
-    src: Path, dst: Path, *, media_kind: str, fps: float, longest_edge: int
+    src: Path, dst: Path, *, media_kind: str, fps: float | None, longest_edge: int
 ) -> list[str]:
     """The ffmpeg argument list (no shell) for one preparation."""
     base = ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-i", str(src)]
     scale = _scale_filter(longest_edge)
     if media_kind == "image":
         return [*base, "-vf", scale, "-frames:v", "1", "-q:v", "3", str(dst)]
-    return [
+    video_filter = f"fps={fps:g},{scale}" if fps is not None else scale
+    args = [
         *base,
         "-vf",
-        f"fps={fps:g},{scale}",
+        video_filter,
         "-an",
         "-c:v",
         "libx264",
@@ -113,6 +143,9 @@ def ffmpeg_args(
         "+faststart",
         str(dst),
     ]
+    if fps is None:
+        args[-1:-1] = ["-fps_mode", "passthrough"]
+    return args
 
 
 async def prepare_media(data: bytes, *, media_kind: str, filename: str) -> PreparedBytes:
@@ -124,16 +157,19 @@ async def prepare_media(data: bytes, *, media_kind: str, filename: str) -> Prepa
     s = get_settings()
     suffix = Path(filename).suffix.lower() or (".jpg" if media_kind == "image" else ".mp4")
     out_name = "out.jpg" if media_kind == "image" else "out.mp4"
-    fps = s.frame_sample_fps
+    fps: float | None = s.frame_sample_fps
     with tempfile.TemporaryDirectory(prefix="lt-media-") as tmp:
         src, dst = Path(tmp) / f"in{suffix}", Path(tmp) / out_name
         await asyncio.to_thread(src.write_bytes, data)
         if media_kind != "image":
-            # Resample so the clip yields ~target_sampled_frames evenly spaced
-            # frames whatever its length, so SAM measures the same number of
-            # frames for a 10s clip and a 40s clip.
-            duration = await _probe_duration_s(ffmpeg, src)
-            fps = _fps_for_target(duration, s.target_sampled_frames)
+            if s.preserve_source_frames:
+                fps = await _probe_fps(src)
+                if fps is None:
+                    return original
+            else:
+                # Resample to the configured number of evenly spaced frames.
+                duration = await _probe_duration_s(ffmpeg, src)
+                fps = _fps_for_target(duration, s.target_sampled_frames)
         args = ffmpeg_args(
             src,
             dst,
@@ -162,7 +198,7 @@ async def prepare_media(data: bytes, *, media_kind: str, filename: str) -> Prepa
         out,
         "image/jpeg" if media_kind == "image" else "video/mp4",
         True,
-        fps=None if media_kind == "image" else fps,
+        fps=None if media_kind == "image" else (fps or s.frame_sample_fps),
     )
 
 

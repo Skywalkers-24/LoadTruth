@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.session import Session, SessionError
@@ -47,6 +47,16 @@ async def current_member(
 
 
 CurrentMember = Annotated[Session, Depends(current_member)]
+
+
+async def authorize_fresh_analysis(
+    member: CurrentMember, bypass_cache: bool = Query(default=False)
+) -> None:
+    """Only the Administrator login may opt into additional model calls."""
+    from app.auth.roles import is_super_admin
+
+    if bypass_cache and not is_super_admin(member.role):
+        raise HTTPException(403, "Only administrators can request fresh analysis.")
 
 
 def require(

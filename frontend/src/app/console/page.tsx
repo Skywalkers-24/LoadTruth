@@ -2,6 +2,9 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { loadQueueTickets } from "@/lib/queue-search";
+import { api } from "@/lib/api";
 import { SlidersHorizontalIcon } from "lucide-react";
 
 import { AppShell } from "@/components/shell/app-shell";
@@ -106,9 +109,31 @@ function ConsoleView() {
     offset,
   });
 
-  const page = useMemo(() => tickets.data?.items ?? [], [tickets.data]);
-  const total = tickets.data?.total ?? 0;
+  const searching = search.trim().length > 0;
+  const searchQuery = useQuery({
+    queryKey: ["ticket-search", eventId, status],
+    queryFn: ({ signal }) =>
+      loadQueueTickets(
+        (pageOffset) =>
+          api.listTickets({
+            eventId,
+            status: status === "all" ? undefined : status,
+            limit: 100,
+            offset: pageOffset,
+          }),
+        signal,
+      ),
+    enabled: Boolean(searching && eventId),
+    staleTime: 30_000,
+  });
+  const page = useMemo(
+    () => (searching ? (searchQuery.data ?? []) : (tickets.data?.items ?? [])),
+    [searching, searchQuery.data, tickets.data],
+  );
   const rows = useMemo(() => filterAndSort(page, search, sort), [page, search, sort]);
+  const total = searching ? rows.length : (tickets.data?.total ?? 0);
+  const listLoading = searching ? searchQuery.isLoading : tickets.isLoading;
+  const listError = searching ? searchQuery.isError : tickets.isError;
 
   // Re-read the real row height once rows (not skeletons) are rendered.
   const hasRows = rows.length > 0;
@@ -311,16 +336,16 @@ function ConsoleView() {
             !isDesktop && "lt-fab-safe",
           )}
         >
-          {tickets.isLoading ? (
+          {listLoading ? (
             <div className="flex flex-col gap-1.5">
               {Array.from({ length: pageSize }).map((_, i) => (
                 <Skeleton key={i} className="h-[80px]" />
               ))}
             </div>
-          ) : tickets.isError ? (
+          ) : listError ? (
             <ErrorState
               description="Could not load the ticket queue."
-              onRetry={() => tickets.refetch()}
+              onRetry={() => (searching ? searchQuery.refetch() : tickets.refetch())}
             />
           ) : rows.length === 0 ? (
             <EmptyState
@@ -342,7 +367,7 @@ function ConsoleView() {
           )}
         </div>
 
-        {!tickets.isLoading && !tickets.isError && total > pageSize && (
+        {!searching && !listLoading && !listError && total > pageSize && (
           <div className="border-t border-border px-2.5 py-2">
             <Pagination total={total} limit={pageSize} offset={offset} onOffset={setOffset} />
           </div>
@@ -360,14 +385,14 @@ function ConsoleView() {
       <EmptyState
         icon={<ClipboardIcon size={20} />}
         title="Select a ticket"
-        description="Choose a ticket from the queue to review its money frame, evidence, and anomaly flags."
+        description="Choose a ticket from the queue to watch its footage, check the estimate, and record a decision."
       />
     </Panel>
   );
 
   if (eventsError) {
     return (
-      <AppShell section="Review Console">
+      <AppShell section="Review queue">
         <ErrorState
           title="Events unavailable"
           description="The server did not return any events."
@@ -377,11 +402,11 @@ function ConsoleView() {
   }
 
   return (
-    <AppShell section="Review Console" fluid>
+    <AppShell section="Review queue" fluid>
       {isDesktop ? (
         // Fixed-height grid: the queue column scrolls its list with the pager
         // pinned; the workspace lays out its own columns and scroll areas.
-        <div className="grid min-h-0 flex-1 grid-cols-[15rem_minmax(0,1fr)] gap-3 xl:grid-cols-[17rem_minmax(0,1fr)] xl:gap-4 2xl:grid-cols-[19rem_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-[15rem_minmax(0,1fr)] gap-4 xl:grid-cols-[17rem_minmax(0,1fr)]">
           <div className="min-h-0 overflow-hidden rounded-xl border border-border bg-card">
             {queuePanel}
           </div>
@@ -393,7 +418,7 @@ function ConsoleView() {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          <div className="sticky top-14 z-10 -mx-4 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 sm:-mx-6 sm:px-6">
+          <div className="sticky top-16 z-10 -mx-4 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 sm:-mx-6 sm:px-6">
             <Button
               variant="ghost"
               size="sm"

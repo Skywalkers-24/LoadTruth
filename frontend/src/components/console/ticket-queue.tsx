@@ -3,7 +3,6 @@
 import type { Ticket } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/badge";
 import { AlertIcon, TruckIcon } from "@/components/ui/icons";
-import { FillGauge } from "@/components/console/fill-gauge";
 import { percent, relativeTime, signedMoney } from "@/lib/format";
 import { shortId } from "@/components/console/ticket-metadata";
 
@@ -85,7 +84,7 @@ function TicketRow({
         <div className="flex items-center justify-between gap-2">
           <span className="flex min-w-0 items-center gap-2">
             <span className="truncate text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
-              {shortId(ticket.id)}
+              {ticket.truck_id ?? "Unidentified truck"}
             </span>
             {ticket.anomaly_count > 0 && (
               <span
@@ -97,14 +96,14 @@ function TicketRow({
               </span>
             )}
           </span>
-          <span className="text-[14px] font-bold tabular-nums" style={{ color: deltaColor }}>
-            {hasCall ? signedMoney(v.delta_dollar_value) : "No call"}
+          <span className="text-[12px] font-medium tabular-nums" style={{ color: deltaColor }}>
+            {hasCall ? signedMoney(v.delta_dollar_value) : ""}
           </span>
         </div>
 
         <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-[var(--color-muted-foreground)]">
           <TruckIcon size={12} className="shrink-0 text-[var(--color-subtle)]" />
-          <span className="truncate tabular-nums">{ticket.truck_id ?? "Unidentified"}</span>
+          <span className="truncate tabular-nums">{shortId(ticket.id)}</span>
           <span aria-hidden className="text-[var(--color-subtle)]">
             ·
           </span>
@@ -114,17 +113,11 @@ function TicketRow({
         </div>
 
         <div className="mt-1.5 flex items-center gap-2">
-          <FillGauge
-            measured={Number.parseFloat(v.est_fill_pct)}
-            monitor={v.monitor_fill_pct !== null ? Number.parseFloat(v.monitor_fill_pct) : null}
-            showLabels={false}
-            className="flex-1"
-          />
           {/* Compact numbers without repeating the words "measured"/"called" on
               every row — the gauge + column context already convey them. */}
           <span className="shrink-0 text-[11px] tabular-nums text-[var(--color-subtle)]">
-            <span className="font-semibold text-[var(--color-money)]">
-              {percent(v.est_fill_pct)}
+            <span className="text-muted-foreground">
+              {percent(v.est_fill_pct)} estimated
             </span>
             {v.monitor_fill_pct !== null && (
               <>

@@ -167,110 +167,111 @@
      secondary text→--subtle · muted text→--muted-foreground.
    ════════════════════════════════════════════════════════════════════════ */
 
-/* ── 1. Command Blue (default) — navy + electric blue ───────────────────── */
+/* ── 1. Enterprise (Command Blue, default) — navy + electric blue ─────────── */
 :root,
-[data-theme="command-blue"] {
-  --bg: #0b1220;
-  --surface: #121d30;
-  --surface-2: #1a2940;
-  --surface-3: #20385e;
-  --border-strong: #3a4d6c;
-  --text: #f4f7fc;
-  --subtle: #d7e0ee;
+[data-theme="command-blue"],
+[data-theme="enterprise"] {
+  --bg: #1d2125;
+  --surface: #22272b;
+  --surface-2: #282e33;
+  --surface-3: #2c333a;
+  --border-strong: #596773;
+  --text: #b6c2cf;
+  --subtle: #9fadbc;
 
   /* Bright accent for text/icons/links; a clean vibrant royal blue fill for
      large surfaces (active nav, primary buttons) with light text on it. */
-  --brand: #8ab4ff;
-  --brand-strong: #b3ceff;
-  --brand-soft: #1a2c4a;
-  --brand-fill: #3b6fe6;
+  --brand: #4c9aff;
+  --brand-strong: #85b8ff;
+  --brand-soft: #09326c;
+  --brand-fill: #0c66e4;
   --on-brand: #ffffff;
 
-  --background: #0b1220;
-  --foreground: #f4f7fc;
-  --card: #121d30;
-  --card-foreground: #f4f7fc;
-  --popover: #1a2940;
-  --popover-foreground: #f4f7fc;
-  --primary: #3b6fe6;
+  --background: #1d2125;
+  --foreground: #b6c2cf;
+  --card: #22272b;
+  --card-foreground: #b6c2cf;
+  --popover: #282e33;
+  --popover-foreground: #b6c2cf;
+  --primary: #0c66e4;
   --primary-foreground: #ffffff;
-  --secondary: #1f2e47;
-  --secondary-foreground: #f4f7fc;
-  --muted: #1a2940;
-  --muted-foreground: #c3cedd;
-  --accent: #1a2940;
-  --accent-foreground: #f4f7fc;
-  --border: #2d3d56;
-  --input: #2d3d56;
-  --ring: #8ab4ff;
+  --secondary: #282e33;
+  --secondary-foreground: #b6c2cf;
+  --muted: #282e33;
+  --muted-foreground: #9fadbc;
+  --accent: #282e33;
+  --accent-foreground: #b6c2cf;
+  --border: #38414a;
+  --input: #596773;
+  --ring: #85b8ff;
   --radius: 0.5rem;
 
-  --chart-1: #8ab4ff;
+  --chart-1: #579dff;
   --chart-2: #34d399;
   --chart-3: var(--chart-money);
   --chart-4: #7dd3fc;
   --chart-5: #fb7185;
 
-  --sidebar: #0d1627;
-  --sidebar-foreground: #f4f7fc;
-  --sidebar-muted: #c3cedd;
-  --sidebar-primary: #3b6fe6;
+  --sidebar: #1d2125;
+  --sidebar-foreground: #b6c2cf;
+  --sidebar-muted: #9fadbc;
+  --sidebar-primary: #0c66e4;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1a2940;
+  --sidebar-accent: #09326c;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #223150;
-  --sidebar-ring: #8ab4ff;
+  --sidebar-border: #38414a;
+  --sidebar-ring: #85b8ff;
 }
-[data-theme="command-blue"][data-mode="light"] {
-  /* Modern, vibrant digital blue: a saturated ocean/indigo (#1D58B9) fill with
-     a brighter #3B82F6 accent for links/icons/focus. */
-  --bg: #f4f7fd;
+[data-theme="command-blue"][data-mode="light"],
+[data-theme="enterprise"][data-mode="light"] {
+  /* Atlassian-style roles: bold blue actions, blue selected text, neutral surfaces. */
+  --bg: #f7f8f9;
   --surface: #ffffff;
-  --surface-2: #f6f9ff;
-  --surface-3: #e3edff;
-  --border-strong: #bccde6;
-  --text: #121a2b;
-  --subtle: #35435c;
+  --surface-2: #f1f2f4;
+  --surface-3: #dcdfe4;
+  --border-strong: #8590a2;
+  --text: #172b4d;
+  --subtle: #44546f;
 
-  --brand: #3b82f6;
-  --brand-strong: #1d58b9;
-  --brand-soft: #e3edff;
-  --brand-fill: #1d58b9;
+  --brand: #0c66e4;
+  --brand-strong: #0055cc;
+  --brand-soft: #e9f2ff;
+  --brand-fill: #0c66e4;
   --on-brand: #ffffff;
 
-  --background: #f4f7fd;
-  --foreground: #121a2b;
+  --background: #f7f8f9;
+  --foreground: #172b4d;
   --card: #ffffff;
-  --card-foreground: #121a2b;
+  --card-foreground: #172b4d;
   --popover: #ffffff;
-  --popover-foreground: #121a2b;
-  --primary: #1d58b9;
+  --popover-foreground: #172b4d;
+  --primary: #0c66e4;
   --primary-foreground: #ffffff;
-  --secondary: #e3edff;
-  --secondary-foreground: #121a2b;
-  --muted: #eef3fb;
-  --muted-foreground: #3e4c62;
-  --accent: #e3edff;
-  --accent-foreground: #121a2b;
-  --border: #d6e2f3;
-  --input: #c7d6ee;
-  --ring: #3b82f6;
+  --secondary: #f1f2f4;
+  --secondary-foreground: #172b4d;
+  --muted: #f1f2f4;
+  --muted-foreground: #44546f;
+  --accent: #f1f2f4;
+  --accent-foreground: #172b4d;
+  --border: #dcdfe4;
+  --input: #8590a2;
+  --ring: #0c66e4;
 
-  --chart-1: #1d58b9;
+  --chart-1: #0c66e4;
   --chart-2: #047857;
   --chart-3: var(--chart-money);
   --chart-4: #0369a1;
   --chart-5: #b91c1c;
 
   --sidebar: #ffffff;
-  --sidebar-foreground: #121a2b;
-  --sidebar-muted: #3e4c62;
-  --sidebar-primary: #1d58b9;
+  --sidebar-foreground: #172b4d;
+  --sidebar-muted: #44546f;
+  --sidebar-primary: #0c66e4;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e3edff;
-  --sidebar-accent-foreground: #121a2b;
-  --sidebar-border: #d6e2f3;
-  --sidebar-ring: #3b82f6;
+  --sidebar-accent: #e9f2ff;
+  --sidebar-accent-foreground: #0c66e4;
+  --sidebar-border: #dcdfe4;
+  --sidebar-ring: #0c66e4;
 }
 
 /* ── 2. Field Ops Teal — charcoal + teal ────────────────────────────────── */
@@ -1203,4 +1204,232 @@ textarea,
   min-height: 0;
   max-height: none;
   aspect-ratio: auto;
+}
+
+/* Local preview palette: https://catppuccin.com/palette/ */
+[data-theme="catppuccin"] {
+  --bg: #1e1e2e;
+  --surface: #181825;
+  --text: #cdd6f4;
+  --subtle: #bac2de;
+  --brand: #cba6f7;
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --popover: #262637;
+  --primary: var(--brand-fill);
+  --secondary: #313244;
+  --muted: #313244;
+  --accent: #313244;
+  --border: #363648;
+  --input: #45475a;
+  --ring: #b4befe;
+  --radius: 0.5rem;
+  --money: #b4befe;
+  --ok: #a6e3a1;
+  --warn: #f9e2af;
+  --destructive: #f38ba8;
+  --info: #89b4fa;
+  --sidebar: #181825;
+  --surface-2: #262637;
+  --surface-3: #313244;
+  --border-strong: #585b70;
+  --brand-strong: #f5c2e7;
+  --brand-soft: #302b41;
+  --brand-fill: #cba6f7;
+  --on-brand: #1e1e2e;
+  --card-foreground: var(--text);
+  --popover-foreground: var(--text);
+  --primary-foreground: var(--on-brand);
+  --secondary-foreground: var(--text);
+  --muted-foreground: #a6adc8;
+  --accent-foreground: var(--text);
+  --money-strong: #cdd6f4;
+  --money-soft: #2c2d43;
+  --ok-soft: #27382f;
+  --warn-soft: #3a352e;
+  --destructive-foreground: #1e1e2e;
+  --danger-soft: #3d2b3b;
+  --chart-1: #cba6f7;
+  --chart-2: #a6e3a1;
+  --chart-3: #b4befe;
+  --chart-4: #89dceb;
+  --chart-5: #fab387;
+  --chart-money: #b4befe;
+  --sidebar-foreground: #cdd6f4;
+  --sidebar-muted: #a6adc8;
+  --sidebar-primary: #cba6f7;
+  --sidebar-primary-foreground: #cba6f7;
+  --sidebar-accent: #302b41;
+  --sidebar-accent-foreground: #cdd6f4;
+  --sidebar-border: #313244;
+  --sidebar-ring: #b4befe;
+}
+[data-theme="catppuccin"][data-mode="light"] {
+  --bg: #eff1f5;
+  --surface: #ffffff;
+  --surface-2: #e6e9ef;
+  --surface-3: #dce0e8;
+  --text: #4c4f69;
+  --subtle: #5c5f77;
+  --border-strong: #9ca0b0;
+  --brand: #8839ef;
+  --brand-strong: #7287fd;
+  --brand-soft: #e9e0f5;
+  --brand-fill: #8839ef;
+  --on-brand: #ffffff;
+  --popover: #ffffff;
+  --secondary: #e6e9ef;
+  --muted: #e6e9ef;
+  --muted-foreground: #5c5f77;
+  --accent: #e6e9ef;
+  --border: #ccd0da;
+  --input: #bcc0cc;
+  --ring: #8839ef;
+  --money: #5366c9;
+  --money-strong: #4c4f69;
+  --money-soft: #e6e9ef;
+  --ok: #387b2d;
+  --ok-soft: #e5eedf;
+  --warn: #8b651c;
+  --warn-soft: #f5ecd8;
+  --destructive: #d20f39;
+  --destructive-foreground: #ffffff;
+  --danger-soft: #f8e2e8;
+  --info: #1e66f5;
+  --sidebar: #e6e9ef;
+  --sidebar-foreground: #4c4f69;
+  --sidebar-muted: #5c5f77;
+  --sidebar-primary: #8839ef;
+  --sidebar-primary-foreground: #8839ef;
+  --sidebar-accent: #dce0e8;
+  --sidebar-accent-foreground: #4c4f69;
+  --sidebar-border: #ccd0da;
+  --chart-1: #8839ef;
+  --chart-2: #387b2d;
+  --chart-3: #5366c9;
+  --chart-4: #179299;
+  --chart-5: #b65317;
+  --chart-money: #5366c9;
+}
+
+[data-theme="catppuccin"] body {
+  background-image: none;
+}
+[data-theme="catppuccin"] :is(.lt-card-shadow, [data-slot="card"]) {
+  box-shadow: none;
+  border-radius: 8px;
+}
+[data-theme="catppuccin"] .lt-hover:hover {
+  transform: none;
+  box-shadow: none;
+}
+[data-theme="catppuccin"] :is(.animate-pulse, .lt-fade-in) {
+  animation: none;
+}
+[data-theme="catppuccin"] .lt-page-title {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+[data-theme="catppuccin"] :is(button, a, input, select) {
+  scroll-margin-block: 5rem;
+}
+[data-theme="catppuccin"] :is(button, a):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+[data-theme="catppuccin"] input::placeholder {
+  color: var(--muted-foreground);
+}
+
+/* Keep work controls legible, quiet, and usable without a pointer. */
+.lt-skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 100;
+  transform: translateY(-160%);
+  border-radius: 6px;
+  padding: 12px 18px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.lt-skip-link:focus {
+  transform: translateY(0);
+}
+[data-theme="catppuccin"] summary {
+  list-style-position: inside;
+}
+[data-theme="catppuccin"] summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+[data-theme="catppuccin"] input[type="checkbox"] {
+  accent-color: var(--brand);
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (pointer: coarse) {
+  [data-theme="catppuccin"] :is(button, select, summary) {
+    min-height: 44px;
+  }
+}
+
+/* Enterprise selection uses selected text, not inverse button text. */
+:is([data-theme="enterprise"], [data-theme="command-blue"]) body {
+  background-image: none;
+}
+:is([data-theme="enterprise"], [data-theme="command-blue"])
+  aside
+  nav
+  a[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--sidebar-primary);
+}
+
+/* Consistent dark text for labels and metadata in every light palette. */
+:root[data-mode="light"][data-theme] {
+  --text: #172033;
+  --foreground: #172033;
+  --subtle: #334155;
+  --muted-foreground: #334155;
+  --card-foreground: #172033;
+  --popover-foreground: #172033;
+  --secondary-foreground: #172033;
+  --accent-foreground: #172033;
+  --sidebar-foreground: #172033;
+  --sidebar-muted: #334155;
+}
+
+/* Dark mode uses near-white ink rather than dim gray for readable content. */
+:root[data-mode="dark"][data-theme] {
+  --text: #f8fafc;
+  --foreground: #f8fafc;
+  --subtle: #e2e8f0;
+  --muted-foreground: #dce4ee;
+  --card-foreground: #f8fafc;
+  --popover-foreground: #f8fafc;
+  --secondary-foreground: #f8fafc;
+  --accent-foreground: #f8fafc;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-muted: #dce4ee;
+}
+
+/* Saturated blue fills and readable blue link text have separate contrast roles. */
+:is([data-theme="enterprise"], [data-theme="command-blue"])[data-mode="dark"] .text-primary {
+  color: var(--brand);
 }

@@ -104,24 +104,15 @@ export function OverviewDashboard({
       {/* Action banner — compact */}
       <FadeIn>
         <Card className="relative gap-0 overflow-hidden border-[var(--color-brand)]/30 p-4">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 opacity-70"
-            style={{
-              background:
-                "linear-gradient(120deg, color-mix(in srgb, var(--color-brand) 14%, transparent) 0%, transparent 55%, color-mix(in srgb, var(--color-money) 12%, transparent) 100%)",
-            }}
-          />
           <div className="relative flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-brand)]">
-                {needsReview > 0 ? "Action needed" : "All caught up"}
+                {needsReview > 0 ? "Your next step" : "All caught up"}
               </span>
               <h2 className="text-[19px] font-semibold leading-tight tracking-tight">
                 {needsReview > 0 ? (
                   <>
-                    {needsReview} ticket{needsReview === 1 ? "" : "s"} awaiting review with{" "}
-                    <span className="text-[var(--color-money)]">{money(exposure)}</span> flagged
+                    {needsReview} ticket{needsReview === 1 ? "" : "s"} ready for your review
                   </>
                 ) : (
                   "Every ticket in this event has a decision"
@@ -138,7 +129,7 @@ export function OverviewDashboard({
               {needsReview > 0 && (
                 <Button asChild size="sm" className="group">
                   <Link href="/console">
-                    Start reviewing
+                    Review next ticket
                     <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
                   </Link>
                 </Button>

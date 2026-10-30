@@ -12,7 +12,7 @@ from __future__ import annotations
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import JSON, Index, Numeric, String
+from sqlalchemy import JSON, Index, Numeric, String, false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TenantScopedMixin, TimestampMixin, UUIDPrimaryKeyMixin
@@ -228,6 +228,9 @@ class TicketEvidence(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Bas
     media_kind: Mapped[str] = mapped_column(String(8), nullable=False, default="video")
     mime: Mapped[str] = mapped_column(String(48), nullable=False, default="video/mp4")
     fps: Mapped[float | None] = mapped_column(Numeric(6, 3), nullable=True)
+    media_storage: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="b2", server_default="b2"
+    )
     ai_cache_namespace: Mapped[str | None] = mapped_column(String(16), nullable=True)
     segments: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
 
@@ -252,9 +255,13 @@ class DemoVideo(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
 
 
 class AnalysisJob(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
-    """Durable job pointing at B2 media; never stores uploaded bytes in memory."""
+    """Durable job with persistent or explicitly temporary footage."""
 
     __tablename__ = "analysis_jobs"
+    keep_footage: Mapped[bool] = mapped_column(nullable=False, default=True, server_default="true")
+    bypass_cache: Mapped[bool] = mapped_column(
+        nullable=False, default=False, server_default=false()
+    )
     event_id: Mapped[uuid.UUID] = mapped_column(GUID(), nullable=False, index=True)
     video_id: Mapped[uuid.UUID] = mapped_column(GUID(), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued", index=True)

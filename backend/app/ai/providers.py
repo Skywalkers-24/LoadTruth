@@ -79,6 +79,8 @@ def ai_config_fingerprint() -> str:
             s.spark_frames_per_task,
             s.frame_downscale_longest_edge,
             s.target_sampled_frames,
+            s.max_sampled_frames,
+            s.preserve_source_frames,
             s.sam_bed_concepts,
             s.sam_bed_fallback_concept,
             s.sam_rim_concept,

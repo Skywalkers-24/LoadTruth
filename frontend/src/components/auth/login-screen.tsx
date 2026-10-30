@@ -139,7 +139,8 @@ export function LoginScreen() {
             </h1>
             <p className="text-[14px] font-medium leading-relaxed text-white/90">
               LoadTruth pairs truck video with SAM tracking and Muse&apos;s visual fill estimates,
-              then gives a monitor the evidence and a draft ticket to review.
+              then gives a monitor the evidence and a draft ticket to review for Federal Emergency
+              Management Agency (FEMA) audits.
             </p>
           </div>
         </div>

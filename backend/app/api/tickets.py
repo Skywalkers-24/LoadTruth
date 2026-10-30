@@ -13,11 +13,12 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
 
 from app.api.cache import cached_api, invalidate_cache_tags
-from app.api.deps import require
+from app.api.deps import CurrentMember, require
+from app.api.event_policy import require_event_write
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_manage_settings, can_review_tickets
 from app.pipeline import evidence_store
@@ -54,18 +55,15 @@ ManageEvents = Depends(require(can_manage_settings, _NO_EVENTS))
 ReviewTickets = Depends(require(can_review_tickets, _NO_REVIEW))
 
 
-async def _require_writable_ticket(repo: Repository, tenant: UUID, ticket_id: UUID) -> None:
+async def _require_writable_ticket(
+    repo: Repository, tenant: UUID, ticket_id: UUID, role: str
+) -> None:
     """Keep curated benchmark tickets immutable for every role."""
     try:
         ticket = await repo.get_ticket(tenant, ticket_id)
     except TicketNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
-    event = await repo.get_event(tenant, ticket.event_id)
-    if event is not None and "read-only" in event.tags:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            "This preprocessed showcase event is read-only.",
-        )
+    await require_event_write(repo, tenant, ticket.event_id, role, review=True)
 
 
 @router.get("/events", response_model=list[EventOut])
@@ -239,6 +237,8 @@ class EvidenceOut(BaseModel):
     fps: float | None = None
     has_media: bool
     media_url: str | None = None
+    media_storage: str = "b2"
+    footage_expired: bool = False
     # Concept label ("truck bed", "debris pile") -> SAM 3.1 output text.
     segments: dict[str, str] = Field(default_factory=dict)
 
@@ -249,8 +249,12 @@ async def ticket_evidence(repo: Repository, tenant: ActiveTenant, ticket_id: UUI
     row = await repo.get_ticket_evidence(tenant, ticket_id)
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no evidence for this ticket")
-    public_url = benchmark_media_url(row.content_hash)
-    stored = await evidence_store.load(row.content_hash) if public_url is None else None
+    public_url = benchmark_media_url(row.content_hash) if row.media_storage != "memory" else None
+    stored = (
+        await evidence_store.load(row.content_hash, storage=row.media_storage)
+        if public_url is None
+        else None
+    )
     raw = row.segments if isinstance(row.segments, dict) else {}
     return EvidenceOut(
         media_kind=row.media_kind,
@@ -258,6 +262,8 @@ async def ticket_evidence(repo: Repository, tenant: ActiveTenant, ticket_id: UUI
         fps=float(row.fps) if row.fps is not None else (stored.fps if stored else None),
         has_media=public_url is not None or stored is not None,
         media_url=public_url,
+        media_storage=row.media_storage,
+        footage_expired=row.media_storage == "memory" and stored is None,
         segments={str(k): str(v) for k, v in raw.items()},
     )
 
@@ -265,12 +271,25 @@ async def ticket_evidence(repo: Repository, tenant: ActiveTenant, ticket_id: UUI
 @router.get("/tickets/{ticket_id}/evidence/media")
 async def ticket_evidence_media(
     repo: Repository, tenant: ActiveTenant, ticket_id: UUID
-) -> RedirectResponse:
+) -> Response:
     """Authorize once, then play private B2 evidence without proxying video bytes."""
     row = await repo.get_ticket_evidence(tenant, ticket_id)
-    if row is not None and (public_url := benchmark_media_url(row.content_hash)):
+    if (
+        row is not None
+        and row.media_storage != "memory"
+        and (public_url := benchmark_media_url(row.content_hash))
+    ):
         return RedirectResponse(public_url, status_code=307)
-    stored = await evidence_store.load(row.content_hash) if row is not None else None
+    if row is not None and row.media_storage == "memory":
+        entry = evidence_store.memory_entry(row.content_hash)
+        if entry is None:
+            raise HTTPException(410, "Footage expired — ticket details retained.")
+        return Response(entry[1], media_type=entry[2], headers={"Cache-Control": "no-store"})
+    stored = (
+        await evidence_store.load(row.content_hash, storage=row.media_storage)
+        if row is not None
+        else None
+    )
     if row is None or stored is None:
         raise HTTPException(404, "no evidence media for this ticket")
     return RedirectResponse(
@@ -282,13 +301,25 @@ async def ticket_evidence_media(
 
 @router.get("/tickets/{ticket_id}/evidence/url")
 async def ticket_evidence_url(
-    repo: Repository, tenant: ActiveTenant, ticket_id: UUID
+    repo: Repository,
+    tenant: ActiveTenant,
+    ticket_id: UUID,
+    quality: str = "high",
 ) -> dict[str, str]:
     row = await repo.get_ticket_evidence(tenant, ticket_id)
-    if row is not None and (public_url := benchmark_media_url(row.content_hash)):
+    if (
+        row is not None
+        and row.media_storage != "memory"
+        and (public_url := benchmark_media_url(row.content_hash, quality=quality))
+    ):
         return {"url": public_url}
-    if row is None or await evidence_store.load(row.content_hash) is None:
+    if (
+        row is None
+        or await evidence_store.load(row.content_hash, storage=row.media_storage) is None
+    ):
         raise HTTPException(404, "no evidence media for this ticket")
+    if row.media_storage == "memory":
+        return {"url": f"/tickets/{ticket_id}/evidence/media", "storage": "memory"}
     return {"url": await evidence_store.media_url(row.content_hash)}
 
 
@@ -332,14 +363,16 @@ async def reverify_ticket(repo: Repository, tenant: ActiveTenant, ticket_id: UUI
     )
 
 
-@router.patch(
-    "/tickets/{ticket_id}/monitor-call", response_model=TicketOut, dependencies=[ReviewTickets]
-)
+@router.patch("/tickets/{ticket_id}/monitor-call", response_model=TicketOut, dependencies=[])
 async def set_monitor_call(
-    repo: Repository, tenant: ActiveTenant, ticket_id: UUID, body: MonitorCallIn
+    repo: Repository,
+    tenant: ActiveTenant,
+    ticket_id: UUID,
+    body: MonitorCallIn,
+    member: CurrentMember,
 ) -> TicketOut:
     """Record the monitor's fill-% call; recomputes and persists the §7a delta."""
-    await _require_writable_ticket(repo, tenant, ticket_id)
+    await _require_writable_ticket(repo, tenant, ticket_id, member.role)
     try:
         t = await repo.set_monitor_call(tenant, ticket_id, body.monitor_fill_pct)
     except TicketNotFoundError as exc:
@@ -348,14 +381,34 @@ async def set_monitor_call(
     return ticket_to_out(t)
 
 
-@router.patch("/tickets/{ticket_id}/status", response_model=TicketOut, dependencies=[ReviewTickets])
+@router.patch("/tickets/{ticket_id}/status", response_model=TicketOut, dependencies=[])
 async def set_status(
-    repo: Repository, tenant: ActiveTenant, ticket_id: UUID, body: StatusIn
+    repo: Repository, tenant: ActiveTenant, ticket_id: UUID, body: StatusIn, member: CurrentMember
 ) -> TicketOut:
     """Confirm, override, or dispute a ticket (the review action)."""
-    await _require_writable_ticket(repo, tenant, ticket_id)
+    await _require_writable_ticket(repo, tenant, ticket_id, member.role)
     if body.status is TicketStatus.DRAFT:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "cannot set a ticket back to draft")
+        ticket = await repo.get_ticket(tenant, ticket_id)
+        event = await repo.get_event(tenant, ticket.event_id)
+        if event is None or "playground" not in event.tags:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "cannot set a ticket back to draft")
+        from sqlalchemy import update
+
+        from app.db.models import Ticket as TicketRow
+
+        await repo.session.execute(
+            update(TicketRow)
+            .where(TicketRow.id == ticket_id, TicketRow.tenant_id == tenant)
+            .values(
+                status="draft",
+                confirmed_fill_pct=None,
+                monitor_call_fill_pct=None,
+                monitor_cubic_yards=None,
+                monitor_dollar_value=None,
+                delta_cubic_yards=None,
+                delta_dollar_value=None,
+            )
+        )
     try:
         t = await repo.set_status(tenant, ticket_id, body.status)
     except TicketNotFoundError as exc:
@@ -364,9 +417,13 @@ async def set_status(
     return ticket_to_out(t)
 
 
-@router.patch("/tickets/{ticket_id}", response_model=TicketOut, dependencies=[ReviewTickets])
+@router.patch("/tickets/{ticket_id}", response_model=TicketOut, dependencies=[])
 async def update_ticket(
-    repo: Repository, tenant: ActiveTenant, ticket_id: UUID, body: TicketPatch
+    repo: Repository,
+    tenant: ActiveTenant,
+    ticket_id: UUID,
+    body: TicketPatch,
+    member: CurrentMember,
 ) -> TicketOut:
     """Edit a ticket's truck ID and/or debris class; recomputes the valuation.
 
@@ -375,7 +432,7 @@ async def update_ticket(
     math so cubic yards, the monitor delta, and the value stay consistent.
     """
     fields = set(body.model_fields_set)
-    await _require_writable_ticket(repo, tenant, ticket_id)
+    await _require_writable_ticket(repo, tenant, ticket_id, member.role)
     if not fields:
         # Nothing to change — return the ticket as-is.
         try:
@@ -453,3 +510,105 @@ async def event_reports_summary(
         to_dict=lambda s: s.model_dump(mode="json"),
         from_dict=ReportsSummary.model_validate,
     )
+
+
+class PracticeInput(BaseModel):
+    source_ticket_id: UUID
+
+
+@router.get("/practice-sources", response_model=list[TicketOut])
+async def practice_sources(repo: Repository, tenant: ActiveTenant) -> list[TicketOut]:
+    """Only completed, saved evidence from immutable events can seed practice."""
+    from sqlalchemy import select
+
+    from app.db import models
+
+    events = await repo.list_events(tenant)
+    ids = [e.id for e in events if "read-only" in e.tags]
+    if not ids:
+        return []
+    rows = (
+        (
+            await repo.session.execute(
+                select(models.Ticket.id)
+                .join(models.TicketEvidence, models.TicketEvidence.ticket_id == models.Ticket.id)
+                .where(
+                    models.Ticket.tenant_id == tenant,
+                    models.Ticket.event_id.in_(ids),
+                    models.TicketEvidence.tenant_id == tenant,
+                    models.TicketEvidence.media_storage != "memory",
+                )
+                .order_by(models.Ticket.created_at.desc())
+                .limit(100)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [ticket_to_out(await repo.get_ticket(tenant, ticket_id)) for ticket_id in rows]
+
+
+@router.post("/events/{event_id}/practice-tickets", response_model=TicketOut, status_code=201)
+async def create_practice_ticket(
+    repo: Repository,
+    tenant: ActiveTenant,
+    event_id: UUID,
+    body: PracticeInput,
+    member: CurrentMember,
+) -> TicketOut:
+    """Copy saved results for practice. This route has no inference or upload path."""
+    from sqlalchemy import select
+
+    from app.db import models
+    from app.tickets.domain import new_ticket
+
+    await require_event_write(repo, tenant, event_id, member.role)
+    event = await repo.get_event(tenant, event_id)
+    if event is None or "playground" not in event.tags:
+        raise HTTPException(409, "Practice tickets belong in the playground.")
+    try:
+        source = await repo.get_ticket(tenant, body.source_ticket_id)
+    except TicketNotFoundError as exc:
+        raise HTTPException(404, "saved result not found") from exc
+    source_event = await repo.get_event(tenant, source.event_id)
+    evidence = await repo.get_ticket_evidence(tenant, source.id)
+    if (
+        source_event is None
+        or "read-only" not in source_event.tags
+        or evidence is None
+        or evidence.media_storage == "memory"
+    ):
+        raise HTTPException(409, "Choose a saved result from a read-only event.")
+    # Keep the original estimate and capacity; calculate practice value using its
+    # own event rate. Reviews and metadata edits affect only this new ticket.
+    draft = new_ticket(
+        tenant_id=tenant,
+        event_id=event_id,
+        debris_class=source.debris_class,
+        certified_cubic_yards=source.certified_cubic_yards,
+        rate_per_cy=event.rate_for(source.debris_class),
+        est_fill_pct=source.est_fill_pct,
+        truck_id=source.truck_id,
+        evidence_frames=list(source.evidence_frames),
+    )
+    saved = await repo.add_from_pipeline(draft, [])
+    for model in (models.TicketEvidence, models.PipelineStageRow, models.Anomaly):
+        originals = (
+            (
+                await repo.session.execute(
+                    select(model).where(model.tenant_id == tenant, model.ticket_id == source.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for row in originals:
+            values = {
+                c.name: getattr(row, c.name)
+                for c in model.__table__.columns
+                if c.name not in {"id", "created_at", "updated_at", "ticket_id"}
+            }
+            repo.session.add(model(**values, ticket_id=saved.id))
+    await repo.session.flush()
+    await invalidate_cache_tags(f"event:{event_id}", f"tenant:{tenant}:billing")
+    return ticket_to_out(await repo.get_ticket(tenant, saved.id))

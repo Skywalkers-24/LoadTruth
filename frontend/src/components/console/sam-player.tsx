@@ -5,6 +5,8 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { PlayIcon, PauseIcon, Volume2Icon, VolumeXIcon, Loader2Icon } from "lucide-react";
 
 import { fetchEvidenceMediaUrl, type TicketEvidence } from "@/lib/api";
+import { getVideoVariantUrl, useVideoQuality } from "@/lib/video-quality";
+import { QualitySelector } from "@/components/video/quality-selector";
 
 /** One object SAM found on one frame: its box and its mask outline. */
 export interface SamShape {
@@ -50,13 +52,19 @@ export function parseSam(text: string, media: "video" | "image"): SamTrack {
   for (const rec of result.records) {
     if (rec.kind !== "mask") continue;
     const frame = rec.frame?.frameIndex ?? 0;
+    let cachedPath: string | null = null;
     const shape: SamShape = {
       objectId: rec.objectId,
       left: rec.bounds.left,
       top: rec.bounds.top,
       right: rec.bounds.right,
       bottom: rec.bounds.bottom,
-      path: decodeMaskToSVGPath(rec.mask),
+      get path() {
+        if (cachedPath === null) {
+          cachedPath = decodeMaskToSVGPath(rec.mask);
+        }
+        return cachedPath;
+      },
     };
     const list = frames.get(frame);
     if (list) list.push(shape);
@@ -98,8 +106,16 @@ export function SamPlayer({
   poster,
   className,
 }: Props) {
-  const [url, setUrl] = useState<string | null>(videoUrl ?? null);
+  const [rawUrl, setRawUrl] = useState<string | null>(videoUrl ?? null);
+  const { resolvedTier } = useVideoQuality();
+  const isImage = evidence.media_kind === "image";
+  const url = useMemo(() => {
+    if (!rawUrl || isImage) return rawUrl;
+    return getVideoVariantUrl(rawUrl, resolvedTier);
+  }, [rawUrl, isImage, resolvedTier]);
+
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [readyUrl, setReadyUrl] = useState<string | null>(null);
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -109,19 +125,20 @@ export function SamPlayer({
   const [playError, setPlayError] = useState(false);
   const internalVideoRef = useRef<HTMLVideoElement>(null);
   const videoRef = externalVideoRef ?? internalVideoRef;
+  const timeRef = useRef(0);
   const loadClipId = useId().replaceAll(":", "");
-  const isImage = evidence.media_kind === "image";
 
   useEffect(() => {
     if (videoUrl) {
-      setUrl(videoUrl);
+      setRawUrl(videoUrl);
       setFailed(false);
       return;
     }
-    setUrl(null);
+    setRawUrl(null);
     setFailed(false);
     setFrame(0);
     setTime(0);
+    timeRef.current = 0;
     setDuration(0);
     setPlaying(false);
     setPlayError(false);
@@ -130,7 +147,7 @@ export function SamPlayer({
     fetchEvidenceMediaUrl(ticketId)
       .then((u) => {
         objectUrl = u;
-        if (alive) setUrl(u);
+        if (alive) setRawUrl(u);
         else URL.revokeObjectURL(u);
       })
       .catch(() => alive && setFailed(true));
@@ -138,17 +155,47 @@ export function SamPlayer({
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [ticketId, videoUrl]);
+  }, [ticketId, videoUrl, attempt]);
+
+  // A stalled network request or undecodable clip must not leave an endless spinner.
+  useEffect(() => {
+    if (url && readyUrl === url) return;
+    const timeout = window.setTimeout(() => setFailed(true), 20_000);
+    return () => window.clearTimeout(timeout);
+  }, [url, readyUrl, attempt]);
 
   const tracks = useMemo(() => {
+    if (!show.body && !show.bed && !show.load && !onLoadCoverage && !onFrame) {
+      const empty: SamTrack = { frames: new Map(), width: 0, height: 0, frameCount: 0 };
+      return { body: empty, bed: empty, rim: empty, load: empty };
+    }
     const media = isImage ? "image" : "video";
     return {
-      body: parseSam(evidence.segments[TRUCK_BODY_LABEL] ?? "", media),
-      bed: parseSam(evidence.segments[BED_LABEL] ?? "", media),
-      rim: parseSam(evidence.segments.tailgate ?? "", media),
+      body: parseSam(
+        evidence.segments[TRUCK_BODY_LABEL] ??
+          evidence.segments["truck body"] ??
+          evidence.segments["truck"] ??
+          evidence.segments["body"] ??
+          "",
+        media,
+      ),
+      bed: parseSam(
+        evidence.segments[BED_LABEL] ??
+          evidence.segments["truck bed"] ??
+          evidence.segments["bed"] ??
+          "",
+        media,
+      ),
+      rim: parseSam(
+        evidence.segments.tailgate ??
+          evidence.segments["tailgate"] ??
+          evidence.segments["rim"] ??
+          "",
+        media,
+      ),
       load: mergeSamTracks(loadTexts(evidence.segments).map((text) => parseSam(text, media))),
     };
-  }, [evidence.segments, isImage]);
+  }, [evidence.segments, isImage, show.body, show.bed, show.load, onLoadCoverage]);
 
   const width = tracks.body.width || tracks.bed.width || tracks.load.width;
   const height = tracks.body.height || tracks.bed.height || tracks.load.height;
@@ -205,10 +252,47 @@ export function SamPlayer({
     onFrame?.(frame, total);
   }, [frame, total, onFrame]);
 
+  // Active playback on open: ensure the video starts immediately when autoPlay is true.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !url || isImage || !autoPlay || typeof video.play !== "function") return;
+    video.muted = true;
+    const playVideo = async () => {
+      try {
+        const p = video.play();
+        if (p !== undefined) await p;
+        setPlaying(true);
+        setPlayError(false);
+      } catch {
+        // Autoplay may be deferred until user interaction
+      }
+    };
+    if (video.readyState >= 2) {
+      void playVideo();
+    } else {
+      video.addEventListener("canplay", playVideo, { once: true });
+      return () => video.removeEventListener("canplay", playVideo);
+    }
+  }, [url, autoPlay, isImage]);
+
   if (failed) {
     return (
-      <div className="absolute inset-0 grid place-items-center p-6 text-[12px] text-[var(--color-subtle)]">
-        The evidence clip could not be loaded.
+      <div
+        role="alert"
+        className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black p-6 text-center text-sm text-white/80"
+      >
+        <p>Footage could not be loaded.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setFailed(false);
+            setReadyUrl(null);
+            setAttempt((value) => value + 1);
+          }}
+          className="min-h-10 rounded-md border border-white/30 px-4"
+        >
+          Retry footage
+        </button>
       </div>
     );
   }
@@ -251,6 +335,7 @@ export function SamPlayer({
             <img
               src={url}
               alt="Evidence frame"
+              onLoad={() => setReadyUrl(url)}
               className="size-full object-contain"
               onError={() => setFailed(true)}
             />
@@ -259,7 +344,7 @@ export function SamPlayer({
               ref={videoRef}
               src={url}
               poster={poster}
-              preload="metadata"
+              preload={autoPlay ? "auto" : "metadata"}
               className="size-full object-contain"
               autoPlay={autoPlay}
               muted={muted}
@@ -267,8 +352,17 @@ export function SamPlayer({
               playsInline
               onPlay={() => setPlaying(true)}
               onPause={() => setPlaying(false)}
-              onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
-              onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+              onTimeUpdate={(e) => {
+                const cur = e.currentTarget.currentTime;
+                setTime(cur);
+                timeRef.current = cur;
+              }}
+              onLoadedMetadata={(e) => {
+                setDuration(e.currentTarget.duration);
+                if (timeRef.current > 0 && Math.abs(e.currentTarget.currentTime - timeRef.current) > 0.1) {
+                  e.currentTarget.currentTime = timeRef.current;
+                }
+              }}
               onLoadedData={() => setReadyUrl(url)}
               onError={() => setFailed(true)}
               aria-label="Evidence clip with segmentation overlay"
@@ -278,7 +372,7 @@ export function SamPlayer({
           <div className="absolute inset-0 grid place-items-center bg-black/80 text-xs text-white/80">
             <span className="flex items-center gap-2">
               <Loader2Icon className="size-4 animate-spin" />
-              Synchronizing footage and masks…
+              Loading footage…
             </span>
           </div>
         )}
@@ -333,7 +427,7 @@ export function SamPlayer({
               </mask>
             </defs>
             {show.body && (
-              <g mask={`url(#${bodyMaskId})`}>
+              <g>
                 {bodyShapes.map((s) => (
                   <Shape key={`body-${s.objectId}`} s={s} color="#f59e0b" />
                 ))}
@@ -341,9 +435,8 @@ export function SamPlayer({
                 {rimShapes?.map((s) => (
                   <Shape key={`tailgate-${s.objectId}`} s={s} color="#f59e0b" />
                 ))}
-                {/* A bed prompt often includes the tailgate face. Reassign that visible
-                  exterior to Body using the same rim boundary as measurement. */}
-                {bed && (
+                {/* Fallback: when no separate truck body or tailgate mask on this frame, outline lower bed perimeter in Body amber */}
+                {bodyShapes.length === 0 && rimShapes.length === 0 && bed && (
                   <g clipPath={`url(#${exteriorId})`}>
                     <Shape s={bed} color="#f59e0b" />
                   </g>
@@ -356,7 +449,7 @@ export function SamPlayer({
               </g>
             )}
             {show.load && (
-              <g clipPath={`url(#${openingId})`}>
+              <g>
                 {loads.map((s) => (
                   <Shape key={s.objectId} s={s} color="#8b5cf6" prominent />
                 ))}
@@ -392,6 +485,7 @@ export function SamPlayer({
           <span className="text-[11px] tabular-nums">
             {clockTime(time)} / {clockTime(duration)}
           </span>
+          <QualitySelector />
           <button
             type="button"
             aria-label={muted ? "Unmute evidence" : "Mute evidence"}
@@ -467,15 +561,34 @@ export function frameLayers(beds: SamTrack, loads: SamTrack, rims: SamTrack, fra
   const candidates = rimShapes.filter(
     (s) => overlapShare(s, bed) > 0 && s.top >= floor && s.top < bed.bottom,
   );
-  const rim = candidates.length
+  let rim = candidates.length
     ? Math.min(...candidates.map((s) => s.top))
     : rimShapes.length
       ? Math.min(...rimShapes.map((s) => s.top))
-      : bed.bottom;
+      : 0;
+
+  if (rim === 0 || rim >= bed.bottom) {
+    // If rim/tailgate was tracked on other frames in this video, borrow its relative position
+    let fallbackRim: number | null = null;
+    for (const shapes of rims.frames.values()) {
+      for (const s of shapes) {
+        if (s.top >= floor && s.top < bed.bottom) {
+          fallbackRim = s.top;
+          break;
+        }
+      }
+      if (fallbackRim !== null) break;
+    }
+    rim = fallbackRim ?? (bed.top + (bed.bottom - bed.top) * 0.68);
+  }
 
   const filteredLoads = loadShapes.filter((s) => overlapShare(s, bed) >= 0.35 && s.top < rim);
   const finalLoads =
-    filteredLoads.length > 0 ? filteredLoads : loadShapes.filter((s) => s.top < rim);
+    filteredLoads.length > 0
+      ? filteredLoads
+      : loadShapes.filter((s) => s.top < rim).length > 0
+        ? loadShapes.filter((s) => s.top < rim)
+        : loadShapes;
 
   return {
     bed,

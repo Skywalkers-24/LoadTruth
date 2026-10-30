@@ -3,6 +3,8 @@
  * /api rewrite; server components call Render directly via BACKEND_URL.
  */
 
+import { presentEvent } from "./event-presentation";
+
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 
@@ -326,7 +328,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${baseUrl()}${path}`, {
     cache: "no-store",
     headers: {
-      "content-type": "application/json",
+      ...(init?.body instanceof FormData ? {} : { "content-type": "application/json" }),
       ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
       ...(init?.headers ?? {}),
     },
@@ -519,6 +521,8 @@ export interface TicketEvidence {
   has_media: boolean;
   /** Direct Cloudflare URL for public benchmark footage. */
   media_url?: string | null;
+  media_storage?: "b2" | "memory";
+  footage_expired?: boolean;
   /** Concept label ("truck bed", "debris pile") to SAM output text. */
   segments: Record<string, string>;
 }
@@ -559,7 +563,18 @@ export function reverifyTicket(ticketId: string): Promise<Reverify> {
  * URL for a <video> or <img>. The caller revokes it when done.
  */
 export async function fetchEvidenceMediaUrl(ticketId: string): Promise<string> {
-  const result = await request<{ url: string }>(`/tickets/${ticketId}/evidence/url`);
+  const result = await request<{ url: string; storage?: string }>(
+    `/tickets/${ticketId}/evidence/url`,
+  );
+  if (result.storage === "memory") {
+    const response = await fetch(`${baseUrl()}${result.url}`, {
+      headers: authToken ? { authorization: `Bearer ${authToken}` } : undefined,
+      cache: "no-store",
+    });
+    if (!response.ok)
+      throw new ApiError(response.status, "Footage expired — ticket details retained.");
+    return URL.createObjectURL(await response.blob());
+  }
   return result.url;
 }
 
@@ -705,6 +720,7 @@ export function streamChat(
  * page refreshed mid-run still sees the in-flight run.
  */
 export interface IngestJob {
+  bypass_cache?: boolean;
   id: string;
   content_hash: string;
   event_id: string;
@@ -741,13 +757,21 @@ export function completeDemoUpload(id: string): Promise<DemoVideo> {
 export function demoPlayback(id: string): Promise<{ url: string }> {
   return request(`/demo-videos/${id}/playback`);
 }
-export function analyzeDemoVideo(eventId: string, videoId: string): Promise<IngestJob> {
-  return request(`/events/${eventId}/demo-videos/${videoId}/analyze`, { method: "POST" });
+export function analyzeDemoVideo(
+  eventId: string,
+  videoId: string,
+  opts: { bypassCache?: boolean } = {},
+): Promise<IngestJob> {
+  return request(
+    `/events/${eventId}/demo-videos/${videoId}/analyze${opts.bypassCache ? "?bypass_cache=true" : ""}`,
+    { method: "POST" },
+  );
 }
 export async function uploadDemoVideo(
   file: File,
   metadata?: { title?: string; notes?: string; reference_fill_pct?: number | null },
   onProgress?: (pct: number) => void,
+  opts: { eventId?: string } = {},
 ): Promise<DemoVideo> {
   const mime =
     file.type || (file.name.toLowerCase().endsWith(".mov") ? "video/quicktime" : "video/mp4");
@@ -755,7 +779,7 @@ export async function uploadDemoVideo(
     video: DemoVideo;
     upload_url: string;
     headers: Record<string, string>;
-  }>("/demo-videos/uploads", {
+  }>(opts.eventId ? `/events/${opts.eventId}/ingest-uploads` : "/demo-videos/uploads", {
     method: "POST",
     body: JSON.stringify({
       title: (metadata?.title?.trim() || file.name).slice(0, 160),
@@ -784,11 +808,28 @@ export async function uploadDemoVideo(
       reject(new Error("Upload interrupted. Only verified clips can be analyzed."));
     xhr.send(file);
   });
-  return completeDemoUpload(init.video.id);
+  return opts.eventId
+    ? request<DemoVideo>(`/events/${opts.eventId}/ingest-uploads/${init.video.id}/complete`, {
+        method: "POST",
+      })
+    : completeDemoUpload(init.video.id);
 }
-export async function submitIngestJob(eventId: string, file: File): Promise<IngestJob> {
-  const video = await uploadDemoVideo(file);
-  return analyzeDemoVideo(eventId, video.id);
+export async function submitIngestJob(
+  eventId: string,
+  file: File,
+  opts: { bypassCache?: boolean; keepFootage?: boolean } = {},
+): Promise<IngestJob> {
+  if (opts.keepFootage === false) {
+    const form = new FormData();
+    form.append("file", file);
+    const query = opts.bypassCache ? "?bypass_cache=true" : "";
+    return request<IngestJob>(`/events/${eventId}/temporary-ingest${query}`, {
+      method: "POST",
+      body: form,
+    });
+  }
+  const video = await uploadDemoVideo(file, undefined, undefined, { eventId });
+  return analyzeDemoVideo(eventId, video.id, opts);
 }
 
 export function getLatestIngestJob(eventId: string): Promise<IngestJob | null> {
@@ -900,7 +941,7 @@ export async function openAuthedExport(
 }
 
 export const api = {
-  listEvents: () => request<EventSummary[]>("/events"),
+  listEvents: () => request<EventSummary[]>("/events").then((events) => events.map(presentEvent)),
   listTickets: (q: TicketQuery = {}) =>
     request<PaginatedTickets>(`/tickets${ticketQueryString(q)}`),
   getTicket: (id: string) => request<Ticket>(`/tickets/${id}`),
@@ -981,3 +1022,14 @@ export const api = {
   deleteSource: (id: string) => request<void>(`/sources/${id}`, { method: "DELETE" }),
   testSource: (id: string) => request<SourceTestResult>(`/sources/${id}/test`, { method: "POST" }),
 };
+
+/** Saved examples only: these endpoints never trigger AI or upload footage. */
+export function listPracticeSources(): Promise<Ticket[]> {
+  return request<Ticket[]>("/practice-sources");
+}
+export function createPracticeTicket(eventId: string, sourceTicketId: string): Promise<Ticket> {
+  return request<Ticket>(`/events/${eventId}/practice-tickets`, {
+    method: "POST",
+    body: JSON.stringify({ source_ticket_id: sourceTicketId }),
+  });
+}

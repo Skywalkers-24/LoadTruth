@@ -5,6 +5,7 @@ import { InlineEditField, type EditOption } from "@/components/console/inline-ed
 import { Tooltip } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/toast";
 import { cubicYards, dateTime, debrisLabel, money, percent, signedMoney } from "@/lib/format";
+import { useEvents } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth";
 import { useUpdateTicket } from "@/lib/hooks";
 
@@ -19,8 +20,15 @@ const DEBRIS_OPTIONS: EditOption[] = (
  */
 export function TicketMetadata({ ticket }: { ticket: Ticket }) {
   const v = ticket.valuation;
-  const { can } = useAuth();
-  const canEdit = can("review_tickets");
+  const { can, member } = useAuth();
+  const events = useEvents();
+  const event = events.data?.find((item) => item.id === ticket.event_id);
+  const canEdit = Boolean(
+    event &&
+    !event.tags.includes("read-only") &&
+    (!event.tags.includes("admin-only") || member?.role === "super_admin") &&
+    (event.tags.includes("playground") || can("review_tickets")),
+  );
   const update = useUpdateTicket();
   const toast = useToast();
 
@@ -56,7 +64,7 @@ export function TicketMetadata({ ticket }: { ticket: Ticket }) {
 
   return (
     <div className="@container">
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 @sm:grid-cols-4 @[54rem]:grid-cols-8 @[54rem]:gap-x-3">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 @sm:grid-cols-4">
         <Item
           label="Truck"
           tip="The identified truck. Edit to set or correct it; this re-derives the certified capacity."

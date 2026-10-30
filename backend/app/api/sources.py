@@ -14,6 +14,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.deps import require
+from app.api.event_policy import require_event_write
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_manage_settings
 from app.pipeline.sources import get_adapter
@@ -61,6 +62,7 @@ async def create_source(
 ) -> SourceOut:
     """Connect a new evidence source to an event."""
     _require_enabled_kind(body.kind)
+    await require_event_write(repo, tenant, event_id, "super_admin")
     try:
         row = await repo.create_source(
             tenant,
@@ -80,6 +82,7 @@ async def update_source(
     repo: Repository, tenant: ActiveTenant, source_id: UUID, body: SourcePatch
 ) -> SourceOut:
     """Update a source; only supplied fields change."""
+    await _writable_source(repo, tenant, source_id)
     if body.kind is not None:
         _require_enabled_kind(body.kind)
     try:
@@ -104,6 +107,7 @@ async def update_source(
 )
 async def delete_source(repo: Repository, tenant: ActiveTenant, source_id: UUID) -> None:
     """Disconnect a source from its event."""
+    await _writable_source(repo, tenant, source_id)
     try:
         await repo.delete_source(tenant, source_id)
     except SourceNotFoundError as exc:
@@ -122,3 +126,11 @@ async def test_source(repo: Repository, tenant: ActiveTenant, source_id: UUID) -
     adapter = get_adapter(row.kind, dict(row.config or {}))
     result = adapter.validate_config()
     return SourceTestResult(ok=result.ok, detail=result.detail)
+
+
+async def _writable_source(repo: Repository, tenant: UUID, source_id: UUID) -> None:
+    try:
+        row = await repo.source_row(tenant, source_id)
+    except SourceNotFoundError as exc:
+        raise HTTPException(404, "source not found") from exc
+    await require_event_write(repo, tenant, row.event_id, "super_admin")

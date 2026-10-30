@@ -485,6 +485,7 @@ class SqlTicketRepository:
         fps: float | None,
         segments: dict[str, str],
         ai_cache_namespace: str = "",
+        media_storage: str = "b2",
     ) -> None:
         """Link a ticket to its processed clip and SAM's raw segmentation."""
         self._s.add(
@@ -497,6 +498,7 @@ class SqlTicketRepository:
                 fps=fps,
                 segments=dict(segments),
                 ai_cache_namespace=ai_cache_namespace or None,
+                media_storage=media_storage,
             )
         )
         await self._s.flush()

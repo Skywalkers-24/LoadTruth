@@ -17,7 +17,8 @@ from app.config import get_settings
 
 
 @pytest.fixture(autouse=True)
-def reset_cache_state():
+def reset_cache_state(monkeypatch):
+    monkeypatch.setattr(get_settings(), "api_cache_enabled", True)
     clear_local_cache()
     yield
     clear_local_cache()

@@ -73,7 +73,7 @@ export function PipelineTrace({
   }
 
   return (
-    <ol className={cn("relative flex flex-col", compact && "flex-1 justify-between")}>
+    <ol className="relative flex flex-col">
       {stages.map((s, i) => {
         const color = STATUS_COLOR[s.status] ?? "var(--color-brand)";
         const last = i === stages.length - 1;
@@ -83,23 +83,29 @@ export function PipelineTrace({
         return (
           <li
             key={rowId}
-            className={cn("relative flex gap-3 last:pb-0", compact ? "pb-1" : "pb-2")}
+            className={cn(
+              "relative flex gap-2.5 last:pb-0",
+              compact ? "pb-1.5" : "pb-3",
+            )}
           >
             {/* Rail connecting the stage dots */}
             {!last && (
               <span
-                className="absolute left-[11px] top-7 h-[calc(100%-0.5rem)] w-px bg-border"
+                className={cn(
+                  "absolute bottom-0 top-4 w-px bg-[var(--border-strong)]",
+                  compact ? "left-[9px]" : "left-[11px]",
+                )}
                 aria-hidden
               />
             )}
             <span
               className={cn(
-                "relative z-10 mt-1 grid shrink-0 place-items-center rounded-full ring-2 ring-[var(--color-surface)]",
+                "relative z-10 mt-0.5 grid shrink-0 place-items-center rounded-full ring-2 ring-[var(--color-surface)]",
                 compact ? "size-5" : "size-6",
               )}
               style={{ backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)`, color }}
             >
-              <StageIcon stage={s} className="size-3.5" />
+              <StageIcon stage={s} className="size-3" />
             </span>
 
             <div className="min-w-0 flex-1">
@@ -132,7 +138,7 @@ export function PipelineTrace({
                   />
                 )}
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span
                       className={cn(
                         "font-semibold leading-tight",
@@ -143,7 +149,7 @@ export function PipelineTrace({
                     </span>
                     {s.confidence != null && (
                       <span
-                        className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
+                        className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
                         style={{
                           backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)`,
                           color,

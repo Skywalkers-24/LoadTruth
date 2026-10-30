@@ -20,8 +20,8 @@ necessary (dev.meta.ai/docs/file-handling, image/video understanding):
   (LEARNINGS §1: downscale before base64).
 
 * **SAM frame cost.** SAM video segmentation bills per frame, so the sampled-
-  frame count (Stage 1) is the dominant cost lever; we hard-cap it with
-  ``max_sampled_frames`` regardless of clip duration/fps.
+  frame count (Stage 1) is the dominant cost lever. ``max_sampled_frames`` caps
+  it; set that limit to zero to retain all detections for a source-frame run.
 
 Nothing here calls Meta — it only decides *how* a clip should be sent. The live
 client consumes these decisions; the mock ignores them (it keys off the hash).
@@ -123,11 +123,12 @@ def plan_transport(size_bytes: int) -> MediaPlan:
 
 
 def cap_frames_for_sam(total_frames: int) -> int:
-    """Number of keyframes SAM should segment, capped for cost.
+    """Number of SAM frames to retain, capped for cost unless limit is zero.
 
     SAM bills per frame, so this bounds the dominant cost of a long clip.
     """
-    return max(1, min(total_frames, get_settings().max_sampled_frames))
+    limit = get_settings().max_sampled_frames
+    return max(1, total_frames) if limit <= 0 else max(1, min(total_frames, limit))
 
 
 def select_keyframe_indices(total_frames: int, wanted: int | None = None) -> list[int]:

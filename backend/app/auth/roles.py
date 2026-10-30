@@ -64,8 +64,8 @@ def can_manage_events(role: str) -> bool:
 
 
 def can_ingest(role: str) -> bool:
-    """Upload a clip for analysis."""
-    return can_review_tickets(role)
+    """Only the password-protected Administrator login may spend AI credits."""
+    return is_super_admin(role)
 
 
 def can_manage_users(role: str) -> bool:
