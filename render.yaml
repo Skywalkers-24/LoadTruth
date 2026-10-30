@@ -41,9 +41,11 @@ services:
       - key: B2_REGION
         sync: false
       - key: PIPELINE_RESULT_CACHE_ENABLED
-        value: "true"
+        value: "false" # Re-enable after the fresh benchmark collection is ready.
       - key: API_CACHE_ENABLED
-        value: "true"
+        value: "false" # Prevent old cached records appearing after the reset.
+      - key: LOADTRUTH_SKIP_STARTUP_DB
+        value: "1" # Keep the operational DB empty; startCommand still runs migrations.
       - key: ANALYSIS_MAX_BYTES
         value: "20971520"
       - key: DEMO_UPLOAD_MAX_BYTES

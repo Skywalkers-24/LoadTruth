@@ -151,7 +151,9 @@ function TicketList({ eventId }: { eventId: string | undefined }) {
                     </div>
                     <div className="self-center sm:text-right">
                       <span className="block text-sm font-semibold tabular-nums text-[var(--color-money)]">
-                        {money(t.valuation.est_dollar_value)}
+                        {Number.parseFloat(t.valuation.certified_cubic_yards) > 0
+                          ? money(t.valuation.est_dollar_value)
+                          : "Unavailable"}
                       </span>
                       <span className="text-[11px] text-muted-foreground">Estimated value</span>
                     </div>

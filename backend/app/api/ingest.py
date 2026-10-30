@@ -341,15 +341,23 @@ async def ingest_clip(
     # Record the run in the job store so the Pipeline view and the ticket's AI
     # analysis panel can show exactly how the result was produced.
     if result.no_truck:
+        presence_uncertain = (
+            result.trace is not None and result.trace.outcome == "segmentation_failed"
+        )
+        detail = (
+            "Truck presence could not be confirmed from the saved evidence; review this clip."
+            if presence_uncertain
+            else "No truck or load was detected in that footage."
+        )
         await progress.finish(
             event_id,
             ch,
-            outcome="no_truck",
-            detail="No truck or load was detected in that footage.",
+            outcome="segmentation_failed" if presence_uncertain else "no_truck",
+            detail=detail,
         )
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
-            "No truck or load was detected in that footage, so no ticket was drafted.",
+            detail + " No ticket was drafted.",
         )
 
     try:

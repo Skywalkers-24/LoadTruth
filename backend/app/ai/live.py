@@ -67,6 +67,7 @@ from app.ai.sam_measure import (
     BED_LABEL,
     LOAD_LABEL,
     LOAD_PREFIX,
+    MEASURE_VERSION,
     RIM_LABEL,
     SAM_PROMPT_VERSION,
     TRUCK_BODY_LABEL,
@@ -134,6 +135,9 @@ _CLASSIFY_PROMPT = (
 )
 
 _NAME_LOAD_PROMPT = (
+    "First determine whether a foreground haul truck is present. Set truck_present true "
+    "even when its bed is empty; an empty monitoring lane has truck_present false. "
+    "presence_confidence is your probability from 0 to 1 that this presence decision is correct. "
     "Inspect only the material physically inside the open bed of the foreground haul truck. "
     "Ignore background piles, ground debris, and other vehicles. Classify the dominant load "
     "as exactly one of vegetative, hazardous, white_goods, construction_demolition, or other. "
@@ -155,8 +159,16 @@ _NAME_LOAD_SCHEMA: dict[str, Any] = {
             "enum": ["vegetative", "hazardous", "white_goods", "construction_demolition", "other"],
         },
         "visible_fill_pct": {"type": "number"},
+        "truck_present": {"type": "boolean"},
+        "presence_confidence": {"type": "number", "minimum": 0, "maximum": 1},
     },
-    "required": ["concepts", "debris_class", "visible_fill_pct"],
+    "required": [
+        "concepts",
+        "debris_class",
+        "visible_fill_pct",
+        "truck_present",
+        "presence_confidence",
+    ],
     "additionalProperties": False,
 }
 
@@ -176,8 +188,9 @@ _EXPLAIN_PROMPT = (
     "plain sentences explaining what that stage did and what its result means for this "
     "load. Use only the facts given and never invent numbers. "
     f"{_ANALYSIS_STYLE} "
-    "The stages are: sam_track (SAM 3.1 segmented and tracked the truck, bed, and load "
-    "as visual evidence); capacity (the identified truck was looked up in the certified "
+    "The stages are: sam_track (report exactly which regions SAM detected according to "
+    "the supplied segmentation facts; never claim a missing bed or load was tracked); "
+    "capacity (the identified truck was looked up in the certified "
     "registry for its registered cubic-yard capacity); geometry (Muse Spark estimated "
     "fill from each sampled video frame, and deterministic code combined those "
     "estimates using their median; SAM masks are not used to estimate fill); anomalies "
@@ -487,7 +500,7 @@ class LiveAIClient:
     # ── SAM 3.1 ──────────────────────────────────────────────────────────────
     async def _name_load_concepts(
         self, media: PreparedMedia
-    ) -> tuple[list[str], str, CallUsage | None]:
+    ) -> tuple[list[str], str, CallUsage | None, bool | None, float, str]:
         """Ask Muse Spark what noun phrases name the load, for SAM to segment.
 
         The vision model identifies the debris class and names visible objects,
@@ -503,19 +516,48 @@ class LiveAIClient:
             )
             answer = _json_answer(response)
         except (ModelAPIResponseError, ModelAPIRequestError):
-            return [], "other", None
+            return [], "other", None, None, 0.0, '{"presence_check":"unavailable"}'
         raw = answer.get("concepts")
         phrases = [_clean_concept(p) for p in raw] if isinstance(raw, list) else []
         phrases = [p for p in dict.fromkeys(phrases) if p][: get_settings().sam_load_max_concepts]
         debris_class = str(answer.get("debris_class") or "other").strip().lower()
-        return phrases, debris_class if debris_class in DEBRIS_CLASSES else "other", usage
+        present = answer.get("truck_present")
+        confidence = answer.get("presence_confidence", 0.0)
+        confidence = float(confidence) if isinstance(confidence, int | float) else 0.0
+        return (
+            phrases,
+            debris_class if debris_class in DEBRIS_CLASSES else "other",
+            usage,
+            present if isinstance(present, bool) else None,
+            max(0.0, min(1.0, confidence)),
+            json.dumps(answer),
+        )
 
     async def track(self, clip: ClipMedia) -> TrackResult:
         media = await self._media(clip)
         s = get_settings()
         # Muse Spark names the load and class first; category-specific phrases
         # ensure SAM still has useful prompts if the naming call returns no items.
-        named, debris_class, name_usage = await self._name_load_concepts(media)
+        (
+            named,
+            debris_class,
+            name_usage,
+            present,
+            presence_confidence,
+            presence_raw,
+        ) = await self._name_load_concepts(media)
+        if present is False and presence_confidence >= 0.8:
+            return TrackResult(
+                objects=[],
+                frame_count=0,
+                usage=name_usage,
+                truck_present=False,
+                presence_confidence=presence_confidence,
+                presence_raw=presence_raw,
+                sam_prompt_version=SAM_PROMPT_VERSION,
+                measure_version=MEASURE_VERSION,
+                notes={"Truck present": "No", "SAM": "Skipped for confidently empty scene"},
+            )
         bed_concepts = list(dict.fromkeys(s.sam_bed_concepts))
         class_concepts = {
             "vegetative": ["tree branches", "logs", "yard waste"],
@@ -545,6 +587,12 @@ class LiveAIClient:
         # clipping. The second is only a visual exterior/body outline; never
         # substitute it for the opening if SAM misses the interior.
         bed_concept = bed_concepts[0]
+        fallback = s.sam_bed_fallback_concept.strip()
+        if not runs[bed_concept].detections and fallback and fallback not in runs:
+            runs[fallback] = await self._segment(media, fallback)
+            concepts.append(fallback)
+            if runs[fallback].detections:
+                bed_concept = fallback
         body_concept = (
             bed_concepts[1] if len(bed_concepts) > 1 and runs[bed_concepts[1]].detections else None
         )
@@ -604,6 +652,9 @@ class LiveAIClient:
             notes=notes,
             bed_source=bed_source,
             sam_prompt_version=SAM_PROMPT_VERSION,
+            truck_present=True if runs[bed_concept].detections else present,
+            presence_confidence=presence_confidence,
+            presence_raw=presence_raw,
         )
 
     async def _segment(self, media: PreparedMedia, concept: str) -> _SegmentRun:
@@ -755,9 +806,7 @@ class LiveAIClient:
             answer.get("frame_fill_pcts"), media_kind=media.media_kind
         )
         visual_fill_pct = float(
-            Decimal(str(median(frame_fill_pcts))).quantize(
-                Decimal("0.01"), rounding=ROUND_HALF_UP
-            )
+            Decimal(str(median(frame_fill_pcts))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         )
         return ClassifyResult(
             debris_class=debris if debris in DEBRIS_CLASSES else "other",

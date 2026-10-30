@@ -9,13 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { useUpdateTicket } from "@/lib/hooks";
 
 const DEBRIS_OPTIONS: EditOption[] = (
-  [
-    "vegetative",
-    "construction_demolition",
-    "white_goods",
-    "hazardous",
-    "other",
-  ] as DebrisClass[]
+  ["vegetative", "construction_demolition", "white_goods", "hazardous", "other"] as DebrisClass[]
 ).map((v) => ({ value: v, label: debrisLabel(v) }));
 
 /**
@@ -84,7 +78,11 @@ export function TicketMetadata({ ticket }: { ticket: Ticket }) {
         </Item>
         <Item
           label="Certified capacity"
-          value={cubicYards(v.certified_cubic_yards)}
+          value={
+            ticket.truck_id && Number.parseFloat(v.certified_cubic_yards) > 0
+              ? cubicYards(v.certified_cubic_yards)
+              : "Not matched"
+          }
           tip="The truck's registered bed volume. Fill percent is applied to this to get cubic yards."
         />
         <Item

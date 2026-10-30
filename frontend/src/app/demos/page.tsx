@@ -1,16 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  FilmIcon,
-  UploadCloudIcon,
-  Loader2Icon,
-  SparklesIcon,
-  VideoIcon,
-} from "lucide-react";
+import { FilmIcon, UploadCloudIcon, Loader2Icon, SparklesIcon, VideoIcon } from "lucide-react";
 
 import {
   analyzeDemoVideo,
@@ -18,7 +12,6 @@ import {
   demoPlayback,
   listDemoVideos,
   uploadDemoVideo,
-  SHOWCASE_EVENT_ID,
   type DemoVideo,
 } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
@@ -26,10 +19,8 @@ import { Card } from "@/components/ui/shadcn/card";
 import { Pagination } from "@/components/pagination";
 import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
-import {
-  BENCHMARK_PAIRS,
-  VideoPairCard,
-} from "@/components/demos/video-pair-card";
+import { BenchmarkVideoLibrary } from "@/components/demos/benchmark-video-library";
+import { useInView } from "@/lib/use-in-view";
 
 const button =
   "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-40";
@@ -50,7 +41,6 @@ export default function DemoVideosPage() {
   });
 
   // Filtering state
-  const [selectedDebris, setSelectedDebris] = useState<string>("all");
   const [showUpload, setShowUpload] = useState(false);
 
   // Upload state (SuperAdmin)
@@ -127,35 +117,7 @@ export default function DemoVideosPage() {
     void qc.invalidateQueries({ queryKey: ["demo-videos"] });
   }
 
-  // Map DemoVideo items from backend to known benchmark pairs
-  const videoItems = videos.data?.items ?? [];
-
-  const pairVideoMap = useMemo(() => {
-    const map = new Map<string, DemoVideo>();
-    for (const pair of BENCHMARK_PAIRS) {
-      const match = videoItems.find(
-        (v) =>
-          v.filename === pair.matchFilename ||
-          v.title.toLowerCase().includes(pair.debrisClass.replace("_", " ")) ||
-          v.title.includes(`Showcase ${pair.pairNumber}`),
-      );
-      if (match) map.set(pair.id, match);
-    }
-    return map;
-  }, [videoItems]);
-
-  // Identify any custom uploaded clips that are not in the 5 benchmark pairs
-  const customVideos = useMemo(() => {
-    const matchedIds = new Set(Array.from(pairVideoMap.values()).map((v) => v.id));
-    return videoItems.filter((v) => !matchedIds.has(v.id));
-  }, [videoItems, pairVideoMap]);
-
-  // Filter benchmark pairs based on category
-  const filteredPairs = useMemo(() => {
-    return BENCHMARK_PAIRS.filter((pair) => {
-      return selectedDebris === "all" || pair.debrisClass === selectedDebris;
-    });
-  }, [selectedDebris]);
+  const customVideos = videos.data?.items ?? [];
 
   return (
     <AppShell section="Demo Videos">
@@ -165,51 +127,21 @@ export default function DemoVideosPage() {
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-sm sm:text-base font-bold tracking-tight text-foreground flex items-center gap-1.5">
               <FilmIcon className="size-4 text-primary" />
-              CCTV Demo Pairs
+              Benchmark Videos
             </h1>
             <span className="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-              Powered by Meta SAM 3.1 &amp; Muse Spark
+              50 fresh clips · awaiting batch processing
             </span>
             <span className="text-[11px] text-muted-foreground hidden lg:inline">
-              · Hosted on <strong className="font-medium text-foreground">Modal</strong>, <strong className="font-medium text-foreground">Fireworks AI</strong>, and <strong className="font-medium text-foreground">Baseten</strong>
+              · Configurable Muse inference options:{" "}
+              <strong className="font-medium text-foreground">
+                Meta direct · Fireworks AI · Modal · Baseten
+              </strong>
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Category filter pills right in header */}
-            <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-xs">
-              {[
-                { id: "all", label: "All (5)" },
-                { id: "white_goods", label: "White Goods" },
-                { id: "hazardous", label: "Hazardous" },
-                { id: "construction_demolition", label: "C&D" },
-                { id: "vegetative", label: "Vegetative" },
-              ].map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedDebris(cat.id)}
-                  className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                    selectedDebris === cat.id
-                      ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-
-            <Link
-              href={`/console?event=${SHOWCASE_EVENT_ID}`}
-              className="hidden sm:inline-flex text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
-            >
-              Console →
-            </Link>
-            <Link
-              href="/pipeline"
-              className="text-xs font-medium text-primary hover:underline"
-            >
+            <Link href="/pipeline" className="text-xs font-medium text-primary hover:underline">
               Pipeline →
             </Link>
 
@@ -271,11 +203,7 @@ export default function DemoVideosPage() {
             </div>
 
             <div className="flex items-center justify-between gap-2">
-              {progress ? (
-                <p className="text-xs text-muted-foreground">{progress}</p>
-              ) : (
-                <div />
-              )}
+              {progress ? <p className="text-xs text-muted-foreground">{progress}</p> : <div />}
               <button
                 className={`${button} bg-primary text-primary-foreground hover:bg-primary/90 h-7 text-xs`}
                 onClick={() => void upload()}
@@ -306,32 +234,7 @@ export default function DemoVideosPage() {
           </div>
         )}
 
-        {/* ── 2x2 COMPACT GRID OF VIDEO PAIRS (FITS 4 PAIRS ON ONE SCREEN) ── */}
-        {filteredPairs.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border p-8 text-center">
-            <FilmIcon className="size-6 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">No video pairs match your category filter.</p>
-            <button
-              className={`${button} h-7 text-xs`}
-              onClick={() => setSelectedDebris("all")}
-            >
-              Reset to All
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {filteredPairs.map((pair) => (
-              <VideoPairCard
-                key={pair.id}
-                pair={pair}
-                videoRecord={pairVideoMap.get(pair.id) ?? null}
-                onAnalyze={(videoId) => analyze.mutate(videoId)}
-                isAnalyzing={analyze.isPending}
-                canAnalyze={Boolean(writable)}
-              />
-            ))}
-          </div>
-        )}
+        <BenchmarkVideoLibrary />
 
         {/* ── ADDITIONAL / CUSTOM UPLOADED CLIPS (IF ANY) ── */}
         {customVideos.length > 0 && (
@@ -395,17 +298,35 @@ export default function DemoVideosPage() {
 }
 
 function CustomClipPreview({ video }: { video: DemoVideo }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isVisible = useInView(containerRef, "300px");
   const [failed, setFailed] = useState(false);
   const playback = useQuery({
     queryKey: ["demo-playback", video.id],
     queryFn: () => demoPlayback(video.id),
+    enabled: isVisible && Boolean(video.id),
     staleTime: 10 * 60_000,
     retry: 1,
   });
 
+  if (!isVisible) {
+    return (
+      <div
+        ref={containerRef}
+        role="status"
+        className="flex aspect-video items-center justify-center rounded bg-secondary/50 text-[10px] text-muted-foreground"
+      >
+        <FilmIcon className="size-4 opacity-50" />
+      </div>
+    );
+  }
+
   if (playback.isError || failed) {
     return (
-      <div className="flex aspect-video flex-col items-center justify-center gap-1 rounded bg-secondary text-[10px]">
+      <div
+        ref={containerRef}
+        className="flex aspect-video flex-col items-center justify-center gap-1 rounded bg-secondary text-[10px]"
+      >
         <p>Preview failed.</p>
         <button
           className={`${button} h-6 text-[10px]`}
@@ -423,6 +344,7 @@ function CustomClipPreview({ video }: { video: DemoVideo }) {
   if (!playback.data) {
     return (
       <div
+        ref={containerRef}
         role="status"
         className="flex aspect-video items-center justify-center rounded bg-secondary"
       >
@@ -433,16 +355,13 @@ function CustomClipPreview({ video }: { video: DemoVideo }) {
 
   return (
     <video
+      ref={containerRef as any}
       key={playback.data.url}
-      src={`${playback.data.url}#t=0.1`}
+      src={playback.data.url}
       controls
       playsInline
       preload="metadata"
       aria-label={`Preview ${video.title}`}
-      onLoadedMetadata={(event) => {
-        const player = event.currentTarget;
-        if (player.duration > 0.1) player.currentTime = 0.1;
-      }}
       onError={() => setFailed(true)}
       className="aspect-video w-full rounded bg-black object-contain"
     />

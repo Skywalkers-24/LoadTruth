@@ -15,11 +15,33 @@ surface. Swap for a DB table (`pipeline_runs`) later with no caller change.
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from uuid import UUID
+
+
+def display_stage_summary(key: str, summary: str, details: list[list[str]] | None) -> str:
+    """Correct legacy load-tracking claims from saved facts, without editing rows."""
+    if key != "sam_track":
+        return summary
+    facts = {
+        str(d[0]): str(d[1]) for d in (details or []) if isinstance(d, list | tuple) and len(d) == 2
+    }
+    if "Load segmentation" in facts:
+        return summary  # New traces already describe partial evidence accurately.
+    phrases = re.findall(r'"([^"]+)"', facts.get("Load phrases merged", ""))
+    bed = facts.get("Bed measured from", "").strip('"')
+    bed_match = facts.get(f'Prompt "{bed}"', "No match")
+    if (
+        phrases
+        and bed_match != "No match"
+        and all(facts.get(f'Prompt "{phrase}"') == "No match" for phrase in phrases)
+    ):
+        return "Tracked the truck bed; load masks were not detected."
+    return summary
 
 
 @dataclass(slots=True)

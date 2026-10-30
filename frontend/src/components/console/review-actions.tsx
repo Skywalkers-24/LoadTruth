@@ -27,7 +27,7 @@ const COPY: Record<
 > = {
   confirmed: {
     title: "Confirm this ticket?",
-    body: "LoadTruth's measurement becomes the ticket of record for this load.",
+    body: "LoadTruth's visual estimate becomes the ticket of record for this load.",
     cta: "Confirm",
     variant: "ok",
     done: "confirmed",
@@ -168,7 +168,7 @@ export function ReviewActions({
       className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[12px] font-medium text-[var(--color-muted-foreground)]"
     >
       {bar ? "Inspector call" : "Inspector's fill call"}
-      <Tooltip content="The fill percentage the on-site human inspector called for this load. The contractor is paid on this number. Enter it to see how it compares to what the AI measured.">
+      <Tooltip content="The fill percentage the on-site human inspector called for this load. Enter it to compare with Muse Spark's visual estimate.">
         <span tabIndex={0} className="text-[var(--color-subtle)] hover:text-[var(--color-text)]">
           <InfoIcon size={12} />
         </span>
@@ -213,7 +213,7 @@ export function ReviewActions({
       type="button"
       disabled={busy}
       onClick={() => setPending("confirmed")}
-      className={`group flex items-center justify-between gap-2 rounded-md bg-[var(--color-ok)] text-[13px] font-semibold text-[var(--color-on-accent)] transition-all hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ok)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-40 ${bar ? "min-w-0 px-3 py-2" : "w-full px-4 py-2.5"}`}
+      className={`group flex items-center justify-between gap-2 rounded-md bg-[var(--color-ok)] text-[13px] font-semibold text-[var(--color-on-accent)] transition-all hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ok)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-40 ${bar ? "col-span-2 min-w-0 px-3 py-2 @[44rem]:col-span-1" : "w-full px-4 py-2.5"}`}
     >
       <span className="flex min-w-0 items-center gap-2">
         <CheckIcon size={16} className="shrink-0" />
@@ -307,7 +307,7 @@ export function ReviewActions({
             {callInput}
             {updateButton}
           </form>
-          <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+          <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 @[44rem]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]">
             {confirmButton}
             {overrideButton}
             {disputeButton}

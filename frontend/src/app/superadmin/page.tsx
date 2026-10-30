@@ -3,7 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, KeyRoundIcon, Loader2Icon, ShieldCheckIcon, TerminalIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  KeyRoundIcon,
+  Loader2Icon,
+  ShieldCheckIcon,
+  TerminalIcon,
+} from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
 import { LoginVideoBg } from "@/components/auth/login-video-bg";
@@ -32,7 +38,11 @@ export default function SuperAdminPage() {
       await superAdminSignIn(username.trim(), password);
       router.push("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid username or password. Check .env hashed credentials.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Invalid username or password. Check .env hashed credentials.",
+      );
       setSubmitting(false);
     }
   }
@@ -59,7 +69,8 @@ export default function SuperAdminPage() {
           </div>
           <h2 className="mt-2 text-lg font-bold text-white">SuperAdmin Administration</h2>
           <p className="mt-2 text-xs leading-relaxed text-white/80">
-            This portal is restricted to authorized developers and system administrators with secure credentials configured in the environment.
+            This portal is restricted to authorized developers and system administrators with secure
+            credentials configured in the environment.
           </p>
           <div className="mt-4 flex flex-col gap-1.5 text-[11px] text-white/70">
             <div className="flex items-center gap-2">
@@ -78,8 +89,10 @@ export default function SuperAdminPage() {
         </div>
 
         <div className="flex flex-col gap-1 text-xs text-white/70">
-          <div>Powered by Meta SAM 3.1 &amp; Muse Spark · Hosted on Fireworks AI, Modal &amp; Baseten</div>
-          <div className="text-white/50">LoadTruth Engine · High-Privilege Administration Gate</div>
+          <div>SAM tracking · Muse visual fill estimates</div>
+          <div className="text-white/50">
+            Configurable Muse inference options: Meta direct · Fireworks AI · Modal · Baseten
+          </div>
         </div>
       </div>
 
@@ -101,7 +114,9 @@ export default function SuperAdminPage() {
               </span>
             </div>
 
-            <h1 className="mt-3 text-xl font-bold tracking-tight text-foreground">SuperAdmin Sign In</h1>
+            <h1 className="mt-3 text-xl font-bold tracking-tight text-foreground">
+              SuperAdmin Sign In
+            </h1>
             <p className="mt-1 text-xs text-muted-foreground">
               Sign in with your developer username and custom password.
             </p>
@@ -111,7 +126,7 @@ export default function SuperAdminPage() {
                 Meta SAM 3.1 &amp; Muse Spark
               </span>
               <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                Fireworks AI · Modal · Baseten
+                Muse inference options · Fireworks AI · Modal · Baseten
               </span>
             </div>
 
@@ -191,4 +206,3 @@ export default function SuperAdminPage() {
     </div>
   );
 }
-

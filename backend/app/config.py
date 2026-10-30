@@ -121,9 +121,7 @@ class Settings(BaseSettings):
     superadmin_password: str = Field(default="", alias="SUPERADMIN_PASSWORD", repr=False)
 
     # Redis / background worker
-    pipeline_result_cache_enabled: bool = Field(
-        default=True, alias="PIPELINE_RESULT_CACHE_ENABLED"
-    )
+    pipeline_result_cache_enabled: bool = Field(default=True, alias="PIPELINE_RESULT_CACHE_ENABLED")
     api_cache_enabled: bool = Field(default=True, alias="API_CACHE_ENABLED")
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
 
@@ -167,9 +165,9 @@ class Settings(BaseSettings):
     # actually generated, so a roomy cap costs nothing extra; low reasoning
     # effort is what keeps perception calls cheap.
     spark_perception_max_output_tokens: int = Field(default=4000)  # OCR / classify
-    spark_narrate_max_output_tokens: int = Field(default=2000)  # one-line flag narrative
+    spark_narrate_max_output_tokens: int = Field(default=4000)  # includes reasoning tokens
     analyst_max_output_tokens: int = Field(default=4000)  # grounded analyst answer
-    spark_explain_max_output_tokens: int = Field(default=4000)  # batched per-stage analysis
+    spark_explain_max_output_tokens: int = Field(default=8000)  # reasoning + stage analysis
 
     # ── Live Meta client (app/ai/live.py) ──
     model_api_timeout_s: float = Field(default=300.0)
@@ -180,13 +178,14 @@ class Settings(BaseSettings):
     # Every phrase below is one SAM request, all sent in parallel per clip (one
     # SAM video request has a 50-frame minimum, about $0.01). Tuned on gate
     # footage on 2026-10-29 (see LESSONS.md):
-    #   bed:  "open truck bed interior" defines the load's valid region.
-    #   body: "dump truck exterior" draws the exterior, including its tailgate
-    #         and plate. The body is never a fallback measurement region.
+    #   bed: "truck bed" defines the cargo region; "dump truck bed" is an
+    #        independently requested fallback only when the primary misses.
+    #   body: "truck" is a visual outline, never a fallback bed region.
     #   rim:  "tailgate"; its top edge bounds the bed opening.
-    sam_bed_concepts: list[str] = Field(
-        default_factory=lambda: ["open truck bed interior", "dump truck exterior"]
-    )
+    sam_bed_concepts: list[str] = Field(default_factory=lambda: ["truck bed", "truck"])
+    # Only used when the primary bed phrase produced no detections. The exterior
+    # outline above is evidence, never a substitute for the cargo opening.
+    sam_bed_fallback_concept: str = "dump truck bed"
     sam_rim_concept: str = Field(default="tailgate")
     #   load: Muse Spark names visible objects by class per clip. The legacy
     #         setting below remains accepted for env compatibility; runtime

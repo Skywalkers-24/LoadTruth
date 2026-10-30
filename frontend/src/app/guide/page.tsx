@@ -29,10 +29,9 @@ export default function GuidePage() {
           <header className="flex flex-col gap-1">
             <h1 className="lt-page-title">Operating LoadTruth</h1>
             <p className="text-[13px] leading-relaxed text-muted-foreground">
-              LoadTruth turns footage of a loaded truck into a defensible payment record. It
-              measures the load from the evidence, compares it against the monitor&apos;s call, and
-              produces a ticket an auditor can trust. This guide covers the workflow end to end,
-              what each role can do, and how to read every number on screen.
+              LoadTruth turns truck footage into a draft ticket with a Muse visual fill estimate,
+              SAM tracking evidence, and a monitor review. This guide covers the workflow, what each
+              role can do, and how to read the values and decisions on screen.
             </p>
           </header>
 
@@ -48,14 +47,14 @@ export default function GuidePage() {
             <Step
               n={2}
               icon={<GaugeIcon className="size-5" />}
-              title="Measure the fill"
+              title="Estimate the fill"
               body="Muse Spark estimates fill visually from multiple sampled frames, and the pipeline takes their median. SAM tracks the truck and load but does not calculate fill."
             />
             <Step
               n={3}
               icon={<CircleDollarSignIcon className="size-5" />}
               title="Value and draft"
-              body="Cubic yards × the event rate for that debris class gives the measured dollar value. A draft ticket is created with the evidence, the stage trace, and any anomaly flags attached."
+              body="The fill estimate and certified truck capacity produce estimated cubic yards; the event rate produces a draft value. Evidence, stage details, and anomaly flags stay attached for review."
             />
           </div>
 
@@ -76,7 +75,8 @@ export default function GuidePage() {
               <ol className="ml-4 list-decimal space-y-1.5">
                 <li>
                   <B>Track and segment.</B> SAM 3.1 tracks the truck, bed, and debris across frames
-                  and produces the masks everything else measures from.
+                  and saves masks as visual tracking evidence. These masks do not determine the fill
+                  estimate.
                 </li>
                 <li>
                   <B>Read placard.</B> Muse Spark reads the truck&apos;s ID from the footage. Low
@@ -87,26 +87,27 @@ export default function GuidePage() {
                   get the bed&apos;s registered cubic-yard capacity.
                 </li>
                 <li>
-                  <B>Measure fill.</B> Meta Muse Spark estimates fill from each sampled frame; the
+                  <B>Estimate fill.</B> Meta Muse Spark estimates fill from each sampled frame; the
                   pipeline combines the estimates using their median. SAM segmentation is not used
                   to calculate fill.
                 </li>
                 <li>
-                  <B>Classify debris.</B> Meta Muse Spark labels the load as vegetative, C&amp;D, white
-                  goods, hazardous, or other, which selects the contract rate.
+                  <B>Classify debris.</B> Meta Muse Spark labels the load as vegetative, C&amp;D,
+                  white goods, hazardous, or other, which selects the contract rate.
                 </li>
                 <li>
                   <B>Flag anomalies.</B> Automated rules can flag identity, certification, capacity,
                   and cycle-time issues. Monitors review fill quality and can flag visual concerns.
                 </li>
                 <li>
-                  <B>Value the load.</B> Exact billing calculations produce the measured dollar value
-                  and, once a monitor call exists, the signed difference.
+                  <B>Value the load.</B> Exact billing calculations produce the estimated dollar
+                  value and, once a monitor call exists, the signed difference.
                 </li>
               </ol>
               <p className="text-[12px] text-[var(--color-subtle)]">
-                SAM tracks the truck and load; Muse Spark estimates fill visually. Certified capacity,
-                rates, and dollar calculations use deterministic records and exact arithmetic.
+                SAM tracks the truck and load; Muse Spark estimates fill visually. Certified
+                capacity, rates, and dollar calculations use deterministic records and exact
+                arithmetic.
               </p>
             </Section>
 
@@ -116,20 +117,20 @@ export default function GuidePage() {
               title="Reading the money frame"
             >
               <p>
-                Each ticket compares two numbers: the value LoadTruth measured from the evidence,
+                Each ticket compares two numbers: the value derived from Muse&apos;s visual estimate
                 and the value implied by the monitor&apos;s fill call. The signed difference is the{" "}
-                <B>delta</B>, monitor value minus measured value.
+                <B>delta</B>, monitor value minus estimated value.
               </p>
               <ul className="ml-4 list-disc space-y-1">
                 <li>
-                  <B>Over-call.</B> The monitor called the load higher than measured, so the bill is
-                  higher than the evidence supports. This is the flagged exposure, shown in Signal
-                  Violet. For example, a truck certified at 25 CY measures 48%, or 12 CY. The
-                  monitor called 90%, or 22.5 CY. At $8.50 per CY the delta is +$89.25 in the
-                  contractor&apos;s favor.
+                  <B>Over-call.</B> The monitor called the load higher than the visual estimate, so
+                  the billed value is higher than that estimate. This is the flagged exposure, shown
+                  in Signal Violet. For example, a truck certified at 25 CY has an estimated fill of
+                  48%, or 12 CY. The monitor called 90%, or 22.5 CY. At $8.50 per CY the delta is
+                  +$89.25 in the contractor&apos;s favor.
                 </li>
                 <li>
-                  <B>Under-call.</B> The monitor called it lower than measured, so the delta is
+                  <B>Under-call.</B> The monitor called it lower than estimated, so the delta is
                   negative.
                 </li>
                 <li>
@@ -192,7 +193,7 @@ export default function GuidePage() {
                     <FlagRow
                       sev="High"
                       flag="Capacity exceeded"
-                      meaning="The measured volume is above the truck's certified capacity. Check for an overfilled or misidentified truck."
+                      meaning="The estimated volume is above the truck's certified capacity. Check for an overfilled or misidentified truck."
                     />
                     <FlagRow
                       sev="High"
@@ -259,7 +260,7 @@ export default function GuidePage() {
               <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
                 <Term
                   t="Overview"
-                  d="The event's money frame at a glance: flagged exposure, measured value, review progress, agreement with the monitor, and the highest-value tickets still to review."
+                  d="The event's money frame at a glance: flagged exposure, estimated value, review progress, agreement with the monitor, and the highest-value tickets still to review."
                 />
                 <Term
                   t="Review"
@@ -267,7 +268,7 @@ export default function GuidePage() {
                 />
                 <Term
                   t="New Ticket"
-                  d="Upload a clip or image to draft a ticket from the measured load. Requires review access."
+                  d="Upload a clip or image to draft a ticket from Muse's visual fill estimate and certified truck capacity. Requires review access."
                 />
                 <Term
                   t="AI Analyst"
@@ -297,9 +298,12 @@ export default function GuidePage() {
                 />
                 <Term
                   t="Fill percent"
-                  d="How full the truck bed is, from 0 to 100%. The core measured quantity."
+                  d="How full the truck bed appears, estimated from sampled video frames on a 0 to 100% scale."
                 />
-                <Term t="CY, cubic yards" d="The volume unit loads are measured and paid in." />
+                <Term
+                  t="CY, cubic yards"
+                  d="The volume unit used to value loads, derived from estimated fill and certified truck capacity."
+                />
                 <Term
                   t="pp, percentage points"
                   d="The gap between two percentages. 80% minus 62% is 18 pp."
@@ -310,7 +314,7 @@ export default function GuidePage() {
                 />
                 <Term
                   t="Delta"
-                  d="Monitor-called value minus measured value. A positive delta is an over-call, which is flagged exposure."
+                  d="Monitor-called value minus estimated value. A positive delta is an over-call, which is flagged exposure."
                 />
                 <Term
                   t="Flagged exposure"

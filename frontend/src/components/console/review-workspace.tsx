@@ -1,29 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ClockIcon,
-  PanelRightOpenIcon,
-  SparklesIcon,
-} from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, PanelRightOpenIcon, SparklesIcon } from "lucide-react";
 
 import type { Ticket } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/badge";
-import { AlertIcon, TruckIcon } from "@/components/ui/icons";
+import { AlertIcon } from "@/components/ui/icons";
 import { AnomalyList } from "@/components/console/anomaly-list";
 import { EvidenceCanvas } from "@/components/console/evidence-canvas";
-import { MoneyFrame } from "@/components/console/money-frame";
 import { ReviewActions } from "@/components/console/review-actions";
 import { ReproducibilityCard } from "@/components/console/reproducibility-card";
-import { CollapsibleSectionCard, SectionCard } from "@/components/console/section-card";
+import { CollapsibleSectionCard } from "@/components/console/section-card";
 import { TicketMetadata, shortId } from "@/components/console/ticket-metadata";
 import { PipelineTrace } from "@/components/ai/pipeline-trace";
 import { StageInspectorDrawer } from "@/components/ai/stage-inspector-drawer";
 import { Skeleton } from "@/components/ui/shadcn/skeleton";
 import { useTicketPipeline } from "@/lib/hooks";
-import { debrisLabel, relativeTime } from "@/lib/format";
 
 /** Previous/next stepping through the current queue page. */
 export interface TicketNav {
@@ -38,44 +30,38 @@ export interface TicketNav {
  *
  * Wide pane (a container query, so it tracks the pane, not the window): two
  * columns that each scroll on their own. The center holds what the reviewer
- * reads and decides on, top to bottom: ticket header, money frame, evidence,
- * truck record, and the decision bar pinned to the bottom. The right rail holds
- * the AI analysis, then the anomaly flags.
+ * reads and decides on, top to bottom: ticket header, evidence, truck record,
+ * and the decision bar. In the right rail, the AI analysis, anomaly flags, and
+ * reproducibility cards share the available height in proportion to content.
  *
  * Narrow pane: a single scrolling column in reading order, with the decision
  * bar still pinned to the bottom of the view.
  */
 export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketNav }) {
-  const reviewed = ticket.status !== "draft";
   return (
     <div className="lt-fade-in @container h-full min-h-0">
       {/* Narrow pane on desktop: this element is the one scroll area. Wide
           pane: it is a fixed-height grid and each column scrolls instead. */}
-      <div className="lt-scroll flex min-h-0 flex-col gap-3 lg:h-full lg:@max-[46rem]:overflow-y-auto @[46rem]:grid @[46rem]:grid-cols-[minmax(0,1fr)_20rem] @[46rem]:grid-rows-1 @[46rem]:overflow-hidden @[64rem]:grid-cols-[minmax(0,1fr)_24rem] @[64rem]:gap-4 @[96rem]:grid-cols-[minmax(0,1fr)_28rem]">
+      <div className="lt-scroll flex min-h-0 flex-col gap-3 lg:h-full lg:@max-[42rem]:overflow-y-auto @[42rem]:grid @[42rem]:grid-cols-[minmax(0,1fr)_18rem] @[42rem]:grid-rows-1 @[42rem]:overflow-hidden @[64rem]:grid-cols-[minmax(0,1fr)_24rem] @[64rem]:gap-4 @[96rem]:grid-cols-[minmax(0,1fr)_28rem]">
         {/* Center column. On a narrow pane its wrapper is `display: contents`
             so the decision bar can sit after the rail. */}
-        <div className="lt-scroll contents [&>*]:shrink-0 @[46rem]:flex @[46rem]:min-h-0 @[46rem]:min-w-0 @[46rem]:flex-col @[46rem]:gap-3 @[46rem]:overflow-y-auto">
-          <TicketHeader ticket={ticket} nav={nav} />
-          <MoneyFrame v={ticket.valuation} reviewed={reviewed} />
+        <div className="lt-scroll contents @[42rem]:flex @[42rem]:min-h-0 @[42rem]:min-w-0 @[42rem]:flex-col @[42rem]:gap-3 @[42rem]:overflow-y-auto">
+          <TicketSummary ticket={ticket} nav={nav} />
           <EvidenceCanvas ticket={ticket} />
-          <SectionCard title="Truck and ticket" icon={<TruckIcon size={15} />}>
-            <TicketMetadata ticket={ticket} />
-          </SectionCard>
 
           {/* Decision bar stays in the document flow so it cannot cover details. */}
           {/* In the single-column layout on tablets the bar spans to the right
               edge, so it stops short of the AI launcher. */}
-          <div className="order-last shrink-0 sm:@max-[46rem]:mr-[4.5rem] @[46rem]:order-none">
+          <div className="order-last shrink-0 sm:@max-[42rem]:mr-[4.5rem] @[46rem]:order-none">
             <div className="lt-card-shadow rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 shadow-[0_-6px_20px_-12px_rgba(0,0,0,0.5)]">
               <ReviewActions ticket={ticket} layout="bar" />
             </div>
           </div>
         </div>
 
-        {/* Right rail: dynamic content-hugging cards that scroll cleanly
-            without artificial empty gaps at the bottom. Bottom padding (lt-fab-safe)
-            clears the AI analyst launcher. */}
-        <div className="lt-fab-safe flex min-w-0 flex-col gap-3 @[46rem]:min-h-0 @[46rem]:overflow-y-auto lt-scroll">
+        {/* Each card grows from its content and can scroll independently when
+            the available height is smaller than the combined card contents. */}
+        <div className="lt-fab-safe lt-review-rail-safe flex min-w-0 flex-col gap-3 @[42rem]:min-h-0 @[42rem]:overflow-hidden">
           <AiAnalysisCard ticketId={ticket.id} />
           <CollapsibleSectionCard
             id="anomaly-flags"
@@ -88,71 +74,65 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
                 ? `${ticket.anomaly_count} flag${ticket.anomaly_count === 1 ? "" : "s"} to review`
                 : "No anomalies flagged"
             }
-            defaultOpen={false}
-            className="shrink-0"
+            defaultOpen
+            fitHeight
           >
-            <AnomalyList ticket={ticket} />
+            <div className="flex flex-1 flex-col justify-center">
+              <AnomalyList ticket={ticket} />
+            </div>
           </CollapsibleSectionCard>
           {/* Proof the number is reproducible: re-verify from evidence, plus the
               judge-mode Run live control. */}
-          <div className="shrink-0">
-            <ReproducibilityCard ticket={ticket} />
-          </div>
+          <ReproducibilityCard ticket={ticket} fitHeight />
         </div>
       </div>
     </div>
   );
 }
 
-function TicketHeader({ ticket, nav }: { ticket: Ticket; nav?: TicketNav }) {
+function TicketSummary({ ticket, nav }: { ticket: Ticket; nav?: TicketNav }) {
   return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex items-center gap-2.5">
-          <h2 className="lt-page-title tabular-nums" style={{ fontSize: "var(--lt-ticket-title)" }}>
+    <section className="lt-card-shadow shrink-0 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <header className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <h2
+            className="lt-page-title shrink-0 tabular-nums"
+            style={{ fontSize: "var(--lt-ticket-title)" }}
+          >
             {shortId(ticket.id)}
           </h2>
           <StatusBadge status={ticket.status} />
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[var(--color-muted-foreground)]">
-          <span className="flex items-center gap-1.5">
-            <ClockIcon className="size-3.5 text-[var(--color-subtle)]" />
-            Captured {relativeTime(ticket.created_at)}
-          </span>
-          <span className="flex items-center gap-1.5 tabular-nums">
-            <TruckIcon size={14} className="text-[var(--color-subtle)]" />
-            {ticket.truck_id ?? "Unidentified truck"}
-          </span>
-          <span>{debrisLabel(ticket.debris_class)}</span>
-        </div>
+        {nav && nav.total > 1 && (
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={nav.onPrev}
+              disabled={nav.index <= 0}
+              aria-label="Previous ticket"
+              className="grid size-7 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)] disabled:opacity-40"
+            >
+              <ChevronLeftIcon className="size-4" />
+            </button>
+            <span className="min-w-[3.25rem] text-center text-[12px] tabular-nums text-[var(--color-muted-foreground)]">
+              {nav.index + 1} of {nav.total}
+            </span>
+            <button
+              type="button"
+              onClick={nav.onNext}
+              disabled={nav.index >= nav.total - 1}
+              aria-label="Next ticket"
+              className="grid size-7 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)] disabled:opacity-40"
+            >
+              <ChevronRightIcon className="size-4" />
+            </button>
+          </div>
+        )}
+      </header>
+      <div className="px-3 py-2">
+        <TicketMetadata ticket={ticket} />
       </div>
-
-      {nav && nav.total > 1 && (
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            onClick={nav.onPrev}
-            disabled={nav.index <= 0}
-            aria-label="Previous ticket"
-            className="grid size-7 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)] disabled:opacity-40"
-          >
-            <ChevronLeftIcon className="size-4" />
-          </button>
-          <span className="min-w-[3.25rem] text-center text-[12px] tabular-nums text-[var(--color-muted-foreground)]">
-            {nav.index + 1} of {nav.total}
-          </span>
-          <button
-            type="button"
-            onClick={nav.onNext}
-            disabled={nav.index >= nav.total - 1}
-            aria-label="Next ticket"
-            className="grid size-7 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)] disabled:opacity-40"
-          >
-            <ChevronRightIcon className="size-4" />
-          </button>
-        </div>
-      )}
-    </div>
+    </section>
   );
 }
 
@@ -166,29 +146,29 @@ function AiAnalysisCard({ ticketId }: { ticketId: string }) {
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
 
   return (
-    // Dynamic height card that wraps the 7 stages without empty whitespace at the bottom.
-    <section className="lt-card-shadow flex shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-      <header className="lt-card-head shrink-0 border-b border-[var(--color-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-brand)_14%,transparent),transparent)]">
-        <span className="grid size-6 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
+    <section className="lt-card-shadow flex shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] @[42rem]:min-h-0 @[42rem]:flex-[1_1_auto]">
+      <header className="lt-card-head min-w-0 shrink-0 border-b border-[var(--color-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-brand)_14%,transparent),transparent)]">
+        <span className="grid size-6 shrink-0 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
           <SparklesIcon size={14} />
         </span>
         <h3 className="lt-card-title shrink-0 whitespace-nowrap">AI analysis</h3>
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="min-w-0 truncate rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-muted-foreground)]">
+        <div className="ml-auto flex min-w-0 shrink items-center gap-1.5">
+          <span className="min-w-0 shrink truncate rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-muted-foreground)]">
             SAM 3.1 · Muse Spark
           </span>
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
             title="Open Stage Inspector"
-            className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-brand)] transition-colors hover:bg-[var(--color-brand-soft)]"
+            aria-label="Open Stage Inspector"
+            className="shrink-0 inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-brand)] transition-colors hover:bg-[var(--color-brand-soft)]"
           >
             <PanelRightOpenIcon className="size-3.5" />
-            <span className="hidden sm:inline">Inspect</span>
+            <span className="hidden 2xl:inline">Inspect</span>
           </button>
         </div>
       </header>
-      <div className="lt-card-body p-3">
+      <div className="lt-card-body flex min-h-0 flex-1 flex-col overflow-y-auto p-3 lt-scroll">
         <AiAnalysis
           ticketId={ticketId}
           drawerOpen={drawerOpen}
@@ -224,8 +204,8 @@ function AiAnalysis({
     );
   }
   return (
-    <>
-      <div className="mb-2 flex items-center justify-between text-[11px] text-[var(--color-muted-foreground)]">
+    <div className="flex min-h-full flex-col">
+      <div className="mb-2 text-[11px] text-[var(--color-muted-foreground)]">
         <span>Click any stage to inspect output</span>
       </div>
       <PipelineTrace
@@ -244,6 +224,6 @@ function AiAnalysis({
         currentStageIndex={selectedStageIndex}
         onSelectStageIndex={setSelectedStageIndex}
       />
-    </>
+    </div>
   );
 }

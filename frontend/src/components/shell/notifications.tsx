@@ -54,7 +54,9 @@ export function Notifications() {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={pending > 0 ? `${pending} tickets awaiting review` : "No tickets awaiting review"}
+        aria-label={
+          pending > 0 ? `${pending} tickets awaiting review` : "No tickets awaiting review"
+        }
         className="relative inline-flex size-9 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] sm:size-8"
       >
         <BellIcon size={16} />
@@ -75,9 +77,7 @@ export function Notifications() {
           className="lt-card-shadow absolute right-0 top-full z-40 mt-2 w-[min(92vw,340px)] overflow-hidden rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)]"
         >
           <div className="flex items-center justify-between border-b border-[var(--color-border)] px-3 py-2.5">
-            <span className="text-[13px] font-semibold text-[var(--color-text)]">
-              Needs review
-            </span>
+            <span className="text-[13px] font-semibold text-[var(--color-text)]">Needs review</span>
             <span className="text-[11px] tabular-nums text-[var(--color-subtle)]">
               {pending} pending
             </span>
@@ -126,7 +126,7 @@ export function Notifications() {
               setOpen(false);
               router.push("/console");
             }}
-            className="w-full border-t border-[var(--color-border)] px-3 py-2.5 text-center text-[12px] font-medium text-[var(--color-accent)] hover:bg-[var(--color-surface-2)]"
+            className="w-full border-t border-[var(--color-border)] bg-[var(--color-brand-fill)] px-3 py-2.5 text-center text-[12px] font-semibold text-[var(--color-on-brand)] transition-colors hover:bg-[var(--color-brand-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-brand)]"
           >
             Open review console
           </button>

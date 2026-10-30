@@ -111,7 +111,11 @@ class FakeMeta:
         self.responses.append(body)
         if body["model"].startswith("sam"):
             concept = body["input"][0]["content"][0]["text"]
-            line = _bed_line if concept in {"truck bed", "open truck bed interior"} else _load_line
+            line = (
+                _bed_line
+                if concept in {"truck bed", "open truck bed interior", "dump truck bed"}
+                else _load_line
+            )
             text = "\n".join(line(f) for f in range(self.frames)) + "\n"
             image = body["input"][0]["content"][1]["type"] == "input_image"
             usage = {"images_processed": 1} if image else {}
@@ -124,6 +128,8 @@ class FakeMeta:
                 "concepts": self.named_load,
                 "debris_class": "construction_demolition",
                 "visible_fill_pct": self.visual_fill or 50.0,
+                "truck_present": True,
+                "presence_confidence": 0.99,
             }
             return httpx.Response(200, json=_spark(json.dumps(answer)))
         if task == "spark_ocr":
@@ -132,9 +138,10 @@ class FakeMeta:
         if task == "spark_classify":
             content = body["input"][0]["content"]
             frame_count = sum(part["type"] == "input_image" for part in content)
-            estimates = self.frame_fill_pcts or [
-                self.visual_fill if self.visual_fill is not None else 50.0
-            ] * frame_count
+            estimates = (
+                self.frame_fill_pcts
+                or [self.visual_fill if self.visual_fill is not None else 50.0] * frame_count
+            )
             answer = {
                 "debris_class": "construction_demolition",
                 "confidence": 0.9,
@@ -221,6 +228,132 @@ async def _run(client: LiveAIClient, kind: str = "video") -> tuple[Any, CostLedg
     return result, ledger
 
 
+class RecoveryMeta(FakeMeta):
+    def __init__(self, *, missing: set[str], present: bool = True) -> None:
+        super().__init__()
+        self.missing, self.present = missing, present
+
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/responses"):
+            body = json.loads(request.content)
+            if body["model"].startswith("sam"):
+                concept = body["input"][0]["content"][0]["text"]
+                if concept in self.missing:
+                    self.responses.append(body)
+                    return httpx.Response(
+                        200,
+                        headers={"content-type": "text/event-stream"},
+                        content=_sse("", {"video_frames_processed": 2}),
+                    )
+            elif (body.get("text") or {}).get("format", {}).get("name") == "name_load":
+                self.responses.append(body)
+                return httpx.Response(
+                    200,
+                    json=_spark(
+                        json.dumps(
+                            {
+                                "concepts": ["steel drums"] if self.present else [],
+                                "debris_class": "construction_demolition"
+                                if self.present
+                                else "other",
+                                "visible_fill_pct": 50 if self.present else 0,
+                                "truck_present": self.present,
+                                "presence_confidence": 0.99,
+                            }
+                        )
+                    ),
+                )
+        return super().handler(request)
+
+
+@pytest.mark.asyncio
+async def test_real_alternate_bed_prompt_only_after_primary_miss() -> None:
+    fake = RecoveryMeta(missing={"truck bed"})
+    result, _ = await _run(_client(fake))
+    assert not result.no_truck
+    track = next(s for s in result.trace.stages if s.key == "sam_track")
+    assert dict(track.details)["Bed measured from"] == '"dump truck bed"'
+    assert sum(b["model"].startswith("sam") for b in fake.responses) == 7
+
+
+@pytest.mark.asyncio
+async def test_confirmed_truck_continues_without_bed_masks_and_reverifies(sessionmaker) -> None:
+    fake = RecoveryMeta(missing={"truck bed", "dump truck bed"})
+    result, _ = await _run(_client(fake))
+    assert not result.no_truck
+    assert result.ticket.est_fill_pct == Decimal("50.00")
+    assert result.anomalies == []
+    stage = next(s for s in result.trace.stages if s.key == "sam_track")
+    assert stage.status == "skipped"
+    assert dict(stage.details)["Bed segmentation"] == "Unavailable"
+    assert "unavailable" in stage.summary
+    from app.ai import serde
+    from app.ai.base import ClassifyResult, TrackResult
+    from app.tickets.repository import SqlTicketRepository
+
+    async with sessionmaker() as session:
+        repo = SqlTicketRepository(session)
+        await repo.add_from_pipeline(result.ticket, [])
+        await repo.save_ticket_evidence(
+            DEMO_TENANT_ID,
+            result.ticket.id,
+            content_hash="f" * 64,
+            media_kind="video",
+            mime="video/mp4",
+            fps=6,
+            segments=result.segments,
+        )
+        track = TrackResult(
+            objects=[],
+            frame_count=2,
+            segments=result.segments,
+            truck_present=True,
+            presence_confidence=0.99,
+        )
+        payload = serde.track_to_json(track)
+        assert serde.track_from_json(payload).truck_present is True
+        await repo.save_ai_stage_result(
+            DEMO_TENANT_ID, "f" * 64, serde.STAGE_TRACK, result_json=payload
+        )
+        await repo.save_ai_stage_result(
+            DEMO_TENANT_ID,
+            "f" * 64,
+            serde.STAGE_CLASSIFY,
+            result_json=serde.classify_to_json(
+                ClassifyResult(
+                    "construction_demolition",
+                    0.9,
+                    frame_fill_pcts=(50.0, 50.0),
+                    visual_fill_pct=50.0,
+                )
+            ),
+        )
+        verified = await repo.reverify_ticket(DEMO_TENANT_ID, result.ticket.id)
+        assert verified.reproducible
+        assert verified.receipt_inputs["bed_area"] == 0
+
+
+@pytest.mark.asyncio
+async def test_empty_scene_stops_before_any_sam_or_downstream_call() -> None:
+    fake = RecoveryMeta(missing=set(), present=False)
+    result, _ = await _run(_client(fake))
+    assert result.no_truck
+    assert result.trace.outcome == "no_truck"
+    assert len(fake.responses) == 1
+    assert not any(b["model"].startswith("sam") for b in fake.responses)
+
+
+@pytest.mark.asyncio
+async def test_missing_load_masks_are_truthful_trace_details_without_anomaly() -> None:
+    fake = RecoveryMeta(missing={"steel drums", "lumber", "concrete rubble"})
+    result, _ = await _run(_client(fake))
+    assert not result.no_truck
+    assert result.anomalies == []
+    stage = next(s for s in result.trace.stages if s.key == "sam_track")
+    assert "load masks were not detected" in stage.summary
+    assert dict(stage.details)["Load segmentation"] == "Unavailable"
+
+
 @pytest.mark.asyncio
 async def test_video_run_uploads_once_and_drafts_a_ticket(
     monkeypatch: pytest.MonkeyPatch,
@@ -261,14 +394,16 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     sam = [b for b in fake.responses if b["model"].startswith("sam")]
     spark = [b for b in fake.responses if not b["model"].startswith("sam")]
     # Bed phrases, the tailgate rim, and the load phrases all go out in parallel.
-    assert sorted(b["input"][0]["content"][0]["text"] for b in sam) == [
-        "concrete rubble",
-        "dump truck exterior",
-        "lumber",
-        "open truck bed interior",
-        "steel drums",
-        "tailgate",
-    ]
+    assert sorted(b["input"][0]["content"][0]["text"] for b in sam) == sorted(
+        [
+            "concrete rubble",
+            "truck",
+            "lumber",
+            "truck bed",
+            "steel drums",
+            "tailgate",
+        ]
+    )
     classify_body = next(
         body
         for body in spark
@@ -298,9 +433,9 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert stages["spark_ocr"]["Model answer"].startswith("{")
     assert "1,000 in, 200 out" in stages["spark_ocr"]["Tokens"]
     assert stages["spark_ocr"]["Cost"] == "$0.0021"
-    assert stages["sam_track"]['Prompt "open truck bed interior"'] == "1 object on 2 of 2 frames"
+    assert stages["sam_track"]['Prompt "truck bed"'] == "1 object on 2 of 2 frames"
     assert stages["sam_track"]["Billed"] == "300 frames (6 requests)"
-    assert stages["sam_track"]["Bed measured from"] == '"open truck bed interior"'
+    assert stages["sam_track"]["Bed measured from"] == '"truck bed"'
     assert stages["sam_track"]["Load named by Muse Spark"] == '"steel drums"'
     assert stages["geometry"]["Frames estimated"] == "4"
     assert stages["geometry"]["SAM used for fill"] == "No"

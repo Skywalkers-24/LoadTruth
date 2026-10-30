@@ -17,7 +17,7 @@ const STAGE_FLOW: { key: string; label: string }[] = [
   { key: "sam_track", label: "Track & segment" },
   { key: "spark_ocr", label: "Read placard" },
   { key: "capacity", label: "Capacity" },
-  { key: "geometry", label: "Measure fill" },
+  { key: "geometry", label: "Estimate fill" },
   { key: "spark_classify", label: "Classify" },
   { key: "anomalies", label: "Flag anomalies" },
   { key: "dollar_math", label: "Value load" },
@@ -155,7 +155,11 @@ function Flow({
         )}
       </header>
 
-      {detailed && stages.length > 0 ? null : (
+      {detailed ? (
+        <div className="mt-1">
+          <PipelineWorkbench stages={stages} showInlineTrace={process.env.NODE_ENV === "test"} />
+        </div>
+      ) : (
         <ol className="flex gap-2 overflow-x-auto pb-3">
           {STAGE_FLOW.map((s, i) => {
             const stage = byKey.get(s.key);
@@ -182,15 +186,6 @@ function Flow({
             );
           })}
         </ol>
-      )}
-
-      {detailed && stages.length > 0 && (
-        <div className="mt-4 border-t border-border pt-4">
-          <PipelineWorkbench
-            stages={stages}
-            showInlineTrace={process.env.NODE_ENV === "test"}
-          />
-        </div>
       )}
 
       {/* The most recent stage's one-line result, so the operator sees what each

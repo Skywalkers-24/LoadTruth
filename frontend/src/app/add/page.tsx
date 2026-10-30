@@ -45,8 +45,8 @@ function ingestErrorMessage(err: unknown): string {
 }
 
 /**
- * New Ticket: upload a clip or image of a loaded truck; the pipeline measures
- * the fill and drafts a ticket. The event ledger lives on /tickets.
+ * New Ticket: upload a clip or image of a loaded truck; the pipeline estimates
+ * fill and drafts a ticket for review. The event ledger lives on /tickets.
  */
 export default function NewTicketPage() {
   const { selectedId } = useEventContext();
@@ -161,7 +161,7 @@ function CaptureWorkspace() {
           <p className="text-[12px] text-muted-foreground">
             Upload evidence for{" "}
             <span className="font-medium text-foreground">{selected?.name ?? "this event"}</span> to
-            identify the truck, measure the load, and calculate its value automatically.
+            identify the truck, estimate fill from sampled frames, and draft a ticket for review.
           </p>
         </div>
 
@@ -221,7 +221,7 @@ function CaptureWorkspace() {
                       {ingest.isPending
                         ? "Uploading clip"
                         : processing
-                          ? "Upload complete"
+                          ? "Analysis in progress"
                           : showcaseReadOnly
                             ? "Preprocessed showcase event"
                             : "Drop a clip here, or click to browse"}
@@ -230,7 +230,7 @@ function CaptureWorkspace() {
                       {ingest.isPending
                         ? "Your clip is being uploaded."
                         : processing
-                          ? "Your clip has been uploaded."
+                          ? "Upload complete. Analysis is still processing."
                           : showcaseReadOnly
                             ? "Stored Meta results are shown read-only. Browsing them makes no Meta calls."
                             : `Choose a video or image up to ${Math.round(analysisLimit / 1024 ** 2)} MiB.`}
@@ -242,21 +242,18 @@ function CaptureWorkspace() {
           </div>
 
           <div className="flex min-w-0 flex-col gap-3">
-            {latest.data && !ingest.isPending && (
-              <Card className="gap-2 p-4" role="status">
-                <p className="text-sm font-medium">
-                  {processing
-                    ? "Upload complete"
-                    : latest.data.status === "failed"
-                      ? "Analysis did not complete"
-                      : "Upload complete"}
+            {latest.data && !ingest.isPending && latest.data.status === "failed" && (
+              <Card
+                className="gap-2 border-[var(--color-destructive)]/40 bg-[var(--color-danger-soft)] p-4"
+                role="alert"
+              >
+                <p className="text-sm font-semibold text-[var(--color-destructive)]">
+                  Analysis did not complete
                 </p>
                 <p className="break-words text-xs text-muted-foreground">{latest.data.filename}</p>
-                {latest.data.status === "failed" && (
-                  <p className="text-sm text-[var(--color-destructive)]">
-                    {latest.data.detail ?? "Upload again to retry."}
-                  </p>
-                )}
+                <p className="text-sm text-[var(--color-destructive)]">
+                  {latest.data.detail ?? "Upload again to retry."}
+                </p>
               </Card>
             )}
             {latest.isError && (
@@ -283,7 +280,14 @@ function CaptureWorkspace() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <CheckCircle2Icon className="size-5 text-[var(--color-ok)]" />
-                      <h2 className="text-[15px] font-semibold">Ticket drafted</h2>
+                      <div>
+                        <h2 className="text-[15px] font-semibold">Latest ticket draft</h2>
+                        {latest.data?.filename && (
+                          <p className="text-[11px] text-muted-foreground">
+                            Generated from {latest.data.filename}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <Button size="sm" onClick={() => router.push(`/console?ticket=${result.id}`)}>
                       Open ticket
@@ -295,7 +299,11 @@ function CaptureWorkspace() {
                     <Field label="Truck" value={result.truck_id ?? "Unidentified"} />
                     <Field
                       label="Estimated value"
-                      value={money(result.valuation.est_dollar_value)}
+                      value={
+                        Number.parseFloat(result.valuation.certified_cubic_yards) > 0
+                          ? money(result.valuation.est_dollar_value)
+                          : "Unavailable"
+                      }
                     />
                     <Field label="Estimated fill" value={percent(result.valuation.est_fill_pct)} />
                   </div>
@@ -307,9 +315,16 @@ function CaptureWorkspace() {
         <section className="min-h-64 flex-1">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-sm font-semibold">Live analysis workspace</h2>
+              <h2 className="text-sm font-semibold">
+                {processing
+                  ? "Live analysis workspace"
+                  : result
+                    ? "Latest analysis"
+                    : "Live analysis"}
+              </h2>
               <p className="text-xs text-muted-foreground">
-                Meta SAM 3.1 segmentation → Muse Spark understanding → measured load value.
+                SAM tracks the truck and load · Muse estimates fill from sampled frames · ticket
+                value is calculated from certified capacity and event rates.
               </p>
             </div>
             <Link href="/pipeline" className="text-xs font-medium text-primary hover:underline">
@@ -332,7 +347,10 @@ function CaptureWorkspace() {
               summary={{
                 truck: result.truck_id ?? "Unidentified",
                 debris: result.debris_class ? debrisLabel(result.debris_class) : "N/A",
-                value: money(result.valuation.est_dollar_value),
+                value:
+                  Number.parseFloat(result.valuation.certified_cubic_yards) > 0
+                    ? money(result.valuation.est_dollar_value)
+                    : "Unavailable",
                 flags: result.anomaly_count ?? 0,
               }}
             />
@@ -340,7 +358,8 @@ function CaptureWorkspace() {
             <div className="flex flex-col gap-3">
               <PipelineWorkbench stages={DEFAULT_PIPELINE_STAGES} />
               <p className="text-xs text-muted-foreground">
-                Drop a truck clip above to run this pipeline live on your footage. Click any stage to inspect its purpose and model output in the sidebar inspector.
+                Drop a truck clip above to run this pipeline live on your footage. Click any stage
+                to inspect its purpose and model output in the sidebar inspector.
               </p>
             </div>
           )}

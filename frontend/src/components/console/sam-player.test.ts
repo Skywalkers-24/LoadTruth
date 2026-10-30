@@ -71,6 +71,21 @@ describe("evidence overlay regions", () => {
     ).toEqual(["washers", "heaters"]);
     expect(loadTexts({ "debris pile": "legacy" })).toEqual(["legacy"]);
   });
+  it("uses a repaired aggregate when old named prompts returned empty output", () => {
+    expect(loadTexts({ "debris pile": "guided", "load: branches": "", "load: logs": " " })).toEqual(
+      ["guided"],
+    );
+    expect(loadTexts({ "debris pile": "", "load: branches": "" })).toEqual([]);
+  });
+  it("keeps a guided material track and avoids rendering duplicate masks", () => {
+    expect(
+      loadTexts({
+        "load: branches": "",
+        "load: guided cargo": "guided",
+        "load: repaired": "guided",
+      }),
+    ).toEqual(["guided"]);
+  });
   it("does not switch to a background truck when the main bed leaves the frame", () => {
     const beds = track([bed, shape("small", 0, 0, 20, 20)]);
     beds.frames.set(1, [shape("small", 0, 0, 20, 20)]);
@@ -80,6 +95,32 @@ describe("evidence overlay regions", () => {
     const unrelated = shape("other rim", 500, 200, 600, 300);
     const cab = shape("cab", 100, 110, 300, 140);
     expect(frameLayers(track([bed]), track([]), track([unrelated, cab, rim]), 0).rim).toBe(260);
+  });
+  it("borrows bed from earliest tracked frame during pre-roll so masks don't drop out", () => {
+    // Bed only tracked starting from frame 5
+    const beds: SamTrack = {
+      frames: new Map([[5, [bed]]]),
+      width: 1024,
+      height: 576,
+      frameCount: 6,
+    };
+    const cargo = shape("cargo", 150, 120, 250, 200);
+    const loads: SamTrack = {
+      frames: new Map([[0, [cargo]]]),
+      width: 1024,
+      height: 576,
+      frameCount: 6,
+    };
+    const rims: SamTrack = {
+      frames: new Map([[0, [rim]]]),
+      width: 1024,
+      height: 576,
+      frameCount: 6,
+    };
+    const result = frameLayers(beds, loads, rims, 0);
+    expect(result.bed).toEqual(bed);
+    expect(result.loads).toEqual([cargo]);
+    expect(result.rimShapes).toEqual([rim]);
   });
 });
 

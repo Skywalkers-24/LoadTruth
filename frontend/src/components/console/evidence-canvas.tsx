@@ -14,9 +14,9 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { percent } from "@/lib/format";
 
 /**
- * Evidence canvas. Renders a measurement overlay drawn from the ticket's
- * measured values: a side-profile dump truck, the segmented load surface at the
- * measured fill, the bed-rail reference plane, and a marker at the monitor's
+ * Evidence canvas. Renders an estimate overlay drawn from the ticket's
+ * fill estimate: a side-profile dump truck, the estimated load surface, the
+ * bed-rail reference plane, and a marker at the monitor's
  * claimed fill so the gap between the two is visible at a glance.
  */
 type Overlay = "body" | "rail" | "load" | "call";
@@ -92,14 +92,14 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
     setOverlays((prev) => ({ ...prev, [o]: !prev[o] }));
   }
 
-  // Preserve a readable video area at every pane width. The surrounding
-  // column scrolls instead of squeezing the footage between summary cards.
+  // The wide review column lets the evidence use the space between the ticket
+  // summary and decision bar; narrow layouts keep the footage's natural ratio.
   const viewer = (
-    <div className="flex shrink-0 flex-col gap-3">
+    <div className="flex shrink-0 flex-col gap-3 @[42rem]:min-h-0 @[42rem]:flex-1">
       <div
         ref={viewerRef}
         data-expanded={expanded || undefined}
-        className="lt-evidence-viewer overflow-hidden rounded-lg border border-[var(--color-border)]"
+        className="lt-evidence-viewer overflow-hidden rounded-lg border border-[var(--color-border)] @[42rem]:flex @[42rem]:min-h-0 @[42rem]:flex-1 @[42rem]:flex-col"
       >
         {/* Viewer header: title, frame, overlay toggles */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5">
@@ -111,8 +111,8 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
                 loadingEvidence
                   ? "Loading real evidence footage…"
                   : live
-                  ? "SAM 3.1 masks: amber is the exterior and tailgate, blue is the visible bed interior above the rear rim, and purple is the load. Each color can be toggled."
-                  : "No video footage captured for this ticket."
+                    ? "SAM 3.1 masks: amber is the exterior and tailgate, blue is the visible bed interior above the rear rim, and purple is the load. Each color can be toggled."
+                    : "No video footage captured for this ticket."
               }
             >
               <span tabIndex={0}>
@@ -120,8 +120,8 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
                   {loadingEvidence
                     ? "Loading footage…"
                     : live
-                    ? "SAM 3.1 segmentation"
-                    : "No evidence"}
+                      ? "SAM 3.1 segmentation"
+                      : "No evidence"}
                 </Badge>
               </span>
             </Tooltip>
@@ -169,7 +169,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
         </div>
 
         {/* The media and SVG overlays letterbox inside this box at any size. */}
-        <div className="lt-evidence-media relative aspect-video min-h-[14rem] w-full shrink-0 overflow-hidden bg-[var(--color-bg)]">
+        <div className="lt-evidence-media relative aspect-video min-h-[14rem] w-full shrink-0 overflow-hidden bg-[var(--color-bg)] @[42rem]:min-h-0 @[42rem]:flex-1 @[42rem]:aspect-auto">
           {loadingEvidence ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[var(--color-bg)] text-[var(--color-subtle)]">
               <Loader2Icon className="size-8 animate-spin text-[var(--color-money)]" />
@@ -186,7 +186,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
               />
               <div className="pointer-events-none absolute right-3 top-3 hidden gap-2 sm:flex">
                 <Readout
-                  label="Measured"
+                  label="Estimated"
                   value={percent(v.est_fill_pct)}
                   color="var(--color-money)"
                 />
@@ -258,7 +258,7 @@ function TruckIllustration({
       viewBox="0 0 200 100"
       className="absolute inset-0 size-full"
       role="img"
-      aria-label={`Measured fill ${measured}%${monitor !== null ? `, monitor call ${monitor}%` : ""}`}
+      aria-label={`Estimated fill ${measured}%${monitor !== null ? `, monitor call ${monitor}%` : ""}`}
     >
       <defs>
         <linearGradient id="lt-load" x1="0" y1="0" x2="0" y2="1">
@@ -333,7 +333,7 @@ function TruckIllustration({
         </g>
       ))}
 
-      {/* Overcall gap: hatched band between measured surface and the monitor call */}
+      {/* Overcall gap: hatched band between estimated surface and the monitor call */}
       {overlays.call && callY !== null && gap > 0 && (
         <rect
           x={BED_X + 1}
@@ -408,7 +408,7 @@ function TruckIllustration({
         </>
       )}
 
-      {/* Measured label: inside the load, just under its surface */}
+      {/* Estimated label: inside the load, just under its surface */}
       {overlays.load && BED_BOTTOM - surfaceY > 7 && (
         <text
           x={BED_X + 3}
@@ -417,7 +417,7 @@ function TruckIllustration({
           fill="var(--color-money)"
           fontWeight="700"
         >
-          Measured {Math.round(measured)}%
+          Estimate {Math.round(measured)}%
         </text>
       )}
     </svg>

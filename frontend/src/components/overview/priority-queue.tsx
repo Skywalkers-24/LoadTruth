@@ -85,9 +85,11 @@ export function PriorityQueue({
                 t.valuation.is_overbill ? "text-[var(--color-money)]" : "text-muted-foreground",
               )}
             >
-              {t.valuation.delta_dollar_value
-                ? signedMoney(t.valuation.delta_dollar_value)
-                : money(t.valuation.est_dollar_value)}
+              {Number.parseFloat(t.valuation.certified_cubic_yards) > 0
+                ? t.valuation.delta_dollar_value
+                  ? signedMoney(t.valuation.delta_dollar_value)
+                  : money(t.valuation.est_dollar_value)
+                : "Unavailable"}
             </span>
             <ChevronRightIcon className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
           </button>

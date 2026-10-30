@@ -20,7 +20,13 @@ import { useQueryClient } from "@tanstack/react-query";
  * re-ingests the same clip through the real pipeline, with a "bypass cache"
  * toggle that forces a fresh model call so the run is provably live.
  */
-export function ReproducibilityCard({ ticket }: { ticket: Ticket }) {
+export function ReproducibilityCard({
+  ticket,
+  fitHeight = false,
+}: {
+  ticket: Ticket;
+  fitHeight?: boolean;
+}) {
   const judge = isJudgeMode();
   return (
     <CollapsibleSectionCard
@@ -28,9 +34,10 @@ export function ReproducibilityCard({ ticket }: { ticket: Ticket }) {
       title="Reproducibility"
       icon={<ShieldCheckIcon size={15} />}
       summary="Re-derive the fill % from the stored evidence"
-      defaultOpen={false}
+      defaultOpen
+      fitHeight={fitHeight}
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 @[42rem]:flex-1 @[42rem]:justify-center">
         <ReverifyPanel ticket={ticket} />
         {judge && <RunLivePanel ticket={ticket} />}
       </div>
@@ -58,8 +65,7 @@ function ReverifyPanel({ ticket }: { ticket: Ticket }) {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-[12px] leading-snug text-muted-foreground">
-        Recalculate this fill % from the stored video outlines to verify the measurement. Nothing
-        is sent to a model; the number is calculated directly from the saved video.
+        Recalculate fill from the saved video outlines. No model call is made.
       </p>
       <Button
         type="button"
