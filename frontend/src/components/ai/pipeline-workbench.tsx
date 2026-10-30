@@ -115,7 +115,8 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
     label: "Value the load",
     model: "deterministic",
     status: "ok",
-    summary: "Calculates the payout: certified truck size multiplied by the fill percentage and the debris rate per cubic yard.",
+    summary:
+      "Calculates the payout: certified truck size multiplied by the fill percentage and the debris rate per cubic yard.",
     confidence: null,
     duration_ms: 0,
     analysis:
@@ -210,12 +211,13 @@ export function PipelineWorkbench({
                 aria-pressed={isSelected}
                 onClick={() => handleStageClick(i)}
                 className={cn(
-                  "group relative flex h-full w-full flex-col justify-between rounded-xl border border-border bg-secondary/30 p-2.5 text-left transition-all hover:border-primary/60 hover:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                  isSelected && "border-primary bg-primary/10 ring-1 ring-primary shadow-xs",
+                  "group relative flex h-full w-full flex-col justify-between rounded-xl border border-border bg-secondary/30 p-3 text-left transition-all hover:border-[var(--brand)] hover:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  isSelected &&
+                    "border-[var(--brand)] bg-[var(--brand-soft)] ring-1 ring-[var(--brand)] shadow-xs",
                 )}
               >
                 <div>
-                  <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     <span>Stage {String(i + 1).padStart(2, "0")}</span>
                     {s.status === "flagged" ? (
                       <TriangleAlertIcon className="size-3.5 text-[var(--color-warn)]" />
@@ -223,15 +225,18 @@ export function PipelineWorkbench({
                       <CheckCircle2Icon className="size-3.5 text-[var(--color-ok)]" />
                     )}
                   </div>
-                  <div className="mt-1 text-[12px] font-semibold leading-tight text-foreground group-hover:text-primary transition-colors truncate">
+                  <div className="mt-2 text-[13px] font-semibold leading-snug text-foreground">
                     {s.label}
                   </div>
-                  <div className="mt-0.5 truncate font-mono text-[9.5px] text-muted-foreground">
+                  <div
+                    title={s.model}
+                    className="mt-1 min-h-8 break-words text-[11px] leading-4 text-muted-foreground"
+                  >
                     {s.model}
                   </div>
                 </div>
 
-                <div className="mt-2 flex items-center justify-between border-t border-border/40 pt-1.5 text-[10px]">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-2 border-t border-border pt-2 text-[11px]">
                   <span className="text-muted-foreground truncate">
                     {s.status === "flagged"
                       ? "Flagged"
@@ -243,9 +248,9 @@ export function PipelineWorkbench({
                     {" · "}
                     {isReady ? "Live" : `${(s.duration_ms! / 1000).toFixed(1)}s`}
                   </span>
-                  <span className="inline-flex items-center text-[9px] font-medium text-primary opacity-70 group-hover:opacity-100 transition-opacity">
-                    Inspect
-                    <ArrowUpRightIcon className="ml-0.5 size-2.5" />
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-foreground">
+                    View details
+                    <ArrowUpRightIcon className="size-3.5 text-[var(--color-brand)]" />
                   </span>
                 </div>
               </button>

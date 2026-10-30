@@ -1,470 +1,748 @@
 "use client";
 
-import {
-  CameraIcon,
-  CircleDollarSignIcon,
-  ClipboardCheckIcon,
-  GaugeIcon,
-  KeyboardIcon,
-  ScanEyeIcon,
-  ShieldCheckIcon,
-  SparklesIcon,
-  TriangleAlertIcon,
-  TruckIcon,
-} from "lucide-react";
-
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { ArrowRightIcon } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
-import { Card } from "@/components/ui/shadcn/card";
 
-/**
- * Guide: a practical reference for operating LoadTruth. Covers what each screen
- * is for, how the measurement and money math work, how to review a ticket, what
- * each role can do, and the terms used across the app.
- */
+const TOPICS = [
+  ["start", "Start here"],
+  ["demo", "Review a demo"],
+  ["upload", "Upload your own footage"],
+  ["review", "Review a ticket"],
+  ["values", "Understand the numbers"],
+  ["screens", "Screens & tools"],
+  ["analysis", "How the analysis works"],
+  ["flags", "Understand flags"],
+  ["roles", "Your role & permissions"],
+  ["glossary", "Glossary"],
+  ["shortcuts", "Keyboard shortcuts"],
+  ["help", "If something looks wrong"],
+] as const;
+
+const SCREENS = [
+  [
+    "Overview",
+    "/",
+    "See ticket totals, review progress, load value, and tickets that need attention.",
+  ],
+  [
+    "Review queue",
+    "/console",
+    "Watch a ticket’s footage, check its details, and record a decision.",
+  ],
+  ["Add footage", "/add", "Upload a video or image for analysis in an event that allows changes."],
+  [
+    "Video library",
+    "/demos",
+    "Browse demo clips, play the original, view AI outlines, and open the related ticket.",
+  ],
+  [
+    "AI Processing",
+    "/pipeline",
+    "See recent analysis runs and open each step’s result, model, and processing time.",
+  ],
+  [
+    "AI Analyst",
+    "/assistant",
+    "Ask questions about the selected event in plain language. Check the supporting records before acting on an answer.",
+  ],
+  [
+    "All tickets",
+    "/tickets",
+    "Browse and filter the event’s ticket records, including tickets already reviewed.",
+  ],
+  [
+    "Trucks",
+    "/trucks",
+    "Look up or manage truck IDs and their registered carrying capacity, if your role allows it.",
+  ],
+  [
+    "Reports",
+    "/reports",
+    "Review totals and breakdowns by status, material, and flag level. Export records as CSV or an audit packet.",
+  ],
+  [
+    "Billing",
+    "/billing",
+    "Review load values and the event’s billing records and available exports.",
+  ],
+  [
+    "Settings",
+    "/admin",
+    "Manage events, prices, connected footage sources, members, and AI settings. Available controls depend on your role.",
+  ],
+] as const;
+
+const TERMS = [
+  [
+    "Event",
+    "A cleanup operation that groups its trucks, prices, footage, and tickets. Choose the event in the top bar.",
+  ],
+  [
+    "Ticket",
+    "The record for one load: truck, footage, estimated fill, material, value, flags, and review status.",
+  ],
+  [
+    "Fill percentage",
+    "How full the truck bed appears, from 0% (empty) to 100% (full to its rails). It is an estimate from the footage.",
+  ],
+  [
+    "Certified capacity",
+    "The truck’s registered bed volume. This comes from the truck registry, not from the video.",
+  ],
+  [
+    "CY / cubic yard",
+    "A unit of volume. Truck capacity and load volume are measured in cubic yards.",
+  ],
+  [
+    "Load volume",
+    "Truck capacity multiplied by estimated fill. A 20-cubic-yard truck at 50% fill carries an estimated 10 cubic yards.",
+  ],
+  ["Rate / unit price", "The event’s price for one cubic yard of a particular material."],
+  [
+    "Inspector call / monitor call",
+    "The on-site person’s estimate of how full the truck is. You can enter it to compare with the video estimate.",
+  ],
+  [
+    "Difference / delta",
+    "The value based on the inspector’s estimate minus the value based on the AI estimate. It can be positive or negative.",
+  ],
+  [
+    "Over-call / under-call",
+    "An inspector estimate above / below the AI estimate. These describe a comparison, not a final review decision.",
+  ],
+  [
+    "Flagged exposure",
+    "The total positive dollar differences on tickets with an over-call. It highlights amounts to review.",
+  ],
+  [
+    "Percentage points (pp)",
+    "The difference between two percentages. The gap between 80% and 62% is 18 percentage points.",
+  ],
+  [
+    "SAM",
+    "The Meta model that follows the truck and draws outlines around the bed and load. It does not calculate fill percentage.",
+  ],
+  [
+    "Muse Spark",
+    "The Meta model that reads the truck ID, identifies the material, and estimates fill from sampled video frames.",
+  ],
+  [
+    "Mask / outline / segmentation",
+    "The colored shapes drawn over a video to highlight objects. They are a visual aid for review.",
+  ],
+  [
+    "Frame",
+    "One still image from a video. The analysis checks multiple frames rather than relying on a single picture.",
+  ],
+  [
+    "Confidence",
+    "A model’s reported certainty about a result, such as a truck ID. A 95% confidence label is not a 95% fill estimate.",
+  ],
+  ["Placard", "The identifying number painted or displayed on the truck."],
+  [
+    "Truck registry",
+    "The list of known trucks and their registered capacities and certification details.",
+  ],
+  [
+    "Material / debris class",
+    "The type of load used to select a price. C&D means construction and demolition debris; white goods means appliances. Other categories include vegetation, hazardous material, and other.",
+  ],
+  [
+    "Flag / anomaly",
+    "A reason to inspect a ticket more closely, such as an unreadable truck ID or a possible duplicate load.",
+  ],
+  ["Read only", "You can inspect the records, but the event or your role does not allow changes."],
+  [
+    "Cached / reused result",
+    "A saved analysis result shown again instead of running the same analysis from scratch. A new or forced analysis may use paid model calls.",
+  ],
+  [
+    "Recalculate saved estimate",
+    "Check the saved calculation using stored evidence and inputs, without making a new AI call.",
+  ],
+  [
+    "FEMA",
+    "The US Federal Emergency Management Agency. Cleanup records and audit exports can support disaster-debris record review.",
+  ],
+] as const;
+
 export default function GuidePage() {
   return (
     <AppShell section="Guide" fluid>
-      <div className="lt-scroll lt-fab-safe min-h-0 flex-1 overflow-y-auto">
-        <div className="flex w-full flex-col gap-5">
-          <header className="flex flex-col gap-1">
-            <h1 className="lt-page-title">Operating LoadTruth</h1>
-            <p className="text-[13px] leading-relaxed text-muted-foreground">
-              LoadTruth turns truck footage into a draft ticket with a Muse visual fill estimate,
-              SAM tracking evidence, and a monitor review. This guide covers the workflow, what each
-              role can do, and how to read the values and decisions on screen.
+      <div className="lt-scroll min-h-0 flex-1 overflow-y-auto pb-8">
+        <header className="mb-7 max-w-3xl">
+          <h1 className="text-2xl font-semibold tracking-tight">Using LoadTruth</h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Turn footage of a truckload into a ticket, then check the estimate before recording a
+            decision. New here? Start with a demo.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
+            <a
+              href="#demo"
+              className="inline-flex min-h-10 items-center gap-2 rounded-md bg-primary px-4 font-medium text-primary-foreground"
+            >
+              Review a demo
+              <ArrowRightIcon className="size-4" />
+            </a>
+            <a
+              href="#glossary"
+              className="min-h-10 content-center text-[var(--color-brand)] underline-offset-4 hover:underline"
+            >
+              Look up a term
+            </a>
+          </div>
+        </header>
+
+        <details className="mb-6 rounded-lg border border-border bg-card px-4 lg:hidden">
+          <summary className="cursor-pointer py-3 text-sm font-medium">On this page</summary>
+          <Contents mobile />
+        </details>
+
+        <div className="grid items-start gap-8 lg:grid-cols-[200px_minmax(0,1fr)] xl:gap-12">
+          <aside
+            className="sticky top-0 hidden max-h-[calc(100dvh-10rem)] overflow-y-auto pr-2 lg:block"
+            aria-label="Guide contents"
+          >
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              On this page
             </p>
-          </header>
+            <Contents />
+          </aside>
 
-          {/* ── How a load becomes a ticket ─────────────────────────────── */}
-          <SectionHeading>How a load becomes a ticket</SectionHeading>
-          <div className="grid gap-4 md:grid-cols-3">
-            <Step
-              n={1}
-              icon={<CameraIcon className="size-5" />}
-              title="Capture evidence"
-              body="A clip or image of the loaded bed is captured, uploaded on New Ticket or pulled from a connected source. Each capture is content-hashed, so re-running it is free and never double-charges the AI."
-            />
-            <Step
-              n={2}
-              icon={<GaugeIcon className="size-5" />}
-              title="Estimate the fill"
-              body="Muse Spark estimates fill visually from multiple sampled frames, and the pipeline takes their median. SAM tracks the truck and load but does not calculate fill."
-            />
-            <Step
-              n={3}
-              icon={<CircleDollarSignIcon className="size-5" />}
-              title="Value and draft"
-              body="The fill estimate and certified truck capacity produce estimated cubic yards; the event rate produces a draft value. Evidence, stage details, and anomaly flags stay attached for review."
-            />
-          </div>
+          <article className="min-w-0 max-w-[880px] space-y-9 text-sm leading-7">
+            <GuideSection id="start" title="1. Start here">
+              <Steps
+                items={[
+                  <>
+                    <strong>Choose an event</strong> in the top bar. The name and location tell you
+                    which cleanup operation you are viewing.
+                  </>,
+                  <>
+                    <strong>Check the tags.</strong> A benchmark or processed tag describes the
+                    sample data. <strong>Read only</strong> means that event is for viewing, not
+                    editing.
+                  </>,
+                  <>
+                    <strong>Choose what you want to do:</strong> explore sample footage in{" "}
+                    <Screen href="/demos">Video library</Screen>, check an existing load in{" "}
+                    <Screen href="/console">Review queue</Screen>, or analyze a new clip in{" "}
+                    <Screen href="/add">Add footage</Screen>.
+                  </>,
+                ]}
+              />
+              <p>
+                Your account role controls which actions are available. If you can view a record but
+                cannot change it, check both your role and the event’s Read only tag.
+              </p>
+            </GuideSection>
 
-          {/* The reference sections flow in a masonry (CSS columns) on wide
-              screens so cards of different heights pack tightly with no gaps,
-              and read top to bottom in one column on narrow screens. */}
-          <div className="gap-5 [column-fill:_balance] xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
-            {/* ── The AI pipeline ─────────────────────────────────────────── */}
-            <Section
-              icon={<SparklesIcon className="size-[18px]" />}
-              title="What the AI does (the 7-stage pipeline)"
-            >
+            <GuideSection id="demo" title="2. Review a demo">
+              <Steps
+                items={[
+                  <>
+                    For the packaged demo, choose the event tagged{" "}
+                    <strong>50-video benchmark</strong> in the top bar. Open{" "}
+                    <Screen href="/demos">Video library</Screen> and select{" "}
+                    <strong>Latest batch</strong>. Pick a clip from the list, or use the clip
+                    selector on a phone. Search by clip number, truck ID, or material.
+                  </>,
+                  <>
+                    Press <strong>Play</strong> to watch the original footage. Use the timeline to
+                    move to a specific moment. <strong>Replay</strong> starts the clip again from
+                    the beginning.
+                  </>,
+                  <>
+                    Select <strong>With masks</strong> to see AI outlines. Select{" "}
+                    <strong>Compare</strong> to play the original and outlined versions together.
+                    Bed, Load, and Truck body controls show or hide each layer.
+                  </>,
+                  <>
+                    Check the estimated fill, material, and load value. If the truck capacity is
+                    missing, the value cannot be fully calculated.
+                  </>,
+                  <>
+                    Select <strong>Review ticket</strong> to open that load in the review console.
+                    Inspect <strong>Load & pricing details</strong>, the footage, and{" "}
+                    <strong>Analysis & checks</strong>.
+                  </>,
+                  <>
+                    You can explore a read-only demo without submitting a decision. To practice
+                    uploading or saving decisions, use an event and role that allow changes.
+                  </>,
+                ]}
+              />
               <p>
-                Every ticket shows its full stage trace on the Review screen and the AI Pipeline
-                screen, so no number is a black box. Click any stage to see the model, confidence,
-                and timing.
+                <strong>Clips without a result:</strong> Unprocessed means the clip has not been
+                analyzed. Result pending means a completed result has not been saved. No truck
+                detected means the recorded run did not create a load ticket. You can still watch
+                the original footage.
               </p>
-              <ol className="ml-4 list-decimal space-y-1.5">
-                <li>
-                  <B>Track and segment.</B> SAM 3.1 tracks the truck, bed, and debris across frames
-                  and saves masks as visual tracking evidence. These masks do not determine the fill
-                  estimate.
-                </li>
-                <li>
-                  <B>Read placard.</B> Muse Spark reads the truck&apos;s ID from the footage. Low
-                  confidence here flags the ticket for manual identification.
-                </li>
-                <li>
-                  <B>Capacity lookup.</B> The read ID is matched to the certified truck registry to
-                  get the bed&apos;s registered cubic-yard capacity.
-                </li>
-                <li>
-                  <B>Estimate fill.</B> Meta Muse Spark estimates fill from each sampled frame; the
-                  pipeline combines the estimates using their median. SAM segmentation is not used
-                  to calculate fill.
-                </li>
-                <li>
-                  <B>Classify debris.</B> Meta Muse Spark labels the load as vegetative, C&amp;D,
-                  white goods, hazardous, or other, which selects the contract rate.
-                </li>
-                <li>
-                  <B>Flag anomalies.</B> Automated rules can flag identity, certification, capacity,
-                  and cycle-time issues. Monitors review fill quality and can flag visual concerns.
-                </li>
-                <li>
-                  <B>Value the load.</B> Exact billing calculations produce the estimated dollar
-                  value and, once a monitor call exists, the signed difference.
-                </li>
-              </ol>
-              <p className="text-[12px] text-[var(--color-subtle)]">
-                SAM tracks the truck and load; Muse Spark estimates fill visually. Certified
-                capacity, rates, and dollar calculations use deterministic records and exact
-                arithmetic.
-              </p>
-            </Section>
+            </GuideSection>
 
-            {/* ── The money frame ─────────────────────────────────────────── */}
-            <Section
-              icon={<CircleDollarSignIcon className="size-[18px]" />}
-              title="Reading the money frame"
-            >
+            <GuideSection id="upload" title="3. Upload your own footage">
+              <Steps
+                items={[
+                  <>
+                    Sign in through Administrator login and select the Live Demonstration event.
+                    Open <Screen href="/add">Add footage</Screen>.
+                  </>,
+                  <>
+                    Choose a video or image showing the loaded truck bed. Follow the file types and
+                    size limit displayed on the upload screen.
+                  </>,
+                  <>
+                    Start the analysis and wait for the run to finish.{" "}
+                    <Screen href="/pipeline">AI Processing</Screen> shows recent runs and their
+                    results.
+                  </>,
+                  <>
+                    If a truckload is detected, open the resulting ticket. Check its truck ID,
+                    material, capacity, and fill estimate before recording a decision.
+                  </>,
+                ]}
+              />
               <p>
-                Each ticket compares two numbers: the value derived from Muse&apos;s visual estimate
-                and the value implied by the monitor&apos;s fill call. The signed difference is the{" "}
-                <B>delta</B>, monitor value minus estimated value.
+                <strong>Administrators:</strong> select{" "}
+                <strong>Run fresh analysis (bypass cache)</strong> before choosing the file if you
+                want new AI results. It is off by default, takes longer, and may add model usage
+                charges. File and storage validation still run.
               </p>
-              <ul className="ml-4 list-disc space-y-1">
-                <li>
-                  <B>Over-call.</B> The monitor called the load higher than the visual estimate, so
-                  the billed value is higher than that estimate. This is the flagged exposure, shown
-                  in Signal Violet. For example, a truck certified at 25 CY has an estimated fill of
-                  48%, or 12 CY. The monitor called 90%, or 22.5 CY. At $8.50 per CY the delta is
-                  +$89.25 in the contractor&apos;s favor.
-                </li>
-                <li>
-                  <B>Under-call.</B> The monitor called it lower than estimated, so the delta is
-                  negative.
-                </li>
-                <li>
-                  <B>Agreement.</B> The two are within a small tolerance, so there is nothing to
-                  recover.
-                </li>
-              </ul>
               <p>
-                <B>Agreement with monitor</B> on the Overview is the share of monitor-reviewed
-                tickets whose machine estimate landed within 10 percentage points of the
-                monitor&apos;s call. It is computed from your own data and measures agreement with
-                the human reviewer, not benchmark accuracy against a known volume.
+                <strong>Keep footage for later replay</strong> is on by default. Turn it off to skip
+                permanent footage storage. The ticket and analysis still save to the database;
+                footage stays in server memory for up to one hour and may expire earlier on restart
+                or when memory is full. An expired video cannot be replayed, but its ticket remains.
               </p>
-            </Section>
+              <p>
+                <strong>Practice without AI credits:</strong> everyone can open the Practice
+                Playground, choose a saved video result on Add footage, and create a separate
+                practice ticket. Review it, edit it, or reset the practice review to try again. The
+                two Read only events preserve their original records. The Live Demonstration event
+                is visible to everyone; only the Administrator login can change it or run AI.
+              </p>
+            </GuideSection>
 
-            {/* ── Reviewing a ticket ──────────────────────────────────────── */}
-            <Section
-              icon={<ClipboardCheckIcon className="size-[18px]" />}
-              title="Reviewing a ticket"
-            >
+            <GuideSection id="review" title="4. Review a ticket">
+              <Steps
+                items={[
+                  <>
+                    Open <Screen href="/console">Review queue</Screen> and select a truck or ticket.
+                    Search covers tickets in the selected event and status. Use{" "}
+                    <strong>Filter</strong> to change the status or sorting.
+                  </>,
+                  <>
+                    <strong>Watch the footage.</strong> Compare the visible load with the estimated
+                    fill. Pause, seek, or use Full screen. Select <strong>Show outlines</strong> if
+                    you want the colored visual aid.
+                  </>,
+                  <>
+                    <strong>Check Load & pricing details.</strong> Verify the truck ID, material,
+                    truck capacity, and price. If your role allows editing, use the editable fields
+                    to correct the truck or material; the related value is recalculated.
+                  </>,
+                  <>
+                    <strong>Check issues and analysis.</strong> Review any flags before confirming.
+                    Select a step in Analysis details, or use View steps, to see its result and
+                    supporting information. Check saved calculation recalculates the stored estimate
+                    without a new AI call.
+                  </>,
+                  <>
+                    <strong>Add an inspector fill call if you have one.</strong> This is optional.
+                    Enter the on-site estimate and save it separately. Save or clear unsaved input
+                    before recording a decision.
+                  </>,
+                  <>
+                    <strong>Record a decision</strong> using the choices below, then select another
+                    ticket from the queue. Changes are available only when the event and your role
+                    permit them.
+                  </>,
+                ]}
+              />
+              <ReferenceTable
+                label="Ticket decisions"
+                headers={["Action", "When to use it"]}
+                rows={[
+                  [
+                    "Confirm estimate",
+                    "The footage and ticket details support the estimate. Confirm in the dialog to save the decision.",
+                  ],
+                  [
+                    "Other decisions → Override ticket",
+                    "Mark the ticket as manually overridden after review. Enter a reason when prompted. This status change does not itself enter a replacement fill percentage.",
+                  ],
+                  [
+                    "Other decisions → Dispute ticket",
+                    "The ticket needs resolution, for example because the evidence or load details are in question. Enter a reason when prompted.",
+                  ],
+                ]}
+              />
               <p>
-                The Review screen works one ticket at a time and fits on one screen. The queue sits
-                on the left. The center shows the money frame, the evidence, and the truck record,
-                with the decision bar pinned at the bottom. The AI analysis and anomaly flags sit in
-                the right rail. Record the monitor&apos;s fill call if there is one, then decide.
+                A ticket with an existing decision can show a warning that another decision will
+                replace it. Read the confirmation dialog before continuing.
               </p>
-              <ul className="ml-4 list-disc space-y-1">
-                <li>
-                  <B>Confirm.</B> The evidence supports the call, so the ticket is approved as is.
-                </li>
-                <li>
-                  <B>Override.</B> Record a corrected decision when the call was wrong. A short
-                  reason is required.
-                </li>
-                <li>
-                  <B>Dispute.</B> Flag the ticket for resolution with the contractor. A reason is
-                  required so the dispute is documented.
-                </li>
-              </ul>
-              <KeyRow />
-            </Section>
+            </GuideSection>
 
-            {/* ── Anomaly flags ───────────────────────────────────────────── */}
-            <Section
-              icon={<TriangleAlertIcon className="size-[18px]" />}
-              title="Anomaly flags and what they mean"
-            >
+            <GuideSection id="values" title="5. Understand the numbers">
               <p>
-                Compliance flags are automatic prompts to look closer. Fill quality is not
-                automatically flagged; monitors review the video and may dispute the ticket.
+                Load value comes from the truck’s registered capacity, the estimated fill, and the
+                event’s price for that material.
               </p>
-              <div className="overflow-hidden rounded-lg border border-border">
-                <table className="w-full text-[13px]">
-                  <tbody className="divide-y divide-border">
-                    <FlagRow
-                      sev="High"
-                      flag="Uncertified truck"
-                      meaning="The identified truck has no active certification in the registry. Verify it before approving."
-                    />
-                    <FlagRow
-                      sev="High"
-                      flag="Capacity exceeded"
-                      meaning="The estimated volume is above the truck's certified capacity. Check for an overfilled or misidentified truck."
-                    />
-                    <FlagRow
-                      sev="High"
-                      flag="Impossible cycle"
-                      meaning="The same truck recorded two loads closer together than a realistic round trip, a possible duplicate."
-                    />
-                    <FlagRow
-                      sev="Warn"
-                      flag="Placard unreadable"
-                      meaning="The truck ID could not be read confidently. Identify it manually before certifying."
-                    />
-                  </tbody>
-                </table>
+              <div className="rounded-lg border border-border bg-card px-5 py-4 font-medium leading-7">
+                <p>Truck capacity × fill percentage = estimated load volume</p>
+                <p>Estimated load volume × price per cubic yard = estimated load value</p>
               </div>
-            </Section>
-
-            {/* ── Screens by role ─────────────────────────────────────────── */}
-            <Section
-              icon={<ShieldCheckIcon className="size-[18px]" />}
-              title="What you can do, by role"
-            >
               <p>
-                Every action is enforced on the server, so the UI only hides what your role cannot
-                do. A higher role can do everything a lower one can, plus more. Auditor is
-                deliberately read-only. It ranks above Monitor in trust but cannot change a
-                decision.
+                <strong>Example:</strong> A 25-cubic-yard truck at 48% fill contains an estimated 12
+                cubic yards. At $8.50 per cubic yard, its estimated value is{" "}
+                <strong>$102.00</strong>.
               </p>
-              <div className="overflow-hidden rounded-lg border border-border">
-                <table className="w-full text-[13px]">
-                  <thead className="bg-muted text-[11px] uppercase tracking-wider text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-2 text-left font-semibold">Role</th>
-                      <th className="px-4 py-2 text-left font-semibold">Can do</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    <RoleRow
-                      role="Field Monitor"
-                      can="Review tickets, record monitor calls, confirm, override, or dispute, and upload clips on New Ticket."
-                    />
-                    <RoleRow
-                      role="Auditor"
-                      can="Read-only across the workspace plus CSV and audit-packet exports. Cannot change a ticket or any setting."
-                    />
-                    <RoleRow
-                      role="Supervisor"
-                      can="Everything a monitor can, plus manage the truck registry and evidence sources."
-                    />
-                    <RoleRow
-                      role="County Admin"
-                      can="Everything above, plus create and edit events and their rate tables, and manage members up to their own rank."
-                    />
-                    <RoleRow
-                      role="System Owner"
-                      can="Full access across the whole workspace, including all member and event administration."
-                    />
-                  </tbody>
-                </table>
-              </div>
-            </Section>
+              <p>
+                If the inspector calls that same load 90% full, their estimate is 22.5 cubic yards,
+                worth $191.25. The difference is <strong>+$89.25</strong>: inspector value minus
+                AI-estimated value.
+              </p>
+              <ReferenceTable
+                label="Comparing inspector and AI estimates"
+                headers={["Number", "What it means"]}
+                rows={[
+                  [
+                    "Positive difference / over-call",
+                    "The inspector’s estimate is higher than the AI estimate. Review the amount; the comparison is not a final decision.",
+                  ],
+                  [
+                    "Negative difference / under-call",
+                    "The inspector’s estimate is lower than the AI estimate.",
+                  ],
+                  [
+                    "No inspector estimate",
+                    "There is no human estimate to compare yet. This is not the same as a zero difference.",
+                  ],
+                  [
+                    "Flagged exposure",
+                    "The sum of positive dollar differences on over-called tickets.",
+                  ],
+                  [
+                    "Agreement with monitor",
+                    "The share of compared tickets whose AI fill estimate is within 10 percentage points of the inspector’s estimate. This measures agreement, not accuracy against a known load volume.",
+                  ],
+                ]}
+              />
+            </GuideSection>
 
-            {/* ── The screens ─────────────────────────────────────────────── */}
-            <Section icon={<ScanEyeIcon className="size-[18px]" />} title="The screens">
-              <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
-                <Term
-                  t="Overview"
-                  d="The event's money frame at a glance: flagged exposure, estimated value, review progress, agreement with the monitor, and the highest-value tickets still to review."
+            <GuideSection id="screens" title="6. Screens & tools">
+              <dl className="divide-y divide-border">
+                {SCREENS.map(([name, href, description]) => (
+                  <div
+                    key={href}
+                    className="grid gap-1 py-3 first:pt-0 sm:grid-cols-[145px_minmax(0,1fr)] sm:gap-5"
+                  >
+                    <dt className="font-medium">
+                      <Screen href={href}>{name}</Screen>
+                    </dt>
+                    <dd className="text-muted-foreground">{description}</dd>
+                  </div>
+                ))}
+              </dl>
+            </GuideSection>
+
+            <GuideSection id="analysis" title="7. How the analysis works">
+              <p>
+                Analysis details and AI Processing show these seven steps. Select a step to see its
+                result, reported confidence, model, and time taken.
+              </p>
+              <Steps
+                items={[
+                  <>
+                    <strong>Outline truck and load.</strong> SAM follows the truck and draws
+                    outlines around the bed and debris across video frames.
+                  </>,
+                  <>
+                    <strong>Read truck ID.</strong> Muse Spark reads the number shown on the truck.
+                    An unclear reading needs a person to check it.
+                  </>,
+                  <>
+                    <strong>Find truck capacity.</strong> The truck ID is matched to the registry to
+                    find its certified bed volume.
+                  </>,
+                  <>
+                    <strong>Estimate fill level.</strong> Muse Spark estimates how full the bed
+                    looks in sampled frames. The system uses the middle estimate when the frame
+                    estimates are sorted.
+                  </>,
+                  <>
+                    <strong>Identify load material.</strong> Muse Spark classifies the debris so the
+                    correct event price can be selected.
+                  </>,
+                  <>
+                    <strong>Check for issues.</strong> Rules look for identity, certification,
+                    capacity, and trip-timing problems.
+                  </>,
+                  <>
+                    <strong>Calculate load value.</strong> The system multiplies the registered
+                    capacity, fill percentage, and price. If an inspector estimate is available, it
+                    also calculates the difference.
+                  </>,
+                ]}
+              />
+              <p>
+                <strong>Outlines and fill are separate.</strong> SAM’s colored masks help you
+                inspect the footage. They do not calculate the fill percentage. Capacity comes from
+                records; prices come from the event; volume and value use those numbers in a
+                calculation.
+              </p>
+            </GuideSection>
+
+            <GuideSection id="flags" title="8. Understand flags">
+              <p>
+                A flag asks you to look closer; it is not a review decision. Automatic checks cover
+                the issues below. You still need to judge the visible load yourself—fill quality is
+                not automatically flagged.
+              </p>
+              <ReferenceTable
+                label="Flags and what to check"
+                headers={["Flag", "What to check"]}
+                rows={[
+                  [
+                    "High · Uncertified truck",
+                    "The truck has no active certification in the registry. Verify its ID and certification before approving.",
+                  ],
+                  [
+                    "High · Capacity exceeded",
+                    "The estimated load is above the registered capacity. Check for an overfilled bed, a wrong truck ID, or incorrect capacity.",
+                  ],
+                  [
+                    "High · Impossible cycle",
+                    "The same truck appears to have recorded two loads too close together for a round trip. Check for duplicate records or a wrong ID.",
+                  ],
+                  [
+                    "Warning · Placard unreadable",
+                    "The truck number could not be read confidently. Inspect the footage and identify the truck manually.",
+                  ],
+                ]}
+              />
+            </GuideSection>
+
+            <GuideSection id="roles" title="9. Your role & permissions">
+              <p>
+                Your role is shown below your name in the sidebar. It controls available actions. An
+                event marked Read only can restrict changes even when your role normally allows
+                them.
+              </p>
+              <ReferenceTable
+                label="Account roles"
+                headers={["Role", "Available work"]}
+                rows={[
+                  [
+                    "Field Monitor",
+                    "Review tickets, record inspector estimates, and confirm, override, or dispute tickets where changes are allowed. Use saved examples in the Practice Playground.",
+                  ],
+                  [
+                    "Auditor",
+                    "View records and export CSV files and audit packets. Cannot change tickets or settings.",
+                  ],
+                  [
+                    "Supervisor",
+                    "Review like a monitor and manage the truck registry where permitted. New AI uploads require Administrator login.",
+                  ],
+                  [
+                    "County Admin",
+                    "Manage review work, events, prices, sources, and members within the account’s allowed permissions.",
+                  ],
+                  ["System Owner", "Manage the full workspace, members, events, and demo uploads."],
+                ]}
+              />
+            </GuideSection>
+
+            <GuideSection id="glossary" title="10. Glossary">
+              <dl className="divide-y divide-border">
+                {[...TERMS]
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([term, definition]) => (
+                    <div key={term} className="py-3 first:pt-0">
+                      <dt className="font-semibold">{term}</dt>
+                      <dd className="mt-1 text-muted-foreground">{definition}</dd>
+                    </div>
+                  ))}
+              </dl>
+            </GuideSection>
+
+            <GuideSection id="shortcuts" title="11. Keyboard shortcuts">
+              <ReferenceTable
+                label="Keyboard shortcuts"
+                headers={["Keys", "Action"]}
+                rows={[
+                  [
+                    <Key key="jk">J / K</Key>,
+                    "Move to the next / previous ticket in the review queue.",
+                  ],
+                  [
+                    <Key key="arrows">↓ / ↑</Key>,
+                    "Move through the review queue, or through the focused footage list.",
+                  ],
+                  [<Key key="search">/</Key>, "Focus the review queue search."],
+                  [
+                    <Key key="confirm">C</Key>,
+                    "Open the confirmation dialog for the selected ticket.",
+                  ],
+                  [<Key key="override">O</Key>, "Open the override dialog."],
+                  [<Key key="dispute">D</Key>, "Open the dispute dialog."],
+                  [<Key key="palette">⌘K / Ctrl+K</Key>, "Open workspace search and navigation."],
+                  [<Key key="escape">Esc</Key>, "Close the current dialog or expanded video view."],
+                ]}
+              />
+              <p>
+                Review shortcuts do not run while you are typing in a field or while a dialog is
+                open.
+              </p>
+            </GuideSection>
+
+            <GuideSection id="help" title="12. If something looks wrong">
+              <dl className="space-y-4">
+                <Help
+                  question="The video will not play"
+                  answer="Try Play or Replay. If a loading error appears, use Retry footage. In Video library, switch to Original to inspect the footage without waiting for outlines."
                 />
-                <Term
-                  t="Review"
-                  d="Work the queue one ticket at a time, with the evidence, AI analysis, truck facts, flags, and your confirm, override, or dispute decision."
+                <Help
+                  question="There are no colored outlines"
+                  answer="Use Show outlines in review, or With masks in Video library. Some frames or clips have no saved masks. Missing masks do not mean the fill estimate is zero."
                 />
-                <Term
-                  t="New Ticket"
-                  d="Upload a clip or image to draft a ticket from Muse's visual fill estimate and certified truck capacity. Requires review access."
+                <Help
+                  question="The truck capacity or value is missing"
+                  answer="Check the truck ID and its registry entry. A fill percentage alone is not enough to calculate load volume and value."
                 />
-                <Term
-                  t="AI Analyst"
-                  d="Ask questions about the event in plain language. It answers only from your real data and shows the queries it ran. Available on every screen from the chat button."
+                <Help
+                  question="I cannot upload or save a decision"
+                  answer="Check the event’s Read only tag and your account role. Ask your workspace administrator if you need different access."
                 />
-                <Term
-                  t="AI Pipeline"
-                  d="A live view of every clip run through the models, with the full stage trace and timing."
+                <Help
+                  question="Confirm estimate is disabled after I entered a number"
+                  answer="Save or clear the inspector estimate first. Use a percentage between 0 and 100."
                 />
-                <Term
-                  t="Reports"
-                  d="Totals, breakdowns by status, debris class, and anomaly severity, the full ticket ledger, and CSV and audit-packet exports."
-                />
-                <Term
-                  t="Settings"
-                  d="Manage the rate table, evidence sources, members, and which AI models power each task. Access is role-gated."
+                <Help
+                  question="The result does not match what I see"
+                  answer="Inspect several moments in the original video, check the truck and material, and review flags and analysis steps. Use the appropriate override or dispute action if changes are allowed."
                 />
               </dl>
-            </Section>
-
-            {/* ── Glossary ────────────────────────────────────────────────── */}
-            <Section icon={<TruckIcon className="size-[18px]" />} title="Glossary">
-              <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
-                <Term
-                  t="FEMA"
-                  d="The Federal Emergency Management Agency. It reimburses counties for eligible debris-removal costs, so tickets are formatted to stand up to its review."
-                />
-                <Term
-                  t="Fill percent"
-                  d="How full the truck bed appears, estimated from sampled video frames on a 0 to 100% scale."
-                />
-                <Term
-                  t="CY, cubic yards"
-                  d="The volume unit used to value loads, derived from estimated fill and certified truck capacity."
-                />
-                <Term
-                  t="pp, percentage points"
-                  d="The gap between two percentages. 80% minus 62% is 18 pp."
-                />
-                <Term
-                  t="Certified capacity"
-                  d="A truck's registered bed volume in cubic yards, from the registry."
-                />
-                <Term
-                  t="Delta"
-                  d="Monitor-called value minus estimated value. A positive delta is an over-call, which is flagged exposure."
-                />
-                <Term
-                  t="Flagged exposure"
-                  d="Total positive dollar delta across over-called tickets awaiting review."
-                />
-                <Term
-                  t="Placard"
-                  d="The truck's identifying number, read from the evidence by the AI."
-                />
-                <Term
-                  t="Anomaly flag"
-                  d="An automatic prompt to look closer, for example a load above capacity."
-                />
-              </dl>
-            </Section>
-          </div>
+            </GuideSection>
+          </article>
         </div>
       </div>
     </AppShell>
   );
 }
 
-function SectionHeading({ children }: { children: React.ReactNode }) {
+function Contents({ mobile = false }: { mobile?: boolean }) {
   return (
-    <h2 className="mt-1 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <nav aria-label={mobile ? "Guide topics" : "On this page"} className="flex flex-col gap-1 pb-3">
+      {TOPICS.map(([id, label]) => (
+        <a
+          key={id}
+          href={`#${id}`}
+          onClick={
+            mobile ? (e) => e.currentTarget.closest("details")?.removeAttribute("open") : undefined
+          }
+          className="rounded-md px-2 py-1.5 text-[13px] leading-5 text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
+        >
+          {label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+function GuideSection({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  return (
+    <section
+      id={id}
+      aria-labelledby={`${id}-heading`}
+      className="scroll-mt-4 space-y-4 border-b border-border pb-8 last:border-0"
+    >
+      <h2 id={`${id}-heading`} className="text-xl font-semibold tracking-tight">
+        {title}
+      </h2>
       {children}
-    </h2>
+    </section>
   );
 }
-
-function B({ children }: { children: React.ReactNode }) {
-  return <span className="font-semibold text-foreground">{children}</span>;
+function Steps({ items }: { items: ReactNode[] }) {
+  return (
+    <ol className="list-decimal space-y-3 pl-5 marker:font-semibold marker:text-[var(--brand)]">
+      {items.map((item, index) => (
+        <li key={index} className="pl-1">
+          {item}
+        </li>
+      ))}
+    </ol>
+  );
 }
-
-function Step({
-  n,
-  icon,
-  title,
-  body,
+function Screen({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="font-medium text-[var(--color-brand)] underline decoration-current/40 underline-offset-4 hover:decoration-current"
+    >
+      {children}
+    </Link>
+  );
+}
+function ReferenceTable({
+  label,
+  headers,
+  rows,
 }: {
-  n: number;
-  icon: React.ReactNode;
-  title: string;
-  body: string;
+  label: string;
+  headers: [string, string];
+  rows: [ReactNode, ReactNode][];
 }) {
   return (
-    <Card className="gap-0 p-5">
-      <div className="flex items-center gap-2">
-        <span className="grid size-9 place-items-center rounded-xl bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
-          {icon}
-        </span>
-        <span className="text-[12px] font-semibold text-muted-foreground">Step {n}</span>
-      </div>
-      <h3 className="mt-3 text-[15px] font-semibold">{title}</h3>
-      <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{body}</p>
-    </Card>
-  );
-}
-
-function Section({
-  icon,
-  title,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="gap-0 p-5">
-      <div className="flex items-center gap-2">
-        <span className="text-[var(--color-brand)]">{icon}</span>
-        <h2 className="text-[15px] font-semibold">{title}</h2>
-      </div>
-      <div className="mt-3 flex flex-col gap-2.5 text-[13px] leading-relaxed text-muted-foreground">
-        {children}
-      </div>
-    </Card>
-  );
-}
-
-function RoleRow({ role, can }: { role: string; can: string }) {
-  return (
-    <tr>
-      <td className="w-40 px-4 py-2.5 align-top font-medium text-foreground">{role}</td>
-      <td className="px-4 py-2.5 text-muted-foreground">{can}</td>
-    </tr>
-  );
-}
-
-function FlagRow({
-  sev,
-  flag,
-  meaning,
-}: {
-  sev: "High" | "Warn" | "Info";
-  flag: string;
-  meaning: string;
-}) {
-  const color =
-    sev === "High"
-      ? "var(--color-destructive)"
-      : sev === "Warn"
-        ? "var(--color-warn)"
-        : "var(--color-info)";
-  return (
-    <tr>
-      <td className="w-16 px-4 py-2.5 align-top">
-        <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color }}>
-          {sev}
-        </span>
-      </td>
-      <td className="w-40 px-4 py-2.5 align-top font-medium text-foreground">{flag}</td>
-      <td className="px-4 py-2.5 text-muted-foreground">{meaning}</td>
-    </tr>
-  );
-}
-
-function KeyRow() {
-  return (
-    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-border bg-secondary/40 px-3 py-2.5 text-[12px] text-muted-foreground">
-      <span className="flex items-center gap-1.5 font-medium text-foreground">
-        <KeyboardIcon className="size-4" /> Keyboard
-      </span>
-      <Kbd k="J" /> / <Kbd k="K" /> move through the queue
-      <span className="text-[var(--color-subtle)]">·</span>
-      <Kbd k="C" /> confirm
-      <span className="text-[var(--color-subtle)]">·</span>
-      <Kbd k="O" /> override
-      <span className="text-[var(--color-subtle)]">·</span>
-      <Kbd k="D" /> dispute
-      <span className="text-[var(--color-subtle)]">·</span>
-      <Kbd k="⌘K" /> command palette
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <table aria-label={label} className="w-full table-fixed text-left text-sm leading-6">
+        <thead className="bg-secondary/60">
+          <tr>
+            {headers.map((header, index) => (
+              <th
+                key={header}
+                scope="col"
+                className={
+                  index === 0
+                    ? "w-[34%] px-4 py-3 font-semibold sm:w-[30%]"
+                    : "px-4 py-3 font-semibold"
+                }
+              >
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {rows.map(([name, description], index) => (
+            <tr key={index}>
+              <th scope="row" className="break-words px-4 py-3 align-top font-medium">
+                {name}
+              </th>
+              <td className="break-words px-4 py-3 align-top text-muted-foreground">
+                {description}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
-
-function Kbd({ k }: { k: string }) {
+function Key({ children }: { children: ReactNode }) {
   return (
-    <kbd className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-[11px] text-foreground">
-      {k}
+    <kbd className="inline-block rounded border border-border bg-secondary px-1.5 py-0.5 font-mono text-xs">
+      {children}
     </kbd>
   );
 }
-
-function Term({ t, d }: { t: string; d: string }) {
+function Help({ question, answer }: { question: string; answer: string }) {
   return (
-    <div className="flex flex-col">
-      <dt className="text-[13px] font-semibold text-foreground">{t}</dt>
-      <dd className="text-[12px] leading-relaxed text-muted-foreground">{d}</dd>
+    <div>
+      <dt className="font-semibold">{question}</dt>
+      <dd className="mt-1 text-muted-foreground">{answer}</dd>
     </div>
   );
 }

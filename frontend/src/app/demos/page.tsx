@@ -1,10 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FilmIcon, UploadCloudIcon, Loader2Icon, SparklesIcon, VideoIcon } from "lucide-react";
+import {
+  FilmIcon,
+  UploadCloudIcon,
+  Loader2Icon,
+  SparklesIcon,
+  VideoIcon,
+  SearchIcon,
+  LayoutGridIcon,
+  ListIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from "lucide-react";
 
 import {
   analyzeDemoVideo,
@@ -19,9 +30,10 @@ import { Card } from "@/components/ui/shadcn/card";
 import { Pagination } from "@/components/pagination";
 import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
-import { BenchmarkVideoLibrary } from "@/components/demos/benchmark-video-library";
+import { BenchmarkBrowser } from "@/components/demos/benchmark-browser";
 import { BENCHMARK_PAIRS, VideoPairCard } from "@/components/demos/video-pair-card";
-import { batchVideos, batchVideosWithoutResults, unprocessedVideos } from "@/lib/benchmark-gallery";
+import { getVideoVariantUrl, useVideoQuality } from "@/lib/video-quality";
+
 import { cn } from "@/lib/utils";
 import { useInView } from "@/lib/use-in-view";
 
@@ -38,14 +50,46 @@ export default function DemoVideosPage() {
   const router = useRouter();
 
   const [offset, setOffset] = useState(0);
-  const [tab, setTab] = useState<"pairs-with-mask" | "unprocessed" | "all">("pairs-with-mask");
   const videos = useQuery({
     queryKey: ["demo-videos", offset],
     queryFn: () => listDemoVideos(offset),
   });
 
-  // Filtering state
+  // Filtering and view state
   const [showUpload, setShowUpload] = useState(false);
+  const [selectedDebris, setSelectedDebris] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(0);
+  const [viewStyle, setViewStyle] = useState<"grid" | "browser">("grid");
+  const PAGE_SIZE = 6;
+
+  const debrisCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: BENCHMARK_PAIRS.length };
+    for (const pair of BENCHMARK_PAIRS) {
+      counts[pair.debrisClass] = (counts[pair.debrisClass] ?? 0) + 1;
+    }
+    return counts;
+  }, []);
+
+  const filteredPairs = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return BENCHMARK_PAIRS.filter((pair) => {
+      const matchDebris = selectedDebris === "all" || pair.debrisClass === selectedDebris;
+      const matchQuery =
+        !q ||
+        pair.truckId.toLowerCase().includes(q) ||
+        pair.debrisLabel.toLowerCase().includes(q) ||
+        String(pair.pairNumber).includes(q) ||
+        pair.matchFilename.toLowerCase().includes(q);
+      return matchDebris && matchQuery;
+    });
+  }, [selectedDebris, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPairs.length / PAGE_SIZE));
+  const paginatedPairs = useMemo(() => {
+    const start = page * PAGE_SIZE;
+    return filteredPairs.slice(start, start + PAGE_SIZE);
+  }, [filteredPairs, page]);
 
   // Upload state (SuperAdmin)
   const [files, setFiles] = useState<File[]>([]);
@@ -71,7 +115,11 @@ export default function DemoVideosPage() {
 
   const uploadMax = videos.data?.upload_max_bytes ?? 100 * 1024 ** 2;
   const analysisMax = videos.data?.analysis_max_bytes ?? 20 * 1024 ** 2;
-  const writable = can("ingest") && eventId && !selected?.tags.includes("read-only");
+  const writable =
+    can("ingest") &&
+    eventId &&
+    !selected?.tags.includes("read-only") &&
+    !selected?.tags.includes("playground");
 
   useEffect(() => {
     if (!uploading) return;
@@ -124,105 +172,35 @@ export default function DemoVideosPage() {
   const customVideos = videos.data?.items ?? [];
 
   return (
-    <AppShell section="Demo Videos">
-      <div className="lt-scroll lt-fab-safe flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-6">
-        {/* ── ULTRA-COMPACT HEADER (ZERO BLOAT) ── */}
-        <header className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border/60 pb-2.5 pt-0.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-sm sm:text-base font-bold tracking-tight text-foreground flex items-center gap-1.5">
-              <FilmIcon className="size-4 text-primary" />
-              Benchmark Footage
-            </h1>
-            <span className="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-              {batchVideos.length} In Latest Batch · {unprocessedVideos.length} Unprocessed
-            </span>
-            <span className="text-[11px] text-muted-foreground hidden lg:inline">
-              · Configurable Muse inference options:{" "}
-              <strong className="font-medium text-foreground">
-                Meta direct · Fireworks AI · Modal · Baseten
-              </strong>
-            </span>
+    <AppShell section="Video library">
+      <div className="lt-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-6">
+        <header className="flex flex-wrap items-end shrink-0 justify-between gap-4 pb-1 pt-1">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Video library</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Review real hurricane debris recovery video pairs with SAM 3.1 AI segmentation.
+            </p>
           </div>
-
-          <div className="flex items-center gap-2">
-            <Link href="/pipeline" className="text-xs font-medium text-primary hover:underline">
-              Pipeline →
+          <div className="flex items-center gap-3">
+            <Link href="/pipeline" className="text-sm text-muted-foreground hover:text-foreground">
+              View processing
             </Link>
-
             {isSuperAdmin && (
               <button
                 type="button"
                 onClick={() => setShowUpload((prev) => !prev)}
-                className="inline-flex h-7 items-center gap-1 rounded border border-border bg-background px-2 text-xs font-medium text-foreground hover:bg-accent"
+                className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:opacity-90"
               >
-                <UploadCloudIcon className="size-3" />
-                <span>{showUpload ? "Close" : "Upload"}</span>
+                <UploadCloudIcon className="size-3.5" />
+                {showUpload ? "Close upload" : "Upload footage"}
               </button>
             )}
           </div>
         </header>
 
-        {/* ── TWO-SECTION CATEGORY TABS (MASKS VS UNPROCESSED) ── */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
-          <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1 text-xs">
-            <button
-              type="button"
-              onClick={() => setTab("pairs-with-mask")}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-md px-3 py-1.5 font-semibold transition-all cursor-pointer",
-                tab === "pairs-with-mask"
-                  ? "bg-background text-foreground shadow-xs border border-border/80"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <SparklesIcon className="size-3.5 text-primary" />
-              <span>Latest Processed Batch</span>
-              <span className="rounded bg-primary/10 px-1.5 py-0.2 text-[10px] font-bold text-primary">
-                {batchVideos.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setTab("unprocessed")}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-md px-3 py-1.5 font-semibold transition-all cursor-pointer",
-                tab === "unprocessed"
-                  ? "bg-background text-foreground shadow-xs border border-border/80"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <FilmIcon className="size-3.5 text-amber-500" />
-              <span>Unprocessed Footage</span>
-              <span className="rounded bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                {unprocessedVideos.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setTab("all")}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer",
-                tab === "all"
-                  ? "bg-background text-foreground shadow-xs border border-border/80"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <span>All ({batchVideos.length + unprocessedVideos.length})</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="hidden sm:inline">
-              Meta SAM 3.1 & Muse Spark · Live Polygon Overlays
-            </span>
-          </div>
-        </div>
-
         {/* ── OPTIONAL SUPERADMIN UPLOAD DRAWER ── */}
         {isSuperAdmin && showUpload && (
-          <Card className="gap-3 p-4 border-dashed bg-muted/10">
+          <Card className="max-h-80 shrink-0 gap-3 overflow-y-auto p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <UploadCloudIcon className="size-4 text-primary" />
@@ -296,85 +274,179 @@ export default function DemoVideosPage() {
           </div>
         )}
 
-        {/* ── SECTION 1: PROCESSED BENCHMARK PAIRS WITH MASKS & REPLAY ── */}
-        {(tab === "pairs-with-mask" || tab === "all") && (
-          <section
-            aria-label="Processed pairs with segmentation masks"
-            className="flex flex-col gap-3"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="flex size-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="font-semibold text-foreground">
-                  Latest Benchmark Batch · Clips 001–025
+        {/* ── TOOLBAR: FILTER PILLS + SEARCH + VIEW SWITCHER ── */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[
+              { id: "all", label: "All", count: debrisCounts.all },
+              { id: "vegetative", label: "Vegetative", count: debrisCounts.vegetative ?? 0 },
+              { id: "construction_demolition", label: "C&D", count: debrisCounts.construction_demolition ?? 0 },
+              { id: "white_goods", label: "White goods", count: debrisCounts.white_goods ?? 0 },
+              { id: "hazardous", label: "Hazardous", count: debrisCounts.hazardous ?? 0 },
+            ].map(({ id, label, count }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  setSelectedDebris(id);
+                  setPage(0);
+                }}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  selectedDebris === id
+                    ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                <span>{label}</span>
+                <span className="rounded-full bg-background/20 px-1.5 py-0.2 text-[10px] opacity-80">
+                  {count}
                 </span>
-                <span className="text-muted-foreground hidden md:inline">
-                  — Synchronized raw CCTV & SAM 3.1 segmentation with Bed, Load, Body layer toggles,
-                  HUD fill %, and interactive replay.
-                </span>
-              </div>
-              <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                {BENCHMARK_PAIRS.length} Saved Results
-              </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(0);
+                }}
+                placeholder="Search truck, debris, clip…"
+                className="h-8 w-44 sm:w-56 rounded-md border border-border bg-background pl-8 pr-3 text-xs placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-primary"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  ×
+                </button>
+              )}
             </div>
 
-            <div className="grid gap-3.5 lg:grid-cols-2">
-              {BENCHMARK_PAIRS.map((pair) => (
-                <VideoPairCard
-                  key={pair.id}
-                  pair={pair}
-                  canAnalyze={Boolean(writable)}
-                  isAnalyzing={analyze.isPending}
-                  onAnalyze={(id) => analyze.mutate(id)}
-                />
-              ))}
+            <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setViewStyle("grid")}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded px-2 py-1 transition-colors",
+                  viewStyle === "grid"
+                    ? "bg-primary text-primary-foreground font-semibold"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                title="Grid with Dual Feeds"
+              >
+                <LayoutGridIcon className="size-3.5" />
+                <span className="hidden sm:inline">Grid</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewStyle("browser")}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded px-2 py-1 transition-colors",
+                  viewStyle === "browser"
+                    ? "bg-primary text-primary-foreground font-semibold"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                title="Sidebar Browser"
+              >
+                <ListIcon className="size-3.5" />
+                <span className="hidden sm:inline">List</span>
+              </button>
             </div>
-            {batchVideosWithoutResults.length > 0 && (
-              <div className="flex flex-col gap-3">
-                <p className="text-xs text-muted-foreground">
-                  Batch status: clip 004 returned no truck. Clips 019, 024 and 025 have no completed
-                  result in the saved batch; masks and estimates are not available yet.
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {batchVideosWithoutResults.map((video) => (
-                    <Card key={video.id} className="gap-2 overflow-hidden p-3">
-                      <video
-                        src={video.url}
-                        controls
-                        playsInline
-                        preload="none"
-                        poster={video.url
-                          .replace("/videos/", "/videos/thumbnails/")
-                          .replace(".mp4", ".jpg")}
-                        aria-label={`Benchmark clip ${video.id}`}
-                        className="aspect-video w-full rounded bg-black"
-                      />
-                      <span className="text-xs font-medium">
-                        Clip {video.id} ·{" "}
-                        {video.id === "004" ? "No truck detected" : "Result pending"}
-                      </span>
-                    </Card>
+          </div>
+        </div>
+
+        {/* ── CONTENT: EITHER MULTI-CARD GRID (DEFAULT) OR BROWSER ── */}
+        {viewStyle === "browser" ? (
+          <BenchmarkBrowser />
+        ) : (
+          <>
+            {filteredPairs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border py-16 text-center">
+                <FilmIcon className="size-8 text-muted-foreground/60" />
+                <p className="text-sm font-medium">No benchmark pairs match your filters</p>
+                <p className="text-xs text-muted-foreground">Try clearing search or choosing another debris class.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDebris("all");
+                    setSearchQuery("");
+                  }}
+                  className="mt-2 inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium hover:bg-muted"
+                >
+                  Reset filters
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {paginatedPairs.map((pair) => (
+                  <VideoPairCard key={pair.id} pair={pair} />
+                ))}
+              </div>
+            )}
+
+            {/* ── PAGINATION CONTROLS ── */}
+            {totalPages > 1 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/80 pt-3 text-xs text-muted-foreground">
+                <span>
+                  Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filteredPairs.length)} of {filteredPairs.length} benchmark pairs
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={page === 0}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                  >
+                    <ChevronLeftIcon className="size-3.5" />
+                    <span>Previous</span>
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setPage(i)}
+                      className={cn(
+                        "size-8 rounded-md text-xs font-medium transition-colors",
+                        page === i
+                          ? "bg-primary text-primary-foreground font-semibold"
+                          : "border border-border bg-background text-foreground hover:bg-muted",
+                      )}
+                    >
+                      {i + 1}
+                    </button>
                   ))}
+                  <button
+                    type="button"
+                    disabled={page >= totalPages - 1}
+                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                  >
+                    <span>Next</span>
+                    <ChevronRightIcon className="size-3.5" />
+                  </button>
                 </div>
               </div>
             )}
-          </section>
-        )}
-
-        {/* ── SECTION 2: UNPROCESSED BENCHMARK FOOTAGE (CLIPS 026–050) ── */}
-        {(tab === "unprocessed" || tab === "all") && (
-          <section aria-label="Unprocessed source clips" className="flex flex-col gap-3">
-            {tab === "all" && <div className="my-2 border-t border-border/80" />}
-            <BenchmarkVideoLibrary videos={unprocessedVideos} />
-          </section>
+          </>
         )}
 
         {/* ── ADDITIONAL / CUSTOM UPLOADED CLIPS (IF ANY) ── */}
         {customVideos.length > 0 && (
-          <div className="mt-2 flex flex-col gap-2 border-t border-border/80 pt-3">
+          <details className="max-h-72 shrink-0 overflow-y-auto border-t border-border pt-3">
+            <summary className="cursor-pointer text-sm font-medium">
+              Your uploaded footage ({customVideos.length})
+            </summary>
             <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
               <VideoIcon className="size-3.5 text-primary" />
-              <span>Additional Uploaded Feeds ({customVideos.length})</span>
+              <span>Uploaded clips</span>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -419,7 +491,7 @@ export default function DemoVideosPage() {
                 </Card>
               ))}
             </div>
-          </div>
+          </details>
         )}
 
         {videos.data && videos.data.total > 24 && (
@@ -486,11 +558,14 @@ function CustomClipPreview({ video }: { video: DemoVideo }) {
     );
   }
 
+  const { resolvedTier } = useVideoQuality();
+  const videoUrl = getVideoVariantUrl(playback.data.url, resolvedTier) ?? playback.data.url;
+
   return (
     <video
       ref={containerRef as any}
-      key={playback.data.url}
-      src={playback.data.url}
+      key={videoUrl}
+      src={videoUrl}
       controls
       playsInline
       preload="metadata"

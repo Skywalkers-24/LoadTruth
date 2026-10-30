@@ -14,6 +14,7 @@ import {
 import manifest from "@/lib/benchmark-videos.json";
 import { useInView } from "@/lib/use-in-view";
 import { cn } from "@/lib/utils";
+import { getVideoVariantUrl, useVideoQuality } from "@/lib/video-quality";
 
 /** Source footage awaiting batch processing (without masks yet) */
 export function BenchmarkVideoLibrary({

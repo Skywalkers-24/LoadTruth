@@ -147,8 +147,17 @@ export function useIngest() {
 export function useSubmitIngestJob() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ eventId, file }: { eventId: string; file: File }) =>
-      submitIngestJob(eventId, file),
+    mutationFn: ({
+      eventId,
+      file,
+      bypassCache,
+      keepFootage,
+    }: {
+      eventId: string;
+      file: File;
+      bypassCache?: boolean;
+      keepFootage?: boolean;
+    }) => submitIngestJob(eventId, file, { bypassCache, keepFootage }),
     onSuccess: (job, { eventId }) => {
       qc.setQueryData(["ingest-job", eventId], job);
       void qc.invalidateQueries({ queryKey: ["pipeline-progress", eventId] });
@@ -198,6 +207,7 @@ export function useUpdateTicket() {
 function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   return () => {
     void qc.invalidateQueries({ queryKey: ["tickets"] });
+    void qc.invalidateQueries({ queryKey: ["ticket-search"] });
     void qc.invalidateQueries({ queryKey: ["ticket"] });
     void qc.invalidateQueries({ queryKey: ["dashboard"] });
     void qc.invalidateQueries({ queryKey: ["reports-summary"] });
@@ -347,6 +357,7 @@ export function useTicketEvidence(ticketId: string | null, enabled: boolean = tr
     queryFn: () => api.getTicketEvidence(ticketId as string),
     enabled: Boolean(ticketId) && enabled,
     staleTime: 5 * 60_000,
+    refetchInterval: (query) => (query.state.data?.media_storage === "memory" ? 15_000 : false),
   });
 }
 

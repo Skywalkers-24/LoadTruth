@@ -5,6 +5,8 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { PlayIcon, PauseIcon, Volume2Icon, VolumeXIcon, Loader2Icon } from "lucide-react";
 
 import { fetchEvidenceMediaUrl, type TicketEvidence } from "@/lib/api";
+import { getVideoVariantUrl, useVideoQuality } from "@/lib/video-quality";
+import { QualitySelector } from "@/components/video/quality-selector";
 
 /** One object SAM found on one frame: its box and its mask outline. */
 export interface SamShape {
@@ -98,8 +100,16 @@ export function SamPlayer({
   poster,
   className,
 }: Props) {
-  const [url, setUrl] = useState<string | null>(videoUrl ?? null);
+  const [rawUrl, setRawUrl] = useState<string | null>(videoUrl ?? null);
+  const { resolvedTier } = useVideoQuality();
+  const isImage = evidence.media_kind === "image";
+  const url = useMemo(() => {
+    if (!rawUrl || isImage) return rawUrl;
+    return getVideoVariantUrl(rawUrl, resolvedTier);
+  }, [rawUrl, isImage, resolvedTier]);
+
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [readyUrl, setReadyUrl] = useState<string | null>(null);
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -109,19 +119,20 @@ export function SamPlayer({
   const [playError, setPlayError] = useState(false);
   const internalVideoRef = useRef<HTMLVideoElement>(null);
   const videoRef = externalVideoRef ?? internalVideoRef;
+  const timeRef = useRef(0);
   const loadClipId = useId().replaceAll(":", "");
-  const isImage = evidence.media_kind === "image";
 
   useEffect(() => {
     if (videoUrl) {
-      setUrl(videoUrl);
+      setRawUrl(videoUrl);
       setFailed(false);
       return;
     }
-    setUrl(null);
+    setRawUrl(null);
     setFailed(false);
     setFrame(0);
     setTime(0);
+    timeRef.current = 0;
     setDuration(0);
     setPlaying(false);
     setPlayError(false);
@@ -130,7 +141,7 @@ export function SamPlayer({
     fetchEvidenceMediaUrl(ticketId)
       .then((u) => {
         objectUrl = u;
-        if (alive) setUrl(u);
+        if (alive) setRawUrl(u);
         else URL.revokeObjectURL(u);
       })
       .catch(() => alive && setFailed(true));
@@ -138,9 +149,20 @@ export function SamPlayer({
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [ticketId, videoUrl]);
+  }, [ticketId, videoUrl, attempt]);
+
+  // A stalled network request or undecodable clip must not leave an endless spinner.
+  useEffect(() => {
+    if (url && readyUrl === url) return;
+    const timeout = window.setTimeout(() => setFailed(true), 20_000);
+    return () => window.clearTimeout(timeout);
+  }, [url, readyUrl, attempt]);
 
   const tracks = useMemo(() => {
+    if (!show.body && !show.bed && !show.load && !onLoadCoverage && !onFrame) {
+      const empty: SamTrack = { frames: new Map(), width: 0, height: 0, frameCount: 0 };
+      return { body: empty, bed: empty, rim: empty, load: empty };
+    }
     const media = isImage ? "image" : "video";
     return {
       body: parseSam(evidence.segments[TRUCK_BODY_LABEL] ?? "", media),
@@ -148,7 +170,7 @@ export function SamPlayer({
       rim: parseSam(evidence.segments.tailgate ?? "", media),
       load: mergeSamTracks(loadTexts(evidence.segments).map((text) => parseSam(text, media))),
     };
-  }, [evidence.segments, isImage]);
+  }, [evidence.segments, isImage, show.body, show.bed, show.load, onLoadCoverage, onFrame]);
 
   const width = tracks.body.width || tracks.bed.width || tracks.load.width;
   const height = tracks.body.height || tracks.bed.height || tracks.load.height;
@@ -207,8 +229,22 @@ export function SamPlayer({
 
   if (failed) {
     return (
-      <div className="absolute inset-0 grid place-items-center p-6 text-[12px] text-[var(--color-subtle)]">
-        The evidence clip could not be loaded.
+      <div
+        role="alert"
+        className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black p-6 text-center text-sm text-white/80"
+      >
+        <p>Footage could not be loaded.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setFailed(false);
+            setReadyUrl(null);
+            setAttempt((value) => value + 1);
+          }}
+          className="min-h-10 rounded-md border border-white/30 px-4"
+        >
+          Retry footage
+        </button>
       </div>
     );
   }
@@ -251,6 +287,7 @@ export function SamPlayer({
             <img
               src={url}
               alt="Evidence frame"
+              onLoad={() => setReadyUrl(url)}
               className="size-full object-contain"
               onError={() => setFailed(true)}
             />
@@ -259,7 +296,7 @@ export function SamPlayer({
               ref={videoRef}
               src={url}
               poster={poster}
-              preload="metadata"
+              preload="auto"
               className="size-full object-contain"
               autoPlay={autoPlay}
               muted={muted}
@@ -267,8 +304,17 @@ export function SamPlayer({
               playsInline
               onPlay={() => setPlaying(true)}
               onPause={() => setPlaying(false)}
-              onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
-              onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+              onTimeUpdate={(e) => {
+                const cur = e.currentTarget.currentTime;
+                setTime(cur);
+                timeRef.current = cur;
+              }}
+              onLoadedMetadata={(e) => {
+                setDuration(e.currentTarget.duration);
+                if (timeRef.current > 0 && Math.abs(e.currentTarget.currentTime - timeRef.current) > 0.1) {
+                  e.currentTarget.currentTime = timeRef.current;
+                }
+              }}
               onLoadedData={() => setReadyUrl(url)}
               onError={() => setFailed(true)}
               aria-label="Evidence clip with segmentation overlay"
@@ -278,7 +324,7 @@ export function SamPlayer({
           <div className="absolute inset-0 grid place-items-center bg-black/80 text-xs text-white/80">
             <span className="flex items-center gap-2">
               <Loader2Icon className="size-4 animate-spin" />
-              Synchronizing footage and masks…
+              Loading footage…
             </span>
           </div>
         )}
@@ -392,6 +438,7 @@ export function SamPlayer({
           <span className="text-[11px] tabular-nums">
             {clockTime(time)} / {clockTime(duration)}
           </span>
+          <QualitySelector />
           <button
             type="button"
             aria-label={muted ? "Unmute evidence" : "Mute evidence"}

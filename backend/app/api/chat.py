@@ -13,14 +13,16 @@ import json
 from collections.abc import AsyncIterator
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.ai.agent import STARTER_PROMPTS, answer, stream_answer
 from app.ai.analyst import AnalystTools
 from app.ai.factory import get_ai_client
+from app.api.deps import CurrentMember
 from app.api.repo import ActiveTenant, Repository
+from app.auth.roles import is_super_admin
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -46,11 +48,22 @@ def _sse(event: str, data: dict[str, object]) -> str:
 
 
 @router.post("")
-async def chat(repo: Repository, tenant: ActiveTenant, body: ChatRequest) -> StreamingResponse:
+async def chat(
+    repo: Repository, tenant: ActiveTenant, body: ChatRequest, member: CurrentMember
+) -> StreamingResponse:
     """Answer one analyst question, streamed as SSE. Read-only and grounded."""
     tools = AnalystTools(repo, tenant, body.event_id)
     event_name = body.event_name or "this event"
-    ai = get_ai_client()
+    event = await repo.get_event(tenant, body.event_id)
+    if event is None:
+        raise HTTPException(404, "event not found")
+    # Shared practice and read-only demos use the grounded local composer.
+    # No public demo role can consume inference credits through the analyst.
+    ai = (
+        get_ai_client()
+        if is_super_admin(member.role) and not {"playground", "read-only"}.intersection(event.tags)
+        else None
+    )
 
     async def gen() -> AsyncIterator[str]:
         reply = await answer(body.message, tools, event_name, ai)

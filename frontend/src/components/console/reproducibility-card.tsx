@@ -31,10 +31,10 @@ export function ReproducibilityCard({
   return (
     <CollapsibleSectionCard
       id="reproducibility"
-      title="Reproducibility"
+      title="Check saved calculation"
       icon={<ShieldCheckIcon size={15} />}
-      summary="Re-derive the fill % from the stored evidence"
-      defaultOpen
+      summary="Recalculate the saved fill estimate"
+      defaultOpen={false}
       fitHeight={fitHeight}
     >
       <div className="flex flex-col gap-3 @[42rem]:flex-1 @[42rem]:justify-center">
@@ -74,7 +74,7 @@ function ReverifyPanel({ ticket }: { ticket: Ticket }) {
         onClick={run}
         disabled={state === "running"}
       >
-        {state === "running" ? "Re-verifying…" : "Re-verify calculation"}
+        {state === "running" ? "Re-verifying…" : "Recalculate estimate"}
       </Button>
       {error && <p className="text-[12px] text-[var(--color-destructive)]">{error}</p>}
       {result && <ReverifyResult result={result} />}

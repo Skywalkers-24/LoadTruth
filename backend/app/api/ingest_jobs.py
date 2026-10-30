@@ -3,17 +3,25 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import tempfile
 from datetime import UTC
 from typing import Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select, update
 
-from app.api.demo_videos import owned_video
-from app.api.deps import CurrentMember, require
+from app.api.demo_videos import (
+    UploadOut,
+    VideoInput,
+    VideoOut,
+    begin_upload,
+    complete_upload,
+    owned_video,
+)
+from app.api.deps import CurrentMember, authorize_fresh_analysis, require
 from app.api.ingest import ingest_clip
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_ingest
@@ -21,7 +29,7 @@ from app.config import get_settings
 from app.db.engine import get_sessionmaker as get_sessionmaker
 from app.db.models import AnalysisJob, DemoVideo
 from app.log import get_logger
-from app.pipeline import b2_store
+from app.pipeline import b2_store, evidence_store
 from app.pipeline.trace import get_progress_store
 from app.tickets.repository import SqlTicketRepository
 from app.tickets.schemas import TicketOut, ticket_to_out
@@ -39,6 +47,8 @@ class IngestJobOut(BaseModel):
     status: Literal["accepted", "running", "completed", "failed"]
     started_at: float
     detail: str | None = None
+    keep_footage: bool = True
+    bypass_cache: bool = False
     ticket: TicketOut | None = None
 
 
@@ -59,6 +69,8 @@ async def job_out(repo: SqlTicketRepository, row: AnalysisJob) -> IngestJobOut:
             row.created_at.replace(tzinfo=UTC) if row.created_at.tzinfo is None else row.created_at
         ).timestamp(),
         detail=row.detail,
+        bypass_cache=row.bypass_cache,
+        keep_footage=row.keep_footage,
         ticket=ticket,
     )
 
@@ -79,14 +91,24 @@ async def _run(job_id: UUID) -> None:
         try:
             # Disk is transient processing workspace, never fallback storage.
             # No media bytes live in the queue, and only one clip is decoded at a time.
-            with tempfile.TemporaryFile() as handle:
-                content_hash = await asyncio.to_thread(
-                    b2_store.download_to,
-                    video.object_key,
-                    handle,
-                    get_settings().analysis_max_bytes,
-                    video.object_version,
-                )
+            with (
+                io.BytesIO() if video.object_key.startswith("memory/") else tempfile.TemporaryFile()
+            ) as handle:
+                if video.object_key.startswith("memory/"):
+                    entry = evidence_store.memory_entry(video.object_key)
+                    if entry is None:
+                        raise HTTPException(410, "Temporary upload expired. Upload the clip again.")
+                    handle.write(entry[1])
+                    handle.seek(0)
+                    content_hash = video.id.hex
+                else:
+                    content_hash = await asyncio.to_thread(
+                        b2_store.download_to,
+                        video.object_key,
+                        handle,
+                        get_settings().analysis_max_bytes,
+                        video.object_version,
+                    )
                 row.content_hash = content_hash
                 upload = UploadFile(filename=video.filename, file=handle)
                 ticket = await ingest_clip(
@@ -94,12 +116,15 @@ async def _run(job_id: UUID) -> None:
                     tenant=tenant,
                     event_id=event_id,
                     file=upload,
-                    bypass_cache=False,
+                    bypass_cache=row.bypass_cache,
+                    keep_footage=row.keep_footage,
                 )
                 row.ticket_id = UUID(ticket.id) if isinstance(ticket.id, str) else ticket.id
                 row.status, row.detail = "completed", None
                 # The ticket and completion marker commit in the same transaction.
                 await session.commit()
+                if video.object_key.startswith("memory/"):
+                    evidence_store._memory.pop(video.object_key, None)
         except asyncio.CancelledError:
             await session.rollback()
             raise
@@ -118,7 +143,7 @@ async def _run(job_id: UUID) -> None:
                 event_id,
                 video_id.hex,
                 outcome="failed",
-                detail="Analysis failed. The B2 clip is preserved.",
+                detail="Analysis failed. Temporary uploads may need to be uploaded again.",
             )
             log.warning("analysis_job_failed", job_id=str(job_id), error_type=type(exc).__name__)
 
@@ -161,18 +186,68 @@ async def recover_ingest_jobs() -> None:
     ensure_worker()
 
 
+async def _working_event(repo: SqlTicketRepository, tenant: UUID, event_id: UUID) -> None:
+    event = await repo.get_event(tenant, event_id)
+    if event is None:
+        raise HTTPException(404, "event not found")
+    if "playground" in event.tags:
+        raise HTTPException(409, "The playground uses saved results only.")
+    if "read-only" in event.tags:
+        raise HTTPException(409, "Choose a working event to analyze clips.")
+
+
+@router.post(
+    "/events/{event_id}/ingest-uploads",
+    response_model=UploadOut,
+    status_code=201,
+    dependencies=[Depends(require(can_ingest, "You do not have permission to upload clips."))],
+)
+async def begin_ticket_upload(
+    event_id: UUID, body: VideoInput, repo: Repository, tenant: ActiveTenant
+) -> UploadOut:
+    await _working_event(repo, tenant, event_id)
+    if body.size_bytes > get_settings().analysis_max_bytes:
+        raise HTTPException(413, "Trim this clip below the analysis size limit.")
+    return await begin_upload(body, repo, tenant)
+
+
+@router.post(
+    "/events/{event_id}/ingest-uploads/{video_id}/complete",
+    response_model=VideoOut,
+    dependencies=[Depends(require(can_ingest, "You do not have permission to upload clips."))],
+)
+async def complete_ticket_upload(
+    event_id: UUID, video_id: UUID, repo: Repository, tenant: ActiveTenant
+) -> VideoOut:
+    await _working_event(repo, tenant, event_id)
+    video = await owned_video(repo, tenant, video_id)
+    if video.size_bytes > get_settings().analysis_max_bytes:
+        raise HTTPException(413, "Trim this clip below the analysis size limit.")
+    return await complete_upload(repo, tenant, video_id)
+
+
 @router.post(
     "/events/{event_id}/demo-videos/{video_id}/analyze",
     response_model=IngestJobOut,
     status_code=202,
-    dependencies=[Depends(require(can_ingest, "You do not have permission to analyze clips."))],
+    dependencies=[
+        Depends(require(can_ingest, "You do not have permission to analyze clips.")),
+        Depends(authorize_fresh_analysis),
+    ],
 )
 async def analyze_video(
-    repo: Repository, tenant: ActiveTenant, event_id: UUID, video_id: UUID
+    repo: Repository,
+    tenant: ActiveTenant,
+    event_id: UUID,
+    video_id: UUID,
+    bypass_cache: bool = Query(default=False),
+    keep_footage: bool = Query(default=True),
 ) -> IngestJobOut:
     event = await repo.get_event(tenant, event_id)
     if event is None:
         raise HTTPException(404, "event not found")
+    if "playground" in event.tags:
+        raise HTTPException(409, "The playground uses saved results only.")
     if "read-only" in event.tags:
         raise HTTPException(409, "Choose a working event to analyze clips.")
     video = await owned_video(repo, tenant, video_id)
@@ -201,13 +276,65 @@ async def analyze_video(
     ).scalar_one_or_none()
     if active:
         raise HTTPException(409, "This event already has a queued or running clip.")
-    row = AnalysisJob(tenant_id=tenant, event_id=event_id, video_id=video_id, status="queued")
+    row = AnalysisJob(
+        tenant_id=tenant,
+        event_id=event_id,
+        video_id=video_id,
+        status="queued",
+        bypass_cache=bypass_cache,
+        keep_footage=keep_footage,
+    )
     repo.session.add(row)
     await repo.session.flush()
     result = await job_out(repo, row)
     await repo.session.commit()
     ensure_worker()
     return result
+
+
+@router.post(
+    "/events/{event_id}/temporary-ingest",
+    response_model=IngestJobOut,
+    status_code=202,
+    dependencies=[
+        Depends(require(can_ingest, "Administrator login required.")),
+        Depends(authorize_fresh_analysis),
+    ],
+)
+async def temporary_ingest(
+    event_id: UUID,
+    file: UploadFile,
+    repo: Repository,
+    tenant: ActiveTenant,
+    bypass_cache: bool = Query(default=False),
+) -> IngestJobOut:
+    await _working_event(repo, tenant, event_id)
+    limit = min(get_settings().analysis_max_bytes, evidence_store.MEMORY_MAX_BYTES)
+    data = await file.read(limit + 1)
+    if not data or len(data) > limit:
+        raise HTTPException(413, "Choose a non-empty clip below the analysis size limit.")
+    video_id = uuid4()
+    key = f"memory/{video_id}"
+    evidence_store.remember(key, data, file.content_type or "video/mp4")
+    video = DemoVideo(
+        id=video_id,
+        tenant_id=tenant,
+        title="Temporary live upload",
+        filename=(file.filename or "upload.mp4")[:240],
+        mime=file.content_type or "video/mp4",
+        size_bytes=len(data),
+        object_key=key,
+        status="ready",
+    )
+    repo.session.add(video)
+    await repo.session.flush()
+    try:
+        return await analyze_video(
+            repo, tenant, event_id, video_id, bypass_cache=bypass_cache, keep_footage=False
+        )
+    except Exception:
+        evidence_store._memory.pop(key, None)
+        raise
 
 
 @router.get("/events/{event_id}/ingest-jobs", response_model=IngestJobOut | None)

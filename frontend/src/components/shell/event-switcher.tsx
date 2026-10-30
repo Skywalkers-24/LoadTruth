@@ -42,7 +42,8 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
       .includes(q.trim().toLowerCase()),
   );
 
-  if (isLoading) return <Skeleton className={compact ? "h-9 w-72 rounded-lg" : "h-12 w-full rounded-lg"} />;
+  if (isLoading)
+    return <Skeleton className={compact ? "h-9 w-72 rounded-lg" : "h-12 w-full rounded-lg"} />;
 
   if (compact) {
     return (
@@ -50,6 +51,7 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
+          aria-label={`Switch event: ${selected?.name ?? "Select an event"}`}
           aria-haspopup="dialog"
           aria-expanded={open}
           className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 text-left transition-colors hover:border-[var(--color-brand)]"
@@ -70,6 +72,7 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
                 : (selected?.name ?? "Select an event")}
             </span>
           </span>
+          {selected?.tags.includes("read-only") && <Badge tone="neutral">Read only</Badge>}
           <ChevronDownIcon
             size={15}
             className="shrink-0 text-muted-foreground transition-transform"
@@ -130,104 +133,121 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
         )}
       >
         {/* Org header */}
-          <div className="flex items-center gap-2.5 border-b border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2.5">
-            <span
-              className="grid size-7 shrink-0 place-items-center rounded-md text-[11px] font-bold text-white"
-              style={{ backgroundColor: "var(--color-brand-fill)" }}
-              aria-hidden
-            >
-              {initials}
+        <div className="flex items-center gap-2.5 border-b border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2.5">
+          <span
+            className="grid size-7 shrink-0 place-items-center rounded-md text-[11px] font-bold text-white"
+            style={{ backgroundColor: "var(--color-brand-fill)" }}
+            aria-hidden
+          >
+            {initials}
+          </span>
+          <span className="flex min-w-0 flex-col leading-tight">
+            <span className="truncate text-[12px] font-semibold text-[var(--color-text)]">
+              {org}
             </span>
-            <span className="flex min-w-0 flex-col leading-tight">
-              <span className="truncate text-[12px] font-semibold text-[var(--color-text)]">{org}</span>
-              <span className="text-[10px] uppercase tracking-wide text-[var(--color-subtle)]">
-                Organization
+            <span className="text-[10px] uppercase tracking-wide text-[var(--color-subtle)]">
+              Organization
+            </span>
+          </span>
+        </div>
+
+        {/* Event search + list */}
+        <div className="p-2">
+          {events.length > 4 && (
+            <div className="relative mb-2">
+              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-subtle)]">
+                <SearchIcon size={14} />
               </span>
-            </span>
-          </div>
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search events…"
+                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] py-1.5 pl-8 pr-2 text-[13px] text-[var(--color-text)] placeholder:text-[var(--color-subtle)] focus:border-[var(--color-accent)] focus:outline-none"
+                autoFocus
+              />
+            </div>
+          )}
 
-          {/* Event search + list */}
-          <div className="p-2">
-            {events.length > 4 && (
-              <div className="relative mb-2">
-                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-subtle)]">
-                  <SearchIcon size={14} />
-                </span>
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search events…"
-                  className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] py-1.5 pl-8 pr-2 text-[13px] text-[var(--color-text)] placeholder:text-[var(--color-subtle)] focus:border-[var(--color-accent)] focus:outline-none"
-                  autoFocus
-                />
-              </div>
-            )}
-
-            {isError ? (
-              <EmptyState title="Events unavailable" />
-            ) : filtered.length === 0 ? (
-              <EmptyState title="No matching events" />
-            ) : (
-              <ul className="lt-scroll flex max-h-64 flex-col gap-0.5 overflow-y-auto">
-                {filtered.map((e) => {
-                  const active = e.id === selectedId;
-                  return (
-                    <li key={e.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedId(e.id);
-                          setOpen(false);
-                          setQ("");
-                        }}
-                        className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-[var(--color-surface-2)]"
-                        style={active ? { backgroundColor: "var(--color-brand-soft)" } : undefined}
-                      >
-                        <span className="flex min-w-0 flex-1 flex-col leading-tight">
-                          <span className="text-[13px] font-medium leading-snug text-[var(--color-text)]">
-                            {e.name}
-                          </span>
-                          {e.location && (
-                            <span className="text-[11px] text-[var(--color-muted-foreground)]">
-                              {e.location}
-                            </span>
-                          )}
-                          {e.tags?.length > 0 && eventTagBadges(e.tags).length > 0 && (
-                            <span className="mt-1 flex flex-wrap gap-1">
-                              {eventTagBadges(e.tags).map((tag) => (
-                                <Badge key={tag.key} tone={tag.tone}>
-                                  {tag.label}
-                                </Badge>
-                              ))}
-                            </span>
-                          )}
+          {isError ? (
+            <EmptyState title="Events unavailable" />
+          ) : filtered.length === 0 ? (
+            <EmptyState title="No matching events" />
+          ) : (
+            <ul className="lt-scroll flex max-h-64 flex-col gap-0.5 overflow-y-auto">
+              {filtered.map((e) => {
+                const active = e.id === selectedId;
+                return (
+                  <li key={e.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedId(e.id);
+                        setOpen(false);
+                        setQ("");
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-[var(--color-surface-2)]"
+                      style={active ? { backgroundColor: "var(--color-brand-soft)" } : undefined}
+                    >
+                      <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                        <span className="text-[13px] font-medium leading-snug text-[var(--color-text)]">
+                          {e.name}
                         </span>
-                        <Badge tone={e.status === "active" ? "ok" : "neutral"}>{e.status}</Badge>
-                        {active && (
-                          <span className="text-[var(--color-brand)]" aria-hidden>
-                            <CheckIcon size={15} />
+                        {e.location && (
+                          <span className="text-[11px] text-[var(--color-muted-foreground)]">
+                            {e.location}
                           </span>
                         )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+                        {e.tags?.length > 0 && eventTagBadges(e.tags).length > 0 && (
+                          <span className="mt-1 flex flex-wrap gap-1">
+                            {eventTagBadges(e.tags).map((tag) => (
+                              <Badge key={tag.key} tone={tag.tone}>
+                                {tag.label}
+                              </Badge>
+                            ))}
+                          </span>
+                        )}
+                      </span>
+                      <Badge tone={e.status === "active" ? "ok" : "neutral"}>{e.status}</Badge>
+                      {active && (
+                        <span className="text-[var(--color-brand)]" aria-hidden>
+                          <CheckIcon size={15} />
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
+      </div>
     );
   }
 }
 
 function eventTagBadges(tags: string[]) {
   const badges: { key: string; label: string; tone: "neutral" | "accent" | "ok" | "info" }[] = [];
-  if (tags.includes("judge") || tags.includes("benchmarked")) {
-    badges.push({ key: "judge-benchmarked", label: "Judge benchmarked", tone: "ok" });
+  if (tags.includes("judge") || tags.includes("benchmarked") || tags.includes("benchmark")) {
+    badges.push({
+      key: "judge-benchmarked",
+      label: tags.includes("judge")
+        ? "Judge benchmarked"
+        : tags.includes("benchmark-50")
+          ? "50-video benchmark"
+          : "Benchmarked",
+      tone: "ok",
+    });
   }
   if (tags.includes("meta-processed")) {
     badges.push({ key: "meta-processed", label: "Meta processed", tone: "info" });
   }
+  if (tags.includes("muse-medium")) {
+    badges.push({ key: "muse-medium", label: "Muse · medium", tone: "accent" });
+  }
+  if (tags.includes("playground"))
+    badges.push({ key: "playground", label: "Practice · no AI credits", tone: "info" });
+  if (tags.includes("admin-only"))
+    badges.push({ key: "admin-only", label: "Administrator edits only", tone: "neutral" });
   if (tags.includes("read-only")) {
     badges.push({ key: "read-only", label: "Read only", tone: "neutral" });
   }

@@ -20,8 +20,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
  * never shifts when a user picks a different theme. This follows the role-based
  * color approach of Carbon/Fluent/Atlassian and WCAG 2.2 AA guidance.
  */
-export type Theme =
-  "command-blue" | "field-ops" | "indigo-ai" | "civic-evergreen" | "arctic-cyan" | "plum-signal";
+export type Theme = "enterprise" | "catppuccin" | "civic-evergreen";
 
 export type ThemeMode = "dark" | "light";
 
@@ -38,29 +37,22 @@ export interface ThemeMeta {
 }
 
 /** Ordered theme catalog. Order = display order in the picker. */
-const COMMAND_BLUE: ThemeMeta = {
-  id: "command-blue",
-  label: "Command Blue",
-  description: "Best overall · professional navy + electric blue",
-  swatches: ["#0b1220", "#121d30", "#8ab4ff"],
-  swatchesLight: ["#f5f8fc", "#ffffff", "#245eea"],
+const ENTERPRISE: ThemeMeta = {
+  id: "enterprise",
+  label: "Enterprise",
+  description: "Atlassian-inspired · neutral surfaces + clear blue actions",
+  swatches: ["#1d2125", "#22272b", "#0c66e4"],
+  swatchesLight: ["#f7f8f9", "#ffffff", "#0c66e4"],
 };
 
 export const THEMES: ThemeMeta[] = [
-  COMMAND_BLUE,
+  ENTERPRISE,
   {
-    id: "field-ops",
-    label: "Field Ops Teal",
-    description: "Operational · charcoal + teal",
-    swatches: ["#0a1416", "#122426", "#5eead4"],
-    swatchesLight: ["#f2f8f7", "#ffffff", "#0f766e"],
-  },
-  {
-    id: "indigo-ai",
-    label: "Indigo AI",
-    description: "AI-focused · deep indigo + periwinkle",
-    swatches: ["#0d1020", "#171d36", "#a5b4fc"],
-    swatchesLight: ["#f7f7fc", "#ffffff", "#4338ca"],
+    id: "catppuccin",
+    label: "Catppuccin",
+    description: "Mocha at night · Latte in daylight",
+    swatches: ["#1e1e2e", "#181825", "#cba6f7"],
+    swatchesLight: ["#eff1f5", "#e6e9ef", "#8839ef"],
   },
   {
     id: "civic-evergreen",
@@ -69,26 +61,12 @@ export const THEMES: ThemeMeta[] = [
     swatches: ["#0b1510", "#14251b", "#86efac"],
     swatchesLight: ["#f4f8f4", "#ffffff", "#166534"],
   },
-  {
-    id: "arctic-cyan",
-    label: "Arctic Cyan",
-    description: "Technical · blue charcoal + sky cyan",
-    swatches: ["#0b131a", "#132431", "#7dd3fc"],
-    swatchesLight: ["#f3f8fb", "#ffffff", "#0369a1"],
-  },
-  {
-    id: "plum-signal",
-    label: "Plum Signal",
-    description: "Experimental · plum + magenta",
-    swatches: ["#160e1d", "#25182f", "#f0abfc"],
-    swatchesLight: ["#fbf6fc", "#ffffff", "#a21caf"],
-  },
 ];
 
 const THEME_IDS = THEMES.map((t) => t.id);
 
 export function themeMeta(id: Theme): ThemeMeta {
-  return THEMES.find((t) => t.id === id) ?? COMMAND_BLUE;
+  return THEMES.find((t) => t.id === id) ?? ENTERPRISE;
 }
 
 function isTheme(v: unknown): v is Theme {
@@ -113,32 +91,39 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const THEME_KEY = "loadtruth-theme";
 const MODE_KEY = "loadtruth-mode";
-const DEFAULT_THEME: Theme = "command-blue";
+const DEFAULT_THEME: Theme = "enterprise";
 const DEFAULT_MODE: ThemeMode = "dark";
 
 /**
- * Map legacy theme ids (from every prior iteration) onto the new identities so
- * a returning user keeps a sensible look.
+ * Map legacy and disabled theme ids onto the active identities.
+ * "command-blue" (now Enterprise) and disabled themes (Field Ops, Indigo, Arctic Cyan, Plum)
+ * gracefully migrate to "enterprise".
  */
 function migrateTheme(stored: string | null): Theme | null {
   if (isTheme(stored)) return stored;
   switch (stored) {
     case "enterprise":
+    case "command-blue":
     case "midnight":
     case "dark":
     case "light":
     case "daylight":
     case "classic":
-      return "command-blue";
+    case "field-ops":
     case "graphite":
-      return "field-ops";
-    case "abyss":
+    case "indigo-ai":
+    case "indigo":
+    case "arctic-cyan":
     case "arctic":
-      return "arctic-cyan";
+    case "abyss":
+    case "plum-signal":
+    case "plum":
+      return "enterprise";
+    case "catppuccin":
+      return "catppuccin";
+    case "civic-evergreen":
     case "evergreen":
       return "civic-evergreen";
-    case "plum":
-      return "plum-signal";
     default:
       return null;
   }
@@ -218,7 +203,27 @@ export const themeInitScript = `
 (function(){try{
   var tk='${THEME_KEY}',mk='${MODE_KEY}';
   var s=localStorage.getItem(tk);
-  var map={enterprise:'command-blue',midnight:'command-blue',dark:'command-blue',light:'command-blue',daylight:'command-blue',classic:'command-blue',graphite:'field-ops',abyss:'arctic-cyan',arctic:'arctic-cyan',evergreen:'civic-evergreen',plum:'plum-signal'};
+  var map={
+    enterprise:'enterprise',
+    'command-blue':'enterprise',
+    midnight:'enterprise',
+    dark:'enterprise',
+    light:'enterprise',
+    daylight:'enterprise',
+    classic:'enterprise',
+    'field-ops':'enterprise',
+    graphite:'enterprise',
+    'indigo-ai':'enterprise',
+    indigo:'enterprise',
+    'arctic-cyan':'enterprise',
+    arctic:'enterprise',
+    abyss:'enterprise',
+    'plum-signal':'enterprise',
+    plum:'enterprise',
+    catppuccin:'catppuccin',
+    'civic-evergreen':'civic-evergreen',
+    evergreen:'civic-evergreen'
+  };
   var ids=${JSON.stringify(THEME_IDS)};
   var t=(ids.indexOf(s)>=0?s:map[s])||'${DEFAULT_THEME}';
   var m=localStorage.getItem(mk); if(m!=='dark'&&m!=='light'){m='${DEFAULT_MODE}';}

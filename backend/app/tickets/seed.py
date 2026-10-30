@@ -436,9 +436,7 @@ async def _migrate_legacy_demo_tenant(session: AsyncSession) -> None:
         models.TicketEvidence,
     ):
         await session.execute(
-            update(model)
-            .where(model.tenant_id == source_tenant)
-            .values(tenant_id=target_tenant)
+            update(model).where(model.tenant_id == source_tenant).values(tenant_id=target_tenant)
         )
 
     if movable_videos:
@@ -462,6 +460,30 @@ async def _migrate_legacy_demo_tenant(session: AsyncSession) -> None:
     )
 
 
+PLAYGROUND_EVENT_ID = UUID("77777777-7777-4777-8777-777777777777")
+ADMIN_DEMO_EVENT_ID = UUID("88888888-8888-4888-8888-888888888888")
+
+
+async def _seed_workspaces(session: AsyncSession, tenant_id: UUID) -> None:
+    for event_id, name, tags in [
+        (PLAYGROUND_EVENT_ID, "LoadTruth Practice Playground", ["playground", "saved-results"]),
+        (ADMIN_DEMO_EVENT_ID, "LoadTruth Live Demonstration", ["admin-only", "live-demo"]),
+    ]:
+        if await session.get(models.Event, event_id) is None:
+            session.add(
+                models.Event(
+                    id=event_id,
+                    tenant_id=tenant_id,
+                    name=name,
+                    location="Demonstration workspace",
+                    status="active",
+                    tags=tags,
+                    rate_table=dict(_events()[0]["rate_table"]),
+                )
+            )
+    await session.flush()
+
+
 async def seed_demo(session: AsyncSession) -> None:
     """Idempotently seed the demo tenant from `seed.json`. Safe on every startup.
 
@@ -472,6 +494,7 @@ async def seed_demo(session: AsyncSession) -> None:
     data = _seed_data()
     tenant_id = DEMO_TENANT_ID
     events = _events()
+    await _seed_workspaces(session, tenant_id)
 
     # Accuracy is now computed from real monitor calls vs. machine estimates
     # (see repository._compute_accuracy_within_10pct), so no seeded figure is

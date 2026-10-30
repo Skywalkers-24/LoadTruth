@@ -57,6 +57,12 @@ BENCHMARK_MEDIA = {
 }
 
 
-def benchmark_media_url(content_hash: str) -> str | None:
+def benchmark_media_url(content_hash: str, quality: str = "high") -> str | None:
     path = BENCHMARK_MEDIA.get(content_hash)
-    return f"{CLOUDFLARE_ORIGIN}{path}" if path else None
+    if not path:
+        return None
+    if quality == "low":
+        path = path.replace(".mp4", "-low.mp4")
+    elif quality in {"med", "medium"}:
+        path = path.replace(".mp4", "-med.mp4")
+    return f"{CLOUDFLARE_ORIGIN}{path}"

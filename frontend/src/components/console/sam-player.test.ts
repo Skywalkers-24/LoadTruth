@@ -162,10 +162,10 @@ describe("SAM video overlay readiness", () => {
     const video = host.querySelector("video");
     expect(video?.autoplay).toBe(false);
     expect(host.querySelector("svg.pointer-events-none")).toBeNull();
-    expect(host.textContent).toContain("Synchronizing footage and masks");
+    expect(host.textContent).toContain("Loading footage");
 
     await act(async () => video?.dispatchEvent(new Event("loadeddata")));
     expect(host.querySelector("svg.pointer-events-none")).not.toBeNull();
-    expect(host.textContent).not.toContain("Synchronizing footage and masks");
+    expect(host.textContent).not.toContain("Loading footage");
   });
 });

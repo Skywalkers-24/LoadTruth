@@ -6,7 +6,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightIcon, CheckCircle2Icon, Loader2Icon, UploadCloudIcon } from "lucide-react";
 
-import { ApiError, getTicketPipeline, listDemoVideos, type PipelineProgress } from "@/lib/api";
+import {
+  createPracticeTicket,
+  listPracticeSources,
+  ApiError,
+  getTicketPipeline,
+  listDemoVideos,
+  type PipelineProgress,
+} from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
 import { LivePipelineFlow } from "@/components/ai/live-pipeline-flow";
 import { DEFAULT_PIPELINE_STAGES, PipelineWorkbench } from "@/components/ai/pipeline-workbench";
@@ -55,7 +62,10 @@ export default function NewTicketPage() {
 
 function CaptureWorkspace() {
   const { selected, selectedId: eventId } = useEventContext();
-  const { can } = useAuth();
+  const { can, member } = useAuth();
+  const canRunFresh = member?.role === "super_admin";
+  const [bypassCache, setBypassCache] = useState(false);
+  const [keepFootage, setKeepFootage] = useState(true);
   const router = useRouter();
   const ingest = useSubmitIngestJob();
   const latest = useLatestIngestJob(eventId);
@@ -90,7 +100,7 @@ function CaptureWorkspace() {
     staleTime: 60_000,
   });
 
-  const allowed = can("ingest");
+  const allowed = can("ingest") && canRunFresh;
   const showcaseReadOnly = Boolean(selected?.tags.includes("read-only"));
 
   function submit(file: File) {
@@ -116,7 +126,7 @@ function CaptureWorkspace() {
     ]);
     setIgnoredAttempt(previousRun ? pipelineAttemptKey(previousRun) : undefined);
     ingest.mutate(
-      { eventId, file },
+      { eventId, file, bypassCache: canRunFresh && bypassCache, keepFootage },
       {
         onError: (err) => setError(ingestErrorMessage(err)),
       },
@@ -129,13 +139,18 @@ function CaptureWorkspace() {
     if (inputRef.current) inputRef.current.value = "";
   }
 
+  if (selected?.tags.includes("playground") && eventId) {
+    return <PracticePicker eventId={eventId} />;
+  }
+
   if (!allowed) {
     return (
       <AppShell section="New Ticket">
         <Card className="mx-auto mt-10 max-w-md p-8 text-center">
-          <h1 className="text-[16px] font-semibold">Not available for your role</h1>
+          <h1 className="text-[16px] font-semibold">Choose a saved example</h1>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Capturing tickets requires review access. Ask an admin if you need it.
+            New AI uploads require the Administrator login. Open the Practice Playground in the
+            event switcher to create and review tickets using saved video results.
           </p>
         </Card>
       </AppShell>
@@ -170,6 +185,47 @@ function CaptureWorkspace() {
           <div className="min-w-0">
             <FadeIn>
               <Card className="h-full gap-0 p-4">
+                {canRunFresh && (
+                  <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 p-3">
+                    <input
+                      type="checkbox"
+                      checked={bypassCache}
+                      onChange={(e) => setBypassCache(e.target.checked)}
+                      disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
+                      className="mt-1 size-4 shrink-0 accent-[var(--brand)]"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium">
+                        Run fresh analysis (bypass cache)
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                        Run the AI again instead of reusing saved analysis. Takes longer and may
+                        incur additional model usage charges.
+                      </span>
+                    </span>
+                  </label>
+                )}
+                {canRunFresh && (
+                  <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3">
+                    <input
+                      type="checkbox"
+                      checked={keepFootage}
+                      onChange={(e) => setKeepFootage(e.target.checked)}
+                      disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
+                      className="mt-1 size-4 shrink-0 accent-[var(--brand)]"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium">
+                        Keep footage for later replay
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                        Tickets and analysis are always saved. Uncheck to keep footage only in
+                        server memory for up to one hour; replay ends sooner if memory is full or
+                        the server restarts.
+                      </span>
+                    </span>
+                  </label>
+                )}
                 <label
                   role="button"
                   aria-label="Choose truck video or image"
@@ -221,7 +277,9 @@ function CaptureWorkspace() {
                       {ingest.isPending
                         ? "Uploading clip"
                         : processing
-                          ? "Analysis in progress"
+                          ? latest.data?.bypass_cache
+                            ? "Fresh analysis in progress"
+                            : "Analysis in progress"
                           : showcaseReadOnly
                             ? "Preprocessed showcase event"
                             : "Drop a clip here, or click to browse"}
@@ -375,5 +433,78 @@ function Field({ label, value }: { label: string; value: string }) {
       <span className="text-[12px] text-muted-foreground">{label}</span>
       <span className="text-[14px] font-semibold tabular-nums">{value}</span>
     </div>
+  );
+}
+
+function PracticePicker({ eventId }: { eventId: string }) {
+  const query = useQuery({ queryKey: ["practice-sources"], queryFn: listPracticeSources });
+  const [source, setSource] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const qc = useQueryClient();
+  async function create() {
+    if (!source || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const ticket = await createPracticeTicket(eventId, source);
+      await qc.invalidateQueries({ queryKey: ["tickets"] });
+      router.push(`/console?ticket=${ticket.id}`);
+    } catch (err) {
+      setError(ingestErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <AppShell section="Practice Playground">
+      <Card className="mx-auto mt-8 w-full max-w-xl gap-4 p-6">
+        <h1 className="text-xl font-semibold">Practice a ticket review</h1>
+        <p className="text-sm text-muted-foreground">
+          Choose a saved video result, then review your own practice ticket. No AI credits are used.
+          Original records stay read-only.
+        </p>
+        <label htmlFor="practice-video" className="text-sm font-medium">
+          Saved video result
+        </label>
+        <select
+          id="practice-video"
+          className="min-h-11 rounded-md border border-border bg-card px-3 text-foreground"
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
+          disabled={busy || query.isLoading}
+        >
+          <option value="">
+            {query.isLoading ? "Loading saved results…" : "Choose a truck video"}
+          </option>
+          {query.data?.map((ticket) => (
+            <option key={ticket.id} value={ticket.id}>
+              {ticket.truck_id ?? "Unidentified truck"} · {percent(ticket.valuation.est_fill_pct)}{" "}
+              fill · {ticket.id.slice(0, 8)}
+            </option>
+          ))}
+        </select>
+        {query.isError && (
+          <p role="alert">
+            Saved results could not be loaded.{" "}
+            <button className="underline" onClick={() => void query.refetch()}>
+              Retry
+            </button>
+          </p>
+        )}
+        {!query.isLoading && !query.isError && query.data?.length === 0 && (
+          <p>No saved examples are available yet.</p>
+        )}
+        {error && (
+          <p role="alert" className="text-destructive">
+            {error}
+          </p>
+        )}
+        <Button onClick={() => void create()} disabled={!source || busy}>
+          {busy ? "Creating practice ticket…" : "Create practice ticket"}
+        </Button>
+      </Card>
+    </AppShell>
   );
 }

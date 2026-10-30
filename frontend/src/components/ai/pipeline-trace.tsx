@@ -73,7 +73,7 @@ export function PipelineTrace({
   }
 
   return (
-    <ol className={cn("relative flex flex-col", compact && "flex-1 justify-between")}>
+    <ol className={cn("relative flex flex-col", compact && "flex-1")}>
       {stages.map((s, i) => {
         const color = STATUS_COLOR[s.status] ?? "var(--color-brand)";
         const last = i === stages.length - 1;
@@ -83,12 +83,18 @@ export function PipelineTrace({
         return (
           <li
             key={rowId}
-            className={cn("relative flex gap-3 last:pb-0", compact ? "pb-1" : "pb-2")}
+            className={cn(
+              "relative flex gap-3 last:pb-0",
+              compact ? "min-h-14 flex-1 pb-4 last:flex-none" : "pb-2",
+            )}
           >
             {/* Rail connecting the stage dots */}
             {!last && (
               <span
-                className="absolute left-[11px] top-7 h-[calc(100%-0.5rem)] w-px bg-border"
+                className={cn(
+                  "absolute bottom-[-1rem] top-5 w-px bg-[var(--border-strong)]",
+                  compact ? "left-[10px]" : "left-[12px]",
+                )}
                 aria-hidden
               />
             )}
@@ -132,7 +138,7 @@ export function PipelineTrace({
                   />
                 )}
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span
                       className={cn(
                         "font-semibold leading-tight",
@@ -143,7 +149,7 @@ export function PipelineTrace({
                     </span>
                     {s.confidence != null && (
                       <span
-                        className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
+                        className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
                         style={{
                           backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)`,
                           color,

@@ -91,7 +91,11 @@ async def test_benchmark_playback_skips_b2_metadata(monkeypatch: pytest.MonkeyPa
 
     digest = next(iter(BENCHMARK_MEDIA))
     row = SimpleNamespace(
-        content_hash=digest, media_kind="video", mime="video/mp4", fps=3,
+        content_hash=digest,
+        media_kind="video",
+        mime="video/mp4",
+        fps=3,
+        media_storage="b2",
         segments={"truck bed": "saved masks"},
     )
     repo = SimpleNamespace(get_ticket_evidence=AsyncMock(return_value=row))
@@ -104,4 +108,7 @@ async def test_benchmark_playback_skips_b2_metadata(monkeypatch: pytest.MonkeyPa
     url = await ticket_evidence_url(repo, DEMO_TENANT_ID, ticket_id)
     redirect = await ticket_evidence_media(repo, DEMO_TENANT_ID, ticket_id)
     assert url["url"] == evidence.media_url == redirect.headers["location"]
+    low_url = await ticket_evidence_url(repo, DEMO_TENANT_ID, ticket_id, quality="low")
+    assert low_url["url"] == benchmark_media_url(digest, quality="low")
+    assert "-low.mp4" in low_url["url"]
     load.assert_not_called()

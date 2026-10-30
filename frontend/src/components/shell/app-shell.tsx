@@ -56,15 +56,15 @@ type NavItem = {
 // Separate records, capture, processing, and exception review.
 const NAV: NavItem[] = [
   { href: "/", label: "Overview", short: "Overview", icon: GaugeIcon },
-  { href: "/add", label: "New Ticket", short: "New", icon: PlusIcon, cap: "ingest" },
-  { href: "/console", label: "Review Console", short: "Review", icon: ClipboardIcon, badge: true },
-  { href: "/pipeline", label: "AI Pipeline Run", short: "Pipeline", icon: ActivityIcon },
+  { href: "/console", label: "Review queue", short: "Review", icon: ClipboardIcon, badge: true },
+  { href: "/add", label: "Add footage", short: "New", icon: PlusIcon },
+  { href: "/demos", label: "Video library", short: "Footage", icon: FilmIcon },
+  { href: "/pipeline", label: "AI Processing", short: "Processing", icon: ActivityIcon },
   { href: "/assistant", label: "AI Analyst", short: "Analyst", icon: SparklesIcon },
-  { href: "/tickets", label: "Ticket", short: "Ticket", icon: ClipboardIcon },
+  { href: "/tickets", label: "All tickets", short: "Ticket", icon: ClipboardIcon },
   { href: "/trucks", label: "Trucks", short: "Trucks", icon: TruckIcon, cap: "manage_trucks" },
   { href: "/reports", label: "Reports", short: "Reports", icon: ChartIcon },
   { href: "/billing", label: "Billing", short: "Billing", icon: CircleDollarSignIcon },
-  { href: "/demos", label: "Demo Video", short: "Demos", icon: FilmIcon },
   {
     href: "/admin",
     label: "Settings",
@@ -95,7 +95,7 @@ function usePendingCount(): number {
   return data?.counts_by_status?.draft ?? 0;
 }
 
-const COLLAPSE_KEY = "loadtruth-rail-collapsed";
+const COLLAPSE_KEY = "loadtruth-rail-collapsed-mocha";
 
 /**
  * Application shell. Desktop: a collapsible left rail + sticky top bar that
@@ -124,7 +124,7 @@ export function AppShell({
     // An explicit choice wins. Otherwise start collapsed on laptop and tablet
     // widths (13-inch MacBook, iPad landscape) so the workspace gets the room.
     const stored = window.localStorage.getItem(COLLAPSE_KEY);
-    setCollapsed(stored === null ? window.innerWidth < 1536 : stored === "1");
+    setCollapsed(stored === null ? false : stored === "1");
   }, []);
 
   const toggleCollapse = () => {
@@ -138,9 +138,12 @@ export function AppShell({
   return (
     <div
       className="min-h-dvh lg:grid lg:h-dvh lg:overflow-hidden lg:transition-[grid-template-columns] lg:duration-300 lg:ease-out"
-      style={{ gridTemplateColumns: collapsed ? "72px 1fr" : "248px 1fr" }}
+      style={{ gridTemplateColumns: collapsed ? "72px 1fr" : "224px 1fr" }}
     >
-      <aside className="sticky top-0 z-20 hidden h-dvh flex-col border-r border-sidebar-border bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-sidebar)_100%,white_2%),var(--color-sidebar))] text-sidebar-foreground shadow-[1px_0_0_rgba(255,255,255,0.03),8px_0_28px_-16px_rgba(0,0,0,0.6)] lg:flex">
+      <a href="#workspace-main" className="lt-skip-link">
+        Skip to workspace
+      </a>
+      <aside className="sticky top-0 z-20 hidden h-dvh flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground  lg:flex">
         <RailContent pathname={pathname} collapsed={collapsed} onToggle={toggleCollapse} />
       </aside>
 
@@ -173,7 +176,11 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-col lg:min-h-0">
         <TopBar section={section} onMenu={() => setDrawer(true)} />
-        <main className="lt-fade-in min-w-0 flex-1 px-4 pb-24 pt-4 sm:px-6 lg:min-h-0 lg:overflow-hidden lg:px-6 lg:pb-4 lg:pt-4 2xl:px-8 2xl:pb-5">
+        <main
+          id="workspace-main"
+          tabIndex={-1}
+          className="lt-fade-in min-w-0 flex-1 px-4 pb-24 pt-4 sm:px-6 lg:min-h-0 lg:overflow-hidden lg:px-6 lg:pb-4 lg:pt-4 2xl:px-8 2xl:pb-5"
+        >
           <div
             className={cn(
               "mx-auto flex h-full min-h-0 w-full flex-col",
@@ -188,7 +195,9 @@ export function AppShell({
       <BottomTabs pathname={pathname} />
 
       {/* AI Analyst — available on every page, labelled with the current screen. */}
-      {pathname !== "/assistant" && <AssistantWidget page={section} />}
+      {!["/assistant", "/console", "/demos"].includes(pathname) && (
+        <AssistantWidget page={section} />
+      )}
     </div>
   );
 }
@@ -259,7 +268,7 @@ function RailContent({
 
       <nav className="min-h-0 flex-1 overflow-y-auto px-3" aria-label="Primary">
         {!collapsed && (
-          <div className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color-mix(in_srgb,var(--color-sidebar-foreground)_42%,transparent)]">
+          <div className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-muted">
             Workspace
           </div>
         )}
@@ -274,10 +283,10 @@ function RailContent({
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "group relative flex items-center rounded-lg text-[13.5px] font-medium transition-colors duration-150",
-                  collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2",
+                  collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
                   active
-                    ? "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-sidebar-primary)_88%,white),var(--color-sidebar-primary))] text-[var(--color-sidebar-primary-foreground)] shadow-[0_4px_12px_-4px_color-mix(in_srgb,var(--color-sidebar-primary)_55%,transparent)]"
-                    : "text-[color-mix(in_srgb,var(--color-sidebar-foreground)_72%,transparent)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 )}
               >
                 <span className="relative">
@@ -285,9 +294,7 @@ function RailContent({
                     size={18}
                     className={cn(
                       "transition-colors",
-                      active
-                        ? "text-sidebar-primary-foreground"
-                        : "text-current opacity-80 group-hover:opacity-100",
+                      active ? "text-sidebar-accent-foreground" : "text-current",
                     )}
                   />
                   {collapsed && item.badge && pending > 0 && (
@@ -314,6 +321,11 @@ function RailContent({
             );
             return (
               <li key={item.href}>
+                {!collapsed && ["/tickets", "/billing"].includes(item.href) && (
+                  <div className="mb-2 mt-5 px-3 text-[10px] font-medium uppercase tracking-widest text-sidebar-muted">
+                    {item.href === "/tickets" ? "Records" : "Workspace tools"}
+                  </div>
+                )}
                 {collapsed ? (
                   <Tooltip>
                     <TooltipTrigger asChild>{link}</TooltipTrigger>
@@ -407,7 +419,7 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
 function TopBar({ section, onMenu }: { section: string; onMenu: () => void }) {
   const palette = usePalette();
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-[color-mix(in_srgb,var(--color-bg)_80%,transparent)] px-4 backdrop-blur-md sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background px-4  sm:px-6 lg:px-8">
       <button
         type="button"
         onClick={onMenu}
@@ -464,7 +476,7 @@ function BottomTabs({ pathname }: { pathname: string }) {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 grid border-t border-border bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 grid border-t border-border bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] pb-[env(safe-area-inset-bottom)]  lg:hidden"
       style={{ gridTemplateColumns: `repeat(${primary.length}, minmax(0, 1fr))` }}
     >
       {primary.map((item) => {

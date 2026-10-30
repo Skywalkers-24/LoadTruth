@@ -10,7 +10,7 @@ import { useEvents } from "@/lib/hooks";
  * events API already returns a list — so the switcher is wired to real data and
  * the selected event is retained as the user moves between routes.
  *
- * Organization is derived from the event's location (state/region) since the
+ * Organization context uses the county/agency portion of the event location since the
  * backend does not yet expose a separate org entity; we never fabricate extra
  * organizations.
  */
@@ -56,10 +56,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEY, id);
   }, []);
 
-  const selected = useMemo(
-    () => events.find((e) => e.id === selectedId),
-    [events, selectedId],
-  );
+  const selected = useMemo(() => events.find((e) => e.id === selectedId), [events, selectedId]);
 
   const refetch = useCallback(() => void query.refetch(), [query]);
   const isWakingUp = query.isError && isServerWakingUp(query.error);
@@ -107,8 +104,8 @@ export function orgFromEvent(event: EventSummary | undefined): {
 } {
   if (!event) return { org: "LoadTruth", scope: null };
   const loc = event.location?.trim();
-  if (!loc) return { org: "LoadTruth Monitoring", scope: null };
-  // Location like "Pinellas County, Florida" -> org by region, scope full.
-  const region = loc.split(",").slice(-1)[0]?.trim();
-  return { org: region ? `${region} Response Monitoring` : "LoadTruth Monitoring", scope: loc };
+  if (!loc) return { org: "Organization not set", scope: null };
+  // Use the actual county/agency context instead of inventing a monitoring organization.
+  const organization = loc.split(",")[0]?.trim();
+  return { org: organization || "Organization not set", scope: loc };
 }

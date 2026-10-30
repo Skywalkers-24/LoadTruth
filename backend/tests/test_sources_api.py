@@ -182,8 +182,8 @@ def test_create_event(client: TestClient) -> None:
     assert body["name"] == "Tornado 2027 — Travis County"
     assert body["status"] == "active"
     assert (
-        len(client.get("/events").json()) == 5
-    )  # 4 seeded events (including showcase) + the new one
+        len(client.get("/events").json()) == 7
+    )  # 6 seeded events (including practice and live demo) + the new one
 
 
 def test_patch_event_partial(client: TestClient) -> None:
