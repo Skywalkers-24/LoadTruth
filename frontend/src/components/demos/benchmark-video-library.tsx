@@ -60,9 +60,11 @@ function BenchmarkClip({ video }: { video: (typeof manifest.videos)[number] }) {
   const visible = useInView(container, "300px");
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
+  const { resolvedTier } = useVideoQuality();
 
   // Instant thumbnail poster from generated edge assets
   const posterUrl = video.url.replace("/videos/", "/videos/thumbnails/").replace(".mp4", ".jpg");
+  const playbackUrl = getVideoVariantUrl(video.url, resolvedTier) ?? video.url;
 
   function togglePlay() {
     const v = videoRef.current;
@@ -118,7 +120,7 @@ function BenchmarkClip({ video }: { video: (typeof manifest.videos)[number] }) {
           <>
             <video
               ref={videoRef}
-              src={`${video.url}#t=0.001`}
+              src={`${playbackUrl}#t=0.001`}
               poster={posterUrl}
               playsInline
               preload="metadata"

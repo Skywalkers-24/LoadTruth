@@ -31,7 +31,9 @@ import { Pagination } from "@/components/pagination";
 import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
 import { BenchmarkBrowser } from "@/components/demos/benchmark-browser";
+import { BenchmarkVideoLibrary } from "@/components/demos/benchmark-video-library";
 import { BENCHMARK_PAIRS, VideoPairCard } from "@/components/demos/video-pair-card";
+import { unprocessedVideos } from "@/lib/benchmark-gallery";
 import { getVideoVariantUrl, useVideoQuality } from "@/lib/video-quality";
 
 import { cn } from "@/lib/utils";
@@ -56,6 +58,7 @@ export default function DemoVideosPage() {
   });
 
   // Filtering and view state
+  const [tab, setTab] = useState<"pairs-with-mask" | "unprocessed" | "all">("pairs-with-mask");
   const [showUpload, setShowUpload] = useState(false);
   const [selectedDebris, setSelectedDebris] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -176,20 +179,28 @@ export default function DemoVideosPage() {
       <div className="lt-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-6">
         <header className="flex flex-wrap items-end shrink-0 justify-between gap-4 pb-1 pt-1">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Video library</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Review real hurricane debris recovery video pairs with SAM 3.1 AI segmentation.
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-semibold tracking-tight">Video library</h1>
+              <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                {BENCHMARK_PAIRS.length} with masks · {unprocessedVideos.length} awaiting processing
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Review hurricane debris recovery video pairs with SAM 3.1 AI segmentation or explore unprocessed benchmark clips.
+              <span className="hidden lg:inline text-muted-foreground/80">
+                {" "}· Configurable inference: Meta SAM 3.1 &amp; Muse Spark · Fireworks AI · Modal · Baseten
+              </span>
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/pipeline" className="text-sm text-muted-foreground hover:text-foreground">
-              View processing
+            <Link href="/pipeline" className="text-xs font-medium text-primary hover:underline">
+              Pipeline →
             </Link>
             {isSuperAdmin && (
               <button
                 type="button"
                 onClick={() => setShowUpload((prev) => !prev)}
-                className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:opacity-90"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:opacity-90"
               >
                 <UploadCloudIcon className="size-3.5" />
                 {showUpload ? "Close upload" : "Upload footage"}
@@ -197,6 +208,71 @@ export default function DemoVideosPage() {
             )}
           </div>
         </header>
+
+        {/* ── CATEGORY TABS (MASKS VS UNPROCESSED) ── */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1 text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setTab("pairs-with-mask");
+                setPage(0);
+              }}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md px-3 py-1.5 font-semibold transition-all cursor-pointer",
+                tab === "pairs-with-mask"
+                  ? "bg-background text-foreground shadow-xs border border-border/80"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <SparklesIcon className="size-3.5 text-primary" />
+              <span>Pairs With Masks</span>
+              <span className="rounded bg-primary/10 px-1.5 py-0.2 text-[10px] font-bold text-primary">
+                {BENCHMARK_PAIRS.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setTab("unprocessed");
+                setPage(0);
+              }}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md px-3 py-1.5 font-semibold transition-all cursor-pointer",
+                tab === "unprocessed"
+                  ? "bg-background text-foreground shadow-xs border border-border/80"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <FilmIcon className="size-3.5 text-amber-500" />
+              <span>Unprocessed Footage</span>
+              <span className="rounded bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                {unprocessedVideos.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setTab("all");
+                setPage(0);
+              }}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer",
+                tab === "all"
+                  ? "bg-background text-foreground shadow-xs border border-border/80"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <span>All ({BENCHMARK_PAIRS.length + unprocessedVideos.length})</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="hidden sm:inline">Meta SAM 3.1 &amp; Muse Spark · Live Pipeline</span>
+          </div>
+        </div>
 
         {/* ── OPTIONAL SUPERADMIN UPLOAD DRAWER ── */}
         {isSuperAdmin && showUpload && (
@@ -274,168 +350,187 @@ export default function DemoVideosPage() {
           </div>
         )}
 
-        {/* ── TOOLBAR: FILTER PILLS + SEARCH + VIEW SWITCHER ── */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-3">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {[
-              { id: "all", label: "All", count: debrisCounts.all },
-              { id: "vegetative", label: "Vegetative", count: debrisCounts.vegetative ?? 0 },
-              { id: "construction_demolition", label: "C&D", count: debrisCounts.construction_demolition ?? 0 },
-              { id: "white_goods", label: "White goods", count: debrisCounts.white_goods ?? 0 },
-              { id: "hazardous", label: "Hazardous", count: debrisCounts.hazardous ?? 0 },
-            ].map(({ id, label, count }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => {
-                  setSelectedDebris(id);
-                  setPage(0);
-                }}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                  selectedDebris === id
-                    ? "bg-primary text-primary-foreground shadow-xs font-semibold"
-                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                <span>{label}</span>
-                <span className="rounded-full bg-background/20 px-1.5 py-0.2 text-[10px] opacity-80">
-                  {count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPage(0);
-                }}
-                placeholder="Search truck, debris, clip…"
-                className="h-8 w-44 sm:w-56 rounded-md border border-border bg-background pl-8 pr-3 text-xs placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-primary"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-
-            <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-xs">
-              <button
-                type="button"
-                onClick={() => setViewStyle("grid")}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded px-2 py-1 transition-colors",
-                  viewStyle === "grid"
-                    ? "bg-primary text-primary-foreground font-semibold"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                title="Grid with Dual Feeds"
-              >
-                <LayoutGridIcon className="size-3.5" />
-                <span className="hidden sm:inline">Grid</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewStyle("browser")}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded px-2 py-1 transition-colors",
-                  viewStyle === "browser"
-                    ? "bg-primary text-primary-foreground font-semibold"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                title="Sidebar Browser"
-              >
-                <ListIcon className="size-3.5" />
-                <span className="hidden sm:inline">List</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ── CONTENT: EITHER MULTI-CARD GRID (DEFAULT) OR BROWSER ── */}
-        {viewStyle === "browser" ? (
-          <BenchmarkBrowser />
-        ) : (
-          <>
-            {filteredPairs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border py-16 text-center">
-                <FilmIcon className="size-8 text-muted-foreground/60" />
-                <p className="text-sm font-medium">No benchmark pairs match your filters</p>
-                <p className="text-xs text-muted-foreground">Try clearing search or choosing another debris class.</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedDebris("all");
-                    setSearchQuery("");
-                  }}
-                  className="mt-2 inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium hover:bg-muted"
-                >
-                  Reset filters
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {paginatedPairs.map((pair) => (
-                  <VideoPairCard key={pair.id} pair={pair} />
+        {/* ── SECTION 1: PAIRS WITH MASKS ── */}
+        {(tab === "pairs-with-mask" || tab === "all") && (
+          <section aria-label="Benchmark pairs with masks" className="flex flex-col gap-4">
+            {/* ── TOOLBAR: FILTER PILLS + SEARCH + VIEW SWITCHER ── */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-3">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  { id: "all", label: "All", count: debrisCounts.all },
+                  { id: "vegetative", label: "Vegetative", count: debrisCounts.vegetative ?? 0 },
+                  { id: "construction_demolition", label: "C&D", count: debrisCounts.construction_demolition ?? 0 },
+                  { id: "white_goods", label: "White goods", count: debrisCounts.white_goods ?? 0 },
+                  { id: "hazardous", label: "Hazardous", count: debrisCounts.hazardous ?? 0 },
+                ].map(({ id, label, count }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedDebris(id);
+                      setPage(0);
+                    }}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                      selectedDebris === id
+                        ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+                        : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    <span>{label}</span>
+                    <span className="rounded-full bg-background/20 px-1.5 py-0.2 text-[10px] opacity-80">
+                      {count}
+                    </span>
+                  </button>
                 ))}
               </div>
-            )}
 
-            {/* ── PAGINATION CONTROLS ── */}
-            {totalPages > 1 && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/80 pt-3 text-xs text-muted-foreground">
-                <span>
-                  Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filteredPairs.length)} of {filteredPairs.length} benchmark pairs
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    disabled={page === 0}
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs text-foreground transition-colors hover:bg-muted disabled:opacity-40"
-                  >
-                    <ChevronLeftIcon className="size-3.5" />
-                    <span>Previous</span>
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => (
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setPage(0);
+                    }}
+                    placeholder="Search truck, debris, clip…"
+                    className="h-8 w-44 sm:w-56 rounded-md border border-border bg-background pl-8 pr-3 text-xs placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-primary"
+                  />
+                  {searchQuery && (
                     <button
-                      key={i}
                       type="button"
-                      onClick={() => setPage(i)}
-                      className={cn(
-                        "size-8 rounded-md text-xs font-medium transition-colors",
-                        page === i
-                          ? "bg-primary text-primary-foreground font-semibold"
-                          : "border border-border bg-background text-foreground hover:bg-muted",
-                      )}
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
                     >
-                      {i + 1}
+                      ×
                     </button>
-                  ))}
+                  )}
+                </div>
+
+                <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-xs">
                   <button
                     type="button"
-                    disabled={page >= totalPages - 1}
-                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                    className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                    onClick={() => setViewStyle("grid")}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded px-2 py-1 transition-colors",
+                      viewStyle === "grid"
+                        ? "bg-primary text-primary-foreground font-semibold"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                    title="Grid with Dual Feeds"
                   >
-                    <span>Next</span>
-                    <ChevronRightIcon className="size-3.5" />
+                    <LayoutGridIcon className="size-3.5" />
+                    <span className="hidden sm:inline">Grid</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewStyle("browser")}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded px-2 py-1 transition-colors",
+                      viewStyle === "browser"
+                        ? "bg-primary text-primary-foreground font-semibold"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                    title="Sidebar Browser"
+                  >
+                    <ListIcon className="size-3.5" />
+                    <span className="hidden sm:inline">List</span>
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* ── CONTENT: EITHER MULTI-CARD GRID (DEFAULT) OR BROWSER ── */}
+            {viewStyle === "browser" ? (
+              <BenchmarkBrowser />
+            ) : (
+              <>
+                {filteredPairs.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border py-16 text-center">
+                    <FilmIcon className="size-8 text-muted-foreground/60" />
+                    <p className="text-sm font-medium">No benchmark pairs match your filters</p>
+                    <p className="text-xs text-muted-foreground">Try clearing search or choosing another debris class.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDebris("all");
+                        setSearchQuery("");
+                      }}
+                      className="mt-2 inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium hover:bg-muted"
+                    >
+                      Reset filters
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {paginatedPairs.map((pair) => (
+                      <VideoPairCard key={pair.id} pair={pair} />
+                    ))}
+                  </div>
+                )}
+
+                {/* ── PAGINATION CONTROLS ── */}
+                {totalPages > 1 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/80 pt-3 text-xs text-muted-foreground">
+                    <span>
+                      Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filteredPairs.length)} of {filteredPairs.length} benchmark pairs
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={page === 0}
+                        onClick={() => setPage((p) => Math.max(0, p - 1))}
+                        className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                      >
+                        <ChevronLeftIcon className="size-3.5" />
+                        <span>Previous</span>
+                      </button>
+                      {Array.from({ length: totalPages }, (_, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setPage(i)}
+                          className={cn(
+                            "size-8 rounded-md text-xs font-medium transition-colors",
+                            page === i
+                              ? "bg-primary text-primary-foreground font-semibold"
+                              : "border border-border bg-background text-foreground hover:bg-muted",
+                          )}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        disabled={page >= totalPages - 1}
+                        onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                        className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                      >
+                        <span>Next</span>
+                        <ChevronRightIcon className="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
-          </>
+          </section>
+        )}
+
+        {/* ── SECTION 2: UNPROCESSED BENCHMARK FOOTAGE (CLIPS 026–050) ── */}
+        {(tab === "unprocessed" || tab === "all") && (
+          <section aria-label="Unprocessed source clips" className="flex flex-col gap-3">
+            {tab === "all" && (
+              <div className="my-2 flex items-center gap-3 border-t border-border/80 pt-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Unprocessed Benchmark Library
+                </span>
+              </div>
+            )}
+            <BenchmarkVideoLibrary videos={unprocessedVideos} />
+          </section>
         )}
 
         {/* ── ADDITIONAL / CUSTOM UPLOADED CLIPS (IF ANY) ── */}
