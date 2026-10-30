@@ -312,8 +312,9 @@ export default function GuidePage() {
               <p>
                 <strong>Keep footage for later replay</strong> is on by default. Turn it off to skip
                 permanent footage storage. The ticket and analysis still save to the database;
-                footage stays in server memory for up to one hour and may expire earlier on restart
-                or when memory is full. An expired video cannot be replayed, but its ticket remains.
+                footage stays in server memory for up to seven days and may expire earlier on
+                restart or when memory is full. An expired video cannot be replayed, but its ticket
+                remains.
               </p>
               <p>
                 <strong>Practice without AI credits:</strong> everyone can open the Practice

@@ -24,8 +24,8 @@ _EXT = {
 
 
 # Temporary replay data is never persisted to Redis or B2. Entries disappear
-# after one hour, on eviction, or on restart. Ticket and analysis rows remain.
-MEMORY_TTL_SECONDS = 3600
+# after seven days, on eviction, or on restart. Ticket and analysis rows remain.
+MEMORY_TTL_SECONDS = 7 * 24 * 60 * 60
 MEMORY_MAX_BYTES = 128 * 1024 * 1024
 _memory: OrderedDict[str, tuple[float, bytes, str, float | None]] = OrderedDict()
 _persistent: ContextVar[bool] = ContextVar("persistent_footage", default=True)

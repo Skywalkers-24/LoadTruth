@@ -58,7 +58,9 @@ def test_memory_store_expiry_and_budget(monkeypatch):
     evidence_store.remember("b", b"67890", "video/mp4")
     assert evidence_store.memory_entry("a") is None
     assert evidence_store.memory_entry("b")
-    clock[0] += evidence_store.MEMORY_TTL_SECONDS + 1
+    clock[0] += 6 * 24 * 60 * 60
+    assert evidence_store.memory_entry("b") is not None
+    clock[0] += 24 * 60 * 60 + 1
     assert evidence_store.memory_entry("b") is None
 
 

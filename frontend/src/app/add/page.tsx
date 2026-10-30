@@ -220,7 +220,7 @@ function CaptureWorkspace() {
                       </span>
                       <span className="mt-1 block text-xs leading-5 text-muted-foreground">
                         Tickets and analysis are always saved. Uncheck to keep footage only in
-                        server memory for up to one hour; replay ends sooner if memory is full or
+                        server memory for up to seven days; replay ends sooner if memory is full or
                         the server restarts.
                       </span>
                     </span>
