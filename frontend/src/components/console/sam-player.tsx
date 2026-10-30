@@ -401,8 +401,11 @@ function clockTime(seconds: number) {
 
 /** All named material prompts contribute; the legacy aggregate is a fallback. */
 export function loadTexts(segments: Record<string, string>): string[] {
-  const named = Object.entries(segments).filter(([key]) => key.startsWith(LOAD_PREFIX));
-  return named.length ? named.map(([, text]) => text) : [segments[LOAD_LABEL] ?? ""];
+  const named = Object.entries(segments)
+    .filter(([key, text]) => key.startsWith(LOAD_PREFIX) && text.trim().length > 0)
+    .map(([, text]) => text);
+  const texts = named.length ? named : [segments[LOAD_LABEL] ?? ""];
+  return [...new Set(texts.filter((text) => text.trim().length > 0))];
 }
 
 /** Mirror the backend's dominant bed and tailgate boundary without intersecting
@@ -454,7 +457,8 @@ export function frameLayers(beds: SamTrack, loads: SamTrack, rims: SamTrack, fra
       : bed.bottom;
 
   const filteredLoads = loadShapes.filter((s) => overlapShare(s, bed) >= 0.35 && s.top < rim);
-  const finalLoads = filteredLoads.length > 0 ? filteredLoads : loadShapes.filter((s) => s.top < rim);
+  const finalLoads =
+    filteredLoads.length > 0 ? filteredLoads : loadShapes.filter((s) => s.top < rim);
 
   return {
     bed,
