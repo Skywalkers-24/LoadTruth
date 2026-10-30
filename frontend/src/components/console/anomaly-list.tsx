@@ -73,9 +73,13 @@ export function AnomalyList({ ticket }: { ticket: Ticket }) {
         return (
           <li
             key={a.key}
-            className="relative overflow-hidden rounded-lg border border-border bg-[var(--color-surface-2)] py-2.5 pl-4 pr-3"
+            className="relative overflow-hidden rounded-lg border border-border bg-[var(--color-surface-2)] py-2 pl-4 pr-3"
           >
-            <span className="absolute inset-y-0 left-0 w-[3px]" style={{ backgroundColor: color }} aria-hidden />
+            <span
+              className="absolute inset-y-0 left-0 w-[3px]"
+              style={{ backgroundColor: color }}
+              aria-hidden
+            />
             <div className="flex items-center justify-between gap-2">
               <span className="text-[13px] font-semibold text-foreground">{a.title}</span>
               <SeverityBadge severity={a.severity} />

@@ -92,14 +92,14 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
     setOverlays((prev) => ({ ...prev, [o]: !prev[o] }));
   }
 
-  // Preserve a readable video area at every pane width. The surrounding
-  // column scrolls instead of squeezing the footage between summary cards.
+  // The wide review column lets the evidence use the space between the ticket
+  // summary and decision bar; narrow layouts keep the footage's natural ratio.
   const viewer = (
-    <div className="flex shrink-0 flex-col gap-3">
+    <div className="flex shrink-0 flex-col gap-3 @[42rem]:min-h-0 @[42rem]:flex-1">
       <div
         ref={viewerRef}
         data-expanded={expanded || undefined}
-        className="lt-evidence-viewer overflow-hidden rounded-lg border border-[var(--color-border)]"
+        className="lt-evidence-viewer overflow-hidden rounded-lg border border-[var(--color-border)] @[42rem]:flex @[42rem]:min-h-0 @[42rem]:flex-1 @[42rem]:flex-col"
       >
         {/* Viewer header: title, frame, overlay toggles */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5">
@@ -169,7 +169,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
         </div>
 
         {/* The media and SVG overlays letterbox inside this box at any size. */}
-        <div className="lt-evidence-media relative aspect-video min-h-[14rem] w-full shrink-0 overflow-hidden bg-[var(--color-bg)]">
+        <div className="lt-evidence-media relative aspect-video min-h-[14rem] w-full shrink-0 overflow-hidden bg-[var(--color-bg)] @[42rem]:min-h-0 @[42rem]:flex-1 @[42rem]:aspect-auto">
           {loadingEvidence ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[var(--color-bg)] text-[var(--color-subtle)]">
               <Loader2Icon className="size-8 animate-spin text-[var(--color-money)]" />

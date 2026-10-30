@@ -951,9 +951,9 @@ body {
    how much bottom space a scroll region must reserve so its last content can
    always scroll clear of the launcher instead of sitting under it. */
 :root {
-  --lt-fab-size: 3.5rem; /* 56px launcher */
-  --lt-fab-gap: 1.5rem; /* 24px bottom offset */
-  --lt-fab-clear: calc(var(--lt-fab-size) + var(--lt-fab-gap) + 1rem); /* ~96px */
+  --lt-fab-size: 2.75rem; /* 44px launcher */
+  --lt-fab-gap: 1rem; /* 16px bottom offset */
+  --lt-fab-clear: calc(var(--lt-fab-size) + var(--lt-fab-gap) + 1rem); /* ~76px */
 }
 
 /* Reserve bottom space on a scroll container (or page) so nothing is hidden
@@ -963,9 +963,9 @@ body {
   padding-bottom: calc(var(--lt-fab-clear) + env(safe-area-inset-bottom, 0px));
 }
 
-@media (min-width: 1024px) {
+@container (min-width: 42rem) {
   .lt-review-rail-safe {
-    padding-bottom: calc(var(--lt-fab-size) + var(--lt-fab-gap));
+    padding-bottom: 0;
   }
 }
 
@@ -1089,6 +1089,20 @@ textarea,
 }
 .lt-pop-in {
   animation: lt-pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes lt-sidebar-drawer-in {
+  from {
+    opacity: 0.7;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.lt-sidebar-drawer-in {
+  animation: lt-sidebar-drawer-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Count-up shimmer for skeletons. */

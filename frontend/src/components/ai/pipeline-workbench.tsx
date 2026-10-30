@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowUpRightIcon, CheckCircle2Icon, TriangleAlertIcon } from "lucide-react";
 import type { PipelineStage } from "@/lib/api";
 import { PipelineTrace } from "./pipeline-trace";
@@ -110,6 +110,21 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
       ["Live Status", "Ready to process on video upload"],
     ],
   },
+  {
+    key: "dollar_math",
+    label: "Value the load",
+    model: "deterministic",
+    status: "ok",
+    summary: "Calculates the payout: certified truck size multiplied by the fill percentage and the debris rate per cubic yard.",
+    confidence: null,
+    duration_ms: 0,
+    analysis:
+      "Calculates the payout: certified truck size multiplied by the fill percentage and the debris rate per cubic yard.",
+    details: [
+      ["Calculation Method", "Certified Cubic Yards × Fill % × Debris Unit Rate"],
+      ["Live Status", "Ready to process on video upload"],
+    ],
+  },
 ];
 
 export interface PipelineWorkbenchSummary {
@@ -131,10 +146,35 @@ export function PipelineWorkbench({
   showInlineTrace?: boolean;
 }) {
   const filteredStages = stages.filter((s) => s.key !== "cache");
-  const displayStages = filteredStages.length > 0 ? filteredStages : DEFAULT_PIPELINE_STAGES;
+  const stageMap = new Map(filteredStages.map((s) => [s.key, s]));
+  const defaultKeys = new Set(DEFAULT_PIPELINE_STAGES.map((s) => s.key));
+
+  const hasStandardKeys = filteredStages.some((s) => defaultKeys.has(s.key));
+  const displayStages = hasStandardKeys
+    ? [
+        ...DEFAULT_PIPELINE_STAGES.map((def) => {
+          const incoming = stageMap.get(def.key);
+          return incoming ? { ...def, ...incoming } : def;
+        }),
+        ...filteredStages.filter((s) => !defaultKeys.has(s.key)),
+      ]
+    : filteredStages.length > 0
+      ? filteredStages
+      : DEFAULT_PIPELINE_STAGES;
 
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Auto-focus the latest arriving/completed stage as the pipeline progresses
+  const latestCompletedKey = filteredStages[filteredStages.length - 1]?.key;
+  useEffect(() => {
+    if (latestCompletedKey) {
+      const idx = displayStages.findIndex((s) => s.key === latestCompletedKey);
+      if (idx >= 0) {
+        setSelectedIndex(idx);
+      }
+    }
+  }, [latestCompletedKey, displayStages]);
 
   const currentStage = displayStages[selectedIndex] ?? displayStages[0]!;
 

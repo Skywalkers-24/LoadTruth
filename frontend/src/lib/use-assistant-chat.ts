@@ -22,6 +22,9 @@ export const TOOL_LABEL: Record<string, string> = {
   disputes: "Looked up disputes",
 };
 
+const TYPE_INTERVAL_MS = 20;
+const TYPE_CHARS_PER_TICK = 3;
+
 /**
  * Shared AI-analyst chat state + streaming. Powers both the full AI Analyst
  * page and the floating console widget, so the two stay in sync and we don't
@@ -37,16 +40,57 @@ export function useAssistantChat(eventId: string | undefined, eventName?: string
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [busy, setBusy] = useState(false);
   const abortRef = useRef<(() => void) | null>(null);
+  const pendingTextRef = useRef("");
+  const streamDoneRef = useRef(false);
+  const writerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopWriter = useCallback(() => {
+    if (writerRef.current !== null) {
+      clearInterval(writerRef.current);
+      writerRef.current = null;
+    }
+  }, []);
+
+  const startWriter = useCallback(() => {
+    if (writerRef.current !== null) return;
+    writerRef.current = setInterval(() => {
+      if (pendingTextRef.current.length > 0) {
+        const characters = Array.from(pendingTextRef.current);
+        const chunk = characters.slice(0, TYPE_CHARS_PER_TICK).join("");
+        pendingTextRef.current = characters.slice(TYPE_CHARS_PER_TICK).join("");
+        setMessages((current) =>
+          current.map((message, index) =>
+            index === current.length - 1 ? { ...message, text: message.text + chunk } : message,
+          ),
+        );
+      } else if (streamDoneRef.current) {
+        stopWriter();
+        setBusy(false);
+      }
+    }, TYPE_INTERVAL_MS);
+  }, [stopWriter]);
 
   // Abort any in-flight stream on unmount.
-  useEffect(() => () => abortRef.current?.(), []);
+  useEffect(
+    () => () => {
+      abortRef.current?.();
+      stopWriter();
+    },
+    [stopWriter],
+  );
 
   const ask = useCallback(
     (question: string) => {
       const q = question.trim();
       if (!q || !eventId || busy) return;
       setBusy(true);
-      setMessages((m) => [...m, { role: "user", text: q }, { role: "assistant", text: "", tools: [] }]);
+      pendingTextRef.current = "";
+      streamDoneRef.current = false;
+      setMessages((m) => [
+        ...m,
+        { role: "user", text: q },
+        { role: "assistant", text: "", tools: [] },
+      ]);
 
       abortRef.current = streamChat(
         { event_id: eventId, message: q, event_name: eventName },
@@ -60,17 +104,21 @@ export function useAssistantChat(eventId: string | undefined, eventName?: string
                 i === m.length - 1 ? { ...msg, tools: [...(msg.tools ?? []), tool] } : msg,
               ),
             ),
-          onToken: (text) =>
-            setMessages((m) =>
-              m.map((msg, i) => (i === m.length - 1 ? { ...msg, text: msg.text + text } : msg)),
-            ),
+          onToken: (text) => {
+            pendingTextRef.current += text;
+            startWriter();
+          },
           onDone: (suggestions) => {
             setMessages((m) =>
               m.map((msg, i) => (i === m.length - 1 ? { ...msg, suggestions } : msg)),
             );
-            setBusy(false);
+            streamDoneRef.current = true;
+            startWriter();
           },
           onError: () => {
+            pendingTextRef.current = "";
+            streamDoneRef.current = true;
+            stopWriter();
             setMessages((m) =>
               m.map((msg, i) =>
                 i === m.length - 1 && !msg.text
@@ -83,14 +131,17 @@ export function useAssistantChat(eventId: string | undefined, eventName?: string
         },
       );
     },
-    [eventId, eventName, busy],
+    [eventId, eventName, busy, startWriter, stopWriter],
   );
 
   const reset = useCallback(() => {
     abortRef.current?.();
+    stopWriter();
+    pendingTextRef.current = "";
+    streamDoneRef.current = false;
     setMessages([]);
     setBusy(false);
-  }, []);
+  }, [stopWriter]);
 
   return {
     messages,

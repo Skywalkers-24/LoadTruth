@@ -81,6 +81,17 @@ describe("evidence overlay regions", () => {
     const cab = shape("cab", 100, 110, 300, 140);
     expect(frameLayers(track([bed]), track([]), track([unrelated, cab, rim]), 0).rim).toBe(260);
   });
+  it("borrows bed from earliest tracked frame during pre-roll so masks don't drop out", () => {
+    // Bed only tracked starting from frame 5
+    const beds: SamTrack = { frames: new Map([[5, [bed]]]), width: 1024, height: 576, frameCount: 6 };
+    const cargo = shape("cargo", 150, 120, 250, 200);
+    const loads: SamTrack = { frames: new Map([[0, [cargo]]]), width: 1024, height: 576, frameCount: 6 };
+    const rims: SamTrack = { frames: new Map([[0, [rim]]]), width: 1024, height: 576, frameCount: 6 };
+    const result = frameLayers(beds, loads, rims, 0);
+    expect(result.bed).toEqual(bed);
+    expect(result.loads).toEqual([cargo]);
+    expect(result.rimShapes).toEqual([rim]);
+  });
 });
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });

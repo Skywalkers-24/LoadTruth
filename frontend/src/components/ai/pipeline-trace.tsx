@@ -73,7 +73,7 @@ export function PipelineTrace({
   }
 
   return (
-    <ol className="relative flex flex-col">
+    <ol className={cn("relative flex flex-col", compact && "flex-1 justify-between")}>
       {stages.map((s, i) => {
         const color = STATUS_COLOR[s.status] ?? "var(--color-brand)";
         const last = i === stages.length - 1;
@@ -81,7 +81,10 @@ export function PipelineTrace({
         const isOpen = open.has(rowId);
         const isSelected = selectedStageIndex != null && selectedStageIndex === i;
         return (
-          <li key={rowId} className="relative flex gap-3 pb-2 last:pb-0">
+          <li
+            key={rowId}
+            className={cn("relative flex gap-3 last:pb-0", compact ? "pb-1" : "pb-2")}
+          >
             {/* Rail connecting the stage dots */}
             {!last && (
               <span
@@ -90,7 +93,10 @@ export function PipelineTrace({
               />
             )}
             <span
-              className="relative z-10 mt-1 grid size-6 shrink-0 place-items-center rounded-full ring-2 ring-[var(--color-surface)]"
+              className={cn(
+                "relative z-10 mt-1 grid shrink-0 place-items-center rounded-full ring-2 ring-[var(--color-surface)]",
+                compact ? "size-5" : "size-6",
+              )}
               style={{ backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)`, color }}
             >
               <StageIcon stage={s} className="size-3.5" />
@@ -107,8 +113,10 @@ export function PipelineTrace({
                   }
                 }}
                 aria-expanded={onSelectStage ? isSelected : isOpen}
+                aria-label={onSelectStage ? `Inspect ${s.label} stage` : undefined}
                 className={cn(
-                  "group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors",
+                  "group flex w-full items-center gap-2 rounded-lg text-left transition-colors",
+                  compact ? "px-1.5 py-1" : "px-2 py-1.5",
                   "hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]",
                   isSelected
                     ? "bg-primary/10 ring-1 ring-primary/40 font-medium"
@@ -125,7 +133,14 @@ export function PipelineTrace({
                 )}
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
-                    <span className="text-[13px] font-semibold leading-tight">{s.label}</span>
+                    <span
+                      className={cn(
+                        "font-semibold leading-tight",
+                        compact ? "text-[12px]" : "text-[13px]",
+                      )}
+                    >
+                      {s.label}
+                    </span>
                     {s.confidence != null && (
                       <span
                         className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
@@ -138,15 +153,27 @@ export function PipelineTrace({
                       </span>
                     )}
                   </span>
-                  {!isOpen && (
-                    <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground break-words">
+                  {!isOpen && !compact && (
+                    <span
+                      className={cn(
+                        "mt-0.5 block text-[12px] leading-snug text-muted-foreground break-words",
+                        compact && "line-clamp-1",
+                      )}
+                      title={compact ? s.summary : undefined}
+                    >
                       {s.summary}
                     </span>
                   )}
                 </span>
                 {onSelectStage ? (
-                  <span className="shrink-0 inline-flex items-center gap-1 rounded border border-border/60 bg-secondary/60 px-1.5 py-0.5 text-[10px] text-muted-foreground transition-all group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary">
-                    <span>Inspect</span>
+                  <span
+                    className={cn(
+                      "shrink-0 inline-flex items-center gap-1 rounded border border-border/60 bg-secondary/60 text-[10px] text-muted-foreground transition-all group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary",
+                      compact ? "p-1" : "px-1.5 py-0.5",
+                    )}
+                    aria-hidden="true"
+                  >
+                    <span className={compact ? "sr-only" : undefined}>Inspect</span>
                     <ChevronRightIcon className="size-2.5" />
                   </span>
                 ) : (

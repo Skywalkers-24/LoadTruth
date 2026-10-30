@@ -5,7 +5,7 @@ import { useEffect, useId, useState, type ReactNode } from "react";
 import { ChevronDownIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
-const STORAGE_PREFIX = "loadtruth-console-section:";
+const STORAGE_PREFIX = "loadtruth-console-section:v2:";
 
 /** Badge tone for the header count (e.g. red when anomaly flags are present). */
 type CountTone = "neutral" | "danger";
@@ -71,6 +71,7 @@ export function CollapsibleSectionCard({
   aside,
   summary,
   defaultOpen = true,
+  fitHeight = false,
   className,
   children,
 }: SectionCardProps & {
@@ -79,6 +80,8 @@ export function CollapsibleSectionCard({
   /** One-line summary shown in the header while collapsed. */
   summary?: ReactNode;
   defaultOpen?: boolean;
+  /** Fill an assigned review-rail height and scroll the body when needed. */
+  fitHeight?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const bodyId = useId();
@@ -111,10 +114,18 @@ export function CollapsibleSectionCard({
     <section
       className={cn(
         "lt-card-shadow rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]",
+        fitHeight && "@[42rem]:flex @[42rem]:min-h-0 @[42rem]:flex-col @[42rem]:overflow-hidden",
+        fitHeight && (open ? "@[42rem]:flex-[1_1_auto]" : "@[42rem]:flex-none"),
         className,
       )}
     >
-      <header className={cn("lt-card-head", open && "border-b border-[var(--color-border)]")}>
+      <header
+        className={cn(
+          "lt-card-head",
+          open && "border-b border-[var(--color-border)]",
+          fitHeight && "@[42rem]:shrink-0",
+        )}
+      >
         <button
           type="button"
           onClick={toggle}
@@ -147,7 +158,14 @@ export function CollapsibleSectionCard({
         {aside && open && <span className="shrink-0">{aside}</span>}
       </header>
       {open && (
-        <div id={bodyId} className="lt-card-body">
+        <div
+          id={bodyId}
+          className={cn(
+            fitHeight ? "lt-card-body--dense" : "lt-card-body",
+            fitHeight &&
+              "@[42rem]:flex @[42rem]:min-h-0 @[42rem]:flex-1 @[42rem]:flex-col @[42rem]:overflow-y-auto lt-scroll",
+          )}
+        >
           {children}
         </div>
       )}

@@ -200,7 +200,7 @@ export function SamPlayer({
 
   const layers = frameLayers(tracks.bed, tracks.load, tracks.rim, frame);
   const bodyShapes = tracks.body.frames.get(frame) ?? [];
-  const { bed, rim, loads } = layers;
+  const { bed, rim, loads, rimShapes } = layers;
   const videoReady = url !== null && readyUrl === url;
   const showMasks = isImage || videoReady;
   const openingId = `${loadClipId}-opening`;
@@ -320,6 +320,10 @@ export function SamPlayer({
                 {bodyShapes.map((s) => (
                   <Shape key={`body-${s.objectId}`} s={s} color="#f59e0b" />
                 ))}
+                {/* Render tailgate in amber Body color */}
+                {rimShapes?.map((s) => (
+                  <Shape key={`tailgate-${s.objectId}`} s={s} color="#f59e0b" />
+                ))}
                 {/* A bed prompt often includes the tailgate face. Reassign that visible
                   exterior to Body using the same rim boundary as measurement. */}
                 {bed && (
@@ -413,19 +417,50 @@ export function frameLayers(beds: SamTrack, loads: SamTrack, rims: SamTrack, fra
       );
     }
   const id = [...totals].sort((a, b) => b[1] - a[1])[0]?.[0];
-  const bed = beds.frames.get(frame)?.find((s) => s.objectId === id);
-  if (!bed) return { bed: undefined, rim: 0, loads: [] as SamShape[] };
+  let bed = beds.frames.get(frame)?.find((s) => s.objectId === id);
+
+  // If the bed tracking starts a few frames into the video (e.g. truck entering view before lock-on),
+  // borrow the earliest tracked bed frame for pre-roll frames so masks don't drop out during the first 1-2s.
+  if (!bed && id) {
+    const validBedFrames = [...beds.frames.entries()]
+      .filter(([, shapes]) => shapes.some((s) => s.objectId === id))
+      .map(([f]) => f)
+      .sort((a, b) => a - b);
+    if (validBedFrames.length > 0 && frame < validBedFrames[0]!) {
+      bed = beds.frames.get(validBedFrames[0]!)?.find((s) => s.objectId === id);
+    }
+  }
+
+  const rimShapes = rims.frames.get(frame) ?? [];
+  const loadShapes = loads.frames.get(frame) ?? [];
+
+  if (!bed) {
+    return {
+      bed: undefined,
+      rim: rimShapes.length ? Math.min(...rimShapes.map((s) => s.top)) : 0,
+      loads: loadShapes,
+      rimShapes,
+    };
+  }
+
   const floor = bed.top + (bed.bottom - bed.top) * 0.25;
-  const candidates = (rims.frames.get(frame) ?? []).filter(
+  const candidates = rimShapes.filter(
     (s) => overlapShare(s, bed) > 0 && s.top >= floor && s.top < bed.bottom,
   );
-  const rim = candidates.length ? Math.min(...candidates.map((s) => s.top)) : bed.bottom;
+  const rim = candidates.length
+    ? Math.min(...candidates.map((s) => s.top))
+    : rimShapes.length
+      ? Math.min(...rimShapes.map((s) => s.top))
+      : bed.bottom;
+
+  const filteredLoads = loadShapes.filter((s) => overlapShare(s, bed) >= 0.35 && s.top < rim);
+  const finalLoads = filteredLoads.length > 0 ? filteredLoads : loadShapes.filter((s) => s.top < rim);
+
   return {
     bed,
     rim,
-    loads: (loads.frames.get(frame) ?? []).filter(
-      (s) => overlapShare(s, bed) >= 0.5 && s.top < rim,
-    ),
+    loads: finalLoads,
+    rimShapes,
   };
 }
 

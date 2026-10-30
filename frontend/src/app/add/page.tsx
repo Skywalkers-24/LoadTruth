@@ -242,21 +242,18 @@ function CaptureWorkspace() {
           </div>
 
           <div className="flex min-w-0 flex-col gap-3">
-            {latest.data && !ingest.isPending && (
-              <Card className="gap-2 p-4" role="status">
-                <p className="text-sm font-medium">
-                  {processing
-                    ? "Latest upload · Analysis in progress"
-                    : latest.data.status === "failed"
-                      ? "Latest upload · Analysis did not complete"
-                      : "Latest upload · Analysis complete"}
+            {latest.data && !ingest.isPending && latest.data.status === "failed" && (
+              <Card
+                className="gap-2 border-[var(--color-destructive)]/40 bg-[var(--color-danger-soft)] p-4"
+                role="alert"
+              >
+                <p className="text-sm font-semibold text-[var(--color-destructive)]">
+                  Analysis did not complete
                 </p>
                 <p className="break-words text-xs text-muted-foreground">{latest.data.filename}</p>
-                {latest.data.status === "failed" && (
-                  <p className="text-sm text-[var(--color-destructive)]">
-                    {latest.data.detail ?? "Upload again to retry."}
-                  </p>
-                )}
+                <p className="text-sm text-[var(--color-destructive)]">
+                  {latest.data.detail ?? "Upload again to retry."}
+                </p>
               </Card>
             )}
             {latest.isError && (
@@ -283,7 +280,14 @@ function CaptureWorkspace() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <CheckCircle2Icon className="size-5 text-[var(--color-ok)]" />
-                      <h2 className="text-[15px] font-semibold">Latest ticket draft</h2>
+                      <div>
+                        <h2 className="text-[15px] font-semibold">Latest ticket draft</h2>
+                        {latest.data?.filename && (
+                          <p className="text-[11px] text-muted-foreground">
+                            Generated from {latest.data.filename}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <Button size="sm" onClick={() => router.push(`/console?ticket=${result.id}`)}>
                       Open ticket

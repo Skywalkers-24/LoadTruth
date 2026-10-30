@@ -137,10 +137,10 @@ export function AppShell({
 
   return (
     <div
-      className="min-h-dvh lg:grid lg:h-dvh lg:overflow-hidden"
+      className="min-h-dvh lg:grid lg:h-dvh lg:overflow-hidden lg:transition-[grid-template-columns] lg:duration-300 lg:ease-out"
       style={{ gridTemplateColumns: collapsed ? "72px 1fr" : "248px 1fr" }}
     >
-      <aside className="sticky top-0 z-20 hidden h-dvh flex-col border-r border-sidebar-border bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-sidebar)_100%,white_2%),var(--color-sidebar))] text-sidebar-foreground shadow-[1px_0_0_rgba(255,255,255,0.03),8px_0_28px_-16px_rgba(0,0,0,0.6)] transition-[width] duration-200 lg:flex">
+      <aside className="sticky top-0 z-20 hidden h-dvh flex-col border-r border-sidebar-border bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-sidebar)_100%,white_2%),var(--color-sidebar))] text-sidebar-foreground shadow-[1px_0_0_rgba(255,255,255,0.03),8px_0_28px_-16px_rgba(0,0,0,0.6)] lg:flex">
         <RailContent pathname={pathname} collapsed={collapsed} onToggle={toggleCollapse} />
       </aside>
 
@@ -151,7 +151,7 @@ export function AppShell({
             onClick={() => setDrawer(false)}
             aria-hidden
           />
-          <aside className="lt-pop-in absolute left-0 top-0 flex h-full w-[280px] flex-col bg-sidebar text-sidebar-foreground">
+          <aside className="lt-sidebar-drawer-in absolute left-0 top-0 flex h-full w-[280px] flex-col bg-sidebar text-sidebar-foreground">
             <div className="flex items-center justify-between px-4 pt-4">
               <Brand collapsed={false} />
               <button

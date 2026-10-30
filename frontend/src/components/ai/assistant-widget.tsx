@@ -37,7 +37,7 @@ export function AssistantWidget({ page }: { page?: string }) {
         <div
           role="dialog"
           aria-label="AI Analyst"
-          className="lt-pop-in fixed bottom-20 right-4 z-[100] flex h-[min(560px,calc(100dvh-7rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl lg:bottom-24 sm:right-6"
+          className="lt-pop-in fixed bottom-20 right-4 z-[100] flex h-[min(560px,calc(100dvh-7rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl lg:bottom-16"
         >
           <header className="flex items-center gap-2.5 border-b border-border bg-[var(--color-surface-2)] px-4 py-3">
             <span className="grid size-8 place-items-center rounded-lg bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
@@ -87,9 +87,8 @@ export function AssistantWidget({ page }: { page?: string }) {
         </div>
       )}
 
-      {/* Launcher — reads as an AI chat: a chat bubble with a sparkle "AI"
-          badge and a hover label, so it's obvious this is the AI Analyst. */}
-      <div className="group/ai fixed bottom-20 right-5 z-[100] flex items-center gap-2 lg:bottom-6 sm:right-6">
+      {/* Keep the compact analyst launcher floating above page content. */}
+      <div className="group/ai fixed bottom-4 right-4 z-[100] flex items-center gap-2 lg:right-0">
         {!open && (
           <span className="pointer-events-none hidden items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text)] opacity-0 shadow-md transition-opacity duration-200 group-hover/ai:opacity-100 sm:inline-flex">
             Ask AI Analyst
@@ -101,30 +100,12 @@ export function AssistantWidget({ page }: { page?: string }) {
           aria-label={open ? "Close AI Analyst" : "Open AI Analyst"}
           aria-expanded={open}
           className={cn(
-            "relative grid size-14 place-items-center rounded-full text-white shadow-xl transition-all",
-            "bg-[linear-gradient(140deg,var(--color-brand-strong),var(--color-brand-fill))] hover:scale-105 hover:shadow-2xl",
+            "relative grid size-11 place-items-center rounded-full text-white shadow-lg transition-[transform,box-shadow] duration-200",
+            "bg-[linear-gradient(140deg,var(--color-brand-strong),var(--color-brand-fill))] hover:scale-[1.03] hover:shadow-xl",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]",
           )}
         >
-          {/* Soft attention pulse (hidden while open / reduced-motion). */}
-          {!open && (
-            <span
-              aria-hidden
-              className="lt-pulse absolute inset-0 rounded-full"
-              style={{ ["--color-ok" as string]: "var(--color-brand-fill)" }}
-            />
-          )}
-          {open ? (
-            <XIcon className="size-7" />
-          ) : (
-            <>
-              <MessageSquareIcon className="size-7" />
-              {/* Sparkle "AI" badge in the corner. */}
-              <span className="absolute -right-0.5 -top-0.5 grid size-[22px] place-items-center rounded-full bg-white text-[var(--color-brand-fill)] shadow ring-2 ring-[var(--color-brand-fill)]">
-                <SparklesIcon className="size-3.5" />
-              </span>
-            </>
-          )}
+          {open ? <XIcon className="size-5" /> : <MessageSquareIcon className="size-5" />}
         </button>
       </div>
     </>
