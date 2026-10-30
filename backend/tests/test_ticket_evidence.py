@@ -79,3 +79,29 @@ async def test_store_rejects_unsafe_keys_and_keeps_first_copy(b2_objects) -> Non
     stored = await evidence_store.load("b" * 64)
     assert stored is not None and stored.fps == 3.0
     assert b2_objects[stored.object_key][0] == b"first"
+
+
+@pytest.mark.asyncio
+async def test_benchmark_playback_skips_b2_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from app.api.tickets import ticket_evidence, ticket_evidence_media, ticket_evidence_url
+    from app.pipeline.benchmark_media import BENCHMARK_MEDIA, benchmark_media_url
+
+    digest = next(iter(BENCHMARK_MEDIA))
+    row = SimpleNamespace(
+        content_hash=digest, media_kind="video", mime="video/mp4", fps=3,
+        segments={"truck bed": "saved masks"},
+    )
+    repo = SimpleNamespace(get_ticket_evidence=AsyncMock(return_value=row))
+    load = AsyncMock(side_effect=AssertionError("Benchmark playback must not wait for B2"))
+    monkeypatch.setattr(evidence_store, "load", load)
+    ticket_id = UUID("44444444-4444-4444-4444-444444444444")
+    evidence = await ticket_evidence(repo, DEMO_TENANT_ID, ticket_id)
+    assert evidence.has_media and evidence.media_url == benchmark_media_url(digest)
+    assert evidence.segments == row.segments and evidence.fps == 3
+    url = await ticket_evidence_url(repo, DEMO_TENANT_ID, ticket_id)
+    redirect = await ticket_evidence_media(repo, DEMO_TENANT_ID, ticket_id)
+    assert url["url"] == evidence.media_url == redirect.headers["location"]
+    load.assert_not_called()

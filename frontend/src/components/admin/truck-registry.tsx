@@ -134,8 +134,8 @@ export function TruckRegistry() {
             Certified fleet
           </span>
           <span className="text-[12px] text-[var(--color-muted-foreground)]">
-            Trucks with a registered bed capacity. A ticket whose truck is not here reads as
-            uncertified.
+            Registered truck IDs and certified bed capacities used for new load calculations.
+            Demo specification sources are shown on each entry.
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -226,8 +226,8 @@ export function TruckRegistry() {
         title={isEdit ? "Edit truck" : "Add a certified truck"}
         description={
           isEdit
-            ? "Change this truck's capacity or details. Editing the capacity re-values loads that match this truck on their next calculation."
-            : "Register a truck so its loads match to a bed capacity. Truck number must be unique."
+            ? "Update the truck ID, body type, certified capacity, or source. Changes apply to future calculations; existing tickets keep their saved values."
+            : "Enter the unique placard ID, body type, certified bed capacity in cubic yards, and certification source. For demo footage, identify the demo specification as the source."
         }
         confirmLabel={isEdit ? "Save changes" : "Add truck"}
         busy={saving}
@@ -251,7 +251,7 @@ export function TruckRegistry() {
               autoFocus
             />
             <Field
-              label="Capacity (CY)"
+              label="Certified bed capacity (CY)"
               value={cap}
               onChange={setCap}
               placeholder="20"
@@ -276,10 +276,10 @@ export function TruckRegistry() {
               </select>
             </label>
             <Field
-              label="Registry source"
+              label="Certification source"
               value={source}
               onChange={setSource}
-              placeholder="County fleet"
+              placeholder="County certificate or demo specification"
             />
           </div>
           {error && <p className="text-[12px] text-[var(--color-danger)]">{error}</p>}
@@ -293,7 +293,7 @@ export function TruckRegistry() {
         title="Remove this truck?"
         description={
           removing
-            ? `Truck ${removing.truck_number} will be removed from the certified registry. Tickets referencing it will read as uncertified.`
+            ? `Truck ${removing.truck_number} will be removed from the registry for future calculations. Existing tickets keep their saved certification and values.`
             : ""
         }
         confirmLabel="Remove"

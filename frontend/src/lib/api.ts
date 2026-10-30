@@ -517,6 +517,8 @@ export interface TicketEvidence {
   /** Frame rate of the stored video when known (SAM frame N plays at N / fps). */
   fps: number | null;
   has_media: boolean;
+  /** Direct Cloudflare URL for public benchmark footage. */
+  media_url?: string | null;
   /** Concept label ("truck bed", "debris pile") to SAM output text. */
   segments: Record<string, string>;
 }

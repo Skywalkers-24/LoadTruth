@@ -11,19 +11,15 @@ import {
   Loader2Icon,
   PauseIcon,
   PlayIcon,
+  RotateCcwIcon,
   SparklesIcon,
   Volume2Icon,
   VolumeXIcon,
 } from "lucide-react";
 
-import {
-  demoPlayback,
-  SHOWCASE_EVENT_ID,
-  type DebrisClass,
-  type DemoVideo,
-} from "@/lib/api";
-import { useTicketEvidence } from "@/lib/hooks";
+import { demoPlayback, type DebrisClass, type DemoVideo, type TicketEvidence } from "@/lib/api";
 import { useInView } from "@/lib/use-in-view";
+import processedPairs from "@/lib/processed-benchmark-pairs.json";
 import { SamPlayer } from "@/components/console/sam-player";
 import { Badge } from "@/components/ui/shadcn/badge";
 import { cn } from "@/lib/utils";
@@ -33,6 +29,7 @@ export interface BenchmarkPairDef {
   pairNumber: number;
   truckId: string;
   ticketId: string;
+  eventId: string;
   debrisClass: DebrisClass;
   debrisLabel: string;
   debrisDescription: string;
@@ -48,6 +45,8 @@ export interface BenchmarkPairDef {
   resolution: string;
   lane: string;
 }
+
+export const BENCHMARK_PAIRS = processedPairs as BenchmarkPairDef[];
 
 interface VideoPairCardProps {
   pair: BenchmarkPairDef;
@@ -95,22 +94,57 @@ export function VideoPairCard({
     retry: 1,
   });
 
-  // Ticket evidence with SAM segmentation records (lazy-fetched when visible)
-  const evidence = useTicketEvidence(pair.ticketId, isVisible);
+  // Fetch saved masks only when the card approaches the viewport.
+  const evidence = useQuery<TicketEvidence>({
+    queryKey: ["benchmark-evidence", pair.id],
+    queryFn: async () => {
+      const response = await fetch(
+        `/evidence/benchmark/${String(pair.pairNumber).padStart(3, "0")}.json`,
+      );
+      if (!response.ok) throw new Error("Saved masks could not be loaded");
+      return response.json();
+    },
+    enabled: isVisible,
+    staleTime: Infinity,
+  });
+  const evidenceData = evidence.data;
 
-  // Prefer instant Cloudflare edge static asset (/videos/showcase-N.mp4) for benchmark pairs;
-  // Fall back to dynamic upload playback URL for newly uploaded clips
+  // Source clips and saved masks are served from Cloudflare static assets.
   const edgeVideoUrl = pair.matchFilename ? `/videos/${pair.matchFilename}` : null;
+  const posterUrl = pair.matchFilename
+    ? `/videos/thumbnails/${pair.matchFilename.replace(".mp4", ".jpg")}`
+    : undefined;
   const [useEdgeAsset, setUseEdgeAsset] = useState(true);
-  const videoUrl = (useEdgeAsset && edgeVideoUrl) ? edgeVideoUrl : (playback.data?.url ?? null);
+  const videoUrl = useEdgeAsset && edgeVideoUrl ? edgeVideoUrl : (playback.data?.url ?? null);
+
+  // Replay both feeds from 0:00
+  function handleReplay(e?: React.MouseEvent) {
+    e?.stopPropagation();
+    const vReal = realVideoRef.current;
+    const vAnalyzed = analyzedVideoRef.current;
+    if (vReal) {
+      vReal.currentTime = 0;
+      void vReal.play();
+    }
+    if (vAnalyzed) {
+      vAnalyzed.currentTime = 0;
+      void vAnalyzed.play();
+    }
+    setCurrentTime(0);
+    setIsPlaying(true);
+    setPlaybackError(false);
+  }
 
   // Toggle synchronized play / pause
   async function toggleSyncPlay() {
     const vReal = realVideoRef.current;
     const vAnalyzed = analyzedVideoRef.current;
-    const videos = [vReal, vAnalyzed].filter(
-      (video): video is HTMLVideoElement => video !== null,
-    );
+    const videos = [vReal, vAnalyzed].filter((video): video is HTMLVideoElement => video !== null);
+
+    if (currentTime >= duration - 0.2) {
+      handleReplay();
+      return;
+    }
 
     if (isPlaying) {
       videos.forEach((video) => video.pause());
@@ -193,9 +227,7 @@ export function VideoPairCard({
           <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary shrink-0">
             P0{pair.pairNumber}
           </span>
-          <span className="font-mono text-xs font-bold text-foreground">
-            {pair.truckId}
-          </span>
+          <span className="font-mono text-xs font-bold text-foreground">{pair.truckId}</span>
           <span className="rounded border border-border/80 bg-background px-1.5 py-0 text-[10px] font-medium text-muted-foreground hidden sm:inline-flex">
             {pair.debrisLabel}
           </span>
@@ -204,47 +236,59 @@ export function VideoPairCard({
           </span>
         </div>
 
-        {/* View Switcher: Dual / Real / SAM */}
-        <div className="inline-flex rounded border border-border bg-background p-0.5 text-[10px]">
+        {/* View Switcher & Replay */}
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setViewMode("side-by-side")}
-            className={cn(
-              "rounded px-1.5 py-0.5 transition-colors font-medium",
-              viewMode === "side-by-side"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-            title="Side-by-Side Dual View"
+            onClick={handleReplay}
+            className="inline-flex items-center gap-1 rounded border border-border/80 bg-background px-1.5 py-0.5 text-[10px] font-medium text-foreground hover:bg-accent transition-colors shadow-2xs"
+            title="Replay from start (0:00)"
           >
-            Dual
+            <RotateCcwIcon className="size-2.5 text-primary" />
+            <span className="hidden sm:inline">Replay</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("real")}
-            className={cn(
-              "rounded px-1.5 py-0.5 transition-colors font-medium",
-              viewMode === "real"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-            title="Raw CCTV Only"
-          >
-            Real
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("analyzed")}
-            className={cn(
-              "rounded px-1.5 py-0.5 transition-colors font-medium",
-              viewMode === "analyzed"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-            title="AI SAM 3.1 Only"
-          >
-            SAM
-          </button>
+
+          <div className="inline-flex rounded border border-border bg-background p-0.5 text-[10px]">
+            <button
+              type="button"
+              onClick={() => setViewMode("side-by-side")}
+              className={cn(
+                "rounded px-1.5 py-0.5 transition-colors font-medium",
+                viewMode === "side-by-side"
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              title="Side-by-Side Dual View"
+            >
+              Dual
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("real")}
+              className={cn(
+                "rounded px-1.5 py-0.5 transition-colors font-medium",
+                viewMode === "real"
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              title="Raw CCTV Only"
+            >
+              Real
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("analyzed")}
+              className={cn(
+                "rounded px-1.5 py-0.5 transition-colors font-medium",
+                viewMode === "analyzed"
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              title="AI SAM 3.1 Only"
+            >
+              SAM
+            </button>
+          </div>
         </div>
       </div>
 
@@ -258,13 +302,15 @@ export function VideoPairCard({
             <div className="grid size-9 place-items-center rounded-full bg-white/10 text-white shadow-xs">
               <PlayIcon className="size-4 fill-current ml-0.5" />
             </div>
-            <span className="text-[11px] font-medium text-muted-foreground">Click or scroll to preview {pair.truckId}</span>
+            <span className="text-[11px] font-medium text-muted-foreground">
+              Click or scroll to preview {pair.truckId}
+            </span>
           </div>
         ) : (
           <div
             className={cn(
               "grid gap-1.5",
-              viewMode === "side-by-side" ? "grid-cols-2" : "grid-cols-1"
+              viewMode === "side-by-side" ? "grid-cols-2" : "grid-cols-1",
             )}
           >
             {/* ── LEFT: REAL CCTV FOOTAGE ── */}
@@ -282,6 +328,7 @@ export function VideoPairCard({
                   <video
                     ref={realVideoRef}
                     src={videoUrl}
+                    poster={posterUrl}
                     playsInline
                     preload="metadata"
                     muted={isMuted}
@@ -310,11 +357,13 @@ export function VideoPairCard({
                 <div
                   className={cn(
                     "pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity duration-200",
-                    isPlaying ? "opacity-0 group-hover:opacity-80" : "opacity-90 bg-black/20"
+                    isPlaying ? "opacity-0 group-hover:opacity-80" : "opacity-90 bg-black/20",
                   )}
                 >
                   <div className="grid size-7 place-items-center rounded-full bg-black/60 text-white shadow-lg backdrop-blur-xs border border-white/20">
-                    {isPlaying ? (
+                    {currentTime >= duration - 0.2 ? (
+                      <RotateCcwIcon className="size-3.5" />
+                    ) : isPlaying ? (
                       <PauseIcon className="size-3.5 fill-current" />
                     ) : (
                       <PlayIcon className="size-3.5 fill-current ml-0.5" />
@@ -330,18 +379,19 @@ export function VideoPairCard({
                 className="group relative aspect-video w-full overflow-hidden rounded-md bg-black cursor-pointer select-none"
                 onClick={toggleSyncPlay}
               >
-                {!videoUrl || evidence.isLoading ? (
+                {!videoUrl || (evidence.isLoading && !evidenceData) ? (
                   <div className="flex size-full flex-col items-center justify-center gap-1 text-[10px] text-muted-foreground">
                     <Loader2Icon className="size-3.5 animate-spin text-primary" />
                     <span>Loading SAM…</span>
                   </div>
-                ) : evidence.data ? (
+                ) : evidenceData ? (
                   <SamPlayer
                     ticketId={pair.ticketId}
-                    evidence={evidence.data}
+                    evidence={evidenceData}
                     show={showLayers}
                     videoUrl={videoUrl}
                     videoRef={analyzedVideoRef}
+                    poster={posterUrl}
                     hideControls
                     autoPlay={false}
                     className="absolute inset-0 flex flex-col bg-black [&_video]:object-cover"
@@ -350,6 +400,7 @@ export function VideoPairCard({
                   <video
                     ref={analyzedVideoRef}
                     src={videoUrl}
+                    poster={posterUrl}
                     playsInline
                     preload="metadata"
                     muted={isMuted}
@@ -377,7 +428,7 @@ export function VideoPairCard({
                       "rounded px-1.5 py-0.5 text-[8px] font-bold transition-all shadow-xs",
                       showLayers.bed
                         ? "bg-sky-500 text-white shadow-sky-500/30"
-                        : "bg-black/60 text-white/50 border border-white/10"
+                        : "bg-black/60 text-white/50 border border-white/10",
                     )}
                     title="Toggle Bed Outline"
                   >
@@ -390,7 +441,7 @@ export function VideoPairCard({
                       "rounded px-1.5 py-0.5 text-[8px] font-bold transition-all shadow-xs",
                       showLayers.load
                         ? "bg-amber-500 text-black shadow-amber-500/30"
-                        : "bg-black/60 text-white/50 border border-white/10"
+                        : "bg-black/60 text-white/50 border border-white/10",
                     )}
                     title="Toggle Load Mask"
                   >
@@ -403,7 +454,7 @@ export function VideoPairCard({
                       "rounded px-1.5 py-0.5 text-[8px] font-bold transition-all shadow-xs",
                       showLayers.body
                         ? "bg-purple-500 text-white shadow-purple-500/30"
-                        : "bg-black/60 text-white/50 border border-white/10"
+                        : "bg-black/60 text-white/50 border border-white/10",
                     )}
                     title="Toggle Body Mask"
                   >
@@ -420,11 +471,13 @@ export function VideoPairCard({
                 <div
                   className={cn(
                     "pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity duration-200",
-                    isPlaying ? "opacity-0 group-hover:opacity-80" : "opacity-90 bg-black/20"
+                    isPlaying ? "opacity-0 group-hover:opacity-80" : "opacity-90 bg-black/20",
                   )}
                 >
                   <div className="grid size-7 place-items-center rounded-full bg-black/60 text-white shadow-lg backdrop-blur-xs border border-white/20">
-                    {isPlaying ? (
+                    {currentTime >= duration - 0.2 ? (
+                      <RotateCcwIcon className="size-3.5" />
+                    ) : isPlaying ? (
                       <PauseIcon className="size-3.5 fill-current" />
                     ) : (
                       <PlayIcon className="size-3.5 fill-current ml-0.5" />
@@ -449,6 +502,17 @@ export function VideoPairCard({
             ) : (
               <PlayIcon className="size-3 fill-current ml-0.5" />
             )}
+          </button>
+
+          {/* Replay Button */}
+          <button
+            type="button"
+            onClick={handleReplay}
+            className="flex items-center gap-1 rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-medium text-white hover:bg-white/25 transition-colors shrink-0"
+            title="Replay from start (0:00)"
+          >
+            <RotateCcwIcon className="size-2.5" />
+            <span>Replay</span>
           </button>
 
           {/* Time Display */}
@@ -517,7 +581,7 @@ export function VideoPairCard({
           )}
 
           <Link
-            href={`/console?event=${SHOWCASE_EVENT_ID}&ticket=${pair.ticketId}`}
+            href={`/console?event=${pair.eventId}&ticket=${pair.ticketId}`}
             className="inline-flex h-6 items-center rounded border border-border bg-background px-2 text-[10px] font-medium text-foreground transition-colors hover:bg-accent hover:border-primary/40"
           >
             Console →
