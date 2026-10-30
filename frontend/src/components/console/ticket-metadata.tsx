@@ -4,7 +4,7 @@ import type { DebrisClass, Ticket } from "@/lib/api";
 import { InlineEditField, type EditOption } from "@/components/console/inline-edit-field";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/toast";
-import { cubicYards, dateTime, debrisLabel, money } from "@/lib/format";
+import { cubicYards, dateTime, debrisLabel, money, percent, signedMoney } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
 import { useUpdateTicket } from "@/lib/hooks";
 
@@ -23,6 +23,16 @@ export function TicketMetadata({ ticket }: { ticket: Ticket }) {
   const canEdit = can("review_tickets");
   const update = useUpdateTicket();
   const toast = useToast();
+
+  const fillPct = Number.parseFloat(v.est_fill_pct || "0");
+  const estCy = Number.parseFloat(v.est_cubic_yards || "0");
+  const fillDisplay =
+    fillPct > 0 && estCy > 0
+      ? `${percent(v.est_fill_pct)} (${cubicYards(v.est_cubic_yards)})`
+      : percent(v.est_fill_pct);
+
+  const hasCall = v.monitor_fill_pct !== null && v.delta_dollar_value !== null;
+  const delta = hasCall ? Number.parseFloat(v.delta_dollar_value ?? "0") : 0;
 
   async function saveTruck(next: string) {
     try {
@@ -46,9 +56,7 @@ export function TicketMetadata({ ticket }: { ticket: Ticket }) {
 
   return (
     <div className="@container">
-      {/* One row of six once there is room (a 13-inch laptop's center column),
-          so the record stays one line tall and the evidence keeps the height. */}
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 @sm:grid-cols-3 @[44rem]:grid-cols-6 @[44rem]:gap-x-3">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 @sm:grid-cols-4 @[54rem]:grid-cols-8 @[54rem]:gap-x-3">
         <Item
           label="Truck"
           tip="The identified truck. Edit to set or correct it; this re-derives the certified capacity."
@@ -86,15 +94,26 @@ export function TicketMetadata({ ticket }: { ticket: Ticket }) {
           tip="The truck's registered bed volume. Fill percent is applied to this to get cubic yards."
         />
         <Item
+          label="Measured fill"
+          value={fillDisplay}
+          tip="AI vision fill percentage and calculated net load volume (capacity × fill %)."
+        />
+        <Item
           label="Rate"
           value={`${money(v.rate_per_cy)} per CY`}
           tip="Event rate for this debris class."
         />
-        <Item label="Captured" value={dateTime(ticket.created_at)} />
         <Item
           label="Cost"
           value={money(v.est_dollar_value)}
           tip="Load cost calculated from measured cubic yards and the contract rate."
+        />
+        <Item label="Captured" value={dateTime(ticket.created_at)} />
+        <Item
+          label="Variance"
+          value={hasCall ? signedMoney(v.delta_dollar_value) : "No call"}
+          warn={delta > 0}
+          tip="Dollar difference between the monitor call and LoadTruth video measurement."
         />
       </dl>
     </div>
