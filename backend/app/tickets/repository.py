@@ -431,6 +431,23 @@ class SqlTicketRepository:
         await self._s.flush()
         return await self.get_ticket(tenant_id, ticket_id)
 
+    async def delete_ticket(self, tenant_id: UUID, ticket_id: UUID) -> None:
+        """Delete a ticket and its associated anomalies, stages, and evidence."""
+        from sqlalchemy import delete
+
+        for model in (models.Anomaly, models.PipelineStageRow, models.TicketEvidence):
+            await self._s.execute(
+                delete(model).where(model.tenant_id == tenant_id, model.ticket_id == ticket_id)
+            )
+        res = await self._s.execute(
+            delete(models.Ticket).where(
+                models.Ticket.tenant_id == tenant_id, models.Ticket.id == ticket_id
+            )
+        )
+        if res.rowcount == 0:
+            raise TicketNotFoundError(str(ticket_id))
+        await self._s.flush()
+
     async def _match_capacity(self, tenant_id: UUID, truck_id: str | None) -> Decimal:
         """Certified capacity for a (possibly fuzzy) truck id, or 0 if unknown."""
         if not truck_id:

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Loader2Icon, MaximizeIcon, MinimizeIcon } from "lucide-react";
+import { Loader2Icon, MaximizeIcon, MinimizeIcon, RotateCcwIcon } from "lucide-react";
 
 import { benchmarkMediaUrl } from "@/lib/benchmark-media";
 import type { Ticket } from "@/lib/api";
@@ -141,6 +141,23 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
 
               <button
                 type="button"
+                onClick={() => {
+                  const video = viewerRef.current?.querySelector("video");
+                  if (video) {
+                    video.currentTime = 0;
+                    void video.play();
+                  }
+                }}
+                aria-label="Replay ticket"
+                title="Replay ticket from start"
+                className="flex min-h-8 items-center gap-1.5 rounded-md border border-border px-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
+              >
+                <RotateCcwIcon size={13} className="text-primary" />
+                <span>Replay ticket</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => void toggleFullscreen()}
                 aria-label={
                   fullscreen || expanded ? "Exit evidence fullscreen" : "Fullscreen evidence"
@@ -185,6 +202,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
               evidence={evidence}
               videoUrl={evidence.media_url ?? benchmarkMediaUrl(ticket.id)}
               show={layers}
+              autoPlay={false}
               onFrame={handleSamFrame}
             />
           ) : (

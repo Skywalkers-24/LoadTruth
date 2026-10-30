@@ -20,8 +20,8 @@ from app.ai.base import ClassifyResult, OCRResult, TrackedObject, TrackResult
 STAGE_TRACK = "sam_track"
 STAGE_OCR = "spark_ocr"
 # Muse-only, multi-frame fill output must not replay older SAM-guided results.
-STAGE_CLASSIFY = "spark_fill_v3"
-MUSE_FILL_VERSION = 2
+STAGE_CLASSIFY = "spark_fill_v4"
+MUSE_FILL_VERSION = 3
 
 
 def track_to_json(r: TrackResult) -> dict[str, Any]:

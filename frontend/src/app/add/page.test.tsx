@@ -112,61 +112,32 @@ describe("administrator fresh-analysis option", () => {
     await render();
     expect(host.querySelector('input[type="checkbox"]')).toBeNull();
   });
-  it("offers saved footage instead of uploads for a read-only event", async () => {
-    state.readonly = true;
+  it("provides a dropdown to select and analyze an existing processed video on the same page", async () => {
     await render();
-    expect(host.querySelector('input[type="checkbox"]')).toBeNull();
-    expect(host.querySelector("#practice-video")).not.toBeNull();
+    const select = host.querySelector<HTMLSelectElement>("#existing-video-select");
+    expect(select).not.toBeNull();
+    expect(select?.options.length).toBeGreaterThan(1);
+    expect(host.textContent).toContain("Use existing video from library");
+    expect(host.textContent).not.toContain("Replay a processed video");
   });
-});
-
-describe("processed video replay from Add footage", () => {
-  it("lets a monitor choose and replay saved footage from a read-only event", async () => {
-    state.role = "monitor";
-    state.readonly = true;
+  it("drafts a ticket when an existing video is selected", async () => {
+    state.create.mockResolvedValueOnce({
+      id: "new-ticket-123",
+      truck_id: "FL-DT-5590",
+      debris_class: "construction_demolition",
+      valuation: {
+        certified_cubic_yards: "20.00",
+        est_dollar_value: "350.00",
+        est_fill_pct: "36.3",
+      },
+    });
     await render();
-    expect(host.textContent).toContain("Replay a processed video");
-    expect(host.querySelector('[data-testid="footage-preview"]')?.textContent).toBe("saved-1");
-    const select = host.querySelector<HTMLSelectElement>("#practice-video")!;
+    const select = host.querySelector<HTMLSelectElement>("#existing-video-select")!;
+    const testOption = select.options[1]!.value;
     await act(async () => {
-      select.value = "saved-2";
+      select.value = testOption;
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(host.querySelector('[data-testid="footage-preview"]')?.textContent).toBe("saved-2");
-    expect(host.querySelector('a[href*="ticket=saved-2"]')?.getAttribute("href")).toContain(
-      "event=readonly-2",
-    );
-    expect(state.create).not.toHaveBeenCalled();
-    expect(state.mutate).not.toHaveBeenCalled();
-    expect(host.querySelector('input[type="file"]')).toBeNull();
-  });
-  it("creates a practice copy in the playground without changing the read-only source", async () => {
-    state.role = "monitor";
-    state.readonly = true;
-    state.create.mockResolvedValue({ id: "practice-ticket" });
-    await render();
-    const button = [...host.querySelectorAll("button")].find(
-      (button) => button.textContent === "Review a practice copy",
-    )!;
-    await act(async () => button.click());
-    expect(state.create).toHaveBeenCalledWith("playground-1", "saved-1");
-    expect(state.setSelectedId).toHaveBeenCalledWith("playground-1");
-    expect(state.push).toHaveBeenCalledWith("/console?event=playground-1&ticket=practice-ticket");
-    expect(state.mutate).not.toHaveBeenCalled();
-  });
-  it("lets an administrator switch between upload and saved replay", async () => {
-    await render();
-    await act(async () =>
-      [...host.querySelectorAll("button")]
-        .find((button) => button.textContent === "Replay a processed video")!
-        .click(),
-    );
-    expect(host.querySelector("#practice-video")).not.toBeNull();
-    await act(async () =>
-      [...host.querySelectorAll("button")]
-        .find((button) => button.textContent === "Upload new footage")!
-        .click(),
-    );
-    expect(host.querySelector('input[type="file"]')).not.toBeNull();
+    expect(state.create).toHaveBeenCalled();
   });
 });

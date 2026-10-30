@@ -25,19 +25,28 @@ export interface GalleryClip {
   pair?: BenchmarkPairDef;
   status: ClipStatus;
 }
-const pairByHash = new Map(BENCHMARK_PAIRS.map((pair) => [pair.contentHash, pair]));
-export const GALLERY_CLIPS: GalleryClip[] = manifest.videos.map((video) => ({
-  id: video.id,
-  url: video.url,
-  pair: pairByHash.get(video.sha256),
-  status: pairByHash.has(video.sha256)
-    ? "processed"
-    : video.id === "004"
-      ? "no-truck"
-      : Number(video.id) <= 25
-        ? "pending"
-        : "unprocessed",
-}));
+const pairByHash = new Map(
+  BENCHMARK_PAIRS.filter((pair) => Number(pair.pairNumber) <= 25).map((pair) => [
+    pair.contentHash,
+    pair,
+  ]),
+);
+export const GALLERY_CLIPS: GalleryClip[] = manifest.videos.map((video) => {
+  const isBatch1 = Number(video.id) <= 25;
+  const pair = isBatch1 ? pairByHash.get(video.sha256) : undefined;
+  return {
+    id: video.id,
+    url: video.url,
+    pair,
+    status: isBatch1
+      ? pair
+        ? "processed"
+        : video.id === "004"
+          ? "no-truck"
+          : "pending"
+      : "unprocessed",
+  };
+});
 const STATUS: Record<ClipStatus, string> = {
   processed: "Result available",
   "no-truck": "No truck detected",

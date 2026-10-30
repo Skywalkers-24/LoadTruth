@@ -10,6 +10,7 @@ import { CameraIcon } from "@/components/ui/icons";
 import { EmptyState, Skeleton } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth";
+import { useEventContext } from "@/lib/event-context";
 import { useSourceMutations, useSources } from "@/lib/hooks";
 import { relativeTime, sourceKindLabel } from "@/lib/format";
 
@@ -171,7 +172,10 @@ export function SourceConnections({ eventId }: { eventId: string }) {
   const { create, update, remove, test } = useSourceMutations(eventId);
   const toast = useToast();
   const { can, member } = useAuth();
-  const canManage = member?.role === "super_admin" || Boolean(can("manage_settings"));
+  const { selected } = useEventContext();
+  const isReadOnly = Boolean(selected?.tags.includes("read-only"));
+  const canManage =
+    (member?.role === "super_admin" || Boolean(can("manage_settings"))) && !isReadOnly;
   const [kind, setKind] = useState<SourceKind>("upload");
   const [name, setName] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
@@ -260,6 +264,12 @@ export function SourceConnections({ eventId }: { eventId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {isReadOnly && (
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3.5 py-2.5 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Read-only event:</span> External source connections cannot be created or modified in benchmark or archive mode.
+        </div>
+      )}
+
       {/* Connect a source */}
       {canManage && (
         <form

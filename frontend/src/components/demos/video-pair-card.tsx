@@ -42,9 +42,17 @@ function clock(seconds: number) {
 }
 
 /** One focused player. Source and overlay share one timeline in comparison mode. */
-export function VideoPairCard({ pair }: { pair: BenchmarkPairDef }) {
-  const [view, setView] = useState<View>("source");
-  const [layers, setLayers] = useState({ bed: true, load: true, body: false });
+export function VideoPairCard({
+  pair,
+  initialView = "source",
+  compact = false,
+}: {
+  pair: BenchmarkPairDef;
+  initialView?: View;
+  compact?: boolean;
+}) {
+  const [view, setView] = useState<View>(initialView);
+  const [layers, setLayers] = useState({ bed: true, load: true, body: true });
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -66,6 +74,13 @@ export function VideoPairCard({ pair }: { pair: BenchmarkPairDef }) {
     retry: 1,
   });
   const { resolvedTier } = useVideoQuality();
+  const hasSavedLoadMasks = evidence.data
+    ? Object.entries(evidence.data.segments).some(
+        ([key, value]) =>
+          value.trim().length > 0 &&
+          (key.startsWith("load: ") || key === "debris pile"),
+      )
+    : true;
   const rawUrl = `/videos/${pair.matchFilename}`;
   const url = getVideoVariantUrl(rawUrl, resolvedTier) ?? rawUrl;
   const poster = `/videos/thumbnails/${pair.matchFilename.replace(".mp4", ".jpg")}`;
@@ -160,7 +175,12 @@ export function VideoPairCard({ pair }: { pair: BenchmarkPairDef }) {
       className="flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all hover:border-primary/40"
     >
       {/* ── CARD HEADER: TRUCK METADATA + VIEW SWITCHER ── */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/80 bg-muted/30 px-3 py-2">
+      <div
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-2 border-b border-border/80 bg-muted/30",
+          compact ? "px-2.5 py-1.5" : "px-3 py-2",
+        )}
+      >
         <div className="flex items-center gap-2 min-w-0 flex-wrap">
           <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-primary shrink-0">
             P{String(pair.pairNumber).padStart(2, "0")}
@@ -228,7 +248,22 @@ export function VideoPairCard({ pair }: { pair: BenchmarkPairDef }) {
       </div>
 
       {/* ── VIDEO STAGE: ZERO LETTERBOXING, CRISP 16:9 EDGE-TO-EDGE ── */}
-      <div className={cn("grid gap-1.5 bg-neutral-950 p-1.5", view === "compare" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
+      <div
+        className={cn(
+          "grid bg-neutral-950 relative group cursor-pointer select-none",
+          compact ? "gap-1 p-1" : "gap-1.5 p-1.5",
+          view === "compare" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1",
+        )}
+        onClick={() => (playing ? pause() : void play())}
+        title={playing ? "Click to pause" : "Click to play"}
+      >
+        {!playing && (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/25 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="grid size-10 place-items-center rounded-full bg-black/75 text-white shadow-md backdrop-blur-xs border border-white/20">
+              <PlayIcon className="size-5 fill-current ml-0.5" />
+            </div>
+          </div>
+        )}
         {view !== "masks" && (
           <div className="relative aspect-video w-full overflow-hidden rounded bg-black">
             <video
@@ -259,10 +294,14 @@ export function VideoPairCard({ pair }: { pair: BenchmarkPairDef }) {
                   autoPlay={false}
                   hideControls
                   poster={poster}
+                  fallbackLoadFillPct={pair.measuredFillPct}
                   className="size-full"
                 />
                 <div className="pointer-events-none absolute right-2 bottom-2 rounded bg-black/85 px-2 py-0.5 text-[10px] font-bold text-emerald-400 backdrop-blur-xs border border-emerald-500/30">
                   {pair.measuredFillPct.toFixed(1)}% Fill
+                  {!hasSavedLoadMasks && (
+                    <span className="ml-1 font-medium text-violet-200">· estimated cover</span>
+                  )}
                 </div>
               </>
             ) : evidence.isError ? (
@@ -294,16 +333,24 @@ export function VideoPairCard({ pair }: { pair: BenchmarkPairDef }) {
           </div>
         )}
       </div>
-      <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-3 border-t border-border bg-card px-4 py-3">
+      <div
+        className={cn(
+          "sticky bottom-0 z-10 flex flex-wrap items-center border-t border-border bg-card",
+          compact ? "gap-2 px-2.5 py-1.5 text-xs" : "gap-3 px-3 py-2 text-xs",
+        )}
+      >
         <button
           type="button"
           disabled={view !== "source" && !evidence.data}
           onClick={() => (playing ? pause() : void play())}
           aria-label={playing ? "Pause clip" : "Play clip"}
-          className="inline-flex min-h-10 min-w-24 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground disabled:opacity-40"
+          className={cn(
+            "inline-flex items-center justify-center gap-1.5 rounded-md bg-primary font-medium text-primary-foreground disabled:opacity-40 transition-colors hover:bg-primary/90 cursor-pointer",
+            compact ? "h-7 min-w-16 px-2 text-xs" : "min-h-8 min-w-20 px-2.5 text-xs",
+          )}
         >
-          {playing ? <PauseIcon className="size-4" /> : <PlayIcon className="size-4" />}
-          {playing ? "Pause" : "Play"}
+          {playing ? <PauseIcon className="size-3.5" /> : <PlayIcon className="size-3.5" />}
+          <span>{playing ? "Pause" : "Play"}</span>
         </button>
         <input
           type="range"
@@ -313,9 +360,9 @@ export function VideoPairCard({ pair }: { pair: BenchmarkPairDef }) {
           step={0.01}
           value={Math.min(time, duration || 0)}
           onChange={(e) => seek(Number(e.target.value))}
-          className="min-w-20 flex-1 accent-[var(--brand)]"
+          className="min-w-16 flex-1 accent-[var(--brand)]"
         />
-        <span className="text-xs tabular-nums text-muted-foreground">
+        <span className="text-[11px] tabular-nums text-muted-foreground whitespace-nowrap">
           {clock(time)} / {clock(duration)}
         </span>
         <QualitySelector />
@@ -327,29 +374,54 @@ export function VideoPairCard({ pair }: { pair: BenchmarkPairDef }) {
             void play();
           }}
           aria-label="Replay clip"
-          className="inline-flex min-h-10 items-center gap-2 rounded-md px-3 text-sm text-muted-foreground hover:bg-secondary"
+          title="Replay ticket from start"
+          className={cn(
+            "inline-flex items-center gap-1 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer",
+            compact ? "h-7 px-2 text-xs" : "min-h-8 px-2.5 text-xs",
+          )}
         >
-          <RotateCcwIcon className="size-4" />
-          Replay
+          <RotateCcwIcon className="size-3.5 text-primary" />
+          <span>Replay ticket</span>
         </button>
       </div>
 
       {/* ── CARD FOOTER: FINANCIALS + CONSOLE REVIEW LINK ── */}
-      <div className="flex items-center justify-between border-t border-border/70 bg-muted/20 px-3 py-2 text-xs">
+      <div
+        className={cn(
+          "flex items-center justify-between border-t border-border/70 bg-muted/20 text-xs",
+          compact ? "px-2.5 py-1.5 text-[11px]" : "px-3 py-1.5",
+        )}
+      >
         <div className="flex items-center gap-1.5 text-muted-foreground flex-wrap">
           <span className="font-medium text-foreground">{pair.certifiedCubicYards} CY Bed</span>
           <span>·</span>
           <span className="font-semibold text-foreground">${pair.dollarValue.toFixed(2)}</span>
-          <span className="text-[11px]">(${pair.ratePerCy}/CY)</span>
+          <span className="text-[10px] opacity-80">(${pair.ratePerCy}/CY)</span>
         </div>
 
-        <Link
-          href={`/console?event=${pair.eventId}&ticket=${pair.ticketId}`}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent hover:border-primary/40 hover:text-primary"
-        >
-          <span>Console</span>
-          <ArrowRightIcon className="size-3" />
-        </Link>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              pause();
+              seek(0);
+              void play();
+            }}
+            title="Replay ticket evidence"
+            className="inline-flex h-6 items-center gap-1 rounded border border-border bg-background px-2 text-[11px] font-medium text-foreground transition-colors hover:bg-accent hover:border-primary/40 hover:text-primary cursor-pointer"
+          >
+            <RotateCcwIcon className="size-2.5 text-primary" />
+            <span>Replay ticket</span>
+          </button>
+          <Link
+            href={`/console?event=${pair.eventId}&ticket=${pair.ticketId}`}
+            className="inline-flex h-6 items-center gap-1 rounded-md border border-border bg-background px-2 text-[11px] font-medium text-foreground transition-colors hover:bg-accent hover:border-primary/40 hover:text-primary"
+          >
+            <span>Console</span>
+            <ArrowRightIcon className="size-2.5" />
+          </Link>
+        </div>
       </div>
       {error && (
         <p

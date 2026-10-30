@@ -12,6 +12,7 @@ import { EmptyState, Skeleton } from "@/components/ui/primitives";
 import { Pagination } from "@/components/pagination";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth";
+import { useEventContext } from "@/lib/event-context";
 import { useTruckMutations, useTrucks } from "@/lib/hooks";
 import { cubicYards } from "@/lib/format";
 
@@ -32,7 +33,9 @@ export function TruckRegistry() {
   const { create, update, remove } = useTruckMutations();
   const toast = useToast();
   const { can } = useAuth();
-  const canManage = can("manage_trucks");
+  const { selected } = useEventContext();
+  const isReadOnly = Boolean(selected?.tags.includes("read-only"));
+  const canManage = can("manage_trucks") && !isReadOnly;
   // `editing` null = closed; a Truck = edit that truck; "new" = add a truck.
   const [editing, setEditing] = useState<Truck | "new" | null>(null);
   const [number, setNumber] = useState("");
@@ -149,6 +152,12 @@ export function TruckRegistry() {
           )}
         </div>
       </div>
+
+      {isReadOnly && (
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3.5 py-2.5 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Read-only event:</span> Certified truck registry is locked and cannot be modified in benchmark or archive mode.
+        </div>
+      )}
 
       {trucks.isLoading ? (
         <div className="flex flex-col gap-1.5">

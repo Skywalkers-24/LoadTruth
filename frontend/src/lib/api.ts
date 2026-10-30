@@ -507,6 +507,14 @@ export function getJobForTicket(ticketId: string): Promise<PipelineJob | null> {
   return request<PipelineJob | null>(`/system/jobs/ticket/${ticketId}`);
 }
 
+export function getTicket(ticketId: string): Promise<Ticket> {
+  return request<Ticket>(`/tickets/${ticketId}`);
+}
+
+export function deleteTicket(ticketId: string): Promise<void> {
+  return request<void>(`/tickets/${ticketId}`, { method: "DELETE" });
+}
+
 /** The persisted AI pipeline trace for a ticket (always available, from the DB). */
 export function getTicketPipeline(ticketId: string): Promise<PipelineStage[]> {
   return request<PipelineStage[]>(`/tickets/${ticketId}/pipeline`);
@@ -957,6 +965,7 @@ export const api = {
     }),
   updateTicket: (id: string, body: TicketPatch) =>
     request<Ticket>(`/tickets/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteTicket: (id: string) => deleteTicket(id),
   dashboard: (eventId: string) => request<Dashboard>(`/events/${eventId}/dashboard`),
   reportsSummary: (eventId: string) =>
     request<ReportsSummary>(`/events/${eventId}/reports/summary`),

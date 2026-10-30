@@ -2,18 +2,19 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { PlusIcon, RefreshCwIcon, TicketIcon } from "lucide-react";
+import { PlusIcon, RefreshCwIcon, TicketIcon, Trash2Icon } from "lucide-react";
 
-import type { TicketStatus } from "@/lib/api";
+import type { Ticket, TicketStatus } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
 import { StatusBadge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/shadcn/card";
 import { Skeleton } from "@/components/ui/shadcn/skeleton";
 import { Pagination } from "@/components/pagination";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { shortId } from "@/components/console/ticket-metadata";
 import { useAuth } from "@/lib/auth";
 import { useEventContext } from "@/lib/event-context";
-import { useTickets } from "@/lib/hooks";
+import { useDeleteTicket, useTickets } from "@/lib/hooks";
 import { debrisLabel, money, relativeTime } from "@/lib/format";
 
 const PAGE_SIZE = 25;
@@ -30,9 +31,13 @@ export default function TicketsPage() {
 }
 
 function TicketList({ eventId }: { eventId: string | undefined }) {
-  const { can } = useAuth();
+  const { selected } = useEventContext();
+  const isReadOnly = Boolean(selected?.tags.includes("read-only"));
   const [status, setStatus] = useState<TicketStatus | "all">("all");
   const [offset, setOffset] = useState(0);
+  const [deletingTicket, setDeletingTicket] = useState<Ticket | null>(null);
+  const deleteTicketMutation = useDeleteTicket();
+
   const tickets = useTickets({
     eventId,
     status: status === "all" ? undefined : status,
@@ -47,20 +52,25 @@ function TicketList({ eventId }: { eventId: string | undefined }) {
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="lt-page-title">Tickets</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="lt-page-title">Tickets</h1>
+            {isReadOnly && (
+              <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs text-muted-foreground">
+                Read-only
+              </span>
+            )}
+          </div>
           <p className="mt-1 text-[13px] text-muted-foreground">
             Every load ticket in this event, with its estimated value and evidence.
           </p>
         </div>
-        {can("ingest") && (
-          <Link
-            href="/add"
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-[13px] font-medium text-primary-foreground"
-          >
-            <PlusIcon className="size-4" />
-            New Ticket
-          </Link>
-        )}
+        <Link
+          href="/add"
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-[13px] font-medium text-primary-foreground"
+        >
+          <PlusIcon className="size-4" />
+          New Ticket
+        </Link>
       </header>
       <Card className="lt-fab-safe flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
@@ -132,10 +142,10 @@ function TicketList({ eventId }: { eventId: string | undefined }) {
           ) : (
             <ul className="divide-y divide-border">
               {rows.map((t) => (
-                <li key={t.id}>
+                <li key={t.id} className="group relative flex items-stretch transition-colors hover:bg-accent/40">
                   <Link
                     href={`/console?ticket=${t.id}`}
-                    className="grid gap-3 px-4 py-4 transition-colors hover:bg-accent sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+                    className="grid flex-1 min-w-0 gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
                   >
                     <div className="min-w-0">
                       <span className="block truncate text-sm font-semibold">
@@ -158,6 +168,23 @@ function TicketList({ eventId }: { eventId: string | undefined }) {
                       <span className="text-[11px] text-muted-foreground">Estimated value</span>
                     </div>
                   </Link>
+                  {!isReadOnly && (
+                    <div className="flex items-center px-3">
+                      <button
+                        type="button"
+                        title="Delete ticket"
+                        aria-label={`Delete ticket ${shortId(t.id)}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDeletingTicket(t);
+                        }}
+                        className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus:outline-none"
+                      >
+                        <Trash2Icon className="size-4" />
+                      </button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -174,6 +201,23 @@ function TicketList({ eventId }: { eventId: string | undefined }) {
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={Boolean(deletingTicket)}
+        title="Delete ticket?"
+        description={`Are you sure you want to delete ticket ${shortId(deletingTicket?.id ?? "")}${deletingTicket?.truck_id ? ` (${deletingTicket.truck_id})` : ""}? All associated analysis and evidence will be permanently deleted.`}
+        confirmLabel="Delete ticket"
+        confirmVariant="danger"
+        busy={deleteTicketMutation.isPending}
+        onConfirm={() => {
+          if (deletingTicket) {
+            deleteTicketMutation.mutate(deletingTicket.id, {
+              onSuccess: () => setDeletingTicket(null),
+            });
+          }
+        }}
+        onCancel={() => setDeletingTicket(null)}
+      />
     </div>
   );
 }

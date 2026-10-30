@@ -15,7 +15,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.ai import sam_measure
+from app.ai import sam_measure, serde
 from app.ai.base import (
     ClassifyResult,
     ClipMedia,
@@ -107,7 +107,7 @@ async def test_first_run_calls_model_and_persists(session: AsyncSession) -> None
     # And the raw outputs are now persisted, tenant+hash+stage scoped.
     assert await repo.get_ai_stage_result(TENANT, HASH, "sam_track") is not None
     assert await repo.get_ai_stage_result(TENANT, HASH, "spark_ocr") is not None
-    assert await repo.get_ai_stage_result(TENANT, HASH, "spark_fill_v3") is not None
+    assert await repo.get_ai_stage_result(TENANT, HASH, serde.STAGE_CLASSIFY) is not None
     # Returned values are the model's.
     assert track.frame_count == 12
     assert ocr.truck_id == "FL-DT-3391"
@@ -304,4 +304,4 @@ async def test_parallel_perception_does_not_share_a_database_session_concurrentl
     client = CachingAIClient(CountingAIClient(), repo, TENANT)
     await asyncio.gather(client.read_placard(CLIP), client.classify_debris(CLIP))
     assert await original_get(TENANT, HASH, "spark_ocr") is not None
-    assert await original_get(TENANT, HASH, "spark_fill_v3") is not None
+    assert await original_get(TENANT, HASH, serde.STAGE_CLASSIFY) is not None

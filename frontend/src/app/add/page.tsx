@@ -4,15 +4,27 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRightIcon, CheckCircle2Icon, Loader2Icon, UploadCloudIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  CheckCircle2Icon,
+  FilmIcon,
+  Loader2Icon,
+  SparklesIcon,
+  UploadCloudIcon,
+} from "lucide-react";
+
+import { BENCHMARK_PAIRS } from "@/components/demos/video-pair-card";
 
 import {
   createPracticeTicket,
   listPracticeSources,
   ApiError,
+  getTicket,
   getTicketPipeline,
   listDemoVideos,
   type PipelineProgress,
+  type PipelineStage,
+  type Ticket,
 } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
 import { LivePipelineFlow } from "@/components/ai/live-pipeline-flow";
@@ -62,12 +74,18 @@ export default function NewTicketPage() {
 }
 
 function CaptureWorkspace() {
-  const { selected, selectedId: eventId } = useEventContext();
+  const { events, selected, selectedId: eventId, setSelectedId } = useEventContext();
   const { can, member } = useAuth();
   const canRunFresh = member?.role === "super_admin";
   const [bypassCache, setBypassCache] = useState(false);
   const [keepFootage, setKeepFootage] = useState(true);
-  const [showSaved, setShowSaved] = useState(false);
+  const [selectedExisting, setSelectedExisting] = useState<string>("");
+  const [loadingExisting, setLoadingExisting] = useState(false);
+  const [customResult, setCustomResult] = useState<{
+    ticket: Ticket;
+    stages: PipelineStage[];
+    filename?: string;
+  } | null>(null);
   const router = useRouter();
   const ingest = useSubmitIngestJob();
   const latest = useLatestIngestJob(eventId);
@@ -80,7 +98,8 @@ function CaptureWorkspace() {
   const analysisLimit = library.data?.analysis_max_bytes ?? 20 * 1024 ** 2;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const result = ingest.isPending ? null : (latest.data?.ticket ?? null);
+  const rawTicket = ingest.isPending ? null : (latest.data?.ticket ?? null);
+  const activeTicket = customResult?.ticket ?? rawTicket;
   const processing = latest.data?.status === "accepted" || latest.data?.status === "running";
   const busy = ingest.isPending || processing;
   useEffect(() => {
@@ -96,17 +115,51 @@ function CaptureWorkspace() {
   const [error, setError] = useState<string | null>(null);
 
   const ticketPipeline = useQuery({
-    queryKey: ["ticket-pipeline", result?.id],
-    queryFn: () => getTicketPipeline(result!.id),
-    enabled: Boolean(result?.id),
+    queryKey: ["ticket-pipeline", rawTicket?.id],
+    queryFn: () => getTicketPipeline(rawTicket!.id),
+    enabled: Boolean(rawTicket?.id && !customResult),
     staleTime: 60_000,
   });
 
-  const allowed = can("ingest") && canRunFresh;
+  const activeStages = customResult?.stages ?? ticketPipeline.data ?? null;
+
+  const allowed = Boolean(can("ingest"));
   const showcaseReadOnly = Boolean(selected?.tags.includes("read-only"));
 
   function submit(file: File) {
-    if (!eventId || showcaseReadOnly || !allowed || busy || latest.isLoading) return;
+    if (showcaseReadOnly) {
+      setError(
+        "This event is read-only. Choose an existing video from the library dropdown below to preview its analysis and ticket.",
+      );
+      return;
+    }
+    if (!canRunFresh) {
+      const match = BENCHMARK_PAIRS.find(
+        (p) =>
+          p.matchFilename.toLowerCase() === file.name.toLowerCase() ||
+          file.name.toLowerCase().includes(p.truckId.toLowerCase()),
+      );
+      if (match) {
+        setSelectedExisting(match.matchFilename);
+        void processExistingVideo(match.matchFilename);
+        return;
+      }
+      setError(
+        "Raw video upload and AI inference requires Administrator credentials. Choose an existing video from the library dropdown below to draft a ticket with full AI pipeline data.",
+      );
+      return;
+    }
+    let targetEventId = eventId;
+    if (selected?.tags.includes("playground")) {
+      const working = events.find(
+        (e) => !e.tags.includes("read-only") && !e.tags.includes("playground"),
+      );
+      if (working) {
+        targetEventId = working.id;
+        setSelectedId(working.id);
+      }
+    }
+    if (!targetEventId || busy || latest.isLoading) return;
     if (file.size === 0) {
       setError("This file is empty. Choose a truck video or image.");
       return;
@@ -122,13 +175,14 @@ function CaptureWorkspace() {
       return;
     }
     setError(null);
+    setCustomResult(null);
     const previousRun = queryClient.getQueryData<PipelineProgress | null>([
       "pipeline-progress",
-      eventId,
+      targetEventId,
     ]);
     setIgnoredAttempt(previousRun ? pipelineAttemptKey(previousRun) : undefined);
     ingest.mutate(
-      { eventId, file, bypassCache: canRunFresh && bypassCache, keepFootage },
+      { eventId: targetEventId, file, bypassCache: canRunFresh && bypassCache, keepFootage },
       {
         onError: (err) => setError(ingestErrorMessage(err)),
       },
@@ -141,16 +195,44 @@ function CaptureWorkspace() {
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  if (!allowed || showcaseReadOnly || selected?.tags.includes("playground") || showSaved) {
-    return (
-      <SavedFootagePicker
-        onUpload={
-          allowed && !showcaseReadOnly && !selected?.tags.includes("playground")
-            ? () => setShowSaved(false)
-            : undefined
-        }
-      />
-    );
+  async function processExistingVideo(filename: string) {
+    if (!filename || busy || loadingExisting) return;
+    const pair = BENCHMARK_PAIRS.find((p) => p.matchFilename === filename);
+    if (!pair) return;
+
+    setLoadingExisting(true);
+    setError(null);
+    try {
+      if (showcaseReadOnly) {
+        // Read-only event: Populate reference ticket & pipeline details in read-only mode without calling ingest
+        const [ticketData, stagesData] = await Promise.all([
+          getTicket(pair.ticketId),
+          getTicketPipeline(pair.ticketId),
+        ]);
+        setCustomResult({
+          ticket: ticketData,
+          stages: stagesData,
+          filename: pair.matchFilename,
+        });
+      } else {
+        // Writable event (normal user or admin): Draft a new ticket in this event with full benchmark data
+        if (!eventId) throw new Error("Please select an active event first.");
+        const newTicket = await createPracticeTicket(eventId, pair.ticketId);
+        const stagesData = await getTicketPipeline(newTicket.id);
+        setCustomResult({
+          ticket: newTicket,
+          stages: stagesData,
+          filename: pair.matchFilename,
+        });
+        queryClient.invalidateQueries({ queryKey: ["tickets"] });
+        queryClient.invalidateQueries({ queryKey: ["reports-summary"] });
+        queryClient.invalidateQueries({ queryKey: ["event-dashboard"] });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to analyze video");
+    } finally {
+      setLoadingExisting(false);
+    }
   }
 
   return (
@@ -165,9 +247,6 @@ function CaptureWorkspace() {
           </Link>
           <div className="flex items-center justify-between gap-3">
             <h1 className="lt-page-title">New Ticket</h1>
-            <Button variant="outline" onClick={() => setShowSaved(true)}>
-              Replay a processed video
-            </Button>
           </div>
           <p className="text-[12px] text-muted-foreground">
             Upload evidence for{" "}
@@ -225,8 +304,8 @@ function CaptureWorkspace() {
                 <label
                   role="button"
                   aria-label="Choose truck video or image"
-                  aria-disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
-                  tabIndex={busy || latest.isLoading || showcaseReadOnly || !eventId ? -1 : 0}
+                  aria-disabled={busy || latest.isLoading || !eventId}
+                  tabIndex={busy || latest.isLoading || !eventId ? -1 : 0}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
@@ -249,7 +328,7 @@ function CaptureWorkspace() {
                     dragging
                       ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)]"
                       : "border-border hover:border-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]/40",
-                    (busy || latest.isLoading || showcaseReadOnly || !eventId) &&
+                    (busy || latest.isLoading || !eventId) &&
                       "pointer-events-none opacity-70",
                   )}
                 >
@@ -259,7 +338,7 @@ function CaptureWorkspace() {
                     accept="video/*,image/*"
                     onChange={onPick}
                     className="hidden"
-                    disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
+                    disabled={busy || latest.isLoading || !eventId}
                   />
                   <span className="grid size-14 place-items-center rounded-2xl bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
                     {ingest.isPending ? (
@@ -276,21 +355,73 @@ function CaptureWorkspace() {
                           ? latest.data?.bypass_cache
                             ? "Fresh analysis in progress"
                             : "Analysis in progress"
-                          : showcaseReadOnly
-                            ? "Preprocessed showcase event"
-                            : "Drop a clip here, or click to browse"}
+                          : "Drop a clip here, or click to browse"}
                     </span>
                     <span className="text-[12px] text-muted-foreground">
                       {ingest.isPending
                         ? "Your clip is being uploaded."
                         : processing
                           ? "Upload complete. Analysis is still processing."
-                          : showcaseReadOnly
-                            ? "Stored Meta results are shown read-only. Browsing them makes no Meta calls."
-                            : `Choose a video or image up to ${Math.round(analysisLimit / 1024 ** 2)} MiB.`}
+                          : `Choose a video or image up to ${Math.round(analysisLimit / 1024 ** 2)} MiB.`}
                     </span>
                   </div>
                 </label>
+
+                {/* ── EXISTING VIDEO SELECTOR (USE EXISTING FROM HERE) ── */}
+                <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <label
+                      htmlFor="existing-video-select"
+                      className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+                    >
+                      <FilmIcon className="size-3.5 text-primary" />
+                      <span>Use existing video from library:</span>
+                    </label>
+                    <span className="text-[11px] text-muted-foreground">
+                      Pick a processed benchmark clip
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      id="existing-video-select"
+                      aria-label="Use existing video from library"
+                      value={selectedExisting}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedExisting(val);
+                        if (val) void processExistingVideo(val);
+                      }}
+                      disabled={busy || latest.isLoading || loadingExisting}
+                      className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-xs text-foreground cursor-pointer focus:outline-primary"
+                    >
+                      <option value="">-- Select an existing video from here --</option>
+                      {BENCHMARK_PAIRS.map((pair) => (
+                        <option key={pair.id} value={pair.matchFilename}>
+                          P{String(pair.pairNumber).padStart(2, "0")} · {pair.truckId} · {pair.debrisLabel} ({pair.measuredFillPct.toFixed(1)}% fill)
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={!selectedExisting || busy || latest.isLoading || loadingExisting}
+                      onClick={() => void processExistingVideo(selectedExisting)}
+                      className="h-9 shrink-0 gap-1.5 px-3 text-xs font-medium cursor-pointer"
+                    >
+                      {loadingExisting ? (
+                        <>
+                          <Loader2Icon className="size-3.5 animate-spin" />
+                          <span>Loading…</span>
+                        </>
+                      ) : (
+                        <>
+                          <SparklesIcon className="size-3.5" />
+                          <span>Run analysis</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
               </Card>
             </FadeIn>
           </div>
@@ -328,38 +459,43 @@ function CaptureWorkspace() {
               </Card>
             )}
 
-            {result && (
+            {activeTicket && (
               <FadeIn>
                 <Card className="gap-0 border-[var(--color-ok)]/40 p-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <CheckCircle2Icon className="size-5 text-[var(--color-ok)]" />
                       <div>
-                        <h2 className="text-[15px] font-semibold">Latest ticket draft</h2>
-                        {latest.data?.filename && (
-                          <p className="text-[11px] text-muted-foreground">
-                            Generated from {latest.data.filename}
-                          </p>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-[15px] font-semibold">Latest ticket draft</h2>
+                          {showcaseReadOnly && (
+                            <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                              Read-only reference
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Generated from {customResult?.filename ?? latest.data?.filename ?? "benchmark clip"}
+                        </p>
                       </div>
                     </div>
-                    <Button size="sm" onClick={() => router.push(`/console?ticket=${result.id}`)}>
+                    <Button size="sm" onClick={() => router.push(`/console?ticket=${activeTicket.id}`)}>
                       Open ticket
                       <ArrowRightIcon />
                     </Button>
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <Field label="Ticket" value={shortId(result.id)} />
-                    <Field label="Truck" value={result.truck_id ?? "Unidentified"} />
+                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <Field label="Ticket" value={shortId(activeTicket.id)} />
+                    <Field label="Truck" value={activeTicket.truck_id ?? "Unidentified"} />
                     <Field
                       label="Estimated value"
                       value={
-                        Number.parseFloat(result.valuation.certified_cubic_yards) > 0
-                          ? money(result.valuation.est_dollar_value)
+                        Number.parseFloat(activeTicket.valuation.certified_cubic_yards) > 0
+                          ? money(activeTicket.valuation.est_dollar_value)
                           : "Unavailable"
                       }
                     />
-                    <Field label="Estimated fill" value={percent(result.valuation.est_fill_pct)} />
+                    <Field label="Estimated fill" value={percent(activeTicket.valuation.est_fill_pct)} />
                   </div>
                 </Card>
               </FadeIn>
@@ -370,9 +506,9 @@ function CaptureWorkspace() {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-semibold">
-                {processing
+                {processing || loadingExisting
                   ? "Live analysis workspace"
-                  : result
+                  : activeTicket
                     ? "Latest analysis"
                     : "Live analysis"}
               </h2>
@@ -386,7 +522,7 @@ function CaptureWorkspace() {
             </Link>
           </div>
 
-          {processing ? (
+          {processing || loadingExisting ? (
             <LivePipelineFlow
               eventId={eventId}
               active
@@ -394,25 +530,25 @@ function CaptureWorkspace() {
               ignoredAttempt={ignoredAttempt}
               detailed
             />
-          ) : result && ticketPipeline.data && ticketPipeline.data.length > 0 ? (
+          ) : activeTicket && activeStages && activeStages.length > 0 ? (
             <PipelineWorkbench
-              key={result.id}
-              stages={ticketPipeline.data}
+              key={activeTicket.id}
+              stages={activeStages}
               summary={{
-                truck: result.truck_id ?? "Unidentified",
-                debris: result.debris_class ? debrisLabel(result.debris_class) : "N/A",
+                truck: activeTicket.truck_id ?? "Unidentified",
+                debris: activeTicket.debris_class ? debrisLabel(activeTicket.debris_class) : "N/A",
                 value:
-                  Number.parseFloat(result.valuation.certified_cubic_yards) > 0
-                    ? money(result.valuation.est_dollar_value)
+                  Number.parseFloat(activeTicket.valuation.certified_cubic_yards) > 0
+                    ? money(activeTicket.valuation.est_dollar_value)
                     : "Unavailable",
-                flags: result.anomaly_count ?? 0,
+                flags: activeTicket.anomaly_count ?? 0,
               }}
             />
           ) : (
             <div className="flex flex-col gap-3">
               <PipelineWorkbench stages={DEFAULT_PIPELINE_STAGES} />
               <p className="text-xs text-muted-foreground">
-                Drop a truck clip above to run this pipeline live on your footage. Click any stage
+                Select an existing video from the library above or drop a truck clip to run this pipeline. Click any stage
                 to inspect its purpose and model output in the sidebar inspector.
               </p>
             </div>

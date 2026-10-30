@@ -58,8 +58,14 @@ describe("focused footage browser", () => {
     await render();
     await act(async () => button("Unprocessed").click());
     expect(host.querySelectorAll('[role="option"]')).toHaveLength(25);
+    const unprocessedOpt = [...host.querySelectorAll<HTMLElement>('[role="option"]')].find(
+      (el) => el.textContent?.includes("030"),
+    );
+    if (unprocessedOpt) {
+      await act(async () => unprocessedOpt.click());
+    }
     expect(host.querySelector("[data-player]")).toBeNull();
-    expect(host.querySelector("video")?.getAttribute("src")).toContain("benchmark-026");
+    expect(host.querySelector("video")?.getAttribute("src")).toContain("benchmark-030");
     expect(host.textContent).toContain("has not been analyzed");
     expect(host.querySelector('a[href*="ticket="]')).toBeNull();
   });

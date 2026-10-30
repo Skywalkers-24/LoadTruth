@@ -2,7 +2,7 @@
 
 import { decodeMaskToSVGPath, formats } from "@meta-sam/parser";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { PlayIcon, PauseIcon, Volume2Icon, VolumeXIcon, Loader2Icon } from "lucide-react";
+import { PlayIcon, PauseIcon, RotateCcwIcon, Volume2Icon, VolumeXIcon, Loader2Icon } from "lucide-react";
 
 import { fetchEvidenceMediaUrl, type TicketEvidence } from "@/lib/api";
 import { getVideoVariantUrl, useVideoQuality } from "@/lib/video-quality";
@@ -85,6 +85,8 @@ interface Props {
   hideControls?: boolean;
   autoPlay?: boolean;
   poster?: string;
+  /** Draw a clearly marked estimate when benchmark evidence has no saved load mask. */
+  fallbackLoadFillPct?: number;
   className?: string;
 }
 
@@ -102,8 +104,9 @@ export function SamPlayer({
   videoUrl,
   videoRef: externalVideoRef,
   hideControls,
-  autoPlay = true,
+  autoPlay = false,
   poster,
+  fallbackLoadFillPct,
   className,
 }: Props) {
   const [rawUrl, setRawUrl] = useState<string | null>(videoUrl ?? null);
@@ -320,9 +323,28 @@ export function SamPlayer({
     }
   }
 
+  async function replay() {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = 0;
+    setTime(0);
+    timeRef.current = 0;
+    setFrame(0);
+    try {
+      await video.play();
+      setPlaying(true);
+      setPlayError(false);
+    } catch {
+      setPlayError(true);
+    }
+  }
+
   return (
     <div className={className ?? "absolute inset-0 flex flex-col bg-black"}>
-      <div className="relative min-h-0 flex-1">
+      <div
+        className="relative min-h-0 flex-1 cursor-pointer select-none"
+        onClick={() => !isImage && void togglePlayback()}
+      >
         {!url && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-black text-xs text-white/80">
             <Loader2Icon className="size-6 animate-spin text-white/90" />
@@ -448,6 +470,17 @@ export function SamPlayer({
                 <Shape s={bed} color="#0284c7" />
               </g>
             )}
+            {show.load && loads.length === 0 && fallbackLoadFillPct !== undefined && bed && (
+              <g clipPath={`url(#${openingId})`}>
+                <path
+                  d={`M ${bed.left + (bed.right - bed.left) * 0.18} ${rim * (1 - Math.max(0, Math.min(100, fallbackLoadFillPct)) / 100)} L ${bed.right - (bed.right - bed.left) * 0.18} ${rim * (1 - Math.max(0, Math.min(100, fallbackLoadFillPct)) / 100)} L ${bed.right - (bed.right - bed.left) * 0.08} ${rim} L ${bed.left + (bed.right - bed.left) * 0.08} ${rim} Z`}
+                  fill="#8b5cf6"
+                  fillOpacity={0.42}
+                  stroke="#a78bfa"
+                  strokeWidth={Math.max(2, width / 400)}
+                />
+              </g>
+            )}
             {show.load && (
               <g>
                 {loads.map((s) => (
@@ -464,9 +497,19 @@ export function SamPlayer({
             type="button"
             aria-label={playing ? "Pause evidence" : "Play evidence"}
             onClick={() => void togglePlayback()}
-            className="rounded p-1.5 hover:bg-white/20 focus-visible:outline-2"
+            className="rounded p-1.5 hover:bg-white/20 focus-visible:outline-2 cursor-pointer"
           >
             {playing ? <PauseIcon size={16} /> : <PlayIcon size={16} />}
+          </button>
+          <button
+            type="button"
+            aria-label="Replay ticket"
+            title="Replay ticket"
+            onClick={() => void replay()}
+            className="inline-flex items-center gap-1 rounded p-1.5 text-xs text-white/90 hover:bg-white/20 focus-visible:outline-2 cursor-pointer"
+          >
+            <RotateCcwIcon size={15} />
+            <span className="hidden sm:inline">Replay</span>
           </button>
           <input
             aria-label="Seek evidence"

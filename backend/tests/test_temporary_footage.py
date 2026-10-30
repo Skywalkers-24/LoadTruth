@@ -104,6 +104,26 @@ def test_practice_uses_saved_results_and_source_stays_readonly(client, as_role, 
     assert client.get(f"/tickets/{original['id']}").json()["valuation"] == original["valuation"]
 
 
+def test_practice_in_writable_event(client, as_role):
+    from app.tickets.seed import DEMO_EVENT_ID
+
+    as_role("supervisor")
+    sources = client.get("/practice-sources").json()
+    assert sources
+    original = sources[0]
+    res = client.post(
+        f"/events/{DEMO_EVENT_ID}/practice-tickets", json={"source_ticket_id": original["id"]}
+    )
+    assert res.status_code == 201, res.text
+    created = res.json()
+    assert created["event_id"] == str(DEMO_EVENT_ID)
+    assert created["truck_id"] == original["truck_id"]
+    # Can delete the created ticket
+    del_res = client.delete(f"/tickets/{created['id']}")
+    assert del_res.status_code == 204
+
+
+
 @pytest.mark.parametrize("role", ["monitor", "auditor", "supervisor", "county_admin"])
 def test_live_demo_is_visible_but_admin_only(client, as_role, role):
     from app.db.models import Ticket

@@ -21,7 +21,9 @@ export function RateTableEditor({ event }: { event: EventSummary }) {
   const update = useUpdateEvent();
   const toast = useToast();
   const { can, member } = useAuth();
-  const canEdit = member?.role === "super_admin" || Boolean(can("manage_settings"));
+  const isReadOnly = Boolean(event.tags.includes("read-only"));
+  const canEdit =
+    (member?.role === "super_admin" || Boolean(can("manage_settings"))) && !isReadOnly;
   const [rates, setRates] = useState<Record<string, string>>({});
   const [confirming, setConfirming] = useState(false);
 
@@ -122,7 +124,9 @@ export function RateTableEditor({ event }: { event: EventSummary }) {
         </div>
       ) : (
         <p className="text-[12px] text-[var(--color-subtle)]">
-          You have read-only access to rates. Editing requires county admin access.
+          {isReadOnly
+            ? "This event is read-only. Rate tables cannot be modified."
+            : "You have read-only access to rates. Editing requires county admin access."}
         </p>
       )}
 

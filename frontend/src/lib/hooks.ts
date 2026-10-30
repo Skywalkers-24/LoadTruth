@@ -137,6 +137,15 @@ export function useSetMonitorCall() {
   });
 }
 
+/** Delete a ticket; invalidates tickets + dashboard + reports summary. */
+export function useDeleteTicket() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ticketId: string) => api.deleteTicket(ticketId),
+    onSuccess: invalidateAll(qc),
+  });
+}
+
 /** Upload a clip; the backend runs the pipeline and drafts a ticket. */
 export function useIngest() {
   const qc = useQueryClient();

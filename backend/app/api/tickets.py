@@ -249,7 +249,7 @@ async def ticket_evidence(repo: Repository, tenant: ActiveTenant, ticket_id: UUI
     row = await repo.get_ticket_evidence(tenant, ticket_id)
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no evidence for this ticket")
-    public_url = benchmark_media_url(row.content_hash) if row.media_storage != "memory" else None
+    public_url = benchmark_media_url(row.content_hash)
     stored = (
         await evidence_store.load(row.content_hash, storage=row.media_storage)
         if public_url is None
@@ -276,7 +276,6 @@ async def ticket_evidence_media(
     row = await repo.get_ticket_evidence(tenant, ticket_id)
     if (
         row is not None
-        and row.media_storage != "memory"
         and (public_url := benchmark_media_url(row.content_hash))
     ):
         return RedirectResponse(public_url, status_code=307)
@@ -309,7 +308,6 @@ async def ticket_evidence_url(
     row = await repo.get_ticket_evidence(tenant, ticket_id)
     if (
         row is not None
-        and row.media_storage != "memory"
         and (public_url := benchmark_media_url(row.content_hash, quality=quality))
     ):
         return {"url": public_url}
@@ -453,6 +451,24 @@ async def update_ticket(
     return ticket_to_out(t)
 
 
+@router.delete("/tickets/{ticket_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_ticket(
+    repo: Repository,
+    tenant: ActiveTenant,
+    ticket_id: UUID,
+    member: CurrentMember,
+) -> None:
+    """Delete a ticket and its associated anomalies, stages, and evidence."""
+    await _require_writable_ticket(repo, tenant, ticket_id, member.role)
+    try:
+        ticket = await repo.get_ticket(tenant, ticket_id)
+        event_id = ticket.event_id
+        await repo.delete_ticket(tenant, ticket_id)
+    except TicketNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
+    await invalidate_cache_tags(f"event:{event_id}", f"tenant:{tenant}:billing")
+
+
 @router.get("/events/{event_id}/dashboard", response_model=DashboardOut)
 async def event_dashboard(repo: Repository, tenant: ActiveTenant, event_id: UUID) -> DashboardOut:
     """Event roll-up: summed dollar-delta, review progress, anomalies, accuracy."""
@@ -564,8 +580,8 @@ async def create_practice_ticket(
 
     await require_event_write(repo, tenant, event_id, member.role)
     event = await repo.get_event(tenant, event_id)
-    if event is None or "playground" not in event.tags:
-        raise HTTPException(409, "Practice tickets belong in the playground.")
+    if event is None:
+        raise HTTPException(404, "event not found")
     try:
         source = await repo.get_ticket(tenant, body.source_ticket_id)
     except TicketNotFoundError as exc:
@@ -574,7 +590,7 @@ async def create_practice_ticket(
     evidence = await repo.get_ticket_evidence(tenant, source.id)
     if (
         source_event is None
-        or "read-only" not in source_event.tags
+        or ("read-only" not in source_event.tags and "benchmark" not in source_event.tags)
         or evidence is None
         or evidence.media_storage == "memory"
     ):

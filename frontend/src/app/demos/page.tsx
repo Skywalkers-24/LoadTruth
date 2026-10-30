@@ -65,7 +65,8 @@ export default function DemoVideosPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
   const [viewStyle, setViewStyle] = useState<"grid" | "browser">("grid");
-  const PAGE_SIZE = 6;
+  const [gridDensity, setGridDensity] = useState<"small" | "standard">("small");
+  const pageSize = gridDensity === "small" ? 9 : 6;
 
   const debrisCounts = useMemo(() => {
     const counts: Record<string, number> = { all: BENCHMARK_PAIRS.length };
@@ -89,11 +90,11 @@ export default function DemoVideosPage() {
     });
   }, [selectedDebris, searchQuery]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredPairs.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredPairs.length / pageSize));
   const paginatedPairs = useMemo(() => {
-    const start = page * PAGE_SIZE;
-    return filteredPairs.slice(start, start + PAGE_SIZE);
-  }, [filteredPairs, page]);
+    const start = page * pageSize;
+    return filteredPairs.slice(start, start + pageSize);
+  }, [filteredPairs, page, pageSize]);
 
   // Upload state (SuperAdmin)
   const [files, setFiles] = useState<File[]>([]);
@@ -177,8 +178,8 @@ export default function DemoVideosPage() {
 
   return (
     <AppShell section="Video library">
-      <div className="lt-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-6">
-        <header className="flex flex-wrap items-end shrink-0 justify-between gap-4 pb-1 pt-1">
+      <div className="lt-scroll flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pb-4">
+        <header className="flex flex-wrap items-end shrink-0 justify-between gap-3 pb-1 pt-0.5">
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-semibold tracking-tight">Video library</h1>
@@ -410,6 +411,43 @@ export default function DemoVideosPage() {
                   )}
                 </div>
 
+                {viewStyle === "grid" && (
+                  <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-xs" role="group" aria-label="Grid size">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGridDensity("small");
+                        setPage(0);
+                      }}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded px-2 py-1 transition-colors cursor-pointer",
+                        gridDensity === "small"
+                          ? "bg-primary text-primary-foreground font-semibold"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                      title="Small size grid (fits on one screen)"
+                    >
+                      <span>Small grid</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGridDensity("standard");
+                        setPage(0);
+                      }}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded px-2 py-1 transition-colors cursor-pointer",
+                        gridDensity === "standard"
+                          ? "bg-primary text-primary-foreground font-semibold"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                      title="Large 2-column grid"
+                    >
+                      <span>Large</span>
+                    </button>
+                  </div>
+                )}
+
                 <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-xs">
                   <button
                     type="button"
@@ -465,9 +503,21 @@ export default function DemoVideosPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div
+                    className={cn(
+                      "grid gap-2.5",
+                      gridDensity === "small"
+                        ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+                        : "grid-cols-1 md:grid-cols-2",
+                    )}
+                  >
                     {paginatedPairs.map((pair) => (
-                      <VideoPairCard key={pair.id} pair={pair} />
+                      <VideoPairCard
+                        key={pair.id}
+                        pair={pair}
+                        initialView="compare"
+                        compact={gridDensity === "small"}
+                      />
                     ))}
                   </div>
                 )}
@@ -476,7 +526,7 @@ export default function DemoVideosPage() {
                 {totalPages > 1 && (
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/80 pt-3 text-xs text-muted-foreground">
                     <span>
-                      Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filteredPairs.length)} of {filteredPairs.length} benchmark pairs
+                      Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, filteredPairs.length)} of {filteredPairs.length} benchmark pairs
                     </span>
                     <div className="flex items-center gap-1">
                       <button

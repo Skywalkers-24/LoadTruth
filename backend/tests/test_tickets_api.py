@@ -300,3 +300,26 @@ def test_reports_summary_overbill_matches_dollar_sum(client: TestClient) -> None
     expected = sum(float(t["valuation"]["delta_dollar_value"]) for t in overbills)
     assert s["overbill_ticket_count"] == len(overbills)
     assert float(s["overbill_dollar_value"]) == expected
+
+
+def test_delete_ticket(client: TestClient) -> None:
+    # Get a draft ticket in DEMO_EVENT_ID
+    tid = _draft_without_call_id(client)
+    res = client.delete(f"/tickets/{tid}")
+    assert res.status_code == 204
+    # Ensure ticket is gone
+    assert client.get(f"/tickets/{tid}").status_code == 404
+    # Attempting to delete again gives 404
+    assert client.delete(f"/tickets/{tid}").status_code == 404
+
+
+def test_delete_ticket_read_only_event_fails(client: TestClient) -> None:
+    events = client.get("/events").json()
+    ro_event = next(e for e in events if "read-only" in e["tags"])
+    ro_tickets = client.get("/tickets", params={"limit": 5, "event_id": ro_event["id"]}).json()["items"]
+    assert ro_tickets
+    tid = ro_tickets[0]["id"]
+    res = client.delete(f"/tickets/{tid}")
+    assert res.status_code == 409
+
+
