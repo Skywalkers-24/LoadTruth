@@ -92,8 +92,9 @@ export function TicketMetadata({ ticket }: { ticket: Ticket }) {
         />
         <Item label="Captured" value={dateTime(ticket.created_at)} />
         <Item
-          label="Evidence"
-          value={`${ticket.evidence_frames.length} frame${ticket.evidence_frames.length === 1 ? "" : "s"}`}
+          label="Cost"
+          value={money(v.est_dollar_value)}
+          tip="Load cost calculated from measured cubic yards and the contract rate."
         />
       </dl>
     </div>
