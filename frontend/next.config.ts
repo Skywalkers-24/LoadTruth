@@ -33,6 +33,7 @@ const nextConfig: NextConfig = {
       value: "public, max-age=31536000, immutable",
     };
     return [
+      { source: "/videos/benchmark-:slug(.*).mp4", headers: [immutable] },
       { source: "/login-:slug(.*).mp4", headers: [immutable] },
       { source: "/login-:slug(.*).jpg", headers: [immutable] },
     ];

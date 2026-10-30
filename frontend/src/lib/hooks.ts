@@ -341,11 +341,11 @@ export function useTicketPipeline(ticketId: string | null) {
 }
 
 /** The ticket's processed clip + SAM output (null when it has none). */
-export function useTicketEvidence(ticketId: string | null) {
+export function useTicketEvidence(ticketId: string | null, enabled: boolean = true) {
   return useQuery({
     queryKey: ["ticket-evidence", ticketId],
     queryFn: () => api.getTicketEvidence(ticketId as string),
-    enabled: Boolean(ticketId),
+    enabled: Boolean(ticketId) && enabled,
     staleTime: 5 * 60_000,
   });
 }
