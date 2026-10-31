@@ -9,6 +9,8 @@ import {
   CopyIcon,
   CheckIcon,
   CpuIcon,
+  CircleDashedIcon,
+  MinusCircleIcon,
   SparklesIcon,
   TriangleAlertIcon,
   XIcon,
@@ -75,10 +77,12 @@ export function StageInspectorDrawer({
   const hasPrev = currentStageIndex > 0;
   const hasNext = currentStageIndex < stages.length - 1;
 
-  const isPreviewOrReady = stage.duration_ms == null || stage.duration_ms === 0;
+  const isPending = stage.status === "pending";
 
-  const durationStr = isPreviewOrReady
-    ? "Instant (< 1 ms)"
+  const durationStr = isPending
+    ? "Not run"
+    : stage.duration_ms == null || stage.duration_ms === 0
+      ? "Instant (< 1 ms)"
     : stage.duration_ms >= 1000
       ? `${(stage.duration_ms / 1000).toFixed(1)} s`
       : `${stage.duration_ms.toLocaleString()} ms`;
@@ -168,13 +172,18 @@ export function StageInspectorDrawer({
                     <TriangleAlertIcon className="size-3" />
                     Flagged for review
                   </Badge>
-                ) : isPreviewOrReady ? (
+                ) : isPending ? (
                   <Badge
                     variant="outline"
-                    className="gap-1 border-primary/40 text-[10px] text-primary"
+                    className="gap-1 border-border text-[10px] text-muted-foreground"
                   >
-                    <span className="size-1.5 rounded-full bg-primary" />
-                    Ready to process
+                    <CircleDashedIcon className="size-3" />
+                    Not run
+                  </Badge>
+                ) : stage.status === "skipped" ? (
+                  <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+                    <MinusCircleIcon className="size-3" />
+                    Skipped
                   </Badge>
                 ) : (
                   <Badge
@@ -279,8 +288,10 @@ export function StageInspectorDrawer({
                 <span className="text-sm font-semibold capitalize text-foreground">
                   {stage.status === "flagged"
                     ? "Flagged for review"
-                    : isPreviewOrReady
-                      ? "Ready for live video"
+                    : isPending
+                      ? "Not run yet"
+                      : stage.status === "skipped"
+                        ? "Skipped"
                       : "Completed successfully"}
                 </span>
               </div>

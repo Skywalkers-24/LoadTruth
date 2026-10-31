@@ -4,11 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { getChatStarters, streamChat } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
 export interface ChatMessage {
   role: "user" | "assistant";
   text: string;
   tools?: string[];
+  analysisMode?: "muse" | "grounded";
   /** Follow-up suggestions returned with the final answer. */
   suggestions?: string[];
 }
@@ -20,6 +22,8 @@ export const TOOL_LABEL: Record<string, string> = {
   query_tickets: "Queried tickets",
   query_anomalies: "Queried anomaly flags",
   disputes: "Looked up disputes",
+  debris_class_analytics: "Compared debris classes",
+  top_overcalls: "Ranked over-calls",
 };
 
 const TYPE_INTERVAL_MS = 20;
@@ -31,11 +35,14 @@ const TYPE_CHARS_PER_TICK = 3;
  * duplicate the SSE wiring. Each call site keeps its own message history.
  */
 export function useAssistantChat(eventId: string | undefined, eventName?: string) {
+  const { member } = useAuth();
+  const isAdministrator = member?.role === "super_admin";
   const starters = useQuery({
     queryKey: ["chat-starters"],
     queryFn: getChatStarters,
     retry: false,
     staleTime: 5 * 60_000,
+    enabled: isAdministrator,
   });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [busy, setBusy] = useState(false);
@@ -79,10 +86,20 @@ export function useAssistantChat(eventId: string | undefined, eventName?: string
     [stopWriter],
   );
 
+  useEffect(() => {
+    if (isAdministrator) return;
+    abortRef.current?.();
+    stopWriter();
+    pendingTextRef.current = "";
+    streamDoneRef.current = false;
+    setMessages([]);
+    setBusy(false);
+  }, [isAdministrator, stopWriter]);
+
   const ask = useCallback(
     (question: string) => {
       const q = question.trim();
-      if (!q || !eventId || busy) return;
+      if (!q || !eventId || !isAdministrator || busy) return;
       setBusy(true);
       pendingTextRef.current = "";
       streamDoneRef.current = false;
@@ -93,7 +110,15 @@ export function useAssistantChat(eventId: string | undefined, eventName?: string
       ]);
 
       abortRef.current = streamChat(
-        { event_id: eventId, message: q, event_name: eventName },
+        {
+          event_id: eventId,
+          message: q,
+          event_name: eventName,
+          prior_questions: messages
+            .filter((message) => message.role === "user")
+            .slice(-6)
+            .map((message) => message.text.slice(0, 500)),
+        },
         {
           // Immutable updates: never mutate an existing message object, so
           // React 19 StrictMode / concurrent rendering can't drop or double
@@ -108,9 +133,11 @@ export function useAssistantChat(eventId: string | undefined, eventName?: string
             pendingTextRef.current += text;
             startWriter();
           },
-          onDone: (suggestions) => {
+          onDone: (suggestions, analysisMode) => {
             setMessages((m) =>
-              m.map((msg, i) => (i === m.length - 1 ? { ...msg, suggestions } : msg)),
+              m.map((msg, i) =>
+                i === m.length - 1 ? { ...msg, suggestions, analysisMode } : msg,
+              ),
             );
             streamDoneRef.current = true;
             startWriter();
@@ -131,7 +158,7 @@ export function useAssistantChat(eventId: string | undefined, eventName?: string
         },
       );
     },
-    [eventId, eventName, busy, startWriter, stopWriter],
+    [eventId, eventName, isAdministrator, busy, messages, startWriter, stopWriter],
   );
 
   const reset = useCallback(() => {
@@ -149,6 +176,7 @@ export function useAssistantChat(eventId: string | undefined, eventName?: string
     ask,
     reset,
     prompts: starters.data?.prompts ?? [],
-    canChat: Boolean(eventId),
+    canChat: Boolean(eventId && isAdministrator),
+    isAdministrator,
   };
 }

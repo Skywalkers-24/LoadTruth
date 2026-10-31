@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   CheckIcon,
   ChevronRightIcon,
+  CircleDashedIcon,
   ClockIcon,
   CpuIcon,
   TriangleAlertIcon,
@@ -17,17 +18,20 @@ const STATUS_COLOR: Record<string, string> = {
   ok: "var(--color-ok)",
   flagged: "var(--color-warn)",
   skipped: "var(--color-subtle)",
+  pending: "var(--color-subtle)",
 };
 
 const STATUS_LABEL: Record<string, string> = {
   ok: "Completed",
   flagged: "Flagged",
   skipped: "Skipped",
+  pending: "Not run",
 };
 
 function StageIcon({ stage, className }: { stage: PipelineStage; className?: string }) {
   if (stage.status === "flagged") return <TriangleAlertIcon className={className} />;
   if (stage.model === "cache") return <ZapIcon className={className} />;
+  if (stage.status === "pending") return <CircleDashedIcon className={className} />;
   return <CheckIcon className={className} />;
 }
 
@@ -40,12 +44,15 @@ function StageIcon({ stage, className }: { stage: PipelineStage; className?: str
 export function PipelineTrace({
   stages,
   compact = false,
+  fillHeight = false,
   defaultExpanded = false,
   onSelectStage,
   selectedStageIndex,
 }: {
   stages: PipelineStage[];
   compact?: boolean;
+  /** Spread stages through the available height in a full-height side rail. */
+  fillHeight?: boolean;
   defaultExpanded?: boolean;
   onSelectStage?: (stage: PipelineStage, index: number) => void;
   selectedStageIndex?: number;
@@ -73,7 +80,7 @@ export function PipelineTrace({
   }
 
   return (
-    <ol className="relative flex flex-col">
+    <ol className={cn("relative flex flex-col", fillHeight && "@[32rem]:h-full @[32rem]:flex-1")}>
       {stages.map((s, i) => {
         const color = STATUS_COLOR[s.status] ?? "var(--color-brand)";
         const last = i === stages.length - 1;
@@ -85,14 +92,19 @@ export function PipelineTrace({
             key={rowId}
             className={cn(
               "relative flex gap-2.5 last:pb-0",
-              compact ? "pb-1.5" : "pb-3",
+              fillHeight
+                ? "@[32rem]:min-h-0 @[32rem]:flex-1 @[32rem]:items-center"
+                : compact
+                  ? "pb-1.5"
+                  : "pb-3",
             )}
           >
             {/* Rail connecting the stage dots */}
             {!last && (
               <span
                 className={cn(
-                  "absolute bottom-0 top-4 w-px bg-[var(--border-strong)]",
+                  "absolute w-px bg-[var(--border-strong)]",
+                  fillHeight ? "top-1/2 bottom-[-50%]" : "bottom-0 top-4",
                   compact ? "left-[9px]" : "left-[11px]",
                 )}
                 aria-hidden
@@ -122,7 +134,7 @@ export function PipelineTrace({
                 aria-label={onSelectStage ? `Inspect ${s.label} stage` : undefined}
                 className={cn(
                   "group flex w-full items-center gap-2 rounded-lg text-left transition-colors",
-                  compact ? "px-1.5 py-1" : "px-2 py-1.5",
+                  compact ? "px-1.5 py-2" : "px-2 py-1.5",
                   "hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]",
                   isSelected
                     ? "bg-primary/10 ring-1 ring-primary/40 font-medium"
@@ -142,14 +154,17 @@ export function PipelineTrace({
                     <span
                       className={cn(
                         "font-semibold leading-tight",
-                        compact ? "text-[12px]" : "text-[13px]",
+                        compact ? "text-[14px]" : "text-[13px]",
                       )}
                     >
                       {s.label}
                     </span>
                     {s.confidence != null && (
                       <span
-                        className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
+                        className={cn(
+                          "shrink-0 rounded-full px-1.5 py-0.5 font-semibold tabular-nums",
+                          compact ? "text-[11px]" : "text-[10px]",
+                        )}
                         style={{
                           backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)`,
                           color,
@@ -251,11 +266,8 @@ function detail(stage: PipelineStage, keyPart: string): string | undefined {
 }
 
 /**
- * The "AI analysis" paragraph for one stage. Meta AI (Muse Spark) authors this
- * per run and the backend returns it on `stage.analysis`, so we show the model's
- * own words whenever they are present. The composed fallback below is used only
- * for older traces persisted before authored analysis existed (and for the
- * deterministic `cache` replay), so the panel is never blank.
+ * The analysis paragraph for one step. If a saved result includes an explanation,
+ * show it; otherwise build a short explanation from the recorded step details.
  */
 export function analysisText(stage: PipelineStage): string {
   if (stage.analysis && stage.analysis.trim()) return cleanText(stage.analysis.trim());
@@ -275,8 +287,7 @@ function cleanText(text: string): string {
 }
 
 /**
- * Fallback, human-readable analysis composed client-side from the stage's own
- * facts. Only used when the model did not author one for this stage.
+ * Fallback explanation composed from the saved step details.
  */
 function composedAnalysis(stage: PipelineStage): string {
   const conf =
@@ -286,7 +297,7 @@ function composedAnalysis(stage: PipelineStage): string {
   switch (stage.key) {
     case "sam_track": {
       parts.push(
-        "Meta SAM 3.1 tracked the truck bed and debris load across video frames to create visual outlines of the load boundaries.",
+        "AI outlined the truck bed and visible load across video frames to make the boundaries easier to review.",
       );
       break;
     }
@@ -294,12 +305,10 @@ function composedAnalysis(stage: PipelineStage): string {
       const truck = detail(stage, "clearest") ?? null;
       if (stage.status === "flagged") {
         parts.push(
-          "Meta Muse Spark could not clearly read the truck's vehicle ID placard, so the ticket is flagged for human review.",
+          "AI could not clearly read the truck number, so the ticket is flagged for review.",
         );
       } else {
-        parts.push(
-          "Meta Muse Spark read the truck's vehicle ID placard from the clearest frame in the footage.",
-        );
+        parts.push("AI read the truck number from the clearest video frame.");
       }
       if (conf) parts.push(`The reading has ${conf}.`);
       if (truck) parts.push(`The clearest view was at ${truck}.`);
@@ -321,14 +330,12 @@ function composedAnalysis(stage: PipelineStage): string {
     }
     case "geometry": {
       parts.push(
-        "Meta Muse Spark estimates fill visually in each sampled video frame, and the pipeline takes the median. SAM segmentation is not used to calculate the fill percentage.",
+        "AI estimates fill from selected video frames, then combines those estimates. The outlines do not determine the fill percentage.",
       );
       break;
     }
     case "spark_classify": {
-      parts.push(
-        "Meta Muse Spark identified the debris material in the truck to select the correct contract rate per cubic yard.",
-      );
+      parts.push("AI identified the load material to select the contract rate per cubic yard.");
       if (conf) parts.push(`Classification confidence: ${conf}.`);
       break;
     }

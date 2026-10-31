@@ -14,12 +14,12 @@ import { cn } from "@/lib/utils";
 // stage keys (app/pipeline/orchestrator.py). A cached replay emits a single
 // `cache` stage, handled as a full-width note.
 const STAGE_FLOW: { key: string; label: string }[] = [
-  { key: "sam_track", label: "Track & segment" },
-  { key: "spark_ocr", label: "Read placard" },
-  { key: "capacity", label: "Capacity" },
+  { key: "sam_track", label: "Outline truck and load" },
+  { key: "spark_ocr", label: "Read truck number" },
+  { key: "capacity", label: "Find capacity" },
   { key: "geometry", label: "Estimate fill" },
-  { key: "spark_classify", label: "Classify" },
-  { key: "anomalies", label: "Flag anomalies" },
+  { key: "spark_classify", label: "Identify material" },
+  { key: "anomalies", label: "Check for issues" },
   { key: "dollar_math", label: "Value load" },
 ];
 

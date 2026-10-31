@@ -460,7 +460,7 @@ export interface PipelineStage {
   key: string;
   label: string;
   model: string;
-  status: "ok" | "skipped" | "flagged";
+  status: "ok" | "skipped" | "flagged" | "pending";
   summary: string;
   confidence: number | null;
   duration_ms: number;
@@ -660,7 +660,7 @@ export function getChatStarters(): Promise<{ prompts: string[] }> {
 export interface ChatEvents {
   onTool?: (tool: string) => void;
   onToken?: (text: string) => void;
-  onDone?: (suggestions: string[]) => void;
+  onDone?: (suggestions: string[], analysisMode?: "muse" | "grounded") => void;
   onError?: (message: string) => void;
 }
 
@@ -669,7 +669,7 @@ export interface ChatEvents {
  * the callbacks. Returns a function to abort the stream.
  */
 export function streamChat(
-  body: { event_id: string; message: string; event_name?: string },
+  body: { event_id: string; message: string; event_name?: string; prior_questions?: string[] },
   handlers: ChatEvents,
 ): () => void {
   const controller = new AbortController();
@@ -704,7 +704,12 @@ export function streamChat(
           const dataLine = /^data:\s*(.+)/m.exec(frame)?.[1];
           if (!ev || !dataLine) continue;
           // A garbled or chunk-split frame must not abort the whole stream.
-          let data: { tool?: string; text?: string; suggestions?: string[] };
+          let data: {
+            tool?: string;
+            text?: string;
+            suggestions?: string[];
+            analysis_mode?: "muse" | "grounded";
+          };
           try {
             data = JSON.parse(dataLine);
           } catch {
@@ -712,7 +717,9 @@ export function streamChat(
           }
           if (ev === "tool" && data.tool) handlers.onTool?.(data.tool);
           else if (ev === "token" && data.text != null) handlers.onToken?.(data.text);
-          else if (ev === "done") handlers.onDone?.(data.suggestions ?? []);
+          else if (ev === "done") {
+            handlers.onDone?.(data.suggestions ?? [], data.analysis_mode);
+          }
         }
       }
     } catch (err) {
@@ -958,6 +965,31 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ monitor_fill_pct: monitorFillPct }),
     }),
+  fileManualMonitorReport: (
+    id: string,
+    body: { monitor_fill_pct?: string; issue_description?: string },
+  ) =>
+    request<Ticket>(`/tickets/${id}/monitor-call/manual`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  transcribeMonitorCall: (id: string, audio: Blob, context = "") => {
+    const form = new FormData();
+    form.append("audio", audio, "monitor-call.wav");
+    form.append("context", context);
+    return request<{
+      transcript: string;
+      audio_duration_ms: number;
+      suggested_fill_pct: number | null;
+      issue_flags: string[];
+      follow_up_question: string | null;
+      saved_fill_pct: number | null;
+      updated_ticket: Ticket | null;
+    }>(
+      `/tickets/${id}/monitor-call/transcribe`,
+      { method: "POST", body: form },
+    );
+  },
   setStatus: (id: string, status: TicketStatus) =>
     request<Ticket>(`/tickets/${id}/status`, {
       method: "PATCH",

@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowUpRightIcon, CheckCircle2Icon, TriangleAlertIcon } from "lucide-react";
+import {
+  ArrowUpRightIcon,
+  CheckCircle2Icon,
+  CircleDashedIcon,
+  MinusCircleIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import type { PipelineStage } from "@/lib/api";
 import { PipelineTrace } from "./pipeline-trace";
 import { StageInspectorDrawer } from "./stage-inspector-drawer";
@@ -10,43 +16,41 @@ import { cn } from "@/lib/utils";
 export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
   {
     key: "sam_track",
-    label: "Track & segment",
+    label: "Outline truck and load",
     model: "Meta SAM 3.1",
-    status: "ok",
-    summary: "Meta SAM 3.1 outlines the truck bed and debris pile across video frames.",
+    status: "pending",
+    summary: "AI outlines the truck bed and visible load in the video.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Meta SAM 3.1 tracks the truck, bed, and visible load across the footage. Its masks support visual evidence and tracking; Muse Spark estimates the fill percentage separately.",
+      "AI outlines the truck, bed, and visible load across the video. These outlines support review; the fill estimate is calculated separately.",
     details: [
       ["Vision Model", "Meta SAM 3.1 (Segment Anything Model)"],
       ["Input Footage", "High-definition video clip or sequential camera frames"],
       ["Detection Target", "Truck body, bed boundaries, and loaded debris pile"],
-      ["Live Status", "Ready to process on video upload"],
     ],
   },
   {
     key: "spark_ocr",
-    label: "Read placard",
+    label: "Read truck number",
     model: "Meta Muse Spark 1.3",
-    status: "ok",
-    summary: "Meta Muse Spark reads the truck ID number from the vehicle placard.",
+    status: "pending",
+    summary: "AI reads the truck number shown in the video.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Meta Muse Spark reads the hauler's official placard or door stencil ID from the clearest video frame so the haul is credited to the right driver and contractor in county records.",
+      "AI reads the truck number from the clearest video frame so the load can be matched to the right truck and hauler in county records.",
     details: [
       ["AI Model", "Meta Muse Spark 1.3 Vision-Language"],
-      ["Target Location", "Truck door stencil, side placard, or trailer ID"],
+      ["Where it appears", "Truck door, side label, or trailer"],
       ["Verification", "Matches against county registered hauler list"],
-      ["Live Status", "Ready to process on video upload"],
     ],
   },
   {
     key: "capacity",
-    label: "Capacity lookup",
+    label: "Find truck capacity",
     model: "County Registry",
-    status: "ok",
+    status: "pending",
     summary: "Looks up the truck's certified cubic-yard size in official county records.",
     confidence: null,
     duration_ms: 0,
@@ -56,48 +60,45 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
       ["Database", "County Certified Hauler Registry"],
       ["Certified Size", "Official truck bed volume in cubic yards (CY)"],
       ["Contractor Check", "Confirms active certification and valid hauling permit"],
-      ["Live Status", "Ready to process on video upload"],
     ],
   },
   {
     key: "geometry",
     label: "Estimate fill",
-    model: "Muse Spark + deterministic median",
-    status: "ok",
-    summary: "Combines Muse Spark's visual fill estimates from sampled video frames.",
+    model: "AI estimate across video frames",
+    status: "pending",
+    summary: "Combines fill estimates from selected video frames.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Meta Muse Spark visually estimates fill from each sampled video frame, and the pipeline takes the median of those estimates. SAM mask coverage does not determine the fill percentage.",
+      "AI estimates how full the truck looks in selected frames, then combines those estimates. Truck and load outlines do not determine the fill percentage.",
     details: [
-      ["Calculation Basis", "Muse Spark's visual assessment of each sampled frame"],
+      ["Calculation Basis", "AI review of selected video frames"],
       ["Estimate Range", "0% (empty) to 100% (full to bed rails)"],
-      ["Combination", "Median of Muse Spark's per-frame estimates"],
-      ["Live Status", "Ready to process on video upload"],
+      ["Combination", "Middle value of the frame estimates"],
     ],
   },
   {
     key: "spark_classify",
-    label: "Classify debris",
+    label: "Identify material",
     model: "Meta Muse Spark 1.3",
-    status: "ok",
-    summary: "Meta Muse Spark identifies the debris material to apply the correct pay rate.",
+    status: "pending",
+    summary: "AI identifies the load material to apply the correct rate.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Meta Muse Spark inspects the video to identify the debris type (such as Trees & Brush, Construction Waste, or Bulky Items). This determines the contract reimbursement rate per cubic yard.",
+      "AI reviews the video to identify the load material, such as branches, construction debris, or bulky items. This selects the contract rate per cubic yard.",
     details: [
       ["AI Model", "Meta Muse Spark 1.3 Visual Reasoning"],
       ["Common Categories", "Vegetative / Trees, Construction & Demolition, Bulky Goods"],
       ["Contract Rate", "Sets the billing rate per cubic yard"],
-      ["Live Status", "Ready to process on video upload"],
     ],
   },
   {
     key: "anomalies",
-    label: "Flag anomalies",
+    label: "Check for issues",
     model: "Meta Muse Spark 1.3",
-    status: "ok",
+    status: "pending",
     summary: "Checks identity, certification, capacity, and cycle-time rules.",
     confidence: null,
     duration_ms: 0,
@@ -107,24 +108,20 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
       ["Audit Checks", "Identity, certification, capacity, and cycle time"],
       ["Supervisor Review", "Monitors review the visual estimate and can flag concerns"],
       ["Compliance Standard", "FEMA disaster-debris reimbursement guidelines"],
-      ["Live Status", "Ready to process on video upload"],
     ],
   },
   {
     key: "dollar_math",
     label: "Value the load",
-    model: "deterministic",
-    status: "ok",
+    model: "Standard calculation",
+    status: "pending",
     summary:
       "Calculates the payout: certified truck size multiplied by the fill percentage and the debris rate per cubic yard.",
     confidence: null,
     duration_ms: 0,
     analysis:
       "Calculates the payout: certified truck size multiplied by the fill percentage and the debris rate per cubic yard.",
-    details: [
-      ["Calculation Method", "Certified Cubic Yards × Fill % × Debris Unit Rate"],
-      ["Live Status", "Ready to process on video upload"],
-    ],
+    details: [["Calculation Method", "Certified Cubic Yards × Fill % × Debris Unit Rate"]],
   },
 ];
 
@@ -155,7 +152,15 @@ export function PipelineWorkbench({
     ? [
         ...DEFAULT_PIPELINE_STAGES.map((def) => {
           const incoming = stageMap.get(def.key);
-          return incoming ? { ...def, ...incoming } : def;
+          return incoming
+            ? { ...def, ...incoming }
+            : {
+                ...def,
+                status: "pending" as const,
+                summary: "This step has not run in the current analysis.",
+                analysis: "This step has not run in the current analysis.",
+                details: [],
+              };
         }),
         ...filteredStages.filter((s) => !defaultKeys.has(s.key)),
       ]
@@ -190,7 +195,7 @@ export function PipelineWorkbench({
       {summary && (
         <div className="grid grid-cols-2 gap-2.5 rounded-xl border border-border bg-secondary/40 p-3 sm:grid-cols-4">
           <SummaryField label="Truck" value={summary.truck ?? "Unidentified"} />
-          <SummaryField label="Debris" value={summary.debris ?? "N/A"} />
+          <SummaryField label="Material" value={summary.debris ?? "N/A"} />
           <SummaryField label="Value" value={summary.value ?? "N/A"} />
           <SummaryField label="Flags" value={String(summary.flags ?? 0)} />
         </div>
@@ -202,25 +207,32 @@ export function PipelineWorkbench({
         className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-4 lg:grid-cols-7"
       >
         {displayStages.map((s, i) => {
-          const isSelected = i === selectedIndex;
-          const isReady = s.duration_ms == null || s.duration_ms === 0;
+          const isPending = s.status === "pending";
+          const isSelected = i === selectedIndex && !isPending;
+          const duration = s.duration_ms > 0 ? ` · ${(s.duration_ms / 1000).toFixed(1)}s` : "";
           return (
             <li key={`${s.key}-${i}`} className="min-w-0">
               <button
                 type="button"
                 aria-pressed={isSelected}
+                aria-disabled={isPending}
                 onClick={() => handleStageClick(i)}
                 className={cn(
                   "group relative flex h-full w-full flex-col justify-between rounded-xl border border-border bg-secondary/30 p-3 text-left transition-all hover:border-[var(--brand)] hover:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  isPending && "cursor-default opacity-50 grayscale",
                   isSelected &&
                     "border-[var(--brand)] bg-[var(--brand-soft)] ring-1 ring-[var(--brand)] shadow-xs",
                 )}
               >
                 <div>
                   <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    <span>Stage {String(i + 1).padStart(2, "0")}</span>
+                    <span>Step {String(i + 1).padStart(2, "0")}</span>
                     {s.status === "flagged" ? (
                       <TriangleAlertIcon className="size-3.5 text-[var(--color-warn)]" />
+                    ) : s.status === "skipped" ? (
+                      <MinusCircleIcon className="size-3.5 text-muted-foreground" />
+                    ) : isPending ? (
+                      <CircleDashedIcon className="size-3.5 text-muted-foreground" />
                     ) : (
                       <CheckCircle2Icon className="size-3.5 text-[var(--color-ok)]" />
                     )}
@@ -238,15 +250,13 @@ export function PipelineWorkbench({
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-2 border-t border-border pt-2 text-[11px]">
                   <span className="text-muted-foreground truncate">
-                    {s.status === "flagged"
-                      ? "Flagged"
-                      : s.status === "skipped"
-                        ? "Skipped"
-                        : isReady
-                          ? "Ready"
-                          : "Done"}
-                    {" · "}
-                    {isReady ? "Live" : `${(s.duration_ms! / 1000).toFixed(1)}s`}
+                    {isPending
+                      ? "Not run"
+                      : s.status === "flagged"
+                        ? `Flagged${duration}`
+                        : s.status === "skipped"
+                          ? `Skipped${duration}`
+                          : `Done${duration}`}
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-foreground">
                     View details

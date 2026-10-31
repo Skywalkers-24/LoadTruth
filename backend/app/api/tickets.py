@@ -8,19 +8,22 @@ does the math itself.
 
 from __future__ import annotations
 
+import wave
 from decimal import Decimal
+from io import BytesIO
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import RedirectResponse, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.api.cache import cached_api, invalidate_cache_tags
 from app.api.deps import CurrentMember, require
 from app.api.event_policy import require_event_write
 from app.api.repo import ActiveTenant, Repository
-from app.auth.roles import can_manage_settings, can_review_tickets
+from app.auth.roles import can_manage_settings, can_review_tickets, is_super_admin
+from app.config import get_settings
 from app.pipeline import evidence_store
 from app.pipeline.benchmark_media import benchmark_media_url
 from app.pipeline.trace import display_stage_summary
@@ -53,6 +56,26 @@ _NO_EVENTS = "Only SuperAdmin can manage workspace events and rate tables."
 _NO_REVIEW = "You do not have permission to review tickets."
 ManageEvents = Depends(require(can_manage_settings, _NO_EVENTS))
 ReviewTickets = Depends(require(can_review_tickets, _NO_REVIEW))
+
+
+class MonitorCallTranscriptOut(BaseModel):
+    transcript: str
+    audio_duration_ms: int
+    suggested_fill_pct: float | None = None
+    issue_flags: list[str] = Field(default_factory=list)
+    follow_up_question: str | None = None
+    saved_fill_pct: float | None = None
+    updated_ticket: TicketOut | None = None
+
+
+class ManualMonitorFilingIn(BaseModel):
+    monitor_fill_pct: Decimal | None = Field(default=None, ge=0, le=100)
+    issue_description: str | None = Field(default=None, max_length=512)
+
+    @field_validator("issue_description")
+    @classmethod
+    def normalize_issue(cls, value: str | None) -> str | None:
+        return value.strip() if value and value.strip() else None
 
 
 async def _require_writable_ticket(
@@ -373,6 +396,200 @@ async def set_monitor_call(
     return ticket_to_out(t)
 
 
+@router.post(
+    "/tickets/{ticket_id}/monitor-call/manual",
+    response_model=TicketOut,
+    dependencies=[],
+)
+async def file_manual_monitor_report(
+    repo: Repository,
+    tenant: ActiveTenant,
+    ticket_id: UUID,
+    body: ManualMonitorFilingIn,
+    member: CurrentMember,
+) -> TicketOut:
+    """Save a manually entered monitor fill call and/or issue review flag."""
+    await _require_writable_ticket(repo, tenant, ticket_id, member.role)
+    issue = body.issue_description
+    if body.monitor_fill_pct is None and issue is None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "Enter a fill call or issue description."
+        )
+    if issue is not None and len(issue) < 4:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "Describe the issue in at least 4 characters."
+        )
+
+    if body.monitor_fill_pct is not None:
+        try:
+            await repo.set_monitor_call(tenant, ticket_id, body.monitor_fill_pct)
+        except TicketNotFoundError as exc:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
+
+    if issue is not None:
+        from app.db import models
+
+        previous = await repo.list_anomalies_for_ticket(tenant, ticket_id)
+        duplicate = any(row.type == "monitor_call" and row.explanation == issue for row in previous)
+        if not duplicate:
+            repo.session.add(
+                models.Anomaly(
+                    tenant_id=tenant,
+                    ticket_id=ticket_id,
+                    type="monitor_call",
+                    severity="warn",
+                    explanation=issue,
+                    evidence_frame=None,
+                )
+            )
+            await repo.session.flush()
+
+    ticket = await repo.get_ticket(tenant, ticket_id)
+    await invalidate_cache_tags(f"event:{ticket.event_id}", f"tenant:{tenant}:billing")
+    return ticket_to_out(ticket)
+
+
+@router.post(
+    "/tickets/{ticket_id}/monitor-call/transcribe",
+    response_model=MonitorCallTranscriptOut,
+    dependencies=[],
+)
+async def transcribe_monitor_call(
+    repo: Repository,
+    tenant: ActiveTenant,
+    ticket_id: UUID,
+    member: CurrentMember,
+    audio: UploadFile = File(...),  # noqa: B008 - FastAPI request field
+    context: str = Form(default=""),
+) -> MonitorCallTranscriptOut:
+    """Transcribe, interpret, and apply clear inspector-call values and flags."""
+    if not is_super_admin(member.role):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Microphone transcription is available in Administrator mode only.",
+        )
+    await _require_writable_ticket(repo, tenant, ticket_id, member.role)
+    settings = get_settings()
+    if not settings.model_api_configured:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "Muse audio analysis is not configured."
+        )
+    if audio.content_type not in {
+        "audio/wav",
+        "audio/x-wav",
+        "audio/wave",
+        "application/octet-stream",
+    }:
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Record a WAV audio clip.")
+
+    raw = await audio.read(2_000_001)
+    if len(raw) > 3_000_000:
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Audio must be 15 seconds or shorter."
+        )
+    try:
+        with wave.open(BytesIO(raw), "rb") as wav:
+            channels, sample_width, sample_rate, frames = (
+                wav.getnchannels(),
+                wav.getsampwidth(),
+                wav.getframerate(),
+                wav.getnframes(),
+            )
+            if channels != 1 or sample_width != 2 or sample_rate not in (16000, 24000):
+                raise ValueError("unsupported WAV format")
+            duration_ms = round(frames * 1000 / sample_rate)
+            if not 250 <= duration_ms <= 15_000:
+                raise ValueError("audio must be between 0.25 and 15 seconds")
+    except (wave.Error, EOFError, ValueError) as exc:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Audio must be mono 16-bit PCM WAV at 16 or 24 kHz and 0.25–15 seconds long.",
+        ) from exc
+
+    try:
+        from app.ai.live import LiveAIClient
+
+        ai = LiveAIClient()
+        try:
+            analysis = await ai.interpret_monitor_call_audio(raw, context)
+        finally:
+            await ai.aclose()
+    except Exception:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "Muse could not transcribe and interpret this recording. "
+            "Please retry or enter the call manually.",
+        ) from None
+
+    transcript = analysis.get("transcript")
+    if not isinstance(transcript, str) or not transcript.strip():
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "Muse returned no transcript. Please retry."
+        )
+
+    suggested = analysis.get("fill_pct")
+    if (
+        isinstance(suggested, bool)
+        or not isinstance(suggested, int | float)
+        or not 0 <= suggested <= 100
+    ):
+        suggested = None
+    flags = analysis.get("issue_flags")
+    if not isinstance(flags, list):
+        flags = []
+    flags = [item.strip()[:160] for item in flags if isinstance(item, str) and item.strip()][:5]
+    question = analysis.get("follow_up_question")
+    if not isinstance(question, str) or not question.strip():
+        question = None
+    saved_fill: float | None = None
+    updated_ticket: TicketOut | None = None
+    if suggested is not None:
+        try:
+            updated = await repo.set_monitor_call(tenant, ticket_id, Decimal(str(suggested)))
+            saved_fill = float(suggested)
+            updated_ticket = ticket_to_out(updated)
+            await invalidate_cache_tags(f"event:{updated.event_id}", f"tenant:{tenant}:billing")
+        except TicketNotFoundError as exc:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "ticket not found") from exc
+
+    # Explicitly spoken problems become review flags, deduplicated on repeated
+    # recordings. They remain ordinary review anomalies and never decide the ticket.
+    if flags:
+        from app.db import models
+
+        previous = await repo.list_anomalies_for_ticket(tenant, ticket_id)
+        known = {row.explanation for row in previous if row.type == "monitor_call"}
+        recorded_flags: list[str] = []
+        for issue in flags:
+            if issue in known:
+                continue
+            repo.session.add(
+                models.Anomaly(
+                    tenant_id=tenant,
+                    ticket_id=ticket_id,
+                    type="monitor_call",
+                    severity="warn",
+                    explanation=issue[:512],
+                    evidence_frame=None,
+                )
+            )
+            recorded_flags.append(issue)
+        await repo.session.flush()
+        updated_ticket = ticket_to_out(await repo.get_ticket(tenant, ticket_id))
+        await invalidate_cache_tags(f"event:{updated_ticket.event_id}")
+        flags = recorded_flags
+
+    return MonitorCallTranscriptOut(
+        transcript=transcript.strip(),
+        audio_duration_ms=duration_ms,
+        suggested_fill_pct=float(suggested) if suggested is not None else None,
+        issue_flags=flags,
+        follow_up_question=question.strip()[:300] if question else None,
+        saved_fill_pct=saved_fill,
+        updated_ticket=updated_ticket,
+    )
+
+
 @router.patch("/tickets/{ticket_id}/status", response_model=TicketOut, dependencies=[])
 async def set_status(
     repo: Repository, tenant: ActiveTenant, ticket_id: UUID, body: StatusIn, member: CurrentMember
@@ -576,6 +793,17 @@ async def create_practice_ticket(
     event = await repo.get_event(tenant, event_id)
     if event is None:
         raise HTTPException(404, "event not found")
+    if "playground" not in event.tags:
+        raise HTTPException(
+            409, "Saved video replays can only create practice tickets in the Sandbox."
+        )
+    # Serialize practice copies for this event so simultaneous users cannot
+    # exceed the 100-ticket retention limit on databases that support row locks.
+    await repo.session.execute(
+        select(models.Event)
+        .where(models.Event.id == event_id, models.Event.tenant_id == tenant)
+        .with_for_update()
+    )
     try:
         source = await repo.get_ticket(tenant, body.source_ticket_id)
     except TicketNotFoundError as exc:
@@ -620,5 +848,21 @@ async def create_practice_ticket(
             }
             repo.session.add(model(**values, ticket_id=saved.id))
     await repo.session.flush()
+    # Retain the newest 100 practice tickets. Deleting through the repository
+    # also clears linked evidence, pipeline stages, and anomalies.
+    old_ids = (
+        (
+            await repo.session.execute(
+                select(models.Ticket.id)
+                .where(models.Ticket.tenant_id == tenant, models.Ticket.event_id == event_id)
+                .order_by(models.Ticket.created_at.desc(), models.Ticket.id.desc())
+                .offset(100)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for old_id in old_ids:
+        await repo.delete_ticket(tenant, old_id)
     await invalidate_cache_tags(f"event:{event_id}", f"tenant:{tenant}:billing")
     return ticket_to_out(await repo.get_ticket(tenant, saved.id))

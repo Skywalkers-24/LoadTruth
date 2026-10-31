@@ -2,17 +2,19 @@ import type { AnomalyItem, Ticket } from "@/lib/api";
 import { SeverityBadge, type Severity } from "@/components/ui/badge";
 import { CheckCircleIcon } from "@/components/ui/icons";
 import { deriveAnomalies } from "@/lib/anomalies";
+import { useTicket } from "@/lib/hooks";
 
 const ORDER = { high: 0, warn: 1, info: 2 } as const;
 
 const TYPE_TITLE: Record<string, string> = {
   uncertified_truck: "Uncertified truck",
-  identity_unreadable: "Unreadable placard",
+  identity_unreadable: "Truck number unreadable",
   capacity_exceeded: "Capacity exceeded",
   impossible_cycle: "Impossible cycle time",
   duplicate_truck: "Duplicate truck",
   surface_depth_mismatch: "Surface high, depth low",
   low_confidence: "Low confidence",
+  monitor_call: "Monitor reported issue",
 };
 
 function titleFor(type: string): string {
@@ -27,12 +29,15 @@ interface Flag {
 }
 
 /**
- * Anomaly flags for the selected ticket, most severe first. Prefers the itemized
+ * Review flags for the selected ticket, most severe first. Prefers the itemized
  * list the API returns (with Muse Spark narratives); falls back to flags derived
  * from the ticket fields when the itemized list is absent (e.g. list views).
  */
 export function AnomalyList({ ticket }: { ticket: Ticket }) {
-  const itemized: AnomalyItem[] | undefined = ticket.anomalies;
+  // Ticket queue rows carry only anomaly_count. Fetch the selected ticket's
+  // itemized flags so newly filed monitor reports show up in this panel too.
+  const detail = useTicket(ticket.id);
+  const itemized: AnomalyItem[] | undefined = detail.data?.anomalies ?? ticket.anomalies;
   const flags: Flag[] =
     itemized && itemized.length > 0
       ? itemized.map((a, i) => ({
@@ -56,7 +61,7 @@ export function AnomalyList({ ticket }: { ticket: Ticket }) {
         <span className="text-[var(--color-ok)]">
           <CheckCircleIcon size={16} />
         </span>
-        No anomaly flags on this ticket.
+        No issues flagged on this ticket.
       </div>
     );
   }

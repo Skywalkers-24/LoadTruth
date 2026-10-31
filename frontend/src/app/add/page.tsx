@@ -28,7 +28,7 @@ import {
 } from "@/lib/api";
 import { AppShell } from "@/components/shell/app-shell";
 import { LivePipelineFlow } from "@/components/ai/live-pipeline-flow";
-import { DEFAULT_PIPELINE_STAGES, PipelineWorkbench } from "@/components/ai/pipeline-workbench";
+import { PipelineWorkbench } from "@/components/ai/pipeline-workbench";
 import { EvidenceCanvas } from "@/components/console/evidence-canvas";
 import { shortId } from "@/components/console/ticket-metadata";
 import { Button } from "@/components/ui/shadcn/button";
@@ -74,13 +74,14 @@ export default function NewTicketPage() {
 }
 
 function CaptureWorkspace() {
-  const { events, selected, selectedId: eventId, setSelectedId } = useEventContext();
+  const { selected, selectedId: eventId } = useEventContext();
   const eventPairs = useMemo(
     () => BENCHMARK_PAIRS.filter((pair) => pair.eventId === eventId),
     [eventId],
   );
-  const { can, member } = useAuth();
+  const { member } = useAuth();
   const canRunFresh = member?.role === "super_admin";
+  const playground = Boolean(selected?.tags.includes("playground"));
   const [bypassCache, setBypassCache] = useState(false);
   const [keepFootage, setKeepFootage] = useState(true);
   const [selectedExisting, setSelectedExisting] = useState<string>("");
@@ -127,42 +128,28 @@ function CaptureWorkspace() {
 
   const activeStages = customResult?.stages ?? ticketPipeline.data ?? null;
 
-  const allowed = Boolean(can("ingest"));
   const showcaseReadOnly = Boolean(selected?.tags.includes("read-only"));
 
   function submit(file: File) {
+    if (!canRunFresh) {
+      setError(
+        "Uploading footage and running AI analysis is available in Administrator mode. Use the saved video selector to replay existing analysis.",
+      );
+      return;
+    }
+    if (playground) {
+      setError(
+        "Sandbox is replay-only. Choose a saved video below; uploads and new AI analysis are disabled here.",
+      );
+      return;
+    }
     if (showcaseReadOnly) {
       setError(
         "This event is read-only. Choose an existing video from the library dropdown below to preview its analysis and ticket.",
       );
       return;
     }
-    if (!canRunFresh) {
-      const match = eventPairs.find(
-        (p) =>
-          p.matchFilename.toLowerCase() === file.name.toLowerCase() ||
-          file.name.toLowerCase().includes(p.truckId.toLowerCase()),
-      );
-      if (match) {
-        setSelectedExisting(match.matchFilename);
-        void processExistingVideo(match.matchFilename);
-        return;
-      }
-      setError(
-        "Raw video upload and AI inference requires Administrator credentials. Choose an existing video from the library dropdown below to draft a ticket with full AI pipeline data.",
-      );
-      return;
-    }
     let targetEventId = eventId;
-    if (selected?.tags.includes("playground")) {
-      const working = events.find(
-        (e) => !e.tags.includes("read-only") && !e.tags.includes("playground"),
-      );
-      if (working) {
-        targetEventId = working.id;
-        setSelectedId(working.id);
-      }
-    }
     if (!targetEventId || busy || latest.isLoading) return;
     if (file.size === 0) {
       setError("This file is empty. Choose a truck video or image.");
@@ -207,8 +194,8 @@ function CaptureWorkspace() {
     setLoadingExisting(true);
     setError(null);
     try {
-      if (showcaseReadOnly) {
-        // Read-only event: Populate reference ticket & pipeline details in read-only mode without calling ingest
+      if (showcaseReadOnly || !playground) {
+        // Replay the saved result directly; this path never invokes inference.
         const [ticketData, stagesData] = await Promise.all([
           getTicket(pair.ticketId),
           getTicketPipeline(pair.ticketId),
@@ -219,7 +206,7 @@ function CaptureWorkspace() {
           filename: pair.matchFilename,
         });
       } else {
-        // Writable event (normal user or admin): Draft a new ticket in this event with full benchmark data
+        // Sandbox: create a reviewable copy using saved analysis only.
         if (!eventId) throw new Error("Please select an active event first.");
         const newTicket = await createPracticeTicket(eventId, pair.ticketId);
         const stagesData = await getTicketPipeline(newTicket.id);
@@ -238,6 +225,8 @@ function CaptureWorkspace() {
       setLoadingExisting(false);
     }
   }
+
+  if (playground) return <SavedFootagePicker />;
 
   return (
     <AppShell section="New Ticket">
@@ -274,12 +263,10 @@ function CaptureWorkspace() {
                       className="mt-1 size-4 shrink-0 accent-[var(--brand)]"
                     />
                     <span>
-                      <span className="block text-sm font-medium">
-                        Run fresh analysis (bypass cache)
-                      </span>
+                      <span className="block text-sm font-medium">Run AI again</span>
                       <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                        Run the AI again instead of reusing saved analysis. Takes longer and may
-                        incur additional model usage charges.
+                        Create a new result instead of reusing the saved one. This takes longer and
+                        may use paid AI calls.
                       </span>
                     </span>
                   </label>
@@ -298,9 +285,9 @@ function CaptureWorkspace() {
                         Keep footage for later replay
                       </span>
                       <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                        Tickets and analysis are always saved. Uncheck to keep footage only in
-                        server memory for up to seven days; replay ends sooner if memory is full or
-                        the server restarts.
+                        The ticket and result are always saved. Turn this off if you do not need the
+                        video for later replay; temporary videos may be removed when the server
+                        restarts or runs low on storage.
                       </span>
                     </span>
                   </label>
@@ -308,9 +295,12 @@ function CaptureWorkspace() {
                 <label
                   role="button"
                   aria-label="Choose truck video or image"
-                  aria-disabled={busy || latest.isLoading || !eventId}
-                  tabIndex={busy || latest.isLoading || !eventId ? -1 : 0}
+                  aria-disabled={!canRunFresh || playground || busy || latest.isLoading || !eventId}
+                  tabIndex={
+                    !canRunFresh || playground || busy || latest.isLoading || !eventId ? -1 : 0
+                  }
                   onKeyDown={(e) => {
+                    if (!canRunFresh || playground) return;
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       inputRef.current?.click();
@@ -318,6 +308,7 @@ function CaptureWorkspace() {
                   }}
                   onDragOver={(e) => {
                     e.preventDefault();
+                    if (!canRunFresh || playground) return;
                     setDragging(true);
                   }}
                   onDragLeave={() => setDragging(false)}
@@ -332,7 +323,7 @@ function CaptureWorkspace() {
                     dragging
                       ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)]"
                       : "border-border hover:border-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]/40",
-                    (busy || latest.isLoading || !eventId) &&
+                    (!canRunFresh || playground || busy || latest.isLoading || !eventId) &&
                       "pointer-events-none opacity-70",
                   )}
                 >
@@ -342,7 +333,7 @@ function CaptureWorkspace() {
                     accept="video/*,image/*"
                     onChange={onPick}
                     className="hidden"
-                    disabled={busy || latest.isLoading || !eventId}
+                    disabled={!canRunFresh || playground || busy || latest.isLoading || !eventId}
                   />
                   <span className="grid size-14 place-items-center rounded-2xl bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
                     {ingest.isPending ? (
@@ -359,14 +350,22 @@ function CaptureWorkspace() {
                           ? latest.data?.bypass_cache
                             ? "Fresh analysis in progress"
                             : "Analysis in progress"
-                          : "Drop a clip here, or click to browse"}
+                          : !canRunFresh
+                            ? "Upload disabled · Administrator mode required"
+                            : playground
+                              ? "Sandbox · saved video replay only"
+                              : "Drop a clip here, or click to browse"}
                     </span>
                     <span className="text-[12px] text-muted-foreground">
                       {ingest.isPending
                         ? "Your clip is being uploaded."
                         : processing
                           ? "Upload complete. Analysis is still processing."
-                          : `Choose a video or image up to ${Math.round(analysisLimit / 1024 ** 2)} MiB.`}
+                          : !canRunFresh
+                            ? "Select an existing video below to replay saved AI analysis."
+                            : playground
+                              ? "Choose a saved video below. Uploads and new AI calls are disabled in Sandbox."
+                              : `Choose a video or image up to ${Math.round(analysisLimit / 1024 ** 2)} MiB.`}
                     </span>
                   </div>
                 </label>
@@ -401,7 +400,8 @@ function CaptureWorkspace() {
                       <option value="">-- Select an existing video from here --</option>
                       {eventPairs.map((pair) => (
                         <option key={pair.id} value={pair.matchFilename}>
-                          P{String(pair.pairNumber).padStart(2, "0")} · {pair.truckId} · {pair.debrisLabel} ({pair.measuredFillPct.toFixed(1)}% fill)
+                          P{String(pair.pairNumber).padStart(2, "0")} · {pair.truckId} ·{" "}
+                          {pair.debrisLabel} ({pair.measuredFillPct.toFixed(1)}% fill)
                         </option>
                       ))}
                     </select>
@@ -420,7 +420,7 @@ function CaptureWorkspace() {
                       ) : (
                         <>
                           <SparklesIcon className="size-3.5" />
-                          <span>Run analysis</span>
+                          <span>Replay saved video</span>
                         </>
                       )}
                     </Button>
@@ -479,11 +479,15 @@ function CaptureWorkspace() {
                           )}
                         </div>
                         <p className="text-[11px] text-muted-foreground">
-                          Generated from {customResult?.filename ?? latest.data?.filename ?? "benchmark clip"}
+                          Generated from{" "}
+                          {customResult?.filename ?? latest.data?.filename ?? "benchmark clip"}
                         </p>
                       </div>
                     </div>
-                    <Button size="sm" onClick={() => router.push(`/console?ticket=${activeTicket.id}`)}>
+                    <Button
+                      size="sm"
+                      onClick={() => router.push(`/console?ticket=${activeTicket.id}`)}
+                    >
                       Open ticket
                       <ArrowRightIcon />
                     </Button>
@@ -499,7 +503,10 @@ function CaptureWorkspace() {
                           : "Unavailable"
                       }
                     />
-                    <Field label="Estimated fill" value={percent(activeTicket.valuation.est_fill_pct)} />
+                    <Field
+                      label="Estimated fill"
+                      value={percent(activeTicket.valuation.est_fill_pct)}
+                    />
                   </div>
                 </Card>
               </FadeIn>
@@ -517,12 +524,12 @@ function CaptureWorkspace() {
                     : "Live analysis"}
               </h2>
               <p className="text-xs text-muted-foreground">
-                SAM tracks the truck and load · Muse estimates fill from sampled frames · ticket
-                value is calculated from certified capacity and event rates.
+                AI outlines the truck and load · estimates fill from video frames · ticket value is
+                calculated from certified capacity and event rates.
               </p>
             </div>
             <Link href="/pipeline" className="text-xs font-medium text-primary hover:underline">
-              All AI pipeline runs →
+              All analysis runs →
             </Link>
           </div>
 
@@ -550,10 +557,11 @@ function CaptureWorkspace() {
             />
           ) : (
             <div className="flex flex-col gap-3">
-              <PipelineWorkbench stages={DEFAULT_PIPELINE_STAGES} />
+              <PipelineWorkbench stages={[]} />
               <p className="text-xs text-muted-foreground">
-                Select an existing video from the library above or drop a truck clip to run this pipeline. Click any stage
-                to inspect its purpose and model output in the sidebar inspector.
+                Select an existing video from the library above or drop a truck clip to run this
+                pipeline. Click any stage to inspect its purpose and model output in the sidebar
+                inspector.
               </p>
             </div>
           )}
@@ -612,11 +620,15 @@ function SavedFootagePicker({ onUpload }: { onUpload?: () => void }) {
                 Watch saved footage and reuse its analysis. No new AI calls or credits.
               </p>
             </div>
-            {onUpload && (
+            {onUpload ? (
               <Button variant="outline" onClick={onUpload}>
                 Upload new footage
               </Button>
-            )}
+            ) : selected?.tags.includes("playground") ? (
+              <Button variant="outline" disabled title="Sandbox is replay-only">
+                Upload unavailable in Sandbox
+              </Button>
+            ) : null}
           </div>
           <label htmlFor="practice-video" className="text-sm font-medium">
             Processed video

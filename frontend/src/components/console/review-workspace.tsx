@@ -16,7 +16,6 @@ import { PipelineTrace } from "@/components/ai/pipeline-trace";
 import { StageInspectorDrawer } from "@/components/ai/stage-inspector-drawer";
 import { Skeleton } from "@/components/ui/shadcn/skeleton";
 import { useTicketPipeline } from "@/lib/hooks";
-import { percent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** Previous/next stepping through the current queue page. */
@@ -43,20 +42,6 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
   const [detailsOpen, setDetailsOpen] = useState(true);
   return (
     <div className="@container flex h-full min-h-0 flex-col gap-3">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-        <button
-          type="button"
-          aria-expanded={detailsOpen}
-          aria-controls="review-details"
-          onClick={() => setDetailsOpen((open) => !open)}
-          className="inline-flex min-h-10 items-center gap-2 rounded-md border border-border px-3 text-xs font-medium"
-        >
-          <PanelRightOpenIcon className="size-4" />
-          {detailsOpen
-            ? "Hide analysis & checks"
-            : `Analysis & checks${ticket.anomaly_count ? ` (${ticket.anomaly_count} flags)` : ""}`}
-        </button>
-      </div>
       <div
         className={cn(
           "lt-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto",
@@ -65,7 +50,12 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
         )}
       >
         <div className="flex min-h-0 min-w-0 flex-none flex-col gap-3 @[32rem]:min-h-0 @[32rem]:overflow-y-auto">
-          <TicketSummary ticket={ticket} nav={nav} />
+          <TicketSummary
+            ticket={ticket}
+            nav={nav}
+            detailsOpen={detailsOpen}
+            onToggleDetails={() => setDetailsOpen((open) => !open)}
+          />
           {ticket.anomaly_count > 0 && (
             <button
               type="button"
@@ -95,7 +85,7 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
               icon={<AlertIcon size={15} />}
               count={ticket.anomaly_count}
               countTone="danger"
-              summary={ticket.anomaly_count ? "Inspect flagged observations" : "No flags recorded"}
+              summary={ticket.anomaly_count ? "Review flagged items" : "No flags recorded"}
               defaultOpen={ticket.anomaly_count > 0}
             >
               <AnomalyList ticket={ticket} />
@@ -108,7 +98,17 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
   );
 }
 
-function TicketSummary({ ticket, nav }: { ticket: Ticket; nav?: TicketNav }) {
+function TicketSummary({
+  ticket,
+  nav,
+  detailsOpen,
+  onToggleDetails,
+}: {
+  ticket: Ticket;
+  nav?: TicketNav;
+  detailsOpen: boolean;
+  onToggleDetails: () => void;
+}) {
   return (
     <section className="lt-card-shadow shrink-0 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
       <header className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-3 py-2">
@@ -121,44 +121,45 @@ function TicketSummary({ ticket, nav }: { ticket: Ticket; nav?: TicketNav }) {
           </h2>
           <StatusBadge status={ticket.status} />
         </div>
-        {nav && nav.total > 1 && (
-          <div className="flex shrink-0 items-center gap-1">
-            <button
-              type="button"
-              onClick={nav.onPrev}
-              disabled={nav.index <= 0}
-              aria-label="Previous ticket"
-              className="grid size-7 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)] disabled:opacity-40"
-            >
-              <ChevronLeftIcon className="size-4" />
-            </button>
-            <span className="min-w-[3.25rem] text-center text-[12px] tabular-nums text-[var(--color-muted-foreground)]">
-              {nav.index + 1} of {nav.total}
-            </span>
-            <button
-              type="button"
-              onClick={nav.onNext}
-              disabled={nav.index >= nav.total - 1}
-              aria-label="Next ticket"
-              className="grid size-7 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)] disabled:opacity-40"
-            >
-              <ChevronRightIcon className="size-4" />
-            </button>
-          </div>
-        )}
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            aria-expanded={detailsOpen}
+            aria-controls={detailsOpen ? "review-details" : undefined}
+            aria-label={detailsOpen ? "Hide analysis and checks" : "Show analysis and checks"}
+            title={detailsOpen ? "Hide analysis & checks" : "Show analysis & checks"}
+            onClick={onToggleDetails}
+            className="grid size-8 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+          >
+            <PanelRightOpenIcon className="size-4" />
+          </button>
+          {nav && nav.total > 1 && (
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={nav.onPrev}
+                disabled={nav.index <= 0}
+                aria-label="Previous ticket"
+                className="grid size-7 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)] disabled:opacity-40"
+              >
+                <ChevronLeftIcon className="size-4" />
+              </button>
+              <span className="min-w-[3.25rem] text-center text-[12px] tabular-nums text-[var(--color-muted-foreground)]">
+                {nav.index + 1} of {nav.total}
+              </span>
+              <button
+                type="button"
+                onClick={nav.onNext}
+                disabled={nav.index >= nav.total - 1}
+                aria-label="Next ticket"
+                className="grid size-7 place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)] disabled:opacity-40"
+              >
+                <ChevronRightIcon className="size-4" />
+              </button>
+            </div>
+          )}
+        </div>
       </header>
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <p className="mb-1 text-xs text-muted-foreground">Truck</p>
-          <p className="truncate text-sm font-medium">{ticket.truck_id ?? "Unidentified truck"}</p>
-        </div>
-        <div>
-          <p className="mb-1 text-xs text-muted-foreground">Estimated fill</p>
-          <p className="text-lg font-semibold tabular-nums">
-            {percent(ticket.valuation.est_fill_pct)}
-          </p>
-        </div>
-      </div>
       <details open className="border-t border-border px-4">
         <summary className="cursor-pointer py-2.5 text-xs text-muted-foreground">
           Load & pricing details
@@ -249,8 +250,8 @@ function AiAnalysis({
     label: stepLabels[stage.key] ?? stage.label,
   }));
   return (
-    <div className="flex flex-col">
-      <div className="mb-2 text-[11px] text-[var(--color-muted-foreground)]">
+    <div className="flex flex-col @[32rem]:h-full @[32rem]:min-h-0 @[32rem]:flex-1">
+      <div className="mb-3 text-[13px] text-[var(--color-muted-foreground)]">
         <span>Select a step to see its result</span>
       </div>
       <PipelineTrace

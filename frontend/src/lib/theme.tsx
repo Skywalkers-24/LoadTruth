@@ -18,7 +18,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
  * financial-exposure accent (Signal Violet) are HELD CONSTANT across all six
  * themes — only the mode changes their exact value — so the meaning of a color
  * never shifts when a user picks a different theme. This follows the role-based
- * color approach of Carbon/Fluent/Atlassian and WCAG 2.2 AA guidance.
+ * role-based color systems and WCAG 2.2 AA guidance.
  */
 export type Theme = "enterprise" | "catppuccin" | "civic-evergreen";
 
@@ -40,7 +40,7 @@ export interface ThemeMeta {
 const ENTERPRISE: ThemeMeta = {
   id: "enterprise",
   label: "Enterprise",
-  description: "Atlassian-inspired · neutral surfaces + clear blue actions",
+  description: "Neutral surfaces · clear blue actions",
   swatches: ["#1d2125", "#22272b", "#0c66e4"],
   swatchesLight: ["#f7f8f9", "#ffffff", "#0c66e4"],
 };

@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from uuid import UUID
 
+from app.tickets.domain import Ticket as DomainTicket
 from app.tickets.repository import SqlTicketRepository
 from app.tickets.schemas import TicketStatus
 
@@ -127,3 +128,94 @@ class AnalystTools:
             for t in disputed
         ]
         return ToolResult("disputes", {}, {"count": len(items), "disputes": items})
+
+    async def analytics_snapshot(self) -> list[ToolResult]:
+        """Build bounded, deterministic evidence for a richer analyst response."""
+        tickets = await self._repo.list_tickets(self._tenant, self._event)
+        grouped: dict[str, list[DomainTicket]] = {}
+        for ticket in tickets:
+            grouped.setdefault(ticket.debris_class.value, []).append(ticket)
+
+        by_class: dict[str, dict[str, object]] = {}
+        for debris_class, rows in sorted(grouped.items()):
+            estimates = [float(t.est_fill_pct) for t in rows]
+            monitor_calls = [t for t in rows if t.monitor_call_fill_pct is not None]
+            agreements = sum(
+                abs(float(t.est_fill_pct) - float(t.monitor_call_fill_pct)) <= 10
+                for t in monitor_calls
+            )
+            overcalls = [t for t in rows if t.is_overbill]
+            by_class[debris_class] = {
+                "ticket_count": len(rows),
+                "pending_count": sum(t.status is TicketStatus.DRAFT for t in rows),
+                "reviewed_count": sum(t.status is not TicketStatus.DRAFT for t in rows),
+                "average_estimated_fill_pct": round(sum(estimates) / len(estimates), 1),
+                "monitor_call_count": len(monitor_calls),
+                "average_monitor_fill_pct": (
+                    round(sum(float(t.monitor_call_fill_pct) for t in monitor_calls) / len(monitor_calls), 1)
+                    if monitor_calls
+                    else None
+                ),
+                "within_10_points_count": agreements,
+                "within_10_points_pct": (
+                    round(agreements * 100 / len(monitor_calls), 1) if monitor_calls else None
+                ),
+                "overcalled_ticket_count": len(overcalls),
+                "overcall_exposure_usd": round(
+                    sum(float(t.delta_dollar_value or 0) for t in overcalls), 2
+                ),
+            }
+
+        def ticket_row(t: DomainTicket) -> dict[str, object]:
+            return {
+                "ticket": f"LT-{str(t.id).replace('-', '')[:6].upper()}",
+                "truck_id": t.truck_id,
+                "debris_class": t.debris_class.value,
+                "status": t.status.value,
+                "estimated_fill_pct": round(float(t.est_fill_pct), 1),
+                "monitor_fill_pct": (
+                    round(float(t.monitor_call_fill_pct), 1)
+                    if t.monitor_call_fill_pct is not None
+                    else None
+                ),
+                "delta_usd": (
+                    round(float(t.delta_dollar_value), 2)
+                    if t.delta_dollar_value is not None
+                    else None
+                ),
+            }
+
+        overcalls = sorted(
+            (t for t in tickets if t.is_overbill),
+            key=lambda t: float(t.delta_dollar_value or 0),
+            reverse=True,
+        )[:5]
+        disputes = sorted(
+            (t for t in tickets if t.status is TicketStatus.DISPUTED),
+            key=lambda t: abs(float(t.delta_dollar_value or 0)),
+            reverse=True,
+        )[:5]
+        summary = await self.event_summary()
+        agreement = await self.accuracy_stats()
+        anomalies = await self.query_anomalies()
+        return [
+            summary,
+            agreement,
+            ToolResult("debris_class_analytics", {}, {"by_class": by_class}),
+            ToolResult(
+                "top_overcalls",
+                {"limit": 5},
+                {"tickets": [ticket_row(t) for t in overcalls]},
+            ),
+            anomalies,
+            ToolResult(
+                "disputes",
+                {"limit": 5},
+                {
+                    "total_disputes": sum(
+                        t.status is TicketStatus.DISPUTED for t in tickets
+                    ),
+                    "disputes": [ticket_row(t) for t in disputes],
+                },
+            ),
+        ]

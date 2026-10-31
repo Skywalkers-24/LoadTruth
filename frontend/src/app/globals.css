@@ -3,7 +3,7 @@
 /* LoadTruth operator-console theme.
    Two axes: a theme identity (`data-theme`) and a mode (`data-mode` + `.dark`),
    both set by ThemeProvider before paint. Six researched theme pairs, each with
-   a coordinated dark and light palette (Carbon/Fluent/Atlassian role model).
+   a coordinated dark and light palette with clear semantic color roles.
    Semantic colors meet WCAG 2.2 AA on the text/background pairs they are used
    on; status is never conveyed by color alone (always paired with a label
    and/or icon). Financial-exposure accent = Signal Violet, held constant across
@@ -224,7 +224,7 @@
 }
 [data-theme="command-blue"][data-mode="light"],
 [data-theme="enterprise"][data-mode="light"] {
-  /* Atlassian-style roles: bold blue actions, blue selected text, neutral surfaces. */
+  /* Clear blue actions and selected text on neutral surfaces. */
   --bg: #f7f8f9;
   --surface: #ffffff;
   --surface-2: #f1f2f4;

@@ -10,6 +10,7 @@ import {
   DollarSignIcon,
   FileCheck2Icon,
   Loader2Icon,
+  MicIcon,
   ScanEyeIcon,
   ShieldAlertIcon,
   SparklesIcon,
@@ -41,12 +42,13 @@ const ROLE_BLURB: Record<Role, string> = {
 };
 
 const LOGIN_FEATURES: { icon: ReactNode; title: string; subtitle: string }[] = [
-  { icon: <ScanEyeIcon size={18} />, title: "Tracking", subtitle: "SAM 3.1" },
-  { icon: <DollarSignIcon size={18} />, title: "Money frame", subtitle: "Video proof" },
-  { icon: <ShieldAlertIcon size={18} />, title: "Anomaly", subtitle: "Risk checks" },
-  { icon: <SparklesIcon size={18} />, title: "AI analyst", subtitle: "Muse Spark" },
-  { icon: <FileCheck2Icon size={18} />, title: "Audit exports", subtitle: "Audit trail" },
-  { icon: <BuildingIcon size={18} />, title: "Multi-tenant", subtitle: "Role isolation" },
+  { icon: <ScanEyeIcon size={18} />, title: "Truck & load", subtitle: "Video outlines" },
+  { icon: <DollarSignIcon size={18} />, title: "Load estimate", subtitle: "Based on footage" },
+  { icon: <ShieldAlertIcon size={18} />, title: "Review flags", subtitle: "Issues to check" },
+  { icon: <SparklesIcon size={18} />, title: "AI assistant", subtitle: "Ask about a load" },
+  { icon: <FileCheck2Icon size={18} />, title: "Audit reports", subtitle: "Review records" },
+  { icon: <BuildingIcon size={18} />, title: "Workspaces", subtitle: "Access by role" },
+  { icon: <MicIcon size={18} />, title: "Voice reports", subtitle: "Administrator only" },
 ];
 
 /**
@@ -130,7 +132,7 @@ export function LoginScreen() {
           <div className="relative flex max-w-md flex-col gap-3.5 [text-shadow:0_2px_18px_rgba(0,0,0,0.85),0_1px_3px_rgba(0,0,0,0.9)]">
             <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-sm [text-shadow:none]">
               <span className="size-1.5 rounded-full bg-[var(--color-brand)]" aria-hidden />
-              Evidence-backed load review
+              Video-backed load review
             </span>
             {/* Highlighted headline: brighter, heavier, with a glow so it pops
                 over the footage. */}
@@ -138,9 +140,8 @@ export function LoginScreen() {
               A clearer record for every <span className="text-[#7dd3fc]">debris haul.</span>
             </h1>
             <p className="text-[14px] font-medium leading-relaxed text-white/90">
-              LoadTruth pairs truck video with SAM tracking and Muse&apos;s visual fill estimates,
-              then gives a monitor the evidence and a draft ticket to review for Federal Emergency
-              Management Agency (FEMA) audits.
+              LoadTruth reviews truck footage, estimates how full the bed is, and prepares a ticket
+              for a person to check. The saved video and outlines support later review.
             </p>
           </div>
         </div>
@@ -150,16 +151,7 @@ export function LoginScreen() {
 
         <div className="relative flex flex-col items-start gap-2 text-[12px] font-medium text-white [text-shadow:0_1px_10px_rgba(0,0,0,0.9),0_1px_2px_rgba(0,0,0,0.9)]">
           <div className="space-y-1">
-            <p>
-              Models:{" "}
-              <strong className="font-semibold text-white">Meta SAM 3.1 · Muse Spark</strong>
-            </p>
-            <p className="text-white/85">
-              Muse inference options:{" "}
-              <strong className="font-semibold text-white">
-                Meta direct · Fireworks AI · Modal · Baseten
-              </strong>
-            </p>
+            <p>AI estimates · video evidence · human review</p>
           </div>
           <a
             href="/showcase"
@@ -288,7 +280,7 @@ export function LoginScreen() {
               </Link>
             </div>
           </div>
-          <ul className="grid grid-cols-2 gap-2 min-[480px]:grid-cols-3 lg:grid-cols-6">
+          <ul className="grid grid-cols-2 gap-2 min-[480px]:grid-cols-3 lg:grid-cols-4">
             {LOGIN_FEATURES.map((feature) => (
               <li
                 key={feature.title}

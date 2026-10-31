@@ -25,12 +25,7 @@ export interface GalleryClip {
   pair?: BenchmarkPairDef;
   status: ClipStatus;
 }
-const pairByHash = new Map(
-  BENCHMARK_PAIRS.map((pair) => [
-    pair.contentHash,
-    pair,
-  ]),
-);
+const pairByHash = new Map(BENCHMARK_PAIRS.map((pair) => [pair.contentHash, pair]));
 export const GALLERY_CLIPS: GalleryClip[] = manifest.videos.map((video) => {
   const pair = pairByHash.get(video.sha256);
   return {
@@ -51,8 +46,7 @@ export function filterClips(clips: GalleryClip[], filter: Filter, query: string)
   const q = query.trim().toLowerCase();
   return clips.filter(
     (clip) =>
-      (filter === "all" ||
-        (filter === "batch" ? Number(clip.id) <= 25 : Number(clip.id) > 25)) &&
+      (filter === "all" || (filter === "batch" ? Number(clip.id) <= 25 : Number(clip.id) > 25)) &&
       (!q ||
         `${clip.id} ${clip.pair?.truckId ?? ""} ${clip.pair?.debrisLabel ?? ""} ${STATUS[clip.status]}`
           .toLowerCase()
@@ -303,8 +297,9 @@ export function BenchmarkBrowser() {
                     </dl>
                   </div>
                   <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                    Masks highlight the bed and load. They support visual review; the fill estimate
-                    is calculated separately. Use Compare to see the original alongside the masks.
+                    Colored outlines highlight the bed and load. They support visual review; the
+                    fill estimate is calculated separately. Use Compare to see the original and
+                    outlined footage together.
                   </p>
                 </>
               ) : (
@@ -366,15 +361,15 @@ function UnanalyzedClip({ clip }: { clip: GalleryClip }) {
           {clip.status === "no-truck"
             ? "The recorded run detected no truck in this clip. No ticket was created. You can still inspect the original footage."
             : clip.status === "pending"
-              ? "This clip is in the current batch, but a completed result has not been saved. No masks or estimate are available yet."
-              : "This clip has not been analyzed. You can preview the original footage here. Open processing to manage the next run."}
+              ? "This clip is still being analyzed. Its result is not ready yet."
+              : "This clip has not been analyzed. You can preview the original footage here. An administrator can start an analysis."}
         </p>
         {clip.status !== "no-truck" && (
           <Link
             href="/pipeline"
             className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-border px-4 text-sm"
           >
-            View processing
+            View analysis
             <ArrowRightIcon className="size-4" />
           </Link>
         )}

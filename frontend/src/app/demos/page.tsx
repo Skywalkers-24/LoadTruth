@@ -184,19 +184,17 @@ export default function DemoVideosPage() {
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-semibold tracking-tight">Video library</h1>
               <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                {BENCHMARK_PAIRS.length} with masks · {unprocessedVideos.length} awaiting processing
+                {BENCHMARK_PAIRS.length} with outlines · {unprocessedVideos.length} not yet analyzed
               </span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Review hurricane debris recovery video pairs with SAM 3.1 AI segmentation or explore unprocessed benchmark clips.
-              <span className="hidden lg:inline text-muted-foreground/80">
-                {" "}· Configurable inference: Meta SAM 3.1 &amp; Muse Spark · Fireworks AI · Modal · Baseten
-              </span>
+              Compare original footage with truck and load outlines, or browse clips that have not
+              been analyzed.
             </p>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/pipeline" className="text-xs font-medium text-primary hover:underline">
-              Pipeline →
+              AI analysis →
             </Link>
             {isSuperAdmin && (
               <button
@@ -228,7 +226,7 @@ export default function DemoVideosPage() {
               )}
             >
               <SparklesIcon className="size-3.5 text-primary" />
-              <span>Pairs With Masks</span>
+              <span>With outlines</span>
               <span className="rounded bg-primary/10 px-1.5 py-0.2 text-[10px] font-bold text-primary">
                 {BENCHMARK_PAIRS.length}
               </span>
@@ -248,7 +246,7 @@ export default function DemoVideosPage() {
               )}
             >
               <FilmIcon className="size-3.5 text-amber-500" />
-              <span>Unprocessed Footage</span>
+              <span>Not analyzed</span>
               <span className="rounded bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-bold text-amber-600 dark:text-amber-400">
                 {unprocessedVideos.length}
               </span>
@@ -272,7 +270,7 @@ export default function DemoVideosPage() {
           </div>
 
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="hidden sm:inline">Meta SAM 3.1 &amp; Muse Spark · Live Pipeline</span>
+            <span className="hidden sm:inline">Saved video analysis</span>
           </div>
         </div>
 
@@ -354,14 +352,18 @@ export default function DemoVideosPage() {
 
         {/* ── SECTION 1: PAIRS WITH MASKS ── */}
         {(tab === "pairs-with-mask" || tab === "all") && (
-          <section aria-label="Benchmark pairs with masks" className="flex flex-col gap-4">
+          <section aria-label="Saved clips with outlines" className="flex flex-col gap-4">
             {/* ── TOOLBAR: FILTER PILLS + SEARCH + VIEW SWITCHER ── */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-3">
               <div className="flex flex-wrap items-center gap-1.5">
                 {[
                   { id: "all", label: "All", count: debrisCounts.all },
                   { id: "vegetative", label: "Vegetative", count: debrisCounts.vegetative ?? 0 },
-                  { id: "construction_demolition", label: "C&D", count: debrisCounts.construction_demolition ?? 0 },
+                  {
+                    id: "construction_demolition",
+                    label: "C&D",
+                    count: debrisCounts.construction_demolition ?? 0,
+                  },
                   { id: "white_goods", label: "White goods", count: debrisCounts.white_goods ?? 0 },
                   { id: "hazardous", label: "Hazardous", count: debrisCounts.hazardous ?? 0 },
                 ].map(({ id, label, count }) => (
@@ -412,7 +414,11 @@ export default function DemoVideosPage() {
                 </div>
 
                 {viewStyle === "grid" && (
-                  <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-xs" role="group" aria-label="Grid size">
+                  <div
+                    className="inline-flex rounded-md border border-border bg-background p-0.5 text-xs"
+                    role="group"
+                    aria-label="Grid size"
+                  >
                     <button
                       type="button"
                       onClick={() => {
@@ -490,7 +496,9 @@ export default function DemoVideosPage() {
                   <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border py-16 text-center">
                     <FilmIcon className="size-8 text-muted-foreground/60" />
                     <p className="text-sm font-medium">No benchmark pairs match your filters</p>
-                    <p className="text-xs text-muted-foreground">Try clearing search or choosing another debris class.</p>
+                    <p className="text-xs text-muted-foreground">
+                      Try clearing search or choosing another debris class.
+                    </p>
                     <button
                       type="button"
                       onClick={() => {
@@ -526,7 +534,9 @@ export default function DemoVideosPage() {
                 {totalPages > 1 && (
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/80 pt-3 text-xs text-muted-foreground">
                     <span>
-                      Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, filteredPairs.length)} of {filteredPairs.length} benchmark pairs
+                      Showing {page * pageSize + 1}–
+                      {Math.min((page + 1) * pageSize, filteredPairs.length)} of{" "}
+                      {filteredPairs.length} benchmark pairs
                     </span>
                     <div className="flex items-center gap-1">
                       <button

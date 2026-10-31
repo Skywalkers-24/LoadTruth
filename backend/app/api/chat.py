@@ -15,7 +15,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from app.ai.agent import STARTER_PROMPTS, answer, stream_answer
 from app.ai.analyst import AnalystTools
@@ -31,6 +31,12 @@ class ChatRequest(BaseModel):
     event_id: UUID
     message: str
     event_name: str | None = None
+    prior_questions: list[str] = Field(default_factory=list, max_length=6)
+
+    @field_validator("prior_questions")
+    @classmethod
+    def normalize_prior_questions(cls, values: list[str]) -> list[str]:
+        return [question.strip()[:500] for question in values if question.strip()]
 
 
 class StarterResponse(BaseModel):
@@ -53,20 +59,20 @@ async def chat(
 ) -> StreamingResponse:
     """Answer one analyst question, streamed as SSE. Read-only and grounded."""
     tools = AnalystTools(repo, tenant, body.event_id)
-    event_name = body.event_name or "this event"
     event = await repo.get_event(tenant, body.event_id)
     if event is None:
         raise HTTPException(404, "event not found")
-    # Shared practice and read-only demos use the grounded local composer.
-    # No public demo role can consume inference credits through the analyst.
-    ai = (
-        get_ai_client()
-        if is_super_admin(member.role) and not {"playground", "read-only"}.intersection(event.tags)
-        else None
-    )
+    event_name = event.name
+    if not is_super_admin(member.role):
+        raise HTTPException(403, "AI Analyst chat is available in Administrator mode only.")
+    # Chat is read-only, so Administrator mode can analyze curated read-only
+    # datasets too. Practice data remains excluded from model inference.
+    ai = None if "playground" in event.tags else get_ai_client()
 
     async def gen() -> AsyncIterator[str]:
-        reply = await answer(body.message, tools, event_name, ai)
+        reply = await answer(
+            body.message, tools, event_name, ai, prior_questions=body.prior_questions
+        )
         # Surface which grounded tools ran, so the UI can show the analyst's work.
         for t in reply.tools:
             yield _sse("tool", {"tool": t.tool, "args": t.args})
@@ -74,7 +80,10 @@ async def chat(
         async for chunk in stream_answer(reply):
             yield _sse("token", {"text": chunk})
             await asyncio.sleep(0.015)
-        yield _sse("done", {"suggestions": reply.suggestions})
+        yield _sse(
+            "done",
+            {"suggestions": reply.suggestions, "analysis_mode": reply.analysis_mode},
+        )
 
     return StreamingResponse(
         gen(),

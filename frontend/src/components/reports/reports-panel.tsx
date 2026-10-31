@@ -107,25 +107,25 @@ export function ReportsPanel({
           hero
           tone="money"
           icon={<CircleDollarSignIcon className="size-4" />}
-          label="Flagged exposure"
+          label="Amount to review"
           value={<CountUp value={flagged} format={(n) => money(n)} />}
-          hint="Sum of dollar differences on tickets where the monitor's call is higher than the load's estimated value."
-          sub={`${s.overbill_ticket_count} over-called tickets`}
+          hint="Sum of dollar differences where the inspector's estimate is higher than the video estimate."
+          sub={`${s.overbill_ticket_count} tickets with a higher inspector estimate`}
         />
         <StatCard
           tone="money"
           icon={<GaugeIcon className="size-4" />}
-          label="Exposure rate"
+          label="Share to review"
           value={<CountUp value={exposureRate * 100} format={(n) => `${n.toFixed(1)}%`} />}
           progress={exposureRate}
-          hint="Flagged exposure as a share of the total estimated value."
+          hint="Amount to review as a share of the total estimated value."
           sub={`Of ${money(measured)} estimated`}
         />
         <StatCard
           icon={<LayersIcon className="size-4" />}
           label="Estimated value"
           value={<CountUp value={measured} format={(n) => money(n)} />}
-          hint="Total estimated dollar value of all loads, based on Muse fill estimates, certified truck capacity, and event rates."
+          hint="Total estimated value, based on video fill estimates, registered truck capacity, and event prices."
           sub={`${s.ticket_count} tickets · ${s.counts_by_status.draft ?? 0} awaiting review`}
         />
         <StatCard
@@ -142,12 +142,12 @@ export function ReportsPanel({
         <Card className="gap-0 py-0 xl:col-span-2">
           <div className="flex items-baseline justify-between px-4 pt-3">
             <h3 className="text-[13px] font-semibold">
-              {perEvent ? "Events compared" : "Flagged exposure by debris class"}
+              {perEvent ? "Events compared" : "Amount to review by material type"}
             </h3>
             <span className="text-[11px] text-muted-foreground">
               {perEvent
-                ? "Estimated value and flagged exposure per event"
-                : "Where the over-call dollars come from"}
+                ? "Estimated value and amount to review per event"
+                : "Materials with higher inspector estimates"}
             </span>
           </div>
           <div className="px-2 pb-3 pt-1">

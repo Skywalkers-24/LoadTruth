@@ -22,11 +22,17 @@ const STAGE_LABEL: Record<string, string> = {
  * hit rate, and spend against the budget cap. Reads the live cost ledger.
  */
 export function PipelineStats() {
-  const q = useQuery({ queryKey: ["pipeline-stats"], queryFn: getPipelineStats, refetchInterval: 15_000 });
+  const q = useQuery({
+    queryKey: ["pipeline-stats"],
+    queryFn: getPipelineStats,
+    refetchInterval: 15_000,
+  });
 
   if (q.isLoading) return <Skeleton className="h-64 rounded-xl" />;
   if (q.isError || !q.data) {
-    return <p className="text-[13px] text-muted-foreground">Pipeline stats are unavailable right now.</p>;
+    return (
+      <p className="text-[13px] text-muted-foreground">Pipeline stats are unavailable right now.</p>
+    );
   }
   const s = q.data;
   const cacheRate = Math.round(s.cache_hit_rate * 100);
@@ -35,8 +41,8 @@ export function PipelineStats() {
   return (
     <div className="flex max-w-2xl flex-col gap-5">
       <p className="text-[13px] leading-relaxed text-muted-foreground">
-        LoadTruth measures each load with Meta SAM 3.1 (tracking and segmentation) and Muse Spark (placard OCR,
-        debris class, and the plain-language flag narratives). This panel reflects the live run ledger.
+        LoadTruth uses AI to outline trucks and loads, read truck numbers, estimate fill, and
+        identify materials. This page shows recent analyses and their usage.
       </p>
 
       {/* Model status */}
@@ -45,13 +51,13 @@ export function PipelineStats() {
           icon={<CpuIcon className="size-4" />}
           label="Vision model"
           value={s.sam_model}
-          sub="Truck, bed, and debris segmentation"
+          sub="Truck and load outlines"
         />
         <Tile
           icon={<CpuIcon className="size-4" />}
           label="Reasoning model"
           value={s.spark_model}
-          sub="OCR, debris class, flag narratives, analyst"
+          sub="Truck number, material, and review flags"
         />
       </div>
 

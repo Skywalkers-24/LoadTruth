@@ -89,7 +89,7 @@ function TicketRow({
             {ticket.anomaly_count > 0 && (
               <span
                 className="inline-flex shrink-0 items-center gap-0.5 text-[11px] font-semibold text-[var(--color-danger)]"
-                title={`${ticket.anomaly_count} anomaly flag${ticket.anomaly_count === 1 ? "" : "s"}`}
+                title={`${ticket.anomaly_count} review flag${ticket.anomaly_count === 1 ? "" : "s"}`}
               >
                 <AlertIcon size={12} />
                 {ticket.anomaly_count}
@@ -116,9 +116,7 @@ function TicketRow({
           {/* Compact numbers without repeating the words "measured"/"called" on
               every row — the gauge + column context already convey them. */}
           <span className="shrink-0 text-[11px] tabular-nums text-[var(--color-subtle)]">
-            <span className="text-muted-foreground">
-              {percent(v.est_fill_pct)} estimated
-            </span>
+            <span className="text-muted-foreground">{percent(v.est_fill_pct)} estimated</span>
             {v.monitor_fill_pct !== null && (
               <>
                 {" "}

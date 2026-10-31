@@ -49,7 +49,7 @@ from app.ai.base import (
     StageExplanations,
     TrackResult,
 )
-from app.ai.catalog import MODELS
+from app.ai.catalog import MODELS, ReasoningEffort
 from app.ai.config_store import get_ai_config_store
 from app.ai.meta_http import (
     MetaHTTP,
@@ -790,7 +790,7 @@ class LiveAIClient:
     async def _meta_spark(
         self,
         task_id: str,
-        content: list[dict[str, str]],
+        content: list[dict[str, Any]],
         schema: dict[str, Any] | None,
         params: SparkRequestParams,
     ) -> tuple[dict[str, Any], CallUsage]:
@@ -824,6 +824,55 @@ class LiveAIClient:
             reasoning_tokens=int(reasoning) if isinstance(reasoning, int | float) else 0,
         )
         return response, usage
+
+    async def interpret_monitor_call_audio(self, wav: bytes, context: str) -> dict[str, Any]:
+        """Transcribe and interpret one short monitor call in one Muse request."""
+        schema: dict[str, Any] = {
+            "type": "object",
+            "properties": {
+                "transcript": {"type": "string"},
+                "fill_pct": {
+                    "anyOf": [
+                        {"type": "number", "minimum": 0, "maximum": 100},
+                        {"type": "null"},
+                    ]
+                },
+                "issue_flags": {"type": "array", "items": {"type": "string"}},
+                "follow_up_question": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            },
+            "required": ["transcript", "fill_pct", "issue_flags", "follow_up_question"],
+            "additionalProperties": False,
+        }
+        prompt = (
+            "Listen to the attached short spoken monitor report about a truck load. Transcribe only "
+            "the speech in the attached audio, not the prior statements. "
+            "then extract only a clearly stated fill percentage and explicitly reported problems. "
+            "Return no inferred facts. Report problems like dips, spills, overflow, or debris outside "
+            "the truck as short review flags. If a problem is mentioned without enough detail to "
+            "locate or assess it, ask one concise follow-up question for the monitor. If no fill "
+            "percentage is clearly stated, ask for it. Otherwise set follow_up_question to null. "
+            "Prior monitor statements, if any: "
+            + json.dumps(context.strip()[-2000:], ensure_ascii=False)
+            + ". Return the transcript in the language spoken."
+        )
+        content: list[dict[str, Any]] = [
+            {"type": "input_text", "text": prompt},
+            {
+                "type": "input_audio",
+                "input_audio": {"data": base64.b64encode(wav).decode("ascii"), "format": "wav"},
+            },
+        ]
+        params = replace(
+            params_for("analyst_chat"),
+            model="muse-spark-1.2",
+            effort=ReasoningEffort.MINIMAL,
+            # Muse uses this budget for both reasoning and the transcript.
+            # Meta recommends at least 4,000 tokens for audio; 320 consistently
+            # ended with status=incomplete before any structured result returned.
+            max_output_tokens=4000,
+        )
+        response, _usage = await self._meta_spark("monitor_call", content, schema, params)
+        return _json_answer(response)
 
     async def read_placard(self, clip: ClipMedia) -> OCRResult:
         media = await self._media(clip)

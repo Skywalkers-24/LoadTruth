@@ -137,6 +137,33 @@ export function useSetMonitorCall() {
   });
 }
 
+/** File a manual inspector call and/or issue flag against the current ticket. */
+export function useFileManualMonitorReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      monitor_fill_pct,
+      issue_description,
+    }: {
+      id: string;
+      monitor_fill_pct?: string;
+      issue_description?: string;
+    }) => api.fileManualMonitorReport(id, { monitor_fill_pct, issue_description }),
+    onSuccess: invalidateAll(qc),
+  });
+}
+
+/** Transcribe and apply an explicitly spoken monitor call, then refresh tickets. */
+export function useTranscribeMonitorCall() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, audio, context }: { id: string; audio: Blob; context: string }) =>
+      api.transcribeMonitorCall(id, audio, context),
+    onSuccess: invalidateAll(qc),
+  });
+}
+
 /** Delete a ticket; invalidates tickets + dashboard + reports summary. */
 export function useDeleteTicket() {
   const qc = useQueryClient();

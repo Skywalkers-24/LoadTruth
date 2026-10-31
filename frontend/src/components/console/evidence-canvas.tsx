@@ -78,7 +78,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
             </h3>
             {evidence?.has_media && (
               <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                SAM 3.1 segmentation
+                AI outlines
               </span>
             )}
             {evidence?.has_media && samFrame.total > 0 && (
@@ -89,7 +89,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
           </div>
           {evidence?.has_media && (
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5" role="group" aria-label="Mask layers">
+              <div className="flex items-center gap-1.5" role="group" aria-label="Outline layers">
                 <button
                   type="button"
                   aria-pressed={layers.body}

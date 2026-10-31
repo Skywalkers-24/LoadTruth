@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUpIcon, Loader2Icon, SparklesIcon, WrenchIcon } from "lucide-react";
+import { ArrowUpIcon, DatabaseIcon, Loader2Icon, SparklesIcon, WrenchIcon } from "lucide-react";
 
 import { LogoMark } from "@/components/ui/logo";
 import { type ChatMessage, TOOL_LABEL } from "@/lib/use-assistant-chat";
@@ -109,7 +109,7 @@ export function AssistantChat({
                   compact ? "text-[12px]" : full ? "text-[14px]" : "text-[13px]",
                 )}
               >
-                Exposure, over-calls, disputes, anomalies, monitor agreement, or a summary for an audit.
+                Load estimates, inspector differences, disputes, review flags, or an event summary.
               </p>
             </div>
             <div
@@ -168,6 +168,21 @@ export function AssistantChat({
                       ))}
                     </div>
                   )}
+                  {m.role === "assistant" && m.analysisMode && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                      {m.analysisMode === "muse" ? (
+                        <>
+                          <SparklesIcon className="size-3 text-[var(--color-brand)]" />
+                          AI-assisted answer
+                        </>
+                      ) : (
+                        <>
+                          <DatabaseIcon className="size-3" />
+                          Calculated from saved records
+                        </>
+                      )}
+                    </span>
+                  )}
                   <div
                     className={cn(
                       "whitespace-pre-wrap rounded-2xl leading-relaxed",
@@ -196,7 +211,12 @@ export function AssistantChat({
 
       {/* Follow-up suggestions — contextual next questions offered after an answer. */}
       {suggestions.length > 0 && (
-        <div className={cn("lt-fade-in border-t border-border", full ? "px-4 pt-2.5 sm:px-6" : "px-3 pt-2.5")}>
+        <div
+          className={cn(
+            "lt-fade-in border-t border-border",
+            full ? "px-4 pt-2.5 sm:px-6" : "px-3 pt-2.5",
+          )}
+        >
           <div className={cn("flex flex-col gap-1.5", col)}>
             <span className="flex items-center gap-1 text-[10.5px] font-medium uppercase tracking-wide text-muted-foreground">
               <SparklesIcon className="size-3 text-[var(--color-brand)]" />
@@ -251,7 +271,11 @@ export function AssistantChat({
               aria-label="Send"
               className="absolute bottom-2.5 right-2.5 grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--color-brand-fill)] text-white transition-opacity disabled:opacity-40"
             >
-              {busy ? <Loader2Icon className="size-4 animate-spin" /> : <ArrowUpIcon className="size-4" />}
+              {busy ? (
+                <Loader2Icon className="size-4 animate-spin" />
+              ) : (
+                <ArrowUpIcon className="size-4" />
+              )}
             </button>
           </div>
           <p className={cn("mt-2 text-center text-[11px] text-muted-foreground", col)}>
@@ -265,7 +289,10 @@ export function AssistantChat({
             e.preventDefault();
             submit(input);
           }}
-          className={cn("flex items-center gap-2 border-t border-border", compact ? "p-2.5" : "p-3")}
+          className={cn(
+            "flex items-center gap-2 border-t border-border",
+            compact ? "p-2.5" : "p-3",
+          )}
         >
           <input
             value={input}
@@ -280,7 +307,11 @@ export function AssistantChat({
             aria-label="Send"
             className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--color-brand-fill)] text-white transition-opacity disabled:opacity-40"
           >
-            {busy ? <Loader2Icon className="size-4 animate-spin" /> : <ArrowUpIcon className="size-4" />}
+            {busy ? (
+              <Loader2Icon className="size-4 animate-spin" />
+            ) : (
+              <ArrowUpIcon className="size-4" />
+            )}
           </button>
         </form>
       )}

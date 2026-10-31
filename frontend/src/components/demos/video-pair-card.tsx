@@ -194,7 +194,7 @@ export function VideoPairCard({
             <div
               className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground"
               role="group"
-              aria-label="Mask layers"
+              aria-label="Outline layers"
             >
               {(["bed", "load", "body"] as const).map((layer) => (
                 <label
@@ -213,12 +213,16 @@ export function VideoPairCard({
             </div>
           )}
 
-          <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-xs" role="group" aria-label="Video view">
+          <div
+            className="inline-flex rounded-md border border-border bg-background p-0.5 text-xs"
+            role="group"
+            aria-label="Video view"
+          >
             {(
               [
                 ["compare", "Compare"],
                 ["source", "Original"],
-                ["masks", "With masks"],
+                ["masks", "With outlines"],
               ] as const
             ).map(([value, label]) => (
               <button

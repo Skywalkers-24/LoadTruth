@@ -38,14 +38,14 @@ const SECTIONS: {
   {
     id: "rates",
     label: "Rates",
-    blurb: "Price per cubic yard by debris class",
+    blurb: "Price per cubic yard by material type",
     icon: <DollarIcon size={16} />,
     cap: "manage_events",
   },
   {
     id: "sources",
     label: "Evidence sources",
-    blurb: "Storage, cameras, and webhooks",
+    blurb: "Storage, cameras, and connected services",
     icon: <CameraIcon size={16} />,
     cap: "manage_sources",
   },
@@ -59,14 +59,14 @@ const SECTIONS: {
   {
     id: "models",
     label: "AI models",
-    blurb: "Model, effort, and cost per task",
+    blurb: "AI provider, quality, and cost",
     icon: <SlidersHorizontalIcon size={16} />,
     cap: "manage_events",
   },
   {
     id: "pipeline",
-    label: "AI pipeline",
-    blurb: "Models, cache, and spend",
+    label: "Analysis usage",
+    blurb: "AI runs, saved results, and costs",
     icon: <SparklesIcon size={16} />,
   },
 ];
@@ -121,7 +121,9 @@ export default function AdminPage() {
           ) : (
             <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
               <ShieldCheckIcon className="size-4 shrink-0" />
-              <span>SuperAdmin Mode Active. You have full authorization to modify workspace settings.</span>
+              <span>
+                SuperAdmin Mode Active. You have full authorization to modify workspace settings.
+              </span>
             </div>
           )}
 

@@ -4,10 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ReviewActions } from "./review-actions";
 import type { Ticket } from "@/lib/api";
 
-const mutations = vi.hoisted(() => ({ call: vi.fn(), status: vi.fn() }));
+const mutations = vi.hoisted(() => ({ file: vi.fn(), transcription: vi.fn(), status: vi.fn() }));
 vi.mock("@/lib/hooks", () => ({
   useEvents: () => ({ data: [{ id: "test-event", tags: [] }] }),
-  useSetMonitorCall: () => ({ mutate: mutations.call, isPending: false }),
+  useFileManualMonitorReport: () => ({ mutate: mutations.file, isPending: false }),
+  useTranscribeMonitorCall: () => ({ mutateAsync: mutations.transcription, isPending: false }),
   useSetStatus: () => ({ mutate: mutations.status, isPending: false }),
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ can: () => true }) }));
@@ -40,11 +41,11 @@ afterEach(async () => {
 });
 
 describe("guided ticket decision", () => {
-  it("keeps the inspector call optional and prevents invalid or empty submissions", async () => {
+  it("keeps manual filing optional and blocks invalid fill calls", async () => {
     await render();
     expect(host.querySelector("input")).toBeNull();
-    await act(async () => button("Add an inspector").click());
-    expect(button("Save call").disabled).toBe(true);
+    await act(async () => button("Manual filing").click());
+    expect(button("File ticket").disabled).toBe(true);
     const input = host.querySelector("input")!;
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
     await act(async () => {
@@ -52,16 +53,20 @@ describe("guided ticket decision", () => {
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
     expect(input.getAttribute("aria-invalid")).toBe("true");
-    expect(button("Save call").disabled).toBe(true);
+    expect(button("File ticket").disabled).toBe(true);
     await act(async () => {
       setter.call(input, "62.5");
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(button("Save call").disabled).toBe(false);
+    expect(button("File ticket").disabled).toBe(false);
     expect(button("Confirm estimate").disabled).toBe(true);
-    expect(host.textContent).toContain("Save or clear the inspector call");
-    await act(async () => button("Save call").click());
-    expect(mutations.call.mock.calls[0]?.[0]).toEqual({ id: ticket.id, pct: "62.5" });
+    expect(host.textContent).toContain("File or clear the manual report");
+    await act(async () => button("File ticket").click());
+    expect(mutations.file.mock.calls[0]?.[0]).toEqual({
+      id: ticket.id,
+      monitor_fill_pct: "62.5",
+      issue_description: undefined,
+    });
     expect(mutations.status).not.toHaveBeenCalled();
   });
   it("requires explicit confirmation before changing a ticket", async () => {

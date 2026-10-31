@@ -42,8 +42,8 @@ const OUTCOME_LABEL = {
 } as const;
 
 /**
- * AI Pipeline: a live view of every clip run through the models. Each job shows
- * its outcome and the stage-by-stage trace (what SAM and Muse Spark produced).
+ * Analysis runs: a live view of each clip analysis, including the saved outcome
+ * and a step-by-step explanation.
  */
 export default function PipelinePage() {
   const { selectedId: eventId } = useEventContext();
@@ -71,24 +71,23 @@ export default function PipelinePage() {
   }, [pageRows, selected]);
 
   return (
-    <AppShell section="AI Pipeline Run">
+    <AppShell section="Analysis runs">
       <div className="lt-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
         <div className="flex flex-wrap items-center gap-2.5">
           <span className="grid size-9 place-items-center rounded-xl bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
             <ActivityIcon className="size-5" />
           </span>
           <div className="flex min-w-0 flex-col">
-            <h1 className="lt-page-title">AI Pipeline Run</h1>
+            <h1 className="lt-page-title">Analysis runs</h1>
             <p className="text-[12px] text-muted-foreground">
-              SAM tracking evidence → Muse frame-based fill estimates → ticket value from certified
-              capacity and event rates.
+              Review recent video analyses, fill estimates, and calculated ticket values.
             </p>
           </div>
           <Link
             href="/add"
             className="ml-auto rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
           >
-            New AI run →
+            Analyze a video →
           </Link>
         </div>
 
@@ -105,9 +104,9 @@ export default function PipelinePage() {
                   <CpuIcon className="size-4" />
                 </span>
                 <div className="flex items-baseline gap-2">
-                  <h2 className="text-[14px] font-semibold">Run workspace</h2>
+                  <h2 className="text-[14px] font-semibold">Selected analysis</h2>
                   <span className="text-[11px] text-muted-foreground">
-                    Click any stage to inspect details
+                    Select a step to see details
                   </span>
                 </div>
               </div>
@@ -126,7 +125,7 @@ export default function PipelinePage() {
             <div className="p-3.5">
               {!active ? (
                 <p className="py-8 text-center text-[13px] text-muted-foreground">
-                  Select a pipeline run below to inspect its AI analysis trace.
+                  Select an analysis below to see its results.
                 </p>
               ) : (
                 <div className="flex flex-col gap-3">
@@ -161,9 +160,9 @@ export default function PipelinePage() {
                   <HistoryIcon className="size-4" />
                 </span>
                 <div>
-                  <h2 className="text-[14px] font-semibold">Run history</h2>
+                  <h2 className="text-[14px] font-semibold">Analysis history</h2>
                   <p className="text-[11px] text-muted-foreground">
-                    Chronological record of recent video clips processed through the AI pipeline.
+                    Recent video analyses, newest first.
                   </p>
                 </div>
               </div>
@@ -199,7 +198,7 @@ export default function PipelinePage() {
                 </div>
               ) : total === 0 ? (
                 <p className="px-4 py-12 text-center text-[13px] text-muted-foreground">
-                  No AI pipeline runs yet. Capture a ticket to see the AI stages here.
+                  No analyses yet. Analyze a video to see its results here.
                 </p>
               ) : (
                 <ul className="divide-y divide-border">

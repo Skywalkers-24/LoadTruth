@@ -133,7 +133,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       {
         id: "nav-pipeline",
         group: "Navigate",
-        label: "AI Pipeline Run",
+        label: "Analysis runs",
         icon: <GaugeIcon size={15} />,
         run: () => go("/pipeline"),
       },

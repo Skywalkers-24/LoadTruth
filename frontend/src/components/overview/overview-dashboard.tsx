@@ -29,7 +29,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const trendConfig: ChartConfig = {
-  value: { label: "Flagged exposure", color: "var(--chart-3)" },
+  value: { label: "Amount to review", color: "var(--chart-3)" },
 };
 
 /**
@@ -146,11 +146,11 @@ export function OverviewDashboard({
             hero
             tone="money"
             icon={<CircleDollarSignIcon className="size-4" />}
-            label="Flagged exposure"
+            label="Amount to review"
             value={<CountUp value={exposure} format={(n) => money(n)} />}
             trend={exposureSpark}
-            hint="Sum of dollar differences on tickets where the monitor's call is higher than the visual estimate. Pending human review."
-            sub={`Across ${d.overbill_ticket_count} over-called ticket${d.overbill_ticket_count === 1 ? "" : "s"}`}
+            hint="Sum of dollar differences where the inspector's estimate is higher than the video estimate. These tickets still need review."
+            sub={`Across ${d.overbill_ticket_count} ticket${d.overbill_ticket_count === 1 ? "" : "s"} with a higher inspector estimate`}
           />
         </StaggerItem>
         <StaggerItem className="h-full">
@@ -165,7 +165,7 @@ export function OverviewDashboard({
               )
             }
             trend={measuredSpark}
-            hint="Total estimated dollar value of all loads, based on Muse fill estimates, certified truck capacity, and event rates."
+            hint="Total estimated value, based on video fill estimates, registered truck capacity, and event prices."
             sub={`${d.ticket_count} tickets in this event`}
           />
         </StaggerItem>
@@ -217,9 +217,9 @@ export function OverviewDashboard({
         <FadeIn className="flex min-h-0 flex-col gap-3 xl:col-span-2" delay={0.05}>
           <Card className="flex min-h-0 flex-[3] flex-col gap-0 overflow-hidden py-0">
             <div className="flex items-baseline justify-between px-4 pt-3">
-              <h3 className="text-[13px] font-semibold">Flagged exposure, running total</h3>
+              <h3 className="text-[13px] font-semibold">Amount to review over time</h3>
               <span className="text-[11px] text-muted-foreground">
-                Cumulative over-call value by capture order
+                Running total of higher inspector estimates, by load
               </span>
             </div>
             <div className="min-h-0 flex-1 px-2 pb-3">
@@ -245,7 +245,7 @@ export function OverviewDashboard({
               empty="No tickets yet"
             />
             <BreakdownCard
-              title="Anomaly flags"
+              title="Review flags"
               rows={anomalyBreakdown(summary, d.anomaly_count)}
               empty="No flags raised"
             />

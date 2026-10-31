@@ -38,12 +38,12 @@ const SCREENS = [
     "Browse demo clips, play the original, view AI outlines, and open the related ticket.",
   ],
   [
-    "AI Processing",
+    "Analysis runs",
     "/pipeline",
     "See recent analysis runs and open each step’s result, model, and processing time.",
   ],
   [
-    "AI Analyst",
+    "AI assistant",
     "/assistant",
     "Ask questions about the selected event in plain language. Check the supporting records before acting on an answer.",
   ],
@@ -105,32 +105,32 @@ const TERMS = [
     "The on-site person’s estimate of how full the truck is. You can enter it to compare with the video estimate.",
   ],
   [
-    "Difference / delta",
-    "The value based on the inspector’s estimate minus the value based on the AI estimate. It can be positive or negative.",
+    "Difference",
+    "The inspector's estimated value minus the value from the video estimate. It can be positive or negative.",
   ],
   [
-    "Over-call / under-call",
-    "An inspector estimate above / below the AI estimate. These describe a comparison, not a final review decision.",
+    "Inspector estimate higher / lower",
+    "Whether the inspector's estimate is above or below the video estimate. This comparison is not a final review decision.",
   ],
   [
-    "Flagged exposure",
-    "The total positive dollar differences on tickets with an over-call. It highlights amounts to review.",
+    "Amount to review",
+    "The total positive dollar differences where the inspector's estimate is higher. It highlights tickets to review.",
   ],
   [
-    "Percentage points (pp)",
+    "Percentage-point difference",
     "The difference between two percentages. The gap between 80% and 62% is 18 percentage points.",
   ],
   [
     "SAM",
-    "The Meta model that follows the truck and draws outlines around the bed and load. It does not calculate fill percentage.",
+    "Meta's AI that follows the truck and draws outlines around the bed and load. It does not calculate fill percentage.",
   ],
   [
     "Muse Spark",
-    "The Meta model that reads the truck ID, identifies the material, and estimates fill from sampled video frames.",
+    "Meta's AI that reads the truck number, identifies the material, and estimates fill from selected video images.",
   ],
   [
-    "Mask / outline / segmentation",
-    "The colored shapes drawn over a video to highlight objects. They are a visual aid for review.",
+    "Video outline",
+    "A colored line drawn over the footage to show the truck, bed, or load. It helps with review but does not calculate fill.",
   ],
   [
     "Frame",
@@ -138,25 +138,25 @@ const TERMS = [
   ],
   [
     "Confidence",
-    "A model’s reported certainty about a result, such as a truck ID. A 95% confidence label is not a 95% fill estimate.",
+    "How sure the AI is about a result, such as a truck number. A 95% confidence score is not a 95% fill estimate.",
   ],
-  ["Placard", "The identifying number painted or displayed on the truck."],
+  ["Truck number", "The identifying number painted or displayed on the truck."],
   [
     "Truck registry",
     "The list of known trucks and their registered capacities and certification details.",
   ],
   [
-    "Material / debris class",
-    "The type of load used to select a price. C&D means construction and demolition debris; white goods means appliances. Other categories include vegetation, hazardous material, and other.",
+    "Material type",
+    "The kind of material in the load, used to select its price. C&D means construction and demolition debris; white goods means appliances.",
   ],
   [
-    "Flag / anomaly",
+    "Review flag",
     "A reason to inspect a ticket more closely, such as an unreadable truck ID or a possible duplicate load.",
   ],
   ["Read only", "You can inspect the records, but the event or your role does not allow changes."],
   [
-    "Cached / reused result",
-    "A saved analysis result shown again instead of running the same analysis from scratch. A new or forced analysis may use paid model calls.",
+    "Saved result",
+    "A saved result shown again instead of analyzing the same video again. A new analysis may use paid AI calls.",
   ],
   [
     "Recalculate saved estimate",
@@ -220,9 +220,9 @@ export default function GuidePage() {
                     which cleanup operation you are viewing.
                   </>,
                   <>
-                    <strong>Check the tags.</strong> A benchmark or processed tag describes the
-                    sample data. <strong>Read only</strong> means that event is for viewing, not
-                    editing.
+                    <strong>Check the labels.</strong> Dataset identifies sample footage.{" "}
+                    <strong>View only</strong> means you can watch and review records, but not edit
+                    them.
                   </>,
                   <>
                     <strong>Choose what you want to do:</strong> explore sample footage in{" "}
@@ -242,8 +242,7 @@ export default function GuidePage() {
               <Steps
                 items={[
                   <>
-                    For the packaged demo, choose the event tagged{" "}
-                    <strong>50-video benchmark</strong> in the top bar. Open{" "}
+                    For the packaged demo, choose the read-only dataset event in the top bar. Open{" "}
                     <Screen href="/demos">Video library</Screen> and select{" "}
                     <strong>Latest batch</strong>. Pick a clip from the list, or use the clip
                     selector on a phone. Search by clip number, truck ID, or material.
@@ -254,9 +253,9 @@ export default function GuidePage() {
                     the beginning.
                   </>,
                   <>
-                    Select <strong>With masks</strong> to see AI outlines. Select{" "}
-                    <strong>Compare</strong> to play the original and outlined versions together.
-                    Bed, Load, and Truck body controls show or hide each layer.
+                    Select <strong>With outlines</strong> to see the truck and load highlighted.
+                    Select <strong>Compare</strong> to play the original and outlined versions
+                    together. Bed, Load, and Truck body controls show or hide each layer.
                   </>,
                   <>
                     Check the estimated fill, material, and load value. If the truck capacity is
@@ -268,16 +267,16 @@ export default function GuidePage() {
                     <strong>Analysis & checks</strong>.
                   </>,
                   <>
-                    You can explore a read-only demo without submitting a decision. To practice
-                    uploading or saving decisions, use an event and role that allow changes.
+                    You can explore a view-only demo without submitting a decision. To practice a
+                    review, open Sandbox and choose a saved video. Sandbox does not accept uploads
+                    or run new AI analysis.
                   </>,
                 ]}
               />
               <p>
-                <strong>Clips without a result:</strong> Unprocessed means the clip has not been
-                analyzed. Result pending means a completed result has not been saved. No truck
-                detected means the recorded run did not create a load ticket. You can still watch
-                the original footage.
+                <strong>Clips without a result:</strong> Not analyzed means no analysis has been
+                run. Still processing means the result is not ready yet. No truck detected means no
+                ticket was created. You can still watch the original footage.
               </p>
             </GuideSection>
 
@@ -294,7 +293,7 @@ export default function GuidePage() {
                   </>,
                   <>
                     Start the analysis and wait for the run to finish.{" "}
-                    <Screen href="/pipeline">AI Processing</Screen> shows recent runs and their
+                    <Screen href="/pipeline">Analysis runs</Screen> shows recent analyses and their
                     results.
                   </>,
                   <>
@@ -304,24 +303,20 @@ export default function GuidePage() {
                 ]}
               />
               <p>
-                <strong>Administrators:</strong> select{" "}
-                <strong>Run fresh analysis (bypass cache)</strong> before choosing the file if you
-                want new AI results. It is off by default, takes longer, and may add model usage
-                charges. File and storage validation still run.
+                <strong>Administrators:</strong> select <strong>Run AI again</strong> before
+                choosing the file if you want a new result. This takes longer and may use paid AI
+                calls. File and storage checks still run.
               </p>
               <p>
-                <strong>Keep footage for later replay</strong> is on by default. Turn it off to skip
-                permanent footage storage. The ticket and analysis still save to the database;
-                footage stays in server memory for up to seven days and may expire earlier on
-                restart or when memory is full. An expired video cannot be replayed, but its ticket
-                remains.
+                <strong>Keep footage for later replay</strong> is on by default. Turn it off if you
+                do not need to keep the video. The ticket and analysis still save; the video is held
+                temporarily and may be removed if the server restarts or runs low on storage.
               </p>
               <p>
-                <strong>Practice without AI credits:</strong> everyone can open the Practice
-                Playground, choose a saved video result on Add footage, and create a separate
-                practice ticket. Review it, edit it, or reset the practice review to try again. The
-                two Read only events preserve their original records. The Live Demonstration event
-                is visible to everyone; only the Administrator login can change it or run AI.
+                <strong>Practice without AI calls:</strong> open Sandbox, choose a saved video, and
+                create a practice ticket. Review or reset that copy; the saved source stays
+                unchanged. Sandbox does not accept uploads or run new AI analysis. Only an
+                Administrator can upload footage and run AI analysis in a working event.
               </p>
             </GuideSection>
 
@@ -335,7 +330,9 @@ export default function GuidePage() {
                   </>,
                   <>
                     <strong>Watch the footage.</strong> Compare the visible load with the estimated
-                    fill. Pause, seek, or use Full screen. Use the <strong>Body</strong>, <strong>Bed</strong>, and <strong>Load</strong> layer toggles to inspect colored SAM visual aids.
+                    fill. Pause, seek, or use Full screen. Use the <strong>Body</strong>,{" "}
+                    <strong>Bed</strong>, and <strong>Load</strong> toggles to show or hide the
+                    colored outlines.
                   </>,
                   <>
                     <strong>Check Load & pricing details.</strong> Verify the truck ID, material,
@@ -408,20 +405,20 @@ export default function GuidePage() {
                 headers={["Number", "What it means"]}
                 rows={[
                   [
-                    "Positive difference / over-call",
-                    "The inspector’s estimate is higher than the AI estimate. Review the amount; the comparison is not a final decision.",
+                    "Inspector estimate is higher",
+                    "The inspector's estimate is higher than the video estimate. Review the amount; this comparison is not a final decision.",
                   ],
                   [
-                    "Negative difference / under-call",
-                    "The inspector’s estimate is lower than the AI estimate.",
+                    "Inspector estimate is lower",
+                    "The inspector's estimate is lower than the video estimate.",
                   ],
                   [
                     "No inspector estimate",
                     "There is no human estimate to compare yet. This is not the same as a zero difference.",
                   ],
                   [
-                    "Flagged exposure",
-                    "The sum of positive dollar differences on over-called tickets.",
+                    "Amount to review",
+                    "The sum of positive dollar differences where the inspector's estimate is higher.",
                   ],
                   [
                     "Agreement with monitor",
@@ -449,17 +446,17 @@ export default function GuidePage() {
 
             <GuideSection id="analysis" title="7. How the analysis works">
               <p>
-                Analysis details and AI Processing show these seven steps. Select a step to see its
-                result, reported confidence, model, and time taken.
+                Analysis details show these seven steps. Select one to see its result, confidence
+                score, AI tool, and time taken.
               </p>
               <Steps
                 items={[
                   <>
-                    <strong>Outline truck and load.</strong> SAM follows the truck and draws
-                    outlines around the bed and debris across video frames.
+                    <strong>Outline truck and load.</strong> AI follows the truck and draws outlines
+                    around the bed and debris across video frames.
                   </>,
                   <>
-                    <strong>Read truck ID.</strong> Muse Spark reads the number shown on the truck.
+                    <strong>Read truck number.</strong> The AI reads the number shown on the truck.
                     An unclear reading needs a person to check it.
                   </>,
                   <>
@@ -467,17 +464,17 @@ export default function GuidePage() {
                     find its certified bed volume.
                   </>,
                   <>
-                    <strong>Estimate fill level.</strong> Muse Spark estimates how full the bed
-                    looks in sampled frames. The system uses the middle estimate when the frame
-                    estimates are sorted.
+                    <strong>Estimate fill level.</strong> AI estimates how full the bed looks in
+                    sampled frames. The system uses the middle estimate when the frame estimates are
+                    sorted.
                   </>,
                   <>
-                    <strong>Identify load material.</strong> Muse Spark classifies the debris so the
-                    correct event price can be selected.
+                    <strong>Identify material.</strong> The AI identifies the load so the correct
+                    event price can be selected.
                   </>,
                   <>
-                    <strong>Check for issues.</strong> Rules look for identity, certification,
-                    capacity, and trip-timing problems.
+                    <strong>Check for issues.</strong> Checks look for unknown trucks, missing
+                    certifications, loads above capacity, and trips that seem too close together.
                   </>,
                   <>
                     <strong>Calculate load value.</strong> The system multiplies the registered
@@ -487,10 +484,9 @@ export default function GuidePage() {
                 ]}
               />
               <p>
-                <strong>Outlines and fill are separate.</strong> SAM’s colored masks help you
-                inspect the footage. They do not calculate the fill percentage. Capacity comes from
-                records; prices come from the event; volume and value use those numbers in a
-                calculation.
+                <strong>Outlines and fill are separate.</strong> Colored outlines help you inspect
+                the footage. They do not calculate the fill percentage. Capacity comes from records;
+                prices come from the event; volume and value use those numbers in a calculation.
               </p>
             </GuideSection>
 
@@ -517,7 +513,7 @@ export default function GuidePage() {
                     "The same truck appears to have recorded two loads too close together for a round trip. Check for duplicate records or a wrong ID.",
                   ],
                   [
-                    "Warning · Placard unreadable",
+                    "Warning · Truck number unreadable",
                     "The truck number could not be read confidently. Inspect the footage and identify the truck manually.",
                   ],
                 ]}

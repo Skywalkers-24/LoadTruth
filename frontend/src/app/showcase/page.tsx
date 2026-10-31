@@ -11,6 +11,7 @@ import {
   FileCheck2Icon,
   FileTextIcon,
   GaugeIcon,
+  MicIcon,
   ReceiptIcon,
   ScaleIcon,
   ScanEyeIcon,
@@ -27,7 +28,7 @@ import { LogoLockup } from "@/components/ui/logo";
 export const metadata: Metadata = {
   title: "LoadTruth | Debris Load Review & FEMA Audit Evidence",
   description:
-    "Review truck footage, SAM tracking evidence, and Muse visual fill estimates in a human-reviewed load-ticket workflow ready for Federal Emergency Management Agency (FEMA) audits.",
+    "Review truck footage, AI fill estimates, and human-checked load tickets for disaster-debris operations.",
 };
 
 /**
@@ -45,7 +46,6 @@ export default function ShowcasePage() {
       <Features />
       <Personas />
       <Constraint />
-      <WhereItStands />
       <Footer />
     </main>
   );
@@ -83,14 +83,13 @@ function Hero() {
           A clearer record for every debris haul.
         </h1>
         <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-muted-foreground">
-          LoadTruth pairs truck footage with SAM tracking and Muse&apos;s frame-by-frame visual fill
-          estimates. It turns those estimates into a draft cubic-yard ticket ready for Federal
-          Emergency Management Agency (FEMA) audit review that a monitor can confirm, correct, or
-          dispute.
+          LoadTruth reviews truck footage, estimates how full the bed is, and prepares a draft load
+          ticket. A monitor can check, correct, or dispute the estimate, with the footage available
+          for review.
         </p>
         <p className="mt-4 max-w-xl text-[13px] leading-relaxed text-muted-foreground">
-          Fill is estimated from video; cubic yards are derived from certified truck capacity.
-          SAM&apos;s masks support visual review and do not determine the fill percentage.
+          AI estimates fill from video; the truck registry provides its certified capacity. Colored
+          outlines help with review but do not determine the fill percentage.
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
           <Link
@@ -122,7 +121,7 @@ function WorkflowCard() {
     },
     {
       title: "Track the truck",
-      detail: "SAM follows the truck and load across frames.",
+      detail: "AI outlines the truck and visible load throughout the video.",
       icon: <ScanEyeIcon size={17} />,
     },
     {
@@ -226,8 +225,8 @@ const CASE_STUDIES: CaseStudy[] = [
   {
     stat: "500%+ Capacity",
     badge: "$5.5M Questioned",
-    title: "Hurricane Katrina: Over-Capacity Hauls & Audit Clawbacks",
-    body: "A Department of Homeland Security Office of Inspector General (DHS OIG) audit of Kenner, LA questioned $5.5 million in Katrina debris removal after discovering trucks routinely recorded at 95%+ fill, with some loads documented at over 500% of certified bed capacity. LoadTruth's automated bed-boundary verification and certified registry checks make such unchallengeable errors physically impossible.",
+    title: "Hurricane Katrina: Loads above capacity and audit repayments",
+    body: "A federal audit questioned $5.5 million in debris removal costs in Kenner, Louisiana, after records showed some truck loads above their certified capacity. LoadTruth puts the video, estimated fill, and registered truck capacity together so reviewers can check each ticket.",
     source: "DHS OIG DD-09-04",
     href: "https://www.oig.dhs.gov/sites/default/files/assets/GrantReports/OIG_DD-09-04_Jan09.pdf",
     color: "var(--chart-5)",
@@ -236,7 +235,7 @@ const CASE_STUDIES: CaseStudy[] = [
     stat: "$190M+",
     badge: "5-Year Monitoring",
     title: "Miami-Dade County: The High Cost of Verifying Loads",
-    body: "Miami-Dade County awarded a $190,070,000 contract exclusively for disaster debris removal monitoring services across five years. That enormous sum covers monitoring alone—not hauling or disposal. It shows how much municipalities already invest to prevent fraud and satisfy FEMA audit scrutiny.",
+    body: "Miami-Dade County awarded a $190,070,000 contract for five years of disaster debris monitoring. The contract covers monitoring, not hauling or disposal, showing the scale of the work required to check disaster cleanup loads.",
     source: "Miami-Dade County Board",
     href: "https://www.miamidade.gov/govaction/legistarfiles/Matters/Y2026/261096.pdf",
     color: "var(--color-money)",
@@ -245,7 +244,7 @@ const CASE_STUDIES: CaseStudy[] = [
     stat: "107M+ CY",
     badge: "2024 Season",
     title: "Helene & Milton: Mega-Disaster Scale Meets Human Fatigue",
-    body: "Over 107 million cubic yards of storm debris were cleared across the Southeast in 2024. Tower monitors working 12-hour shifts in dusty, intense conditions must eyeball volume every 90 seconds. Eyeball fatigue causes systematic 10%–20% over-calls or disputes that threaten millions in FEMA Public Assistance reimbursements.",
+    body: "Over 107 million cubic yards of storm debris were cleared across the Southeast in 2024. Monitors working 12-hour shifts in dusty conditions estimate each load every 90 seconds. Fatigue can lead to estimates that are 10%–20% too high, or to disputes that put FEMA Public Assistance reimbursements at risk.",
     source: "FEMA 2024 Season Recovery",
     href: "https://www.fema.gov/press-release/20250926/recovery-continues-after-historic-2024-hurricane-season",
     color: "var(--chart-1)",
@@ -281,7 +280,10 @@ const CASE_STUDIES: CaseStudy[] = [
 
 function Inspiration() {
   return (
-    <section id="inspiration" className="w-full border-t border-[var(--color-border)] bg-[var(--color-surface)]">
+    <section
+      id="inspiration"
+      className="w-full border-t border-[var(--color-border)] bg-[var(--color-surface)]"
+    >
       <div className="mx-auto w-full max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
         {/* Section Header */}
         <div className="max-w-3xl">
@@ -290,14 +292,16 @@ function Inspiration() {
             Inspiration &amp; Real-World Context
           </span>
           <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
-            The $100M+ Measurement Problem: Why LoadTruth Exists
+            Why disaster debris loads need better records
           </h2>
           <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground sm:text-[16px]">
-            After catastrophic disasters, the <strong>Federal Emergency Management Agency (FEMA)</strong> reimburses
-            local governments 75% to 90%+ of cleanup costs under the Robert T. Stafford Disaster Relief and
-            Emergency Assistance Act. But billions in taxpayer dollars hinge on a single fragile step:{" "}
+            After catastrophic disasters, the{" "}
+            <strong>Federal Emergency Management Agency (FEMA)</strong> reimburses local governments
+            75% to 90%+ of cleanup costs under the Robert T. Stafford Disaster Relief and Emergency
+            Assistance Act. But billions in taxpayer dollars hinge on a single fragile step:{" "}
             <span className="font-semibold text-foreground">
-              a tired human monitor standing on a tower in 95°F heat, eyeballing a dump truck in 10% increments.
+              a tired human monitor standing on a tower in 95°F heat, eyeballing a dump truck in 10%
+              increments.
             </span>
           </p>
         </div>
@@ -315,42 +319,47 @@ function Inspiration() {
                   The Legacy Status Quo
                 </span>
                 <h3 className="text-[17px] font-semibold text-foreground">
-                  A Quantity Nobody Can Reproduce
+                  Load estimates are hard to verify later
                 </h3>
               </div>
             </div>
             <p className="text-[13px] leading-relaxed text-muted-foreground">
-              A load ticket is a measurement that nobody can verify once the truck drives away. This creates
-              recurring vulnerabilities documented by federal watchdogs:
+              A load ticket is a measurement that nobody can verify once the truck drives away. This
+              creates recurring vulnerabilities documented by federal watchdogs:
             </p>
             <ul className="space-y-3 text-[13px] text-muted-foreground">
               <li className="flex items-start gap-2.5">
                 <span className="mt-1 size-1.5 shrink-0 rounded-full bg-red-500" />
                 <span>
-                  <strong className="text-foreground">Subjective human guesswork:</strong> Fill percentages vary by
-                  monitor fatigue, viewing angle, and speed, often rounded arbitrarily to 10% or 25%.
+                  <strong className="text-foreground">Subjective human guesswork:</strong> Fill
+                  percentages vary by monitor fatigue, viewing angle, and speed, often rounded
+                  arbitrarily to 10% or 25%.
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
                 <span className="mt-1 size-1.5 shrink-0 rounded-full bg-red-500" />
                 <span>
-                  <strong className="text-foreground">Ephemeral evidence:</strong> Once debris is tipped at the
-                  management site, the evidence is permanently destroyed. No one can prove what was inside.
+                  <strong className="text-foreground">Temporary footage:</strong> Once debris is
+                  tipped at the management site, the evidence is permanently destroyed. No one can
+                  prove what was inside.
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
                 <span className="mt-1 size-1.5 shrink-0 rounded-full bg-red-500" />
                 <span>
-                  <strong className="text-foreground">Delayed audit clawbacks:</strong> When FEMA and DHS OIG audit
-                  records 2 to 5 years later, tickets lacking verifiable proof trigger clawbacks that devastate
-                  county budgets.
+                  <strong className="text-foreground">Repayments after audits:</strong> When FEMA
+                  and government auditors review records years later, missing proof can lead to
+                  repayment demands that strain county budgets.
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
                 <span className="mt-1 size-1.5 shrink-0 rounded-full bg-red-500" />
                 <span>
-                  <strong className="text-foreground">Multi-million dollar monitoring bills:</strong> Jurisdictions
-                  spend hundreds of thousands of dollars just staffing towers, yet still face disputes and over-billing.
+                  <strong className="text-foreground">
+                    Multi-million dollar monitoring bills:
+                  </strong>{" "}
+                  Jurisdictions spend hundreds of thousands of dollars just staffing towers, yet
+                  still face disputes and over-billing.
                 </span>
               </li>
             </ul>
@@ -367,41 +376,47 @@ function Inspiration() {
                   The LoadTruth Approach
                 </span>
                 <h3 className="text-[17px] font-semibold text-foreground">
-                  Evidence-Linked, Machine-Estimated Drafts
+                  Video-backed draft tickets
                 </h3>
               </div>
             </div>
             <p className="text-[13px] leading-relaxed text-muted-foreground">
-              LoadTruth replaces honor-system guesses with tamper-evident video footage, multi-frame AI perception,
-              and deterministic audit math:
+              LoadTruth adds saved truck footage, AI estimates from several video frames, and
+              consistent calculations to the review:
             </p>
             <ul className="space-y-3 text-[13px] text-muted-foreground">
               <li className="flex items-start gap-2.5">
                 <span className="mt-1 size-1.5 shrink-0 rounded-full bg-[var(--color-brand)]" />
                 <span>
-                  <strong className="text-foreground">Video preserved on day 1:</strong> An ordinary tower camera
-                  records the clip. Clips are SHA-256 hashed and persisted with their masks and keyframes.
+                  <strong className="text-foreground">Video saved with the ticket:</strong> Footage
+                  is stored with a digital fingerprint to help detect changes, plus selected images
+                  and review outlines.
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
                 <span className="mt-1 size-1.5 shrink-0 rounded-full bg-[var(--color-brand)]" />
                 <span>
-                  <strong className="text-foreground">SAM 3.1 &amp; Muse Spark:</strong> SAM tracks truck, bed, and
-                  load boundaries; Muse Spark estimates fill from sampled frames, reads placards, and classifies debris.
+                  <strong className="text-foreground">Truck outlines and AI estimates:</strong>{" "}
+                  Outlines follow the truck, bed, and load. AI estimates fill from selected frames,
+                  reads the truck number, and identifies the material.
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
                 <span className="mt-1 size-1.5 shrink-0 rounded-full bg-[var(--color-brand)]" />
                 <span>
-                  <strong className="text-foreground">Deterministic volume &amp; compliance:</strong> Certified truck
-                  capacity × median fill % gives exact cubic yards. Rules flag uncertified haulers and over-capacity trucks.
+                  <strong className="text-foreground">
+                    Consistent volume calculations &amp; checks:
+                  </strong>{" "}
+                  Certified truck capacity × the middle fill estimate gives estimated cubic yards.
+                  Rules flag trucks without certification and loads above registered capacity.
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
                 <span className="mt-1 size-1.5 shrink-0 rounded-full bg-[var(--color-brand)]" />
                 <span>
-                  <strong className="text-foreground">Audit-ready FEMA packets:</strong> Human monitors review, confirm,
-                  or correct the draft ticket, producing an exportable audit packet ready for federal reimbursement.
+                  <strong className="text-foreground">Records for audit review:</strong> Monitors
+                  check, confirm, or correct draft tickets. Reports can include the ticket and its
+                  supporting footage for agency review.
                 </span>
               </li>
             </ul>
@@ -418,7 +433,8 @@ function Inspiration() {
               Disaster Debris by the Numbers
             </h3>
             <p className="text-[13px] text-muted-foreground">
-              Official figures documenting the multi-billion-dollar scale and recurring audit vulnerabilities across major disaster operations.
+              Official figures documenting the multi-billion-dollar scale and recurring audit
+              vulnerabilities across major disaster operations.
             </p>
           </div>
 
@@ -432,7 +448,10 @@ function Inspiration() {
                 className="group flex flex-col justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5 transition-all hover:border-[var(--color-border-strong)] hover:shadow-xs"
               >
                 <div>
-                  <span className="text-lg font-extrabold tracking-tight sm:text-xl" style={{ color: s.color }}>
+                  <span
+                    className="text-lg font-extrabold tracking-tight sm:text-xl"
+                    style={{ color: s.color }}
+                  >
                     {s.value}
                   </span>
                   <p className="mt-1 text-[11px] font-medium leading-snug text-muted-foreground">
@@ -458,7 +477,8 @@ function Inspiration() {
               Sourced Case Studies: Why Oversight Matters
             </h3>
             <p className="text-[13px] text-muted-foreground">
-              Every case below links directly to government audit reports, court decisions, and municipal records.
+              Every case below links directly to government audit reports, court decisions, and
+              municipal records.
             </p>
           </div>
 
@@ -472,7 +492,10 @@ function Inspiration() {
                 className="group flex flex-col gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5 transition-all hover:border-[var(--color-border-strong)] hover:shadow-sm"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xl font-extrabold tabular-nums tracking-tight" style={{ color: c.color }}>
+                  <span
+                    className="text-xl font-extrabold tabular-nums tracking-tight"
+                    style={{ color: c.color }}
+                  >
                     {c.stat}
                   </span>
                   <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-0.5 text-[10.5px] font-semibold text-muted-foreground">
@@ -482,12 +505,13 @@ function Inspiration() {
                 <h4 className="text-[14px] font-semibold leading-snug text-foreground group-hover:text-[var(--color-brand)]">
                   {c.title}
                 </h4>
-                <p className="text-[12.5px] leading-relaxed text-muted-foreground">
-                  {c.body}
-                </p>
+                <p className="text-[12.5px] leading-relaxed text-muted-foreground">{c.body}</p>
                 <span className="mt-auto inline-flex items-center gap-1.5 pt-2 text-[11.5px] font-medium text-[var(--color-brand)]">
                   <span>Source: {c.source}</span>
-                  <ExternalLinkIcon size={12} className="shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                  <ExternalLinkIcon
+                    size={12}
+                    className="shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  />
                 </span>
               </a>
             ))}
@@ -495,10 +519,11 @@ function Inspiration() {
 
           <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]/60 p-4 text-[12px] leading-relaxed text-muted-foreground">
             <p>
-              <strong className="font-semibold text-foreground">Regulatory Sourcing Note:</strong> Figures and data above
-              are cited from official government reports (FEMA, DHS Office of Inspector General, US Department of Justice,
-              and municipal dockets). They demonstrate the scale and known audit failure modes of disaster debris operations.
-              LoadTruth is designed to follow procedures established in the{" "}
+              <strong className="font-semibold text-foreground">Regulatory Sourcing Note:</strong>{" "}
+              Figures and data above are cited from official government reports (FEMA, DHS Office of
+              Inspector General, US Department of Justice, and municipal dockets). They demonstrate
+              the scale and known audit failure modes of disaster debris operations. LoadTruth is
+              designed to follow procedures established in the{" "}
               <a
                 href="https://www.fema.gov/sites/default/files/documents/fema_debris-monitoring-guide_sop_3-01-2021.pdf"
                 target="_blank"
@@ -507,7 +532,8 @@ function Inspiration() {
               >
                 FEMA Debris Monitoring Guide (SOP 3-01-2021)
               </a>{" "}
-              and 2 CFR Part 200, generating evidence-backed drafts while certified human monitors retain official authority.
+              and 2 CFR Part 200, generating evidence-backed drafts while certified human monitors
+              retain official authority.
             </p>
           </div>
         </div>
@@ -519,20 +545,20 @@ function Inspiration() {
 const STAGES: { n: number; title: string; body: string; icon: React.ReactNode }[] = [
   {
     n: 1,
-    title: "Sample the clip",
-    body: "The clip is normalized, SHA-256 hashed, and sampled into frames for the analysis stages.",
+    title: "Prepare the video",
+    body: "The video is checked, given a digital fingerprint to help detect changes, and sampled into still images for analysis.",
     icon: <CameraIcon size={18} />,
   },
   {
     n: 2,
-    title: "Segment with SAM 3.1",
-    body: "SAM tracks the truck, bed, and load across frames. Its masks are saved as visual evidence, not used to calculate fill.",
+    title: "Outline the truck and load",
+    body: "AI follows the truck, bed, and visible load across the video. The colored outlines support review; they do not calculate fill.",
     icon: <ScanEyeIcon size={18} />,
   },
   {
     n: 3,
-    title: "Read placard with Muse Spark",
-    body: "Muse reads the truck ID from the footage; the result is matched against the certified truck registry.",
+    title: "Read the truck number",
+    body: "AI reads the truck number from the footage and checks it against the certified truck list.",
     icon: <SparklesIcon size={18} />,
   },
   {
@@ -543,20 +569,20 @@ const STAGES: { n: number; title: string; body: string; icon: React.ReactNode }[
   },
   {
     n: 5,
-    title: "Estimate fill with Muse",
-    body: "Muse estimates fill in sampled frames. The pipeline takes their median; SAM masks do not affect the result.",
+    title: "Estimate how full it is",
+    body: "AI estimates fill in selected still images. The system uses the middle estimate; the outlines do not affect the result.",
     icon: <GaugeIcon size={18} />,
   },
   {
     n: 6,
-    title: "Classify debris",
-    body: "Muse assigns a debris class used to select the applicable FEMA reimbursement rate.",
+    title: "Identify the material",
+    body: "AI identifies the load material so the right event price can be used.",
     icon: <SparklesIcon size={18} />,
   },
   {
     n: 7,
     title: "Check and draft",
-    body: "Deterministic compliance rules run; the fill estimate and certified capacity produce cubic yards and value. The monitor reviews the draft.",
+    body: "Standard checks run. The fill estimate and registered truck capacity are used to calculate estimated volume and value for a monitor to review.",
     icon: <ShieldCheckIcon size={18} />,
   },
 ];
@@ -566,8 +592,8 @@ function Anatomy() {
     <section className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
       <h2 className="text-xl font-semibold">How a clip becomes a draft ticket</h2>
       <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">
-        Models handle visual tasks; application code combines the fill estimates, applies rates, and
-        runs compliance checks. A monitor remains responsible for the final call.
+        AI reviews the video; the system combines its fill estimates, applies event prices, and runs
+        checks. A monitor remains responsible for the final decision.
       </p>
       <ol className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {STAGES.map((s) => (
@@ -594,8 +620,8 @@ function Anatomy() {
 
 const FEATURES: { title: string; body: string; icon: React.ReactNode; color: string }[] = [
   {
-    title: "Multi-tenant by design",
-    body: "Events, trucks, rates, members, and evidence are scoped to a tenant and protected by API role checks.",
+    title: "Separate workspaces",
+    body: "Each organization has its own events, trucks, prices, users, and footage, with access controlled by role.",
     icon: <BuildingIcon size={18} />,
     color: "var(--chart-1)",
   },
@@ -618,16 +644,22 @@ const FEATURES: { title: string; body: string; icon: React.ReactNode; color: str
     color: "var(--chart-4)",
   },
   {
-    title: "Configurable Muse inference",
-    body: "The app supports Meta directly and configurable Muse backends. Fireworks AI, Modal, and Baseten are provider options; availability depends on task capability and configuration.",
+    title: "AI provider options",
+    body: "Administrators can choose Meta or another supported AI service. Available options depend on the task and system setup.",
     icon: <SparklesIcon size={18} />,
     color: "var(--color-brand)",
   },
   {
-    title: "Reproducible estimate",
-    body: "Stored Muse frame estimates and their median can be replayed without another model call. The original source video and SAM masks remain available as review evidence.",
+    title: "Replay saved estimates",
+    body: "Saved video estimates can be reviewed again without another AI call. The original footage and colored outlines remain available.",
     icon: <ShieldCheckIcon size={18} />,
     color: "var(--chart-5)",
+  },
+  {
+    title: "Voice report filing",
+    body: "Administrators can record a monitor's call. AI transcribes it and suggests a fill estimate or issue flags; an administrator checks the suggestions before saving. Authorized reviewers can also enter reports manually.",
+    icon: <MicIcon size={18} />,
+    color: "var(--color-brand)",
   },
 ];
 
@@ -672,12 +704,12 @@ function Personas() {
         <Persona
           role="Field monitor"
           side="Reviews the draft"
-          body="See the source clip, SAM tracking evidence, and Muse's per-frame fill estimates together. Confirm the draft or enter a corrected call."
+          body="See the source video and AI fill estimates together. Confirm the draft or enter the inspector's corrected estimate."
         />
         <Persona
-          role="County reviewer &amp; FEMA auditor"
+          role="County reviewer &amp; FEMA audit reviewer"
           side="Checks the record"
-          body="Review ticket values, compliance flags, billing summaries, and exported evidence in one workflow ready for Federal Emergency Management Agency (FEMA) audit review."
+          body="Review ticket amounts, flagged issues, billing summaries, and saved video in one place. Keep records ready for Federal Emergency Management Agency (FEMA) review."
         />
       </div>
     </section>
@@ -700,64 +732,14 @@ function Constraint() {
   return (
     <section className="w-full border-t border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
-        <h2 className="text-xl font-semibold">Model roles and inference options</h2>
+        <h2 className="text-xl font-semibold">What the AI and calculations do</h2>
         <p className="mt-2 max-w-3xl text-[14px] leading-relaxed text-muted-foreground">
-          SAM 3.1 tracks the truck and load for evidence. Muse Spark estimates fill from sampled
-          video frames, and deterministic code takes the median and converts the estimate to cubic
-          yards using certified truck capacity. Muse inference can use Meta directly or a configured
-          backend: Fireworks AI, Modal, or Baseten. These are supported routes; the active provider
-          depends on deployment configuration.
+          AI outlines the truck and visible load, then estimates fill from selected still images.
+          The system uses the middle estimate and registered truck capacity to calculate estimated
+          cubic yards. Administrators can choose from the AI services enabled for their setup.
         </p>
       </div>
     </section>
-  );
-}
-
-function WhereItStands() {
-  const working = [
-    "Video ingest and draft-ticket pipeline",
-    "SAM tracking evidence and Muse estimates across sampled frames",
-    "Deterministic median, cubic-yard calculation, and compliance checks",
-    "Monitor confirm, correction, and dispute workflow",
-    "Ticket reports, CSV export, billing, and printable audit packet ready for FEMA audit",
-    "Replay of stored Muse estimates without another model call",
-  ];
-  const inProgress = ["Independent known-volume benchmark; no accuracy result is published yet"];
-  const roadmap = [
-    "3D load reconstruction for a second, independent volume estimate",
-    "Spoken monitor call captured and transcribed",
-    "Live camera ingestion beyond direct upload",
-  ];
-  return (
-    <section className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
-      <h2 className="text-xl font-semibold">Where it stands</h2>
-      <p className="mt-2 text-[14px] text-muted-foreground">
-        Current features and planned validation, stated separately.
-      </p>
-      <div className="mt-6 grid gap-6 sm:grid-cols-3">
-        <StatusColumn title="Working" tone="var(--color-ok)" items={working} />
-        <StatusColumn title="In progress" tone="var(--color-warn)" items={inProgress} />
-        <StatusColumn title="Roadmap" tone="var(--color-info)" items={roadmap} />
-      </div>
-    </section>
-  );
-}
-
-function StatusColumn({ title, tone, items }: { title: string; tone: string; items: string[] }) {
-  return (
-    <div className="flex flex-col gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      <h3 className="flex items-center gap-2 text-[14px] font-semibold">
-        <span className="size-2.5 rounded-full" style={{ backgroundColor: tone }} aria-hidden />
-        {title}
-      </h3>
-      <ul className="flex flex-col gap-2">
-        {items.map((it) => (
-          <li key={it} className="text-[13px] leading-snug text-muted-foreground">
-            {it}
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

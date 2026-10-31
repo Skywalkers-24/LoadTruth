@@ -5,6 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { PlayIcon, PauseIcon, RotateCcwIcon, Volume2Icon, VolumeXIcon, Loader2Icon } from "lucide-react";
 
 import { fetchEvidenceMediaUrl, type TicketEvidence } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { getVideoVariantUrl, useVideoQuality } from "@/lib/video-quality";
 import { QualitySelector } from "@/components/video/quality-selector";
 
@@ -339,7 +340,10 @@ export function SamPlayer({
   return (
     <div className={className ?? "absolute inset-0 flex flex-col bg-black"}>
       <div
-        className="relative min-h-0 flex-1 cursor-pointer select-none"
+        className={cn(
+          "relative min-h-0 flex-1 cursor-pointer select-none",
+          !isImage && url && !hideControls && "pb-11",
+        )}
         onClick={() => !isImage && void togglePlayback()}
       >
         {!url && (
@@ -478,7 +482,7 @@ export function SamPlayer({
         )}
       </div>
       {!isImage && url && !hideControls && (
-        <div className="flex shrink-0 items-center gap-2 bg-black px-3 py-2 text-white">
+        <div className="absolute inset-x-0 bottom-0 z-20 flex min-h-11 items-center gap-2 border-t border-white/10 bg-black/90 px-3 py-2 text-white">
           <button
             type="button"
             aria-label={playing ? "Pause evidence" : "Play evidence"}
