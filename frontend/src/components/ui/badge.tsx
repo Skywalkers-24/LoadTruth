@@ -4,7 +4,7 @@ import type { TicketStatus } from "@/lib/api";
 import { CheckCircleIcon, AlertIcon, InfoIcon } from "@/components/ui/icons";
 import { statusLabel } from "@/lib/format";
 
-type Tone = "neutral" | "accent" | "ok" | "warn" | "danger" | "info";
+type Tone = "neutral" | "accent" | "ok" | "warn" | "danger" | "info" | "violet";
 
 const TONE: Record<Tone, { fg: string; soft: string }> = {
   neutral: { fg: "var(--color-muted-foreground)", soft: "var(--color-secondary)" },
@@ -13,6 +13,7 @@ const TONE: Record<Tone, { fg: string; soft: string }> = {
   warn: { fg: "var(--color-warn)", soft: "var(--color-warn-soft)" },
   danger: { fg: "var(--color-destructive)", soft: "var(--color-danger-soft)" },
   info: { fg: "var(--color-info)", soft: "var(--color-brand-soft)" },
+  violet: { fg: "#7c3aed", soft: "#ede9fe" },
 };
 
 /** Generic pill badge. Status is always reinforced with text (+ optional icon). */

@@ -570,13 +570,13 @@ export default function DemoVideosPage() {
           </section>
         )}
 
-        {/* ── SECTION 2: UNPROCESSED BENCHMARK FOOTAGE (CLIPS 026–050) ── */}
+        {/* ── SECTION 2: BENCHMARK FOOTAGE WITHOUT SAVED MASKS ── */}
         {(tab === "unprocessed" || tab === "all") && (
           <section aria-label="Unprocessed source clips" className="flex flex-col gap-3">
             {tab === "all" && (
               <div className="my-2 flex items-center gap-3 border-t border-border/80 pt-3">
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Unprocessed Benchmark Library
+                  Footage Without Saved Masks
                 </span>
               </div>
             )}

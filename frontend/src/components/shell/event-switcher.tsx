@@ -8,6 +8,13 @@ import { EmptyState, Skeleton } from "@/components/ui/primitives";
 import { orgFromEvent, useEventContext } from "@/lib/event-context";
 import { cn } from "@/lib/utils";
 
+const WORKSPACE_ORDER = [
+  "60cdc03c-ae67-4ff3-a482-6e6f08372dff",
+  "9041997f-3d84-475a-863c-5efe36273d75",
+  "5152264c-5a7f-485b-990b-6f8f23bcb7c4",
+  "7dcdd0cf-1e3b-434d-b163-85091762a376",
+];
+
 /**
  * Disaster-event context selector. `compact` renders a top-bar-styled trigger
  * (light surface, single line) for the header; the default renders the fuller
@@ -34,13 +41,19 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
     };
   }, [open]);
 
-  const { org } = orgFromEvent(selected);
+  const { org, scope } = orgFromEvent(selected);
   const initials = org.slice(0, 2).toUpperCase();
   const filtered = events.filter((e) =>
     `${e.name} ${e.location ?? ""} ${(e.tags ?? []).join(" ")}`
       .toLowerCase()
       .includes(q.trim().toLowerCase()),
   );
+  filtered.sort((a, b) => {
+    const aOrder = WORKSPACE_ORDER.indexOf(a.id);
+    const bOrder = WORKSPACE_ORDER.indexOf(b.id);
+    return (aOrder < 0 ? WORKSPACE_ORDER.length : aOrder) -
+      (bOrder < 0 ? WORKSPACE_ORDER.length : bOrder) || a.name.localeCompare(b.name);
+  });
 
   if (isLoading)
     return <Skeleton className={compact ? "h-9 w-72 rounded-lg" : "h-12 w-full rounded-lg"} />;
@@ -72,7 +85,7 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
                 : (selected?.name ?? "Select an event")}
             </span>
           </span>
-          {selected?.tags.includes("read-only") && <Badge tone="neutral">Read-Only</Badge>}
+          {selected?.tags.includes("read-only") && <Badge tone="neutral">View only</Badge>}
           <ChevronDownIcon
             size={15}
             className="shrink-0 text-muted-foreground transition-transform"
@@ -145,8 +158,9 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
             <span className="truncate text-[12px] font-semibold text-[var(--color-text)]">
               {org}
             </span>
+            {scope && <span className="text-[10px] text-[var(--color-subtle)]">{scope}</span>}
             <span className="text-[10px] uppercase tracking-wide text-[var(--color-subtle)]">
-              Organization
+              ORGANIZATION
             </span>
           </span>
         </div>
@@ -176,6 +190,7 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
             <ul className="lt-scroll flex max-h-64 flex-col gap-0.5 overflow-y-auto">
               {filtered.map((e) => {
                 const active = e.id === selectedId;
+                const eventStatus = e.status || "active";
                 return (
                   <li key={e.id}>
                     <button
@@ -206,8 +221,15 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
                             ))}
                           </span>
                         )}
+                        {e.tags?.includes("synthetic-demo") && (
+                          <span className="mt-1 text-[10px] text-[var(--color-muted-foreground)]">
+                            Historical demo dataset · synthetic records, not official government data
+                          </span>
+                        )}
                       </span>
-                      <Badge tone={e.status === "active" ? "ok" : "neutral"}>{e.status}</Badge>
+                      <Badge tone={eventStatus === "active" ? "ok" : "neutral"}>
+                        {eventStatus.charAt(0).toUpperCase() + eventStatus.slice(1)}
+                      </Badge>
                       {active && (
                         <span className="text-[var(--color-brand)]" aria-hidden>
                           <CheckIcon size={15} />
@@ -226,9 +248,13 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
 }
 
 function eventTagBadges(tags: string[]) {
-  const badges: { key: string; label: string; tone: "neutral" | "accent" | "ok" | "info" }[] = [];
-  if (tags.includes("dataset-1")) {
-    badges.push({ key: "dataset-1", label: "DataSet-1", tone: "ok" });
+  const badges: {
+    key: string;
+    label: string;
+    tone: "neutral" | "accent" | "ok" | "info" | "violet";
+  }[] = [];
+  if (tags.includes("dataset-1") || tags.includes("dataset-2")) {
+    badges.push({ key: "dataset", label: "Dataset", tone: "accent" });
   } else if (tags.includes("judge") || tags.includes("benchmarked") || tags.includes("benchmark")) {
     badges.push({
       key: "judge-benchmarked",
@@ -241,7 +267,7 @@ function eventTagBadges(tags: string[]) {
     });
   }
   if (tags.includes("meta-processed-muse")) {
-    badges.push({ key: "meta-processed-muse", label: "Meta Processed Muse", tone: "info" });
+    badges.push({ key: "meta-processed-muse", label: "Muse • Meta AI", tone: "violet" });
   } else if (tags.includes("meta-processed")) {
     badges.push({ key: "meta-processed", label: "Meta processed", tone: "info" });
   }
@@ -249,11 +275,11 @@ function eventTagBadges(tags: string[]) {
     badges.push({ key: "muse-medium", label: "Muse · medium", tone: "accent" });
   }
   if (tags.includes("playground"))
-    badges.push({ key: "playground", label: "Practice · no AI credits", tone: "info" });
+    badges.push({ key: "playground", label: "Training", tone: "accent" });
   if (tags.includes("admin-only"))
-    badges.push({ key: "admin-only", label: "Administrator edits only", tone: "neutral" });
+    badges.push({ key: "admin-only", label: "Admin only", tone: "neutral" });
   if (tags.includes("read-only")) {
-    badges.push({ key: "read-only", label: "Read-Only", tone: "neutral" });
+    badges.push({ key: "read-only", label: "View only", tone: "neutral" });
   }
   return badges;
 }

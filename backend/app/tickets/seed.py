@@ -466,8 +466,8 @@ ADMIN_DEMO_EVENT_ID = UUID("5152264c-5a7f-485b-990b-6f8f23bcb7c4")
 
 async def _seed_workspaces(session: AsyncSession, tenant_id: UUID) -> None:
     for event_id, name, tags in [
-        (PLAYGROUND_EVENT_ID, "LoadTruth Practice Playground", ["playground", "saved-results"]),
-        (ADMIN_DEMO_EVENT_ID, "LoadTruth Live Demonstration", ["admin-only", "live-demo"]),
+        (PLAYGROUND_EVENT_ID, "LoadTruth Sandbox", ["playground", "saved-results"]),
+        (ADMIN_DEMO_EVENT_ID, "LoadTruth Demo", ["admin-only"]),
     ]:
         if await session.get(models.Event, event_id) is None:
             session.add(
@@ -475,7 +475,11 @@ async def _seed_workspaces(session: AsyncSession, tenant_id: UUID) -> None:
                     id=event_id,
                     tenant_id=tenant_id,
                     name=name,
-                    location="Demonstration workspace",
+                    location=(
+                        "Interactive training workspace"
+                        if event_id == PLAYGROUND_EVENT_ID
+                        else "Demonstration workspace"
+                    ),
                     status="active",
                     tags=tags,
                     rate_table=dict(_events()[0]["rate_table"]),

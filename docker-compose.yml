@@ -31,6 +31,17 @@ services:
 
   backend:
     build: ./backend
+    # The host advertises its available CPU count, but one Uvicorn process
+    # cannot use multiple cores for CPU-bound response parsing. Override with
+    # BACKEND_WORKERS for local batch runs; keep the normal dev default at 1.
+    command:
+      - sh
+      - -c
+      - >-
+        alembic upgrade head &&
+        export LOADTRUTH_SKIP_STARTUP_DB=1 &&
+        exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+        --workers ${BACKEND_WORKERS:-1}
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/loadtruth

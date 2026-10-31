@@ -104,15 +104,11 @@ export function useEventContext(): EventContextValue {
   return ctx;
 }
 
-/** Derive a readable organization name + scope from an event. */
+/** The demo tenant represents Pinellas County throughout the workspace. */
 export function orgFromEvent(event: EventSummary | undefined): {
   org: string;
   scope: string | null;
 } {
-  if (!event) return { org: "LoadTruth", scope: null };
-  const loc = event.location?.trim();
-  if (!loc) return { org: "Organization not set", scope: null };
-  // Use the actual county/agency context instead of inventing a monitoring organization.
-  const organization = loc.split(",")[0]?.trim();
-  return { org: organization || "Organization not set", scope: loc };
+  if (!event) return { org: "Pinellas County", scope: "Florida, United States" };
+  return { org: "Pinellas County", scope: "Florida, United States" };
 }

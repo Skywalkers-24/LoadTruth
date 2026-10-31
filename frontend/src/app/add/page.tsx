@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRightIcon,
@@ -75,6 +75,10 @@ export default function NewTicketPage() {
 
 function CaptureWorkspace() {
   const { events, selected, selectedId: eventId, setSelectedId } = useEventContext();
+  const eventPairs = useMemo(
+    () => BENCHMARK_PAIRS.filter((pair) => pair.eventId === eventId),
+    [eventId],
+  );
   const { can, member } = useAuth();
   const canRunFresh = member?.role === "super_admin";
   const [bypassCache, setBypassCache] = useState(false);
@@ -134,7 +138,7 @@ function CaptureWorkspace() {
       return;
     }
     if (!canRunFresh) {
-      const match = BENCHMARK_PAIRS.find(
+      const match = eventPairs.find(
         (p) =>
           p.matchFilename.toLowerCase() === file.name.toLowerCase() ||
           file.name.toLowerCase().includes(p.truckId.toLowerCase()),
@@ -197,7 +201,7 @@ function CaptureWorkspace() {
 
   async function processExistingVideo(filename: string) {
     if (!filename || busy || loadingExisting) return;
-    const pair = BENCHMARK_PAIRS.find((p) => p.matchFilename === filename);
+    const pair = eventPairs.find((p) => p.matchFilename === filename);
     if (!pair) return;
 
     setLoadingExisting(true);
@@ -395,7 +399,7 @@ function CaptureWorkspace() {
                       className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-xs text-foreground cursor-pointer focus:outline-primary"
                     >
                       <option value="">-- Select an existing video from here --</option>
-                      {BENCHMARK_PAIRS.map((pair) => (
+                      {eventPairs.map((pair) => (
                         <option key={pair.id} value={pair.matchFilename}>
                           P{String(pair.pairNumber).padStart(2, "0")} · {pair.truckId} · {pair.debrisLabel} ({pair.measuredFillPct.toFixed(1)}% fill)
                         </option>

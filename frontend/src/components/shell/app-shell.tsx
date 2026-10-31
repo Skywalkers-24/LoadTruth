@@ -56,7 +56,7 @@ type NavItem = {
 // Separate records, capture, processing, and exception review.
 const NAV: NavItem[] = [
   { href: "/", label: "Overview", short: "Overview", icon: GaugeIcon },
-  { href: "/console", label: "Review queue", short: "Review", icon: ClipboardIcon, badge: true },
+  { href: "/console", label: "Console", short: "Console", icon: ClipboardIcon, badge: true },
   { href: "/add", label: "Add footage", short: "New", icon: PlusIcon },
   { href: "/demos", label: "Video library", short: "Footage", icon: FilmIcon },
   { href: "/pipeline", label: "AI Processing", short: "Processing", icon: ActivityIcon },

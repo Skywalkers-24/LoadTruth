@@ -172,7 +172,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
             </div>
           )}
         </div>
-        <div className="lt-evidence-media relative aspect-video min-h-[14rem] w-full shrink-0 overflow-hidden bg-black @[42rem]:min-h-0 @[42rem]:flex-1 @[42rem]:aspect-auto">
+        <div className="lt-evidence-media relative aspect-video max-h-[min(58vh,42rem)] min-h-[14rem] w-full shrink-0 overflow-hidden bg-black @[64rem]:min-h-[20rem] @[64rem]:flex-none @[64rem]:aspect-video">
           {query.isLoading ? (
             <div
               role="status"

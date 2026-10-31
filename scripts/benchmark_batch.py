@@ -193,9 +193,15 @@ def get(base, token, path, out):
     return read(out)
 
 
-def manifest(batch):
+def manifest(batch, start_video=None, end_video=None):
+    if (start_video is None) != (end_video is None):
+        raise ValueError("--start-video and --end-video must be supplied together")
+    if start_video is None:
+        start_video, end_video = (batch - 1) * 5 + 1, batch * 5
+    if not 1 <= start_video <= end_video <= 50:
+        raise ValueError("Selected video range must be within 001–050")
     clips = []
-    for n in range((batch - 1) * 5 + 1, batch * 5 + 1):
+    for n in range(start_video, end_video + 1):
         paths = [
             p
             for p in (ROOT / "frontend/public/videos").glob(f"benchmark-{n:03d}-*.mp4")
@@ -393,7 +399,7 @@ def run(args, folder):
     if not token:
         raise ValueError("Set TOKEN or --token-file (never stored in run artifacts)")
     r = runtime(args.base, require_b2=args.keep_footage)
-    clips = manifest(args.batch)
+    clips = manifest(args.batch, args.start_video, args.end_video)
     if not args.keep_footage:
         cloudflare_hashes = set(r["cloudflare_hashes"])
         missing = [
@@ -409,7 +415,9 @@ def run(args, folder):
             "run_id": folder.name,
             "created_at": now(),
             "base": args.base,
-            "batch": args.batch,
+            "batch": args.batch if args.start_video is None else None,
+            "start_video": int(clips[0]["video"]),
+            "end_video": int(clips[-1]["video"]),
             "cache": args.cache,
             "concurrency": args.concurrency,
             "clips": clips,
@@ -580,9 +588,11 @@ def main():
     p.add_argument(
         "--concurrency",
         type=int,
-        choices=range(1, 6),
+        choices=range(1, 26),
         default=int(os.getenv("CONCURRENCY", "5")),
     )
+    p.add_argument("--start-video", type=int, help="First video number, 1–50")
+    p.add_argument("--end-video", type=int, help="Last video number, 1–50")
     p.add_argument(
         "--cache", choices=["reuse", "fresh"], default=os.getenv("CACHE_MODE", "reuse")
     )
@@ -631,7 +641,9 @@ def main():
                     "batch": a.batch,
                     "cache": a.cache,
                     "concurrency": a.concurrency,
-                    "clips": manifest(a.batch),
+                    "start_video": a.start_video,
+                    "end_video": a.end_video,
+                    "clips": manifest(a.batch, a.start_video, a.end_video),
                     "writes": False,
                     "model_calls": 0,
                 },
@@ -660,7 +672,10 @@ def main():
             return recover(a, folder)
         if a.command == "resume":
             m = read(folder / "manifest.json")
-            a.batch, a.cache, a.base = m["batch"], m["cache"], m["base"]
+            a.batch = m.get("batch") or 1
+            a.start_video = m.get("start_video")
+            a.end_video = m.get("end_video")
+            a.cache, a.base = m["cache"], m["base"]
 
         def stop(signum, frame):
             STOP.set()

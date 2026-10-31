@@ -276,7 +276,7 @@ function ConsoleView() {
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 flex-col">
             <div className="flex items-center gap-1.5">
-              <h2 className="lt-card-title whitespace-nowrap">Review queue</h2>
+              <h2 className="lt-card-title whitespace-nowrap">Console</h2>
               <span
                 className="rounded-full bg-[var(--color-surface-2)] px-1.5 text-[11px] font-semibold leading-[18px] tabular-nums text-muted-foreground"
                 aria-label={`${total} ticket${total === 1 ? "" : "s"}`}
@@ -392,7 +392,7 @@ function ConsoleView() {
 
   if (eventsError) {
     return (
-      <AppShell section="Review queue">
+      <AppShell section="Console">
         <ErrorState
           title="Events unavailable"
           description="The server did not return any events."
@@ -402,11 +402,11 @@ function ConsoleView() {
   }
 
   return (
-    <AppShell section="Review queue" fluid>
+    <AppShell section="Console" fluid>
       {isDesktop ? (
         // Fixed-height grid: the queue column scrolls its list with the pager
         // pinned; the workspace lays out its own columns and scroll areas.
-        <div className="grid min-h-0 flex-1 grid-cols-[15rem_minmax(0,1fr)] gap-4 xl:grid-cols-[17rem_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-[12rem_minmax(0,1fr)] gap-3 xl:grid-cols-[15rem_minmax(0,1fr)] xl:gap-4 2xl:grid-cols-[17rem_minmax(0,1fr)]">
           <div className="min-h-0 overflow-hidden rounded-xl border border-border bg-card">
             {queuePanel}
           </div>

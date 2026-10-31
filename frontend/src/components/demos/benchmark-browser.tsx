@@ -26,25 +26,18 @@ export interface GalleryClip {
   status: ClipStatus;
 }
 const pairByHash = new Map(
-  BENCHMARK_PAIRS.filter((pair) => Number(pair.pairNumber) <= 25).map((pair) => [
+  BENCHMARK_PAIRS.map((pair) => [
     pair.contentHash,
     pair,
   ]),
 );
 export const GALLERY_CLIPS: GalleryClip[] = manifest.videos.map((video) => {
-  const isBatch1 = Number(video.id) <= 25;
-  const pair = isBatch1 ? pairByHash.get(video.sha256) : undefined;
+  const pair = pairByHash.get(video.sha256);
   return {
     id: video.id,
     url: video.url,
     pair,
-    status: isBatch1
-      ? pair
-        ? "processed"
-        : video.id === "004"
-          ? "no-truck"
-          : "pending"
-      : "unprocessed",
+    status: pair ? "processed" : video.id === "004" ? "no-truck" : "unprocessed",
   };
 });
 const STATUS: Record<ClipStatus, string> = {
@@ -58,7 +51,8 @@ export function filterClips(clips: GalleryClip[], filter: Filter, query: string)
   const q = query.trim().toLowerCase();
   return clips.filter(
     (clip) =>
-      (filter === "all" || (filter === "batch" ? Number(clip.id) <= 25 : Number(clip.id) > 25)) &&
+      (filter === "all" ||
+        (filter === "batch" ? Number(clip.id) <= 25 : Number(clip.id) > 25)) &&
       (!q ||
         `${clip.id} ${clip.pair?.truckId ?? ""} ${clip.pair?.debrisLabel ?? ""} ${STATUS[clip.status]}`
           .toLowerCase()
@@ -91,8 +85,8 @@ export function BenchmarkBrowser() {
         >
           {(
             [
-              ["batch", "Latest batch", 25],
-              ["unprocessed", "Unprocessed", 25],
+              ["batch", "Dataset 1 (001–025)", 25],
+              ["unprocessed", "Dataset 2 (026–050)", 25],
               ["all", "All", 50],
             ] as const
           ).map(([value, label, count]) => (

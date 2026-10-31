@@ -44,7 +44,6 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
   return (
     <div className="@container flex h-full min-h-0 flex-col gap-3">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">Check the footage against the estimate.</p>
         <button
           type="button"
           aria-expanded={detailsOpen}
@@ -62,10 +61,10 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
         className={cn(
           "lt-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto",
           detailsOpen &&
-            "@[48rem]:grid @[48rem]:grid-cols-[minmax(0,1fr)_20rem] @[48rem]:overflow-hidden",
+            "@[32rem]:grid @[32rem]:grid-cols-[minmax(0,1fr)_minmax(13rem,36%)] @[32rem]:overflow-hidden",
         )}
       >
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 @[42rem]:overflow-y-auto">
+        <div className="flex min-h-0 min-w-0 flex-none flex-col gap-3 @[32rem]:min-h-0 @[32rem]:overflow-y-auto">
           <TicketSummary ticket={ticket} nav={nav} />
           {ticket.anomaly_count > 0 && (
             <button
@@ -87,7 +86,7 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
           <aside
             id="review-details"
             aria-label="Analysis and checks"
-            className="lt-scroll flex min-h-0 min-w-0 shrink-0 flex-col gap-3 overflow-y-auto @[48rem]:shrink"
+            className="lt-scroll flex min-h-0 min-w-0 shrink-0 flex-col gap-3 overflow-y-auto @[32rem]:shrink"
           >
             <AiAnalysisCard ticketId={ticket.id} />
             <CollapsibleSectionCard
@@ -182,7 +181,7 @@ function AiAnalysisCard({ ticketId }: { ticketId: string }) {
   const [selectedStageIndex, setSelectedStageIndex] = useState(0);
 
   return (
-    <section className="lt-card-shadow flex shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] @[42rem]:min-h-0 @[42rem]:flex-[1_1_auto]">
+    <section className="lt-card-shadow flex shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] @[32rem]:min-h-0 @[32rem]:flex-[1_1_auto]">
       <header className="lt-card-head min-w-0 shrink-0 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <span className="grid size-6 shrink-0 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
           <SparklesIcon size={14} />

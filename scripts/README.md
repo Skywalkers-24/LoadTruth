@@ -71,9 +71,17 @@ scripts/reprocess-benchmark-batch.sh resume --run-id fill-v2-b1 \
 # Offline reports, optionally compared against independently measured reference percentages.
 scripts/reprocess-benchmark-batch.sh report --run-id fill-v2-b1
 scripts/reprocess-benchmark-batch.sh report --run-id fill-v2-b1 --truth data_bench/reference.csv
+
+# Process a larger contiguous range as one checkpointed job. Raise local backend
+# worker count separately so CPU-bound response parsing can use multiple cores.
+BACKEND_WORKERS=10 docker compose up -d --force-recreate backend
+scripts/reprocess-benchmark-batch.sh plan --start-video 26 --end-video 50 --concurrency 25
+scripts/reprocess-benchmark-batch.sh run --run-id fill-v2-026-050 \
+  --start-video 26 --end-video 50 --cache fresh --concurrency 25 \
+  --token-file /private/tmp/loadtruth-token
 ```
 
-Reference CSV columns are `video,fill_pct`, with video numbers 1–25. Reports contain
+Reference CSV columns are `video,fill_pct`, with video numbers 1–50. Reports contain
 per-video fill, status, ticket ID, elapsed ingest time, models, token counts and persisted stage costs, plus MAE
 when reference values are supplied. Unknown/failed request charges are **not** counted as
 zero spend: `recorded_cost_usd` covers only available successful-stage traces. Inspect raw
@@ -84,7 +92,7 @@ reused. Reuse is not an accuracy evaluation of a new prompt: old cached results 
 and cache misses/staleness checks or explanation calls can still spend credits. A fresh
 experiment needs a new descriptive run ID. A run's cache mode, source hashes, runtime model
 configuration and prompt fingerprints are frozen; changed runtime/input refuses resume.
-Concurrency is adjustable from 1 to 5 to balance local memory and provider rate limits.
+Concurrency is adjustable from 1 to 25 to balance local memory and provider rate limits.
 `TOKEN`, `BASE`, `BATCH`, `CONCURRENCY`, `CACHE_MODE`, `EVENT_ID`, `RATE_EVENT_ID`, `RUN_ID`,
 and `RUN_ROOT` remain supported as environment variables. Default artifacts live under
 `logs/reprocess-batches/<run-id>/` with private file permissions. Old one-shot directories

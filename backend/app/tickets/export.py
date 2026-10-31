@@ -63,6 +63,7 @@ def audit_packet_html(
     event_location: str | None,
     tickets: list[Ticket],
     accuracy_within_10pct: float | None,
+    provenance_note: str | None = None,
 ) -> str:
     """Render a self-contained printable audit packet as HTML."""
     generated = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
@@ -76,6 +77,11 @@ def audit_packet_html(
         else "No monitor calls recorded yet, so monitor agreement cannot be reported."
     )
     loc = html.escape(event_location or "")
+    provenance = (
+        f'<p class="stmt"><strong>Dataset provenance.</strong> {html.escape(provenance_note)}</p>'
+        if provenance_note
+        else ""
+    )
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <title>LoadTruth audit packet: {html.escape(event_name)}</title>
@@ -91,6 +97,7 @@ def audit_packet_html(
 </style></head><body>
 <h1>LoadTruth audit packet</h1>
 <div class="muted">{html.escape(event_name)}{" · " + loc if loc else ""}</div>
+{provenance}
 <div class="muted">Generated {generated} · {len(tickets)} tickets</div>
 <div class="total">Disputed volume flagged: ${total_delta:,.2f}</div>
 <table>

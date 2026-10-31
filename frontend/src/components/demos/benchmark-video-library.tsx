@@ -16,7 +16,7 @@ import { useInView } from "@/lib/use-in-view";
 import { cn } from "@/lib/utils";
 import { getVideoVariantUrl, useVideoQuality } from "@/lib/video-quality";
 
-/** Source footage awaiting batch processing (without masks yet) */
+/** Source footage without saved ticket and SAM evidence. */
 export function BenchmarkVideoLibrary({
   className,
   videos = manifest.videos,
@@ -30,10 +30,10 @@ export function BenchmarkVideoLibrary({
         <div className="flex items-center gap-2">
           <span className="flex size-2 rounded-full bg-amber-500 animate-pulse" />
           <span className="font-semibold text-foreground">
-            {videos.length} Unprocessed Source Clips
+            {videos.length} Source Clips Without Saved Masks
           </span>
           <span className="text-muted-foreground hidden sm:inline">
-            · Awaiting batch processing (no masks recorded yet)
+            · No saved analysis is available yet
           </span>
         </div>
         <Link
@@ -107,7 +107,7 @@ function BenchmarkClip({ video }: { video: (typeof manifest.videos)[number] }) {
           <span className="font-semibold text-foreground">Clip {video.id}</span>
         </div>
         <span className="rounded bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20">
-          No mask yet
+          No saved masks
         </span>
       </div>
 
@@ -134,7 +134,7 @@ function BenchmarkClip({ video }: { video: (typeof manifest.videos)[number] }) {
                 setIsPlaying(false);
                 setHasEnded(true);
               }}
-              aria-label={`Unprocessed benchmark clip ${video.id}`}
+              aria-label={`Benchmark source clip ${video.id}`}
               className="size-full object-cover"
             />
 

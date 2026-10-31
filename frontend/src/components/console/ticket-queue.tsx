@@ -7,7 +7,7 @@ import { percent, relativeTime, signedMoney } from "@/lib/format";
 import { shortId } from "@/components/console/ticket-metadata";
 
 /**
- * Review queue. Each row leads with the unique ticket ID (a truck appears on
+ * Console queue. Each row leads with the unique ticket ID (a truck appears on
  * many tickets), shows truck, debris, and capture time, a compact fill gauge
  * comparing measured fill with the monitor's call, and the dollar delta.
  */
@@ -24,7 +24,7 @@ export function TicketQueue({
   showStatus?: boolean;
 }) {
   return (
-    <ul className="flex flex-col gap-1.5" role="listbox" aria-label="Review queue">
+    <ul className="flex flex-col gap-1.5" role="listbox" aria-label="Console tickets">
       {tickets.map((t) => (
         <TicketRow
           key={t.id}
