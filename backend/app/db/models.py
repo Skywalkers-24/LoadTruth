@@ -100,7 +100,7 @@ class Ticket(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
     delta_cubic_yards: Mapped[Decimal | None] = mapped_column(_CY, nullable=True)
     delta_dollar_value: Mapped[Decimal | None] = mapped_column(_USD, nullable=True)
 
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="draft")
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="confirmed")
     confirmed_fill_pct: Mapped[Decimal | None] = mapped_column(_PCT, nullable=True)
     evidence_frames: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
 

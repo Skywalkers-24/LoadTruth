@@ -305,10 +305,10 @@ function composedAnalysis(stage: PipelineStage): string {
       const truck = detail(stage, "clearest") ?? null;
       if (stage.status === "flagged") {
         parts.push(
-          "AI could not clearly read the truck number, so the ticket is flagged for review.",
+          "AI could not clearly read the truck placard, so the ticket is flagged for review.",
         );
       } else {
-        parts.push("AI read the truck number from the clearest video frame.");
+        parts.push("AI read the truck placard from the clearest video frame.");
       }
       if (conf) parts.push(`The reading has ${conf}.`);
       if (truck) parts.push(`The clearest view was at ${truck}.`);
@@ -335,7 +335,7 @@ function composedAnalysis(stage: PipelineStage): string {
       break;
     }
     case "spark_classify": {
-      parts.push("AI identified the load material to select the contract rate per cubic yard.");
+      parts.push("AI identified the debris type to select the contract rate per cubic yard.");
       if (conf) parts.push(`Classification confidence: ${conf}.`);
       break;
     }

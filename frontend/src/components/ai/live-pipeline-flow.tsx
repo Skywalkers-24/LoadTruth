@@ -196,7 +196,10 @@ function Flow({
         </p>
       )}
 
-      {run?.detail && run.outcome !== "drafted" && run.outcome !== "cached" && (
+      {run?.detail &&
+        run.outcome !== "created" &&
+        run.outcome !== "drafted" &&
+        run.outcome !== "cached" && (
         <p className="mt-2 text-[12px] text-[var(--color-warn)]">{run.detail}</p>
       )}
     </section>
@@ -205,10 +208,12 @@ function Flow({
 
 function outcomeTitle(run: PipelineProgress): string {
   switch (run.outcome) {
+    case "created":
+      return "Ticket created";
     case "drafted":
-      return "Ticket drafted";
+      return "Ticket created";
     case "cached":
-      return "Ticket drafted";
+      return "Ticket created";
     case "no_truck":
       return "No truck detected";
     case "failed":

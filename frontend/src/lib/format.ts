@@ -104,7 +104,7 @@ export function relativeTime(iso: string | null | undefined): string {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  draft: "Needs review",
+  draft: "Flagged for review",
   confirmed: "Confirmed",
   overridden: "Overridden",
   disputed: "Disputed",

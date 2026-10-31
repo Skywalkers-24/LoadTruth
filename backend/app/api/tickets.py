@@ -443,6 +443,7 @@ async def file_manual_monitor_report(
                 )
             )
             await repo.session.flush()
+            await repo.mark_for_review(tenant, ticket_id)
 
     ticket = await repo.get_ticket(tenant, ticket_id)
     await invalidate_cache_tags(f"event:{ticket.event_id}", f"tenant:{tenant}:billing")
@@ -575,6 +576,8 @@ async def transcribe_monitor_call(
             )
             recorded_flags.append(issue)
         await repo.session.flush()
+        if recorded_flags:
+            await repo.mark_for_review(tenant, ticket_id)
         updated_ticket = ticket_to_out(await repo.get_ticket(tenant, ticket_id))
         await invalidate_cache_tags(f"event:{updated_ticket.event_id}")
         flags = recorded_flags

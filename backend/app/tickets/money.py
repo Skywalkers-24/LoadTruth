@@ -91,9 +91,9 @@ def value_ticket(
 ) -> TicketValuation:
     """Compute LoadTruth's estimate, the monitor's call, and the signed delta.
 
-    ``monitor_fill_pct`` is optional: a ticket starts as a draft with only the
-    machine estimate, and the monitor's call (and thus the delta) is filled in
-    at review time. When it is ``None`` the monitor/delta fields are ``None``.
+    ``monitor_fill_pct`` is optional: a ticket starts with the machine estimate;
+    the monitor's call and delta are filled in if a call is recorded. When it is
+    ``None`` the monitor/delta fields are ``None``.
     """
     cert = _d(certified_cubic_yards)
     rate = _d(rate_per_cy)

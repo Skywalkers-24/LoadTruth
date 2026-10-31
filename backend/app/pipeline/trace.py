@@ -70,7 +70,7 @@ class PipelineTrace:
     content_hash: str
     stages: list[StageRecord] = field(default_factory=list)
     started_at: float = field(default_factory=time.time)
-    # Populated once the ticket is drafted / the run resolves.
+    # Populated once a ticket is created / the run resolves.
     ticket_id: str | None = None
     truck_id: str | None = None
     debris_class: str | None = None
@@ -78,7 +78,7 @@ class PipelineTrace:
     dollar_value: float | None = None
     delta_dollar_value: float | None = None
     anomaly_count: int = 0
-    outcome: str = "running"  # "running" | "drafted" | "no_truck" | "cached"
+    outcome: str = "running"  # "running" | "created" | "no_truck" | "cached"
     cached: bool = False
     _t0: float = field(default_factory=time.perf_counter)
     # Optional sink called with each StageRecord the instant it is recorded, so
@@ -211,7 +211,7 @@ class ProgressSnapshot:
     content_hash: str
     status: str  # "running" | "done"
     stages: list[StageRecord] = field(default_factory=list)
-    outcome: str | None = None  # "drafted" | "cached" | "no_truck" | "failed"
+    outcome: str | None = None  # "created" | "cached" | "no_truck" | "failed"
     ticket_id: str | None = None
     truck_id: str | None = None
     detail: str | None = None

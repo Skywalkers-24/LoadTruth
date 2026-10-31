@@ -231,7 +231,7 @@ async def _persisted_jobs(
                 ticket_id=str(t.id),
                 truck_id=t.truck_id,
                 debris_class=t.debris_class.value,
-                outcome="drafted",
+                outcome="created",
                 cached=False,
                 anomaly_count=t.anomaly_count,
                 dollar_value=float(t.est_dollar_value),

@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     template: "%s · LoadTruth",
   },
   description:
-    "LoadTruth helps disaster-debris teams review truck footage, Muse visual fill estimates, SAM tracking evidence, and draft cubic-yard tickets.",
+    "LoadTruth helps disaster-debris teams review truck footage, fill estimates, flagged issues, and cubic-yard tickets.",
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },

@@ -2,7 +2,7 @@
 
 Ties the deterministic stages (ingest/hash, geometry, capacity, dollar math,
 anomaly rules) to the AI seam (SAM tracking, Spark OCR/classification) and
-produces a draft ticket + its anomalies. Under MOCK_AI the AI calls resolve from
+produces a ticket + any review flags. Under MOCK_AI the AI calls resolve from
 fixtures, so the whole flow runs end-to-end at $0.
 
 The orchestrator is pure application logic: it takes an ingested artifact and the
@@ -33,7 +33,7 @@ from app.pipeline.ledger import BudgetExceededError, CostLedger
 from app.pipeline.registry import TruckRegistry
 from app.pipeline.trace import PipelineTrace, StageRecord
 from app.tickets.domain import Ticket, new_ticket
-from app.tickets.schemas import DebrisClass
+from app.tickets.schemas import DebrisClass, TicketStatus
 
 # Stage names used in the cost ledger (also the dashboard's per-stage buckets).
 _AI_STAGES = ("sam_track", "spark_ocr", "spark_classify")
@@ -65,7 +65,7 @@ async def run_pipeline(
     data: bytes = b"",
     on_stage: Callable[[StageRecord], None] | None = None,
 ) -> PipelineResult:
-    """Run the full pipeline for one ingested clip and return a draft ticket.
+    """Run the full pipeline for one clip and return a final or review ticket.
 
     ``data`` is the clip's bytes; the live client sends them to Meta (the mock
     and the durable cache only need the content hash, so tests may omit them).
@@ -117,7 +117,13 @@ async def run_pipeline(
             # cached measurement into a fresh ticket identity instead of
             # reusing its primary key. Clone the result too: the in-memory
             # cache may return its stored object by reference.
-            ticket = replace(hit.ticket, id=uuid4(), created_at=datetime.now(UTC))
+            ticket = replace(
+                hit.ticket,
+                id=uuid4(),
+                created_at=datetime.now(UTC),
+                status=TicketStatus.DRAFT if hit.anomalies else TicketStatus.CONFIRMED,
+                confirmed_fill_pct=None if hit.anomalies else hit.ticket.est_fill_pct,
+            )
             trace.ticket_id = str(ticket.id) if not hit.no_truck else None
             return replace(hit, ticket=ticket, trace=trace)
 
@@ -364,6 +370,9 @@ async def _compute_pipeline(
     anomalies, narration_usage = await _narrate(anomalies, ai, ticket, ocr)
     await _record(ledger, "anomalies", narration_usage)
     ticket.anomaly_count = len(anomalies)
+    if anomalies:
+        ticket.status = TicketStatus.DRAFT
+        ticket.confirmed_fill_pct = None
     if trace:
         # Stage 6 — Flag anomalies (recorded before the Stage 7 valuation).
         trace.stage(
@@ -405,7 +414,7 @@ async def _compute_pipeline(
             float(ticket.delta_dollar_value) if ticket.delta_dollar_value is not None else None
         )
         trace.anomaly_count = len(anomalies)
-        trace.outcome = "drafted"
+        trace.outcome = "created"
         # Muse Spark authors the "AI analysis" paragraph for the stages that do
         # not already return their own (SAM track, capacity, geometry, anomaly
         # flags, valuation), grounded in the measured facts. One batched call,

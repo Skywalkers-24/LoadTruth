@@ -36,7 +36,7 @@ export function AssistantWidget({ page }: { page?: string }) {
   return (
     <>
       {/* Panel */}
-      {open && isAdministrator && (
+      {open && member && (
         <div
           role="dialog"
           aria-label="AI assistant"
@@ -51,7 +51,11 @@ export function AssistantWidget({ page }: { page?: string }) {
               <span className="truncate text-[11px] text-muted-foreground">
                 {[
                   page ? `On ${page}` : null,
-                  selected?.name ? `Grounded in ${selected.name}` : "Read-only",
+                  selected?.name
+                    ? isAdministrator
+                      ? `AI-assisted · ${selected.name}`
+                      : `Saved data only · ${selected.name}`
+                    : "Read-only",
                 ]
                   .filter(Boolean)
                   .join(" · ")}
@@ -99,20 +103,16 @@ export function AssistantWidget({ page }: { page?: string }) {
         )}
         <button
           type="button"
-          disabled={!isAdministrator}
+          disabled={!member}
           onClick={() => {
-            if (isAdministrator) setOpen((v) => !v);
+            if (member) setOpen((v) => !v);
           }}
           aria-label={open ? "Close AI assistant" : "Open AI assistant"}
           aria-expanded={open}
-          title={
-            isAdministrator
-              ? "Open AI assistant"
-              : "The AI assistant is available in Administrator mode only"
-          }
+          title={member ? "Open AI assistant" : "Sign in to ask about saved event data"}
           className={cn(
             "relative grid size-11 place-items-center rounded-full text-white shadow-lg transition-[transform,box-shadow] duration-200",
-            isAdministrator
+            member
               ? "bg-[linear-gradient(140deg,var(--color-brand-strong),var(--color-brand-fill))] hover:scale-[1.03] hover:shadow-xl"
               : "cursor-not-allowed bg-muted text-muted-foreground opacity-70",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]",

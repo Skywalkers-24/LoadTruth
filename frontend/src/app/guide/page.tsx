@@ -126,7 +126,7 @@ const TERMS = [
   ],
   [
     "Muse Spark",
-    "Meta's AI that reads the truck number, identifies the material, and estimates fill from selected video images.",
+    "Meta's AI that reads the truck placard, identifies debris, and estimates fill from selected video images.",
   ],
   [
     "Video outline",
@@ -456,8 +456,8 @@ export default function GuidePage() {
                     around the bed and debris across video frames.
                   </>,
                   <>
-                    <strong>Read truck number.</strong> The AI reads the number shown on the truck.
-                    An unclear reading needs a person to check it.
+                    <strong>Read the truck placard.</strong> The AI reads the placard shown on the
+                    truck. An unclear reading needs a person to check it.
                   </>,
                   <>
                     <strong>Find truck capacity.</strong> The truck ID is matched to the registry to

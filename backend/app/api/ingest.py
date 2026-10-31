@@ -1,8 +1,8 @@
-"""Ingest API — upload evidence, run the pipeline, persist a draft ticket.
+"""Ingest API — upload evidence, run the pipeline, and save a ticket.
 
 POST /events/{event_id}/ingest accepts a video/image upload, runs the full
 pipeline (SAM/Spark via the AI seam — fixtures under MOCK_AI), and persists the
-resulting draft ticket + anomalies. Returns the new ticket (or 422 when no truck
+resulting ticket + review flags. Returns the new ticket (or 422 when no truck
 is found in the footage).
 """
 
@@ -207,7 +207,7 @@ async def ingest_clip(
         ),
     ),
 ) -> TicketOut:
-    """Ingest one clip/image and return the drafted ticket.
+    """Ingest one clip/image and return the created ticket.
 
     ``bypass_cache`` forces a live run: the result cache and the
     durable per-stage cache are both skipped, so the vision models are actually
@@ -370,7 +370,7 @@ async def ingest_clip(
             )
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail + " No ticket was drafted.",
+                detail + " No ticket was created.",
             )
 
         try:
@@ -404,11 +404,11 @@ async def ingest_clip(
         except Exception as exc:  # noqa: BLE001 — return a clean failure and close progress.
             log.error("ingest_persistence_failed", content_hash=ch, exc_info=True)
             await progress.finish(
-                event_id, ch, outcome="failed", detail="The drafted ticket could not be saved."
+                event_id, ch, outcome="failed", detail="The ticket could not be saved."
             )
             raise HTTPException(
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
-                "The drafted ticket could not be saved. Please try the upload again.",
+                "The ticket could not be saved. Please try the upload again.",
             ) from exc
 
         if result.trace is not None:
@@ -417,7 +417,7 @@ async def ingest_clip(
         await progress.finish(
             event_id,
             ch,
-            outcome="cached" if result.trace is not None and result.trace.cached else "drafted",
+            outcome="cached" if result.trace is not None and result.trace.cached else "created",
             ticket_id=str(saved.id),
             truck_id=saved.truck_id,
         )

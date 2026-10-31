@@ -33,7 +33,7 @@ class DebrisClass(StrEnum):
 
 
 class TicketStatus(StrEnum):
-    """Lifecycle of a load ticket. A ticket is a draft until a human confirms."""
+    """Ticket decision; only tickets needing attention stay in review."""
 
     DRAFT = "draft"
     CONFIRMED = "confirmed"

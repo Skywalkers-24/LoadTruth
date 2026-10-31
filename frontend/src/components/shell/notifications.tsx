@@ -77,7 +77,7 @@ export function Notifications() {
           className="lt-card-shadow absolute right-0 top-full z-40 mt-2 w-[min(92vw,340px)] overflow-hidden rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)]"
         >
           <div className="flex items-center justify-between border-b border-[var(--color-border)] px-3 py-2.5">
-            <span className="text-[13px] font-semibold text-[var(--color-text)]">Needs review</span>
+            <span className="text-[13px] font-semibold text-[var(--color-text)]">Flagged for review</span>
             <span className="text-[11px] tabular-nums text-[var(--color-subtle)]">
               {pending} pending
             </span>

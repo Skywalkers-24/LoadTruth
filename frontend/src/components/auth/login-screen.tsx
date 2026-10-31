@@ -42,13 +42,13 @@ const ROLE_BLURB: Record<Role, string> = {
 };
 
 const LOGIN_FEATURES: { icon: ReactNode; title: string; subtitle: string }[] = [
-  { icon: <ScanEyeIcon size={18} />, title: "Truck & load", subtitle: "Video outlines" },
-  { icon: <DollarSignIcon size={18} />, title: "Load estimate", subtitle: "Based on footage" },
-  { icon: <ShieldAlertIcon size={18} />, title: "Review flags", subtitle: "Issues to check" },
   { icon: <SparklesIcon size={18} />, title: "AI assistant", subtitle: "Ask about a load" },
+  { icon: <MicIcon size={18} />, title: "Voice reports", subtitle: "Monitor calls" },
+  { icon: <DollarSignIcon size={18} />, title: "Load estimate", subtitle: "Debris fill" },
+  { icon: <ShieldAlertIcon size={18} />, title: "Review flags", subtitle: "Issues to check" },
+  { icon: <BuildingIcon size={18} />, title: "Multi-tenant", subtitle: "Separate workspaces" },
   { icon: <FileCheck2Icon size={18} />, title: "Audit reports", subtitle: "Review records" },
-  { icon: <BuildingIcon size={18} />, title: "Workspaces", subtitle: "Access by role" },
-  { icon: <MicIcon size={18} />, title: "Voice reports", subtitle: "Administrator only" },
+  { icon: <ScanEyeIcon size={18} />, title: "Evidence", subtitle: "Saved video" },
 ];
 
 /**
@@ -132,7 +132,7 @@ export function LoginScreen() {
           <div className="relative flex max-w-md flex-col gap-3.5 [text-shadow:0_2px_18px_rgba(0,0,0,0.85),0_1px_3px_rgba(0,0,0,0.9)]">
             <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-sm [text-shadow:none]">
               <span className="size-1.5 rounded-full bg-[var(--color-brand)]" aria-hidden />
-              Video-backed load review
+              Evidence-backed load review
             </span>
             {/* Highlighted headline: brighter, heavier, with a glow so it pops
                 over the footage. */}
@@ -170,7 +170,7 @@ export function LoginScreen() {
         <div className="absolute right-5 top-5 z-10">
           <ThemeToggle />
         </div>
-        <div className="login-screen-content flex w-full max-w-3xl flex-col gap-4">
+        <div className="login-screen-content flex w-full max-w-5xl flex-col gap-4">
           <div className="login-screen-card mx-auto w-full max-w-md rounded-2xl border border-border bg-[var(--color-surface)]/90 p-6 shadow-xl backdrop-blur-xl sm:p-7">
             <div className="mb-6 flex items-center gap-3 lg:hidden">
               <LogoMark size={40} />
@@ -280,19 +280,19 @@ export function LoginScreen() {
               </Link>
             </div>
           </div>
-          <ul className="grid grid-cols-2 gap-2 min-[480px]:grid-cols-3 lg:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-1.5 min-[480px]:grid-cols-3 lg:grid-cols-7">
             {LOGIN_FEATURES.map((feature) => (
               <li
                 key={feature.title}
-                className="flex min-w-0 flex-col items-center gap-2 rounded-xl border border-border bg-[var(--color-surface)]/80 px-2 py-3 text-center backdrop-blur-sm"
+                className="flex min-w-0 flex-col items-center gap-1 rounded-xl border border-border bg-[var(--color-surface)]/80 px-1 py-2 text-center backdrop-blur-sm"
               >
-                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
+                <span className="grid size-7 shrink-0 place-items-center rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
                   {feature.icon}
                 </span>
-                <span className="text-[13px] font-semibold leading-tight text-foreground">
+                <span className="text-[11px] font-semibold leading-tight text-foreground">
                   {feature.title}
                 </span>
-                <span className="text-[12px] leading-tight text-muted-foreground">
+                <span className="text-[10px] leading-tight text-muted-foreground">
                   {feature.subtitle}
                 </span>
               </li>

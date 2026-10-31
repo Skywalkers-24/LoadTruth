@@ -11,7 +11,7 @@ export type StatusFilter = TicketStatus | "all";
 export type SortKey = "newest" | "delta" | "severity";
 
 const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
-  { value: "draft", label: "Needs review" },
+  { value: "draft", label: "Flagged for review" },
   { value: "all", label: "All" },
   { value: "confirmed", label: "Confirmed" },
   { value: "overridden", label: "Overridden" },

@@ -476,7 +476,7 @@ export interface PipelineJob {
   ticket_id: string | null;
   truck_id: string | null;
   debris_class: string | null;
-  outcome: "running" | "drafted" | "no_truck" | "cached";
+  outcome: "running" | "created" | "drafted" | "no_truck" | "cached";
   cached: boolean;
   anomaly_count: number;
   dollar_value: number | null;
@@ -855,7 +855,7 @@ export interface PipelineProgress {
   event_id: string;
   content_hash: string;
   status: "running" | "done";
-  outcome: "drafted" | "cached" | "no_truck" | "failed" | null;
+  outcome: "created" | "drafted" | "cached" | "no_truck" | "failed" | null;
   ticket_id: string | null;
   truck_id: string | null;
   detail: string | null;

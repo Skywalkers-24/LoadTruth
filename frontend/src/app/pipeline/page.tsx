@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 const JOBS_PAGE_SIZE = 20;
 
 const OUTCOME_TONE = {
+  created: "ok",
   drafted: "ok",
   cached: "info",
   no_truck: "warn",
@@ -35,7 +36,8 @@ const OUTCOME_TONE = {
 } as const;
 
 const OUTCOME_LABEL = {
-  drafted: "Drafted",
+  created: "Created",
+  drafted: "Created",
   cached: "Cached",
   no_truck: "No truck",
   running: "Running",

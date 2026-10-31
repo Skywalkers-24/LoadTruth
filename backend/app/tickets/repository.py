@@ -379,6 +379,17 @@ class SqlTicketRepository:
                 if row.monitor_call_fill_pct is not None
                 else row.est_fill_pct
             )
+        elif status in (TicketStatus.DRAFT, TicketStatus.DISPUTED):
+            row.confirmed_fill_pct = None
+        await self._s.flush()
+        return await self.get_ticket(tenant_id, ticket_id)
+
+    async def mark_for_review(self, tenant_id: UUID, ticket_id: UUID) -> Ticket:
+        """Reopen a finalized ticket after a new monitor issue is filed."""
+        row = await self._get_row(tenant_id, ticket_id)
+        if row.status in (TicketStatus.CONFIRMED.value, TicketStatus.OVERRIDDEN.value):
+            row.status = TicketStatus.DRAFT.value
+            row.confirmed_fill_pct = None
         await self._s.flush()
         return await self.get_ticket(tenant_id, ticket_id)
 
@@ -812,7 +823,7 @@ class SqlTicketRepository:
         await self._s.flush()
 
     async def add_from_pipeline(self, ticket: Ticket, anomalies: list[object]) -> Ticket:
-        """Persist a pipeline-produced draft ticket and its anomalies.
+        """Persist a pipeline-produced ticket and its review flags.
 
         ``anomalies`` items expose ``.type``, ``.severity``, ``.explanation``,
         ``.evidence_frame`` (the Stage-6 Anomaly dataclass).
@@ -829,6 +840,7 @@ class SqlTicketRepository:
             est_cubic_yards=ticket.est_cubic_yards,
             est_dollar_value=ticket.est_dollar_value,
             status=ticket.status.value,
+            confirmed_fill_pct=ticket.confirmed_fill_pct,
             evidence_frames=list(ticket.evidence_frames),
         )
         self._s.add(row)

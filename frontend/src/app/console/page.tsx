@@ -64,7 +64,7 @@ function ConsoleView() {
   // Judge mode opens on the headline over-call: show every ticket, sorted by
   // dollar delta, so the pinned result is the first row (Winner.md B7).
   const judge = isJudgeMode();
-  const [status, setStatus] = useState<StatusFilter>(judge ? "all" : "draft");
+  const [status, setStatus] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>(judge ? "delta" : "newest");
   // One-shot: auto-select the pinned (or highest-delta) ticket on first load.
@@ -247,7 +247,7 @@ function ConsoleView() {
         }
       : undefined;
 
-  const filtersActive = status !== "draft" || sort !== "newest";
+  const filtersActive = status !== "all" || sort !== "newest";
 
   // J/K and arrow-key navigation through the queue.
   useEffect(() => {

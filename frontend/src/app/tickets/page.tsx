@@ -85,7 +85,7 @@ function TicketList({ eventId }: { eventId: string | undefined }) {
               className="h-9 rounded-md border border-border bg-background px-3 text-foreground"
             >
               <option value="all">All tickets</option>
-              <option value="draft">Draft</option>
+              <option value="draft">Flagged for review</option>
               <option value="confirmed">Confirmed</option>
               <option value="overridden">Overridden</option>
               <option value="disputed">Disputed</option>

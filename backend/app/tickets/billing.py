@@ -26,8 +26,8 @@ from app.tickets.schemas import TicketStatus
 
 _ZERO = Decimal(0)
 
-# Statuses whose amount is settled (the monitor has accepted the load). Draft
-# and disputed amounts are "pending" — billed as expected, not yet final.
+# Statuses whose amount is settled. Review-flagged and disputed amounts remain
+# pending until a monitor resolves the issue.
 _FINAL_STATUSES = frozenset({TicketStatus.CONFIRMED, TicketStatus.OVERRIDDEN})
 
 

@@ -35,11 +35,11 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
     label: "Read truck number",
     model: "Meta Muse Spark 1.3",
     status: "pending",
-    summary: "AI reads the truck number shown in the video.",
+    summary: "AI reads the truck placard.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "AI reads the truck number from the clearest video frame so the load can be matched to the right truck and hauler in county records.",
+      "AI reads the truck placard from the clearest video frame so the load can be matched to the right truck and hauler in county records.",
     details: [
       ["AI Model", "Meta Muse Spark 1.3 Vision-Language"],
       ["Where it appears", "Truck door, side label, or trailer"],
@@ -83,11 +83,11 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
     label: "Identify material",
     model: "Meta Muse Spark 1.3",
     status: "pending",
-    summary: "AI identifies the load material to apply the correct rate.",
+    summary: "AI identifies the debris type to apply the correct rate.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "AI reviews the video to identify the load material, such as branches, construction debris, or bulky items. This selects the contract rate per cubic yard.",
+      "AI reviews the video to identify the debris type, such as branches, construction debris, or bulky items. This selects the contract rate per cubic yard.",
     details: [
       ["AI Model", "Meta Muse Spark 1.3 Visual Reasoning"],
       ["Common Categories", "Vegetative / Trees, Construction & Demolition, Bulky Goods"],

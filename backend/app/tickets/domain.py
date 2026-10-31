@@ -67,7 +67,7 @@ class Ticket:
     delta_cubic_yards: Decimal | None = None
     delta_dollar_value: Decimal | None = None
 
-    status: TicketStatus = TicketStatus.DRAFT
+    status: TicketStatus = TicketStatus.CONFIRMED
     confirmed_fill_pct: Decimal | None = None
     evidence_frames: list[str] = field(default_factory=list)
 
@@ -134,4 +134,6 @@ def new_ticket(
         delta_dollar_value=v.delta_dollar_value,
         evidence_frames=evidence_frames or [],
         anomaly_count=anomaly_count,
+        status=TicketStatus.CONFIRMED,
+        confirmed_fill_pct=v.monitor_fill_pct if v.monitor_fill_pct is not None else v.est_fill_pct,
     )

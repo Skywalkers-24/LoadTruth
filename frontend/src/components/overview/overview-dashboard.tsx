@@ -10,8 +10,8 @@ import {
 } from "lucide-react";
 
 import type { Dashboard, ReportsSummary, Ticket } from "@/lib/api";
-import { AreaTrend, type TrendPoint } from "@/components/ui/charts-v2";
-import type { ChartConfig } from "@/components/ui/shadcn/chart";
+import { MultiLineTrend } from "@/components/ui/charts-v2";
+import { TICKET_TREND_CONFIG, TicketTrendLegend, ticketTrend } from "@/components/overview/ticket-trend";
 import { Card } from "@/components/ui/shadcn/card";
 import { Button } from "@/components/ui/shadcn/button";
 import { Progress } from "@/components/ui/shadcn/progress";
@@ -26,10 +26,6 @@ const STATUS_COLOR: Record<string, string> = {
   confirmed: "var(--chart-2)",
   overridden: "var(--chart-3)",
   disputed: "var(--chart-5)",
-};
-
-const trendConfig: ChartConfig = {
-  value: { label: "Amount to review", color: "var(--chart-3)" },
 };
 
 /**
@@ -78,18 +74,17 @@ export function OverviewDashboard({
   const measuredValue = summary ? Number.parseFloat(summary.total_est_dollar_value) : null;
 
   const ordered = [...tickets].sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
-
-  const trend: TrendPoint[] = (() => {
+  const exposureSpark = (() => {
     let running = 0;
-    return ordered.map((t, i) => {
+    return ordered.map((t) => {
       if (t.valuation.is_overbill)
         running += Number.parseFloat(t.valuation.delta_dollar_value ?? "0");
-      return { label: `${i + 1}`, value: Math.round(running * 100) / 100, display: money(running) };
+      return Math.round(running * 100) / 100;
     });
   })();
+  const trend = ticketTrend(tickets);
 
   // Small sparkline series for the KPI cards, derived from real ticket order.
-  const exposureSpark = trend.map((p) => p.value);
   const measuredSpark = (() => {
     let run = 0;
     return ordered.map((t) => (run += Number.parseFloat(t.valuation.est_dollar_value ?? "0")));
@@ -144,6 +139,7 @@ export function OverviewDashboard({
         <StaggerItem className="h-full">
           <StatCard
             hero
+            compact
             tone="money"
             icon={<CircleDollarSignIcon className="size-4" />}
             label="Amount to review"
@@ -155,6 +151,7 @@ export function OverviewDashboard({
         </StaggerItem>
         <StaggerItem className="h-full">
           <StatCard
+            compact
             icon={<LayersIcon className="size-4" />}
             label="Estimated value"
             value={
@@ -171,6 +168,7 @@ export function OverviewDashboard({
         </StaggerItem>
         <StaggerItem className="h-full">
           <StatCard
+            compact
             tone="ok"
             icon={<CircleCheckIcon className="size-4" />}
             label="Review progress"
@@ -191,6 +189,7 @@ export function OverviewDashboard({
         </StaggerItem>
         <StaggerItem className="h-full">
           <StatCard
+            compact
             tone="primary"
             icon={<GaugeIcon className="size-4" />}
             label="Agreement with monitor"
@@ -215,21 +214,21 @@ export function OverviewDashboard({
       <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-3">
         {/* Left: exposure trend on top, breakdowns below */}
         <FadeIn className="flex min-h-0 flex-col gap-3 xl:col-span-2" delay={0.05}>
-          <Card className="flex min-h-0 flex-[3] flex-col gap-0 overflow-hidden py-0">
+          <Card className="flex min-h-[250px] max-h-[340px] flex-[2] flex-col gap-0 overflow-hidden py-0">
             <div className="flex items-baseline justify-between px-4 pt-3">
-              <h3 className="text-[13px] font-semibold">Amount to review over time</h3>
+              <h3 className="text-[13px] font-semibold">Ticket activity over time</h3>
               <span className="text-[11px] text-muted-foreground">
-                Running total of higher inspector estimates, by load
+                Cumulative tickets by upload order · hover for counts
               </span>
             </div>
             <div className="min-h-0 flex-1 px-2 pb-3">
-              <AreaTrend
+              <MultiLineTrend
                 data={trend}
-                config={trendConfig}
+                config={TICKET_TREND_CONFIG}
                 height="100%"
-                formatTick={(v) => (v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${Math.round(v)}`)}
               />
             </div>
+            <TicketTrendLegend />
           </Card>
 
           {/* Breakdown row: decision review, debris classes, anomaly severity */}

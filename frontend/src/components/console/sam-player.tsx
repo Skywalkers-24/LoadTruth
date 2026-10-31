@@ -482,7 +482,7 @@ export function SamPlayer({
         )}
       </div>
       {!isImage && url && !hideControls && (
-        <div className="absolute inset-x-0 bottom-0 z-20 flex min-h-11 items-center gap-2 border-t border-white/10 bg-black/90 px-3 py-2 text-white">
+        <div className="lt-evidence-transport absolute inset-x-0 bottom-0 z-20 flex min-h-11 items-center gap-2 border-t border-white/10 bg-black/90 px-3 py-2 text-white">
           <button
             type="button"
             aria-label={playing ? "Pause evidence" : "Play evidence"}

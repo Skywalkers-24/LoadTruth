@@ -64,14 +64,14 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
   }
 
   const viewer = (
-    <div className="flex shrink-0 flex-col @[42rem]:min-h-0 @[42rem]:flex-1">
+    <div className="flex shrink-0 flex-col">
       <div
         ref={viewerRef}
         data-expanded={expanded || undefined}
-        className="lt-evidence-viewer overflow-hidden rounded-lg border border-border @[42rem]:flex @[42rem]:min-h-0 @[42rem]:flex-1 @[42rem]:flex-col"
+        className="lt-evidence-viewer overflow-hidden rounded-lg border border-border"
       >
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-4 py-2">
-          <div className="flex items-center gap-2.5">
+        <div className="lt-evidence-header flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-4 py-2">
+          <div className="flex min-w-0 items-center gap-2.5">
             <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
               <CameraIcon size={15} className="text-muted-foreground" />
               Evidence
@@ -88,8 +88,8 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
             )}
           </div>
           {evidence?.has_media && (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5" role="group" aria-label="Outline layers">
+            <div className="lt-evidence-actions flex flex-wrap items-center gap-2">
+              <div className="lt-evidence-layers flex items-center gap-1.5" role="group" aria-label="Outline layers">
                 <button
                   type="button"
                   aria-pressed={layers.body}
@@ -172,7 +172,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
             </div>
           )}
         </div>
-        <div className="lt-evidence-media relative aspect-video max-h-[min(58vh,42rem)] min-h-[14rem] w-full shrink-0 overflow-hidden bg-black @[64rem]:min-h-[20rem] @[64rem]:flex-none @[64rem]:aspect-video">
+        <div className="lt-evidence-media relative w-full overflow-hidden bg-black">
           {query.isLoading ? (
             <div
               role="status"
@@ -203,6 +203,7 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
               videoUrl={evidence.media_url ?? benchmarkMediaUrl(ticket.id)}
               show={layers}
               autoPlay={false}
+              className="lt-evidence-player"
               onFrame={handleSamFrame}
             />
           ) : (

@@ -376,7 +376,7 @@ function Inspiration() {
                   The LoadTruth Approach
                 </span>
                 <h3 className="text-[17px] font-semibold text-foreground">
-                  Video-backed draft tickets
+                  Video-backed load tickets
                 </h3>
               </div>
             </div>
@@ -415,8 +415,8 @@ function Inspiration() {
                 <span className="mt-1 size-1.5 shrink-0 rounded-full bg-[var(--color-brand)]" />
                 <span>
                   <strong className="text-foreground">Records for audit review:</strong> Monitors
-                  check, confirm, or correct draft tickets. Reports can include the ticket and its
-                  supporting footage for agency review.
+                  check flagged tickets and raise a dispute when needed. Clean tickets are
+                  finalized automatically, and reports include the ticket and supporting footage.
                 </span>
               </li>
             </ul>
@@ -581,8 +581,8 @@ const STAGES: { n: number; title: string; body: string; icon: React.ReactNode }[
   },
   {
     n: 7,
-    title: "Check and draft",
-    body: "Standard checks run. The fill estimate and registered truck capacity are used to calculate estimated volume and value for a monitor to review.",
+    title: "Check and create",
+    body: "Standard checks run. Fill estimate and registered capacity calculate the volume and value. Tickets with issues are sent for review.",
     icon: <ShieldCheckIcon size={18} />,
   },
 ];
@@ -590,10 +590,10 @@ const STAGES: { n: number; title: string; body: string; icon: React.ReactNode }[
 function Anatomy() {
   return (
     <section className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
-      <h2 className="text-xl font-semibold">How a clip becomes a draft ticket</h2>
+      <h2 className="text-xl font-semibold">How a clip becomes a ticket</h2>
       <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">
         AI reviews the video; the system combines its fill estimates, applies event prices, and runs
-        checks. A monitor remains responsible for the final decision.
+        checks. Clean tickets are finalized automatically; anything flagged stays visible for review.
       </p>
       <ol className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {STAGES.map((s) => (

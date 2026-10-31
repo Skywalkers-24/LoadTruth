@@ -30,7 +30,7 @@ const TYPE_INTERVAL_MS = 20;
 const TYPE_CHARS_PER_TICK = 3;
 
 /**
- * Shared AI-analyst chat state + streaming. Powers both the full AI Analyst
+ * Shared analyst chat state + streaming. Powers both the full analyst
  * page and the floating console widget, so the two stay in sync and we don't
  * duplicate the SSE wiring. Each call site keeps its own message history.
  */
@@ -42,11 +42,12 @@ export function useAssistantChat(eventId: string | undefined, eventName?: string
     queryFn: getChatStarters,
     retry: false,
     staleTime: 5 * 60_000,
-    enabled: isAdministrator,
+    enabled: Boolean(member),
   });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [busy, setBusy] = useState(false);
   const abortRef = useRef<(() => void) | null>(null);
+  const eventRef = useRef(eventId);
   const pendingTextRef = useRef("");
   const streamDoneRef = useRef(false);
   const writerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -87,19 +88,32 @@ export function useAssistantChat(eventId: string | undefined, eventName?: string
   );
 
   useEffect(() => {
-    if (isAdministrator) return;
+    if (member) return;
     abortRef.current?.();
     stopWriter();
     pendingTextRef.current = "";
     streamDoneRef.current = false;
     setMessages([]);
     setBusy(false);
-  }, [isAdministrator, stopWriter]);
+  }, [member, stopWriter]);
+
+  // A conversation is scoped to one event. Clear it immediately when the
+  // workspace selector changes so prior-event answers cannot linger.
+  useEffect(() => {
+    if (eventRef.current === eventId) return;
+    eventRef.current = eventId;
+    abortRef.current?.();
+    stopWriter();
+    pendingTextRef.current = "";
+    streamDoneRef.current = false;
+    setMessages([]);
+    setBusy(false);
+  }, [eventId, stopWriter]);
 
   const ask = useCallback(
     (question: string) => {
       const q = question.trim();
-      if (!q || !eventId || !isAdministrator || busy) return;
+      if (!q || !eventId || !member || busy) return;
       setBusy(true);
       pendingTextRef.current = "";
       streamDoneRef.current = false;
@@ -135,9 +149,7 @@ export function useAssistantChat(eventId: string | undefined, eventName?: string
           },
           onDone: (suggestions, analysisMode) => {
             setMessages((m) =>
-              m.map((msg, i) =>
-                i === m.length - 1 ? { ...msg, suggestions, analysisMode } : msg,
-              ),
+              m.map((msg, i) => (i === m.length - 1 ? { ...msg, suggestions, analysisMode } : msg)),
             );
             streamDoneRef.current = true;
             startWriter();
@@ -158,7 +170,7 @@ export function useAssistantChat(eventId: string | undefined, eventName?: string
         },
       );
     },
-    [eventId, eventName, isAdministrator, busy, messages, startWriter, stopWriter],
+    [eventId, eventName, member, busy, messages, startWriter, stopWriter],
   );
 
   const reset = useCallback(() => {
@@ -176,7 +188,7 @@ export function useAssistantChat(eventId: string | undefined, eventName?: string
     ask,
     reset,
     prompts: starters.data?.prompts ?? [],
-    canChat: Boolean(eventId && isAdministrator),
+    canChat: Boolean(eventId && member),
     isAdministrator,
   };
 }

@@ -52,7 +52,7 @@ function ingestErrorMessage(err: unknown): string {
       case 404:
         return "This event no longer exists. Pick another event and try again.";
       case 422:
-        return err.message || "No truck or load was detected, so no ticket was drafted.";
+        return err.message || "No truck or load was detected, so no ticket was created.";
       case 413:
         return err.message || "That file is too large. Upload a shorter or smaller clip.";
       case 503:
@@ -66,7 +66,7 @@ function ingestErrorMessage(err: unknown): string {
 
 /**
  * New Ticket: upload a clip or image of a loaded truck; the pipeline estimates
- * fill and drafts a ticket for review. The event ledger lives on /tickets.
+ * fill and creates a ticket; only flagged tickets need review. The event ledger lives on /tickets.
  */
 export default function NewTicketPage() {
   const { selectedId } = useEventContext();
@@ -244,12 +244,12 @@ function CaptureWorkspace() {
           <p className="text-[12px] text-muted-foreground">
             Upload evidence for{" "}
             <span className="font-medium text-foreground">{selected?.name ?? "this event"}</span> to
-            identify the truck, estimate fill from sampled frames, and draft a ticket for review.
+            identify the truck, estimate fill, and create a ticket. Only flagged results need review.
           </p>
         </div>
 
         <div className="flex shrink-0 flex-col gap-4">
-          {/* Upload stays beside the live analysis and draft summary. */}
+          {/* Upload stays beside live analysis and the latest ticket summary. */}
           <div className="min-w-0">
             <FadeIn>
               <Card className="h-full gap-0 p-4">
@@ -471,7 +471,7 @@ function CaptureWorkspace() {
                       <CheckCircle2Icon className="size-5 text-[var(--color-ok)]" />
                       <div>
                         <div className="flex items-center gap-2">
-                          <h2 className="text-[15px] font-semibold">Latest ticket draft</h2>
+                          <h2 className="text-[15px] font-semibold">Latest ticket</h2>
                           {showcaseReadOnly && (
                             <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                               Read-only reference

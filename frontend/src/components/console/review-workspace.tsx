@@ -49,7 +49,7 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
             "@[32rem]:grid @[32rem]:grid-cols-[minmax(0,1fr)_minmax(13rem,36%)] @[32rem]:overflow-hidden",
         )}
       >
-        <div className="flex min-h-0 min-w-0 flex-none flex-col gap-3 @[32rem]:min-h-0 @[32rem]:overflow-y-auto">
+        <main className="lt-scroll flex min-h-0 min-w-0 flex-col gap-3 @[32rem]:overflow-y-auto @[32rem]:overscroll-contain @[32rem]:pr-1">
           <TicketSummary
             ticket={ticket}
             nav={nav}
@@ -68,10 +68,7 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
             </button>
           )}
           <EvidenceCanvas ticket={ticket} />
-          <div className="shrink-0 rounded-lg border border-border bg-card p-4">
-            <ReviewActions ticket={ticket} layout="bar" />
-          </div>
-        </div>
+        </main>
         {detailsOpen && (
           <aside
             id="review-details"
@@ -79,6 +76,12 @@ export function ReviewWorkspace({ ticket, nav }: { ticket: Ticket; nav?: TicketN
             className="lt-scroll flex min-h-0 min-w-0 shrink-0 flex-col gap-3 overflow-y-auto @[32rem]:shrink"
           >
             <AiAnalysisCard ticketId={ticket.id} />
+            <section
+              aria-label="Ticket dispute"
+              className="shrink-0 rounded-lg border border-border bg-card p-4"
+            >
+              <ReviewActions ticket={ticket} layout="stack" />
+            </section>
             <CollapsibleSectionCard
               id="anomaly-flags"
               title="Flags to review"

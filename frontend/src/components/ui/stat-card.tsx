@@ -54,6 +54,7 @@ export function StatCard({
   progress,
   trend,
   hero = false,
+  compact = false,
 }: {
   label: string;
   value: ReactNode;
@@ -64,11 +65,13 @@ export function StatCard({
   progress?: number;
   trend?: number[];
   hero?: boolean;
+  compact?: boolean;
 }) {
   return (
     <Card
       className={cn(
-        "group relative flex h-full flex-col gap-0 overflow-hidden p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+        "group relative flex h-full flex-col gap-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+        compact ? "p-4" : "p-5",
         hero && "ring-1 ring-[var(--color-money)]/30",
       )}
     >
@@ -93,7 +96,7 @@ export function StatCard({
         {icon && (
           <span
             className={cn(
-              "grid size-8 shrink-0 place-items-center rounded-lg transition-transform duration-200 group-hover:scale-105",
+              cn("grid shrink-0 place-items-center rounded-lg transition-transform duration-200 group-hover:scale-105", compact ? "size-7" : "size-8"),
               TONE_ICON_BG[tone],
             )}
           >
@@ -102,10 +105,11 @@ export function StatCard({
         )}
       </div>
 
-      <div className="mt-3 flex items-end justify-between gap-2">
+      <div className={cn("flex items-end justify-between gap-2", compact ? "mt-2" : "mt-3")}>
         <div
           className={cn(
-            "text-[30px] font-bold leading-none tracking-tight tabular-nums",
+            compact ? "text-[26px]" : "text-[30px]",
+            "font-bold leading-none tracking-tight tabular-nums",
             TONE_VALUE[tone],
           )}
         >
@@ -119,13 +123,13 @@ export function StatCard({
       {progress !== undefined && (
         <Progress
           value={Math.round(Math.max(0, Math.min(1, progress)) * 100)}
-          className="mt-3 h-1.5"
+          className={cn(compact ? "mt-2" : "mt-3", "h-1.5")}
         />
       )}
 
       {/* Pin the sub line to the bottom so every card in a row aligns, whether
           or not it has a progress bar above it. */}
-      {sub && <p className="mt-auto pt-2 text-[12px] text-muted-foreground">{sub}</p>}
+      {sub && <p className={cn("mt-auto text-muted-foreground", compact ? "pt-1.5 text-[11px] leading-snug" : "pt-2 text-[12px]")}>{sub}</p>}
     </Card>
   );
 }

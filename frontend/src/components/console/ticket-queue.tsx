@@ -112,10 +112,10 @@ function TicketRow({
           </span>
         </div>
 
-        <div className="mt-1.5 flex items-center gap-2">
+        <div className="mt-1.5 flex min-w-0 items-center gap-2">
           {/* Compact numbers without repeating the words "measured"/"called" on
               every row — the gauge + column context already convey them. */}
-          <span className="shrink-0 text-[11px] tabular-nums text-[var(--color-subtle)]">
+          <span className="min-w-0 flex-1 truncate text-[11px] tabular-nums text-[var(--color-subtle)]">
             <span className="text-muted-foreground">{percent(v.est_fill_pct)} estimated</span>
             {v.monitor_fill_pct !== null && (
               <>
@@ -124,7 +124,7 @@ function TicketRow({
               </>
             )}
           </span>
-          {showStatus && <StatusBadge status={ticket.status} />}
+          {showStatus && <StatusBadge status={ticket.status} compact />}
         </div>
       </button>
     </li>

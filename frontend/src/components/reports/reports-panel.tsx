@@ -6,7 +6,8 @@ import { AlertTriangleIcon, CircleDollarSignIcon, GaugeIcon, LayersIcon } from "
 
 import type { ReportsSummary, Ticket, TicketSort } from "@/lib/api";
 import { useTickets } from "@/lib/hooks";
-import { DonutChart, RankedBars, type Datum } from "@/components/ui/charts-v2";
+import { DonutChart, MultiLineTrend, RankedBars, type Datum } from "@/components/ui/charts-v2";
+import { TICKET_TREND_CONFIG, TicketTrendLegend, ticketTrend } from "@/components/overview/ticket-trend";
 import type { ChartConfig } from "@/components/ui/shadcn/chart";
 import { Card } from "@/components/ui/shadcn/card";
 import { StatusBadge } from "@/components/ui/badge";
@@ -43,7 +44,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 const classConfig: ChartConfig = { value: { label: "Flagged", color: "var(--chart-3)" } };
 const statusConfig: ChartConfig = {
-  draft: { label: "Needs review", color: "var(--chart-1)" },
+  draft: { label: "Flagged for review", color: "var(--chart-1)" },
   confirmed: { label: "Confirmed", color: "var(--chart-2)" },
   overridden: { label: "Overridden", color: "var(--chart-3)" },
   disputed: { label: "Disputed", color: "var(--chart-5)" },
@@ -75,6 +76,7 @@ export function ReportsPanel({
   const flagged = Number.parseFloat(s.overbill_dollar_value);
   const exposureRate = measured > 0 ? flagged / measured : 0;
   const disputed = s.counts_by_status.disputed ?? 0;
+  const trend = useMemo(() => ticketTrend(tickets), [tickets]);
 
   const byClass = useMemo<Datum[]>(() => {
     const sums = new Map<string, number>();
@@ -105,6 +107,7 @@ export function ReportsPanel({
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           hero
+          compact
           tone="money"
           icon={<CircleDollarSignIcon className="size-4" />}
           label="Amount to review"
@@ -113,6 +116,7 @@ export function ReportsPanel({
           sub={`${s.overbill_ticket_count} tickets with a higher inspector estimate`}
         />
         <StatCard
+          compact
           tone="money"
           icon={<GaugeIcon className="size-4" />}
           label="Share to review"
@@ -122,6 +126,7 @@ export function ReportsPanel({
           sub={`Of ${money(measured)} estimated`}
         />
         <StatCard
+          compact
           icon={<LayersIcon className="size-4" />}
           label="Estimated value"
           value={<CountUp value={measured} format={(n) => money(n)} />}
@@ -129,6 +134,7 @@ export function ReportsPanel({
           sub={`${s.ticket_count} tickets · ${s.counts_by_status.draft ?? 0} awaiting review`}
         />
         <StatCard
+          compact
           tone={disputed > 0 ? "default" : "default"}
           icon={<AlertTriangleIcon className="size-4" />}
           label="Disputed"
@@ -137,6 +143,19 @@ export function ReportsPanel({
           sub="Open disputes"
         />
       </div>
+
+      <Card className="gap-0 overflow-hidden py-0">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-3">
+          <h3 className="text-[13px] font-semibold">Ticket activity over time</h3>
+          <span className="text-[11px] text-muted-foreground">
+            Cumulative tickets by upload order · hover for counts
+          </span>
+        </div>
+        <div className="h-[240px] px-2 pt-1">
+          <MultiLineTrend data={trend} config={TICKET_TREND_CONFIG} height="100%" />
+        </div>
+        <TicketTrendLegend />
+      </Card>
 
       <div className="grid min-h-0 gap-4 xl:grid-cols-3">
         <Card className="gap-0 py-0 xl:col-span-2">

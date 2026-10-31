@@ -63,11 +63,10 @@ async def chat(
     if event is None:
         raise HTTPException(404, "event not found")
     event_name = event.name
-    if not is_super_admin(member.role):
-        raise HTTPException(403, "AI Analyst chat is available in Administrator mode only.")
-    # Chat is read-only, so Administrator mode can analyze curated read-only
-    # datasets too. Practice data remains excluded from model inference.
-    ai = None if "playground" in event.tags else get_ai_client()
+    # Everyone can use the read-only analyst. Standard roles use the local,
+    # deterministic composer over saved records; only Administrator mode may
+    # send the bounded event summary to a configured AI provider.
+    ai = get_ai_client() if is_super_admin(member.role) and "playground" not in event.tags else None
 
     async def gen() -> AsyncIterator[str]:
         reply = await answer(

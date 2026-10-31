@@ -52,11 +52,12 @@ const STATUS_TONE: Record<TicketStatus, Tone> = {
 };
 
 /** Ticket-status badge. Color + label + a small shape marker (never color-only). */
-export function StatusBadge({ status }: { status: TicketStatus }) {
+export function StatusBadge({ status, compact = false }: { status: TicketStatus; compact?: boolean }) {
   const tone = STATUS_TONE[status];
+  const label = status === "draft" && compact ? "Review" : statusLabel(status);
   return (
-    <Badge tone={tone} icon={<Dot tone={tone} />}>
-      {statusLabel(status)}
+    <Badge tone={tone} icon={<Dot tone={tone} />} className={compact ? "px-1.5 text-[10px]" : undefined}>
+      <span aria-label={statusLabel(status)} title={statusLabel(status)}>{label}</span>
     </Badge>
   );
 }
