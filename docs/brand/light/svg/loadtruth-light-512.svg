@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="512" height="512" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+<title id="title">LoadTruth verified truck – light theme</title>
+<desc id="desc">A minimal, original, forward-facing dump truck graphic with a verified check mark inside its raised load bed.</desc>
+<defs>
+  <linearGradient id="tile" x1=".02" y1="1" x2=".96" y2="0" gradientUnits="objectBoundingBox">
+   <stop offset="0" stop-color="#FFFFFF"/><stop offset=".58" stop-color="#F0F8FF"/><stop offset="1" stop-color="#E7FDF6"/>
+  </linearGradient>
+  <radialGradient id="aura" cx="50%" cy="50%" r="55%">
+   <stop offset="0" stop-color="#21C5D9" stop-opacity=".55"/><stop offset="1" stop-color="#21C5D9" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="frame" x1="0" y1="1" x2=".85" y2="0">
+   <stop offset="0" stop-color="#0055B0"/><stop offset=".56" stop-color="#0089C8"/><stop offset="1" stop-color="#36C8E6"/>
+  </linearGradient>
+  <linearGradient id="bed" x1="0" y1="1" x2="1" y2="0">
+   <stop offset="0" stop-color="#025894"/><stop offset=".56" stop-color="#007D91"/><stop offset="1" stop-color="#00BE9A"/>
+  </linearGradient>
+  <linearGradient id="wheel" x1="0" y1="0" x2=".9" y2="1">
+   <stop offset="0" stop-color="#28BEDC"/><stop offset=".55" stop-color="#0577BE"/><stop offset="1" stop-color="#03477C"/>
+  </linearGradient>
+  <filter id="subtleShadow" x="-25%" y="-25%" width="150%" height="150%">
+   <feGaussianBlur in="SourceAlpha" stdDeviation="11" result="blur"/>
+   <feOffset dy="10" result="off"/>
+   <feComponentTransfer in="off" result="alpha"><feFuncA type="linear" slope=".25"/></feComponentTransfer>
+   <feMerge><feMergeNode in="alpha"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
+
+  <rect x="22" y="22" width="980" height="980" rx="216" fill="url(#tile)"/>
+  <path d="M222 26 H802 Q990 26 998 224 V799 Q997 986 799 997 H225 Q27 997 26 802 V222 Q26 27 222 26 Z" fill="none" stroke="#BDD8E9" stroke-opacity=".65" stroke-width="5"/>
+  <ellipse cx="755" cy="260" rx="305" ry="234" fill="url(#aura)" opacity=".34"/>
+ 
+<g filter="url(#subtleShadow)">
+  <!-- Raised dump bed: distinct green-to-teal audited load -->
+  <path d="M375 378 L795 330 Q806 327 800 342 L678 570 Q670 591 650 592 H309 Z" fill="url(#bed)"/>
+  
+   <path d="M307 618 L635 619" fill="none" stroke="#36C8E6" stroke-opacity=".45" stroke-width="9" stroke-linecap="round"/>
+   <path d="M347 397 L748 346" fill="none" stroke="#36C8E6" stroke-opacity=".52" stroke-width="8" stroke-linecap="round"/>
+   <path d="M767 512 L843 510" stroke="#36C8E6" stroke-opacity=".7" stroke-width="8" stroke-linecap="round"/>
+   <path d="M785 653 H862" stroke="#0055B0" stroke-width="11" stroke-linecap="round" opacity=".4"/>
+ 
+  <!-- Integrated blue chassis and right-facing cab, one contiguous silhouette -->
+  <path d="M216 677 L293 399 Q299 382 316 379 L375 371 L301 629 H709 L752 496 Q758 485 776 485 H841 Q878 485 897 521 L931 591 Q936 602 934 616 L918 680 Q915 699 893 699 H704 L670 788 Q666 802 651 802 H578 Q560 802 566 785 L588 699 H236 Q209 699 216 677 Z" fill="url(#frame)"/>
+  <!-- Clear window shape -->
+  <path d="M795 526 Q796 519 804 519 H842 Q859 519 868 535 L898 593 Q904 607 891 607 H774 Z" fill="#F6FBFF" stroke="#0B6998" stroke-width="5" stroke-linejoin="round"/>
+  <!-- Inset cutout below front bumper -->
+  <path d="M721 664 H898" stroke="#36C8E6" opacity=".42" stroke-width="6" stroke-linecap="round"/>
+  <!-- Two wheels -->
+  <circle cx="370" cy="763" r="61" fill="url(#wheel)"/>
+  <circle cx="808" cy="763" r="61" fill="url(#wheel)"/>
+  <circle cx="353" cy="744" r="14" fill="#36C8E6" opacity=".13"/><circle cx="791" cy="744" r="14" fill="#36C8E6" opacity=".13"/>
+  <!-- Verified load: very bold, visible even at 16px -->
+  <path d="M462 483 L510 530 L612 428" fill="none" stroke="#FFFFFF" stroke-width="43" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>

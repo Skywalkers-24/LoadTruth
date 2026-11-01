@@ -1,4 +1,4 @@
-"""Known-volume benchmark harness (Winner.md B1).
+"""Known-volume benchmark harness.
 
 Independent ground truth, not agreement with the monitor. Each row in
 ``data_bench/ground_truth.csv`` names a clip with a *known* true fill % (from a

@@ -5,7 +5,8 @@ by Redis (Render Key Value) with automatic fallback to an async-safe in-memory
 cache during local development or network partitions.
 
 Invalidation Strategy:
-- Each resource domain possesses an atomic generational version counter (e.g. ``tag:ver:event:{id}``).
+- Each resource domain has an atomic generational version counter
+  (e.g. ``tag:ver:event:{id}``).
 - API cache keys embed the current version of all dependent tags:
     ``lt:api:{route_key}:tag_{tag}_v{version}``
 - Invalidation runs in $O(1)$ time by executing an atomic Redis ``INCR`` on the tag's version key.
@@ -20,7 +21,7 @@ import json
 import logging
 import time
 from collections.abc import Awaitable, Callable
-from typing import Any, TypeVar
+from typing import Any
 
 from redis.asyncio import Redis
 
@@ -28,7 +29,6 @@ from app.config import get_settings
 
 log = logging.getLogger(__name__)
 
-T = TypeVar("T")
 
 _redis_client: Redis | None = None
 _local_tag_versions: dict[str, int] = {}
@@ -151,9 +151,7 @@ async def get_cached_json(tags: list[str], key: str) -> Any | None:
     return None
 
 
-async def set_cached_json(
-    tags: list[str], key: str, value: Any, ttl_seconds: int = 3600
-) -> None:
+async def set_cached_json(tags: list[str], key: str, value: Any, ttl_seconds: int = 3600) -> None:
     """Store a JSON payload under the current tag generations with TTL."""
     if not get_settings().api_cache_enabled:
         return
@@ -173,7 +171,7 @@ async def set_cached_json(
         _local_api_cache[composite_key] = (time.monotonic() + ttl_seconds, serialized)
 
 
-async def cached_api(
+async def cached_api[T](
     *,
     tags: list[str],
     key: str,
@@ -202,4 +200,3 @@ async def cached_api(
         log.warning("caching_serialized_result_failed", exc_info=True)
 
     return result
-

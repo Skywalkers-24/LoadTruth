@@ -190,7 +190,9 @@ def _intent(question: str) -> str:
         return "overcalls"
     if _mentions(q, "anomal", "flag", "risk"):
         return "anomalies"
-    if _mentions(q, "need review", "needs review", "pending", "awaiting", "left to review", "queue"):
+    if _mentions(
+        q, "need review", "needs review", "pending", "awaiting", "left to review", "queue"
+    ):
         return "pending"
     if _mentions(q, "summar", "audit", "overview", "report", "brief"):
         return "summary"

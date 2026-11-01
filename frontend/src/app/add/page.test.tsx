@@ -10,6 +10,14 @@ const state = vi.hoisted(() => ({
   push: vi.fn(),
   setSelectedId: vi.fn(),
   create: vi.fn(),
+  getTicket: vi.fn(async () => ({
+    id: "saved-ticket",
+    truck_id: "FL-DT-8043",
+    debris_class: "white_goods",
+    status: "confirmed",
+    valuation: { certified_cubic_yards: "20", est_dollar_value: "120", est_fill_pct: "42" },
+  })),
+  getTicketPipeline: vi.fn(async () => []),
 }));
 const saved = [
   {
@@ -30,6 +38,8 @@ const saved = [
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   createPracticeTicket: (...args: unknown[]) => state.create(...args),
+  getTicket: () => state.getTicket(),
+  getTicketPipeline: () => state.getTicketPipeline(),
 }));
 vi.mock("@/components/console/evidence-canvas", () => ({
   EvidenceCanvas: ({ ticket }: { ticket: { id: string } }) => (
@@ -41,10 +51,14 @@ vi.mock("@/lib/auth", () => ({
 }));
 vi.mock("@/lib/event-context", () => ({
   useEventContext: () => ({
-    selectedId: "event-1",
+    selectedId: "60cdc03c-ae67-4ff3-a482-6e6f08372dff",
     setSelectedId: state.setSelectedId,
     events: [{ id: "playground-1", name: "Practice Playground", tags: ["playground"] }],
-    selected: { id: "event-1", name: "Cleanup", tags: state.readonly ? ["read-only"] : [] },
+    selected: {
+      id: "60cdc03c-ae67-4ff3-a482-6e6f08372dff",
+      name: "Cleanup",
+      tags: state.readonly ? ["read-only"] : [],
+    },
   }),
 }));
 vi.mock("@/lib/hooks", () => ({
@@ -100,12 +114,12 @@ describe("administrator fresh-analysis option", () => {
     Object.defineProperty(input, "files", { value: [file] });
     await act(async () => input.dispatchEvent(new Event("change", { bubbles: true })));
     expect(state.mutate.mock.calls[0]?.[0]).toEqual({
-      eventId: "event-1",
+      eventId: "60cdc03c-ae67-4ff3-a482-6e6f08372dff",
       file,
       bypassCache: true,
       keepFootage: true,
     });
-    expect(host.textContent).toContain("additional model usage charges");
+    expect(host.textContent).toContain("may use paid AI calls");
   });
   it("does not offer fresh analysis to monitors", async () => {
     state.role = "monitor";
@@ -138,6 +152,13 @@ describe("administrator fresh-analysis option", () => {
       select.value = testOption;
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(state.create).toHaveBeenCalled();
+    await act(async () =>
+      [...host.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) => button.textContent?.includes("Replay saved video"))
+        ?.click(),
+    );
+    expect(state.getTicket).toHaveBeenCalled();
+    expect(state.getTicketPipeline).toHaveBeenCalled();
+    expect(state.create).not.toHaveBeenCalled();
   });
 });

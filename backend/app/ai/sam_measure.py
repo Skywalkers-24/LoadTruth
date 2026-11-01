@@ -85,7 +85,8 @@ MEASURE_VERSION = 5
 # v5 requests distinct, concrete material phrases from Muse before SAM tracking.
 # v6 adds a dynamic broad per-clip material concept from Muse alongside item prompts.
 # v7 removes the fixed class-to-object vocabulary; SAM gets only clip-derived load prompts.
-SAM_PROMPT_VERSION = 7
+# v8 tightens material naming and retries late text matches with a box-seeded bidirectional track.
+SAM_PROMPT_VERSION = 8
 
 # How the load was measured on the selected frames.
 LOAD_SEGMENTED = "segmented"  # a SAM load phrase matched inside the bed

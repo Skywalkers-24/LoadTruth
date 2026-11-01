@@ -38,6 +38,7 @@ codex-usage/
 
 # Local review/scratch artifacts
 semantic-review/
+Backup/
 
 # Logs / local artifacts
 responses.log

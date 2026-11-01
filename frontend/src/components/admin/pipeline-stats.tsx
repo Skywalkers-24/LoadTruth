@@ -11,10 +11,10 @@ const STAGE_LABEL: Record<string, string> = {
   sam_track: "SAM track",
   spark_ocr: "Spark OCR",
   spark_classify: "Spark classify",
-  geometry: "Geometry",
+  geometry: "Fill estimation",
   capacity: "Capacity",
   anomalies: "Anomalies",
-  dollar_math: "Dollar math",
+  dollar_math: "Rate valuation",
 };
 
 /**

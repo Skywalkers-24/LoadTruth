@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import tempfile
 import time
 from collections.abc import AsyncIterator
@@ -59,7 +59,7 @@ def check() -> dict[str, object]:
         with tempfile.TemporaryDirectory(prefix="loadtruth-demo-check-") as folder:
             root = Path(folder)
             clip = root / "clip.mp4"
-            subprocess.run(  # noqa: S603 — fixed ffmpeg arguments and generated local test media
+            subprocess.run(  # noqa: S603  # nosec B603
                 [
                     ffmpeg,
                     "-hide_banner",

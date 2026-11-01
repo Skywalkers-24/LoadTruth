@@ -6,6 +6,7 @@ import asyncio
 import re
 import time
 from collections import OrderedDict
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -32,7 +33,7 @@ _persistent: ContextVar[bool] = ContextVar("persistent_footage", default=True)
 
 
 @contextmanager
-def storage_scope(persistent: bool):
+def storage_scope(persistent: bool) -> Iterator[None]:
     token = _persistent.set(persistent)
     try:
         yield

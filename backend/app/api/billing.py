@@ -13,7 +13,6 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import HTMLResponse
 
 from app.api.cache import cached_api
-
 from app.api.repo import ActiveTenant, Repository
 from app.tickets.billing import BillingSummary, build_summary
 from app.tickets.domain import Ticket
@@ -66,6 +65,7 @@ async def event_billing(
     repo: Repository, tenant: ActiveTenant, event_id: UUID
 ) -> BillingSummaryOut:
     """Invoice roll-up for a single event."""
+
     async def _compute() -> BillingSummaryOut:
         event = await repo.get_event(tenant, event_id)
         if event is None:
@@ -91,6 +91,7 @@ async def event_billing(
 @router.get("/billing", response_model=BillingSummaryOut)
 async def combined_billing(repo: Repository, tenant: ActiveTenant) -> BillingSummaryOut:
     """Combined invoice roll-up across every event the tenant owns."""
+
     async def _compute() -> BillingSummaryOut:
         tickets = await _all_tickets(repo, tenant)
         summary = build_summary(

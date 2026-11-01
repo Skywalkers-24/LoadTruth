@@ -1,0 +1,22 @@
+{
+  "name": "LoadTruth",
+  "short_name": "LoadTruth",
+  "description": "Evidence-backed disaster debris load verification",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#06132A",
+  "theme_color": "#1884F4",
+  "icons": [
+    {
+      "src": "/icons/dark/png/loadtruth-dark-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/dark/png/loadtruth-dark-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+

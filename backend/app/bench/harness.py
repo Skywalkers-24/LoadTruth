@@ -1,4 +1,4 @@
-"""Benchmark computation and ground-truth IO (Winner.md B1).
+"""Benchmark computation and ground-truth IO.
 
 Pure, deterministic statistics over (predicted, true) fill pairs, plus the CSV
 loader for the ground-truth manifest. The pipeline-running part lives in

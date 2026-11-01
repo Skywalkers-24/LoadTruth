@@ -41,19 +41,31 @@ async def test_seed_migrates_legacy_demo_tenant(
 
         await seed_demo(session)
 
-        assert await session.scalar(
-            select(func.count()).select_from(User).where(User.tenant_id == DEMO_TENANT_ID)
-        ) == 6
-        assert await session.scalar(
-            select(func.count()).select_from(User).where(User.tenant_id == _LEGACY_TENANT_ID)
-        ) == 0
-        assert await session.scalar(
-            select(func.count()).select_from(Event).where(Event.tenant_id == DEMO_TENANT_ID)
-        ) >= 4
+        assert (
+            await session.scalar(
+                select(func.count()).select_from(User).where(User.tenant_id == DEMO_TENANT_ID)
+            )
+            == 6
+        )
+        assert (
+            await session.scalar(
+                select(func.count()).select_from(User).where(User.tenant_id == _LEGACY_TENANT_ID)
+            )
+            == 0
+        )
+        assert (
+            await session.scalar(
+                select(func.count()).select_from(Event).where(Event.tenant_id == DEMO_TENANT_ID)
+            )
+            >= 4
+        )
         assert await session.scalar(select(func.count()).select_from(Ticket)) == ticket_count
-        assert await session.scalar(
-            select(func.count())
-            .select_from(User)
-            .where(User.tenant_id == DEMO_TENANT_ID)
-            .where(User.email == "developer@loadtruth.io")
-        ) == 1
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(User)
+                .where(User.tenant_id == DEMO_TENANT_ID)
+                .where(User.email == "developer@loadtruth.io")
+            )
+            == 1
+        )

@@ -138,10 +138,10 @@ class AnalystTools:
 
         by_class: dict[str, dict[str, object]] = {}
         for debris_class, rows in sorted(grouped.items()):
-            estimates = [float(t.est_fill_pct) for t in rows]
+            estimates = [float(t.est_fill_pct or 0) for t in rows]
             monitor_calls = [t for t in rows if t.monitor_call_fill_pct is not None]
             agreements = sum(
-                abs(float(t.est_fill_pct) - float(t.monitor_call_fill_pct)) <= 10
+                abs(float(t.est_fill_pct or 0) - float(t.monitor_call_fill_pct or 0)) <= 10
                 for t in monitor_calls
             )
             overcalls = [t for t in rows if t.is_overbill]
@@ -152,7 +152,11 @@ class AnalystTools:
                 "average_estimated_fill_pct": round(sum(estimates) / len(estimates), 1),
                 "monitor_call_count": len(monitor_calls),
                 "average_monitor_fill_pct": (
-                    round(sum(float(t.monitor_call_fill_pct) for t in monitor_calls) / len(monitor_calls), 1)
+                    round(
+                        sum(float(t.monitor_call_fill_pct or 0) for t in monitor_calls)
+                        / len(monitor_calls),
+                        1,
+                    )
                     if monitor_calls
                     else None
                 ),
@@ -172,9 +176,9 @@ class AnalystTools:
                 "truck_id": t.truck_id,
                 "debris_class": t.debris_class.value,
                 "status": t.status.value,
-                "estimated_fill_pct": round(float(t.est_fill_pct), 1),
+                "estimated_fill_pct": round(float(t.est_fill_pct or 0), 1),
                 "monitor_fill_pct": (
-                    round(float(t.monitor_call_fill_pct), 1)
+                    round(float(t.monitor_call_fill_pct or 0), 1)
                     if t.monitor_call_fill_pct is not None
                     else None
                 ),
@@ -212,9 +216,7 @@ class AnalystTools:
                 "disputes",
                 {"limit": 5},
                 {
-                    "total_disputes": sum(
-                        t.status is TicketStatus.DISPUTED for t in tickets
-                    ),
+                    "total_disputes": sum(t.status is TicketStatus.DISPUTED for t in tickets),
                     "disputes": [ticket_row(t) for t in disputes],
                 },
             ),

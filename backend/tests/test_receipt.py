@@ -1,4 +1,4 @@
-"""Evidence receipt + Re-verify (Winner.md B5).
+"""Evidence receipt + Re-verify.
 
 The receipt is a deterministic SHA-256 over every pinned input, and Re-verify
 replays the geometry over the stored SAM masks to prove the fill % reproduces.

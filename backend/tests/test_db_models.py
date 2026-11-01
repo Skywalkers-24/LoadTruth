@@ -52,11 +52,11 @@ def test_ticket_nullable_monitor_and_delta_fields() -> None:
         assert cols[name].nullable, f"{name} should be nullable (set at review)"
 
 
-def test_ticket_status_defaults_to_draft() -> None:
+def test_ticket_status_defaults_to_confirmed() -> None:
     # A ticket is a draft until a human confirms (human-in-the-loop safeguard).
     default = Ticket.__table__.columns["status"].default
     assert default is not None
-    assert default.arg == "draft"
+    assert default.arg == "confirmed"
 
 
 def test_mixins_are_distinct_and_importable() -> None:

@@ -2,7 +2,7 @@
 # Check the live Meta Model API setup, optionally running one clip end to end.
 #
 #   scripts/live-check.sh                          # key + endpoint (one tiny Spark call)
-#   scripts/live-check.sh data_tests/clip.mp4      # plus the full pipeline on a clip
+#   scripts/live-check.sh /path/to/clip.mp4      # plus the full pipeline on a clip
 #   scripts/live-check.sh clip.mp4 --truck=FL-DT-3391   # treat that truck as certified
 #   scripts/live-check.sh --docker clip.mp4        # run inside the backend container
 #

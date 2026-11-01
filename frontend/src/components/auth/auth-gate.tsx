@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { LoginScreen } from "@/components/auth/login-screen";
 
 // Routes that render without a login. The public showcase is the submission's
-// front door (Winner.md B6); it reads no tenant data, so it needs no session.
+// front door; it reads no tenant data, so it needs no session.
 // /login and /superadmin are public so users can view the login screen or superadmin portal.
 const PUBLIC_PREFIXES = ["/showcase", "/login", "/superadmin"];
 

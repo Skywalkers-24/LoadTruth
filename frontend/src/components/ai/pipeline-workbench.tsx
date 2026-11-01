@@ -13,6 +13,17 @@ import { PipelineTrace } from "./pipeline-trace";
 import { StageInspectorDrawer } from "./stage-inspector-drawer";
 import { cn } from "@/lib/utils";
 
+function cleanModelName(model: string | null | undefined, key?: string): string {
+  if (!model) return "";
+  const m = model.toLowerCase();
+  if (m === "geometry" || key === "geometry") return "Spatial Fill Estimator";
+  if (m === "dollar_math" || m === "math" || key === "dollar_math") return "Rate Schedule Engine";
+  if (m === "capacity" || key === "capacity") return "Certified Vehicle Registry";
+  if (m === "anomalies" || key === "anomalies") return "FEMA Rules Engine";
+  if (m === "deterministic") return "Spatial Fill Estimator";
+  return model;
+}
+
 export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
   {
     key: "sam_track",
@@ -48,8 +59,8 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
   },
   {
     key: "capacity",
-    label: "Find truck capacity",
-    model: "County Registry",
+    label: "Certified Vehicle Registry",
+    model: "Certified Vehicle Registry",
     status: "pending",
     summary: "Looks up the truck's certified cubic-yard size in official county records.",
     confidence: null,
@@ -64,8 +75,8 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
   },
   {
     key: "geometry",
-    label: "Estimate fill",
-    model: "AI estimate across video frames",
+    label: "Spatial Fill Estimator",
+    model: "Spatial Fill Estimator",
     status: "pending",
     summary: "Combines fill estimates from selected video frames.",
     confidence: null,
@@ -73,9 +84,9 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
     analysis:
       "AI estimates how full the truck looks in selected frames, then combines those estimates. Truck and load outlines do not determine the fill percentage.",
     details: [
-      ["Calculation Basis", "AI review of selected video frames"],
+      ["Calculation Basis", "Spatial fill analysis of selected video frames"],
       ["Estimate Range", "0% (empty) to 100% (full to bed rails)"],
-      ["Combination", "Middle value of the frame estimates"],
+      ["Combination", "Median value of the frame estimates"],
     ],
   },
   {
@@ -96,14 +107,14 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
   },
   {
     key: "anomalies",
-    label: "Check for issues",
-    model: "Meta Muse Spark 1.3",
+    label: "FEMA Rules Engine",
+    model: "FEMA Rules Engine",
     status: "pending",
     summary: "Checks identity, certification, capacity, and cycle-time rules.",
     confidence: null,
     duration_ms: 0,
     analysis:
-      "Automated rules can flag identity, certification, capacity, and cycle-time issues. Fill quality is not automatically flagged; monitors can flag visual concerns during review.",
+      "Automated FEMA rules verify identity, certification, capacity, and cycle-time requirements. Monitors review the visual estimate and can flag visual concerns during review.",
     details: [
       ["Audit Checks", "Identity, certification, capacity, and cycle time"],
       ["Supervisor Review", "Monitors review the visual estimate and can flag concerns"],
@@ -112,8 +123,8 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
   },
   {
     key: "dollar_math",
-    label: "Value the load",
-    model: "Standard calculation",
+    label: "Rate Schedule Engine",
+    model: "Rate Valuation",
     status: "pending",
     summary:
       "Calculates the payout: certified truck size multiplied by the fill percentage and the debris rate per cubic yard.",
@@ -241,10 +252,10 @@ export function PipelineWorkbench({
                     {s.label}
                   </div>
                   <div
-                    title={s.model}
+                    title={cleanModelName(s.model, s.key)}
                     className="mt-1 min-h-8 break-words text-[11px] leading-4 text-muted-foreground"
                   >
-                    {s.model}
+                    {cleanModelName(s.model, s.key)}
                   </div>
                 </div>
 

@@ -71,6 +71,7 @@ from app.ai.sam_measure import (
     RIM_LABEL,
     SAM_PROMPT_VERSION,
     TRUCK_BODY_LABEL,
+    Box,
     Detection,
     frames_covered,
     measure,
@@ -114,14 +115,14 @@ _OCR_PROMPT = (
 )
 
 _CLASSIFY_PROMPT = (
-    "This is evidence footage of a disaster-debris haul truck. Classify the load in "
-    "the truck bed into one debris class: vegetative (trees, limbs, stumps, brush, "
-    "leaves); construction_demolition (damaged building materials, lumber, drywall, "
-    "roofing, concrete, carpet, furniture, cardboard, cartons, paper packaging); "
-    "white_goods (appliances such as refrigerators, washers, dryers, water heaters, "
-    "air conditioners); hazardous (household chemicals, paint, batteries, propane "
-    "tanks, oil, pesticides); other (anything else, or not visible). Pick the class "
-    "that makes up most of the load. confidence is your probability, from 0 to 1, that "
+    "This is evidence footage of a haul truck. Inspect all visible cargo inside the "
+    "foreground truck's load area throughout the clip, including mixed contents and "
+    "cargo carried inside another container. Classify the dominant material using one "
+    "of these reporting classes: vegetative, construction_demolition, white_goods, "
+    "hazardous, or other. Apply the labels by the actual material and its properties; "
+    "do not infer contents from a container's appearance, and use other when no class "
+    "fits. Pick the class that makes up most of the visible load. confidence is your "
+    "probability, from 0 to 1, that "
     "the class is right. "
     "Estimate occupied bulk volume as a percentage of the foreground truck's usable load "
     "compartment, from 0 to 100. Adapt to the actual vehicle and contents visible in each "
@@ -177,20 +178,26 @@ _NAME_LOAD_PROMPT = (
     "Inspect only the material physically inside the open bed of the foreground haul truck. "
     "Ignore background piles, ground debris, and other vehicles. Classify the dominant load "
     "as exactly one of vegetative, hazardous, white_goods, construction_demolition, or other. "
-    "Also return one to three short, concrete object noun phrases for distinct item types "
-    "visibly inside that bed, ordered by how clearly and substantially each type appears, "
-    "so SAM can segment those objects. Name whatever item types are visible, including "
-    "unusual or mixed materials, without limiting the answer to a known waste category. "
-    "Use one item type per phrase. Put different visible types in separate array entries; "
-    "do not join alternatives with 'or', combine several materials into one "
-    "phrase, or repeat synonyms for the same item. Do not name the "
-    "truck, bed, or background material. Also return load_concept: one broad, short noun "
-    "phrase that describes the dominant visible material in this clip. Whenever the bed "
-    "contains visible material, provide this phrase even if its type is unfamiliar. Choose "
-    "it from what is actually visible, including mixed load contents; do not use the same "
-    "generic word for every clip, and do not "
+    "Also return up to five short, concrete object noun phrases, one for each distinct "
+    "cargo type visibly inside that bed, so SAM can segment the full mixed load. Include "
+    "every distinguishable cargo type visible anywhere in the clip, even when it is not "
+    "the dominant type or appears in only part of the clip. Treat any carried object or "
+    "material inside the cargo area as load, regardless of its category, packaging, or "
+    "hazard status. Do not omit an item because it is a single bulky object, a closed "
+    "container, or mixed with other cargo. Use one type per phrase; do not join types "
+    "with 'or', combine several materials into one phrase, or repeat synonyms. Name the "
+    "recognizable material or object, not just its color or texture. Do not name the truck, "
+    "bed, or background. Also return load_concept: one broad, short noun phrase that "
+    "describes the visible cargo as a whole. Whenever cargo is visible, provide this "
+    "phrase even if its type is unfamiliar. Choose it from what is actually visible; do not "
+    "use the same generic word for every clip, and do not "
     "include the truck, bed, or background. Keep it to one concept, not a list. If the bed is "
     "visibly empty, return an empty concepts list and empty load_concept, and class other. "
+    "Also return one cargo box seed for each distinct load object you can confidently locate. "
+    "Use the exact video timestamp in seconds and a tight bounding box around only that cargo "
+    "object, with x1, y1, x2, y2 normalized from 0 to 1000 across the full frame. The seed "
+    "concept must match one of the returned cargo phrases. Do not box the truck, bed walls, "
+    "empty space, or background. If no cargo object can be located confidently, return no seeds. "
     "visible_fill_pct is an estimate from 0 to 100 of bed volume occupied, based only on the "
     "foreground bed."
 )
@@ -198,8 +205,34 @@ _NAME_LOAD_PROMPT = (
 _NAME_LOAD_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "concepts": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
+        "concepts": {"type": "array", "items": {"type": "string"}, "maxItems": 5},
         "load_concept": {"type": "string"},
+        "cargo_seeds": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "concept": {"type": "string"},
+                    "timestamp_s": {"type": "number", "minimum": 0},
+                    "x1": {"type": "integer", "minimum": 0, "maximum": 1000},
+                    "y1": {"type": "integer", "minimum": 0, "maximum": 1000},
+                    "x2": {"type": "integer", "minimum": 0, "maximum": 1000},
+                    "y2": {"type": "integer", "minimum": 0, "maximum": 1000},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                },
+                "required": [
+                    "concept",
+                    "timestamp_s",
+                    "x1",
+                    "y1",
+                    "x2",
+                    "y2",
+                    "confidence",
+                ],
+                "additionalProperties": False,
+            },
+        },
         "debris_class": {
             "type": "string",
             "enum": ["vegetative", "hazardous", "white_goods", "construction_demolition", "other"],
@@ -211,6 +244,7 @@ _NAME_LOAD_SCHEMA: dict[str, Any] = {
     "required": [
         "concepts",
         "load_concept",
+        "cargo_seeds",
         "debris_class",
         "visible_fill_pct",
         "truck_present",
@@ -299,6 +333,7 @@ class PreparedMedia:
     part: dict[str, str]
     file_id: str | None = None
     data: bytes = field(default=b"", repr=False)
+    fps: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -312,6 +347,8 @@ class _SegmentRun:
 # Raw SAM text kept per concept for the Review overlay (about 400 chars per
 # object per frame); a very long clip beyond this keeps its measurements only.
 _MAX_SEGMENT_CHARS = 4_000_000
+
+
 def _clamp01(value: object) -> float:
     try:
         number = float(value)  # type: ignore[arg-type]
@@ -411,6 +448,13 @@ def _in_bed_pixels(load: list[Detection], bed: list[Detection]) -> int:
                 if overlap / max(1, ld.box.area) >= 0.5:
                     total += overlap
     return total
+
+
+def _box_overlap_share(load: Detection, bed: Detection) -> float:
+    """Fraction of a candidate load box that lies inside a same-frame bed box."""
+    width = min(load.box.right, bed.box.right) - max(load.box.left, bed.box.left)
+    height = min(load.box.bottom, bed.box.bottom) - max(load.box.top, bed.box.top)
+    return (max(0, width) * max(0, height)) / max(1, load.box.area)
 
 
 def _sum_usage(base: CallUsage, others: list[CallUsage]) -> CallUsage:
@@ -545,13 +589,21 @@ class LiveAIClient:
             send_method=plan.send_method.value,
         )
         return PreparedMedia(
-            clip.media_kind, prepared.mime, len(prepared.data), part, file_id, prepared.data
+            clip.media_kind,
+            prepared.mime,
+            len(prepared.data),
+            part,
+            file_id,
+            prepared.data,
+            video_fps,
         )
 
     # ── SAM 3.1 ──────────────────────────────────────────────────────────────
     async def _name_load_concepts(
         self, media: PreparedMedia
-    ) -> tuple[list[str], str, str, CallUsage | None, bool | None, float, str]:
+    ) -> tuple[
+        list[str], str, str, CallUsage | None, bool | None, float, str, list[dict[str, Any]]
+    ]:
         """Ask Muse Spark what noun phrases name the load, for SAM to segment.
 
         The vision model identifies the debris class and names both the dominant
@@ -566,7 +618,7 @@ class LiveAIClient:
             )
             answer = _json_answer(response)
         except (ModelAPIResponseError, ModelAPIRequestError):
-            return [], "", "other", None, None, 0.0, '{"presence_check":"unavailable"}'
+            return [], "", "other", None, None, 0.0, '{"presence_check":"unavailable"}', []
         raw = answer.get("concepts")
         phrases = [_clean_concept(p) for p in raw] if isinstance(raw, list) else []
         phrases = [p for p in dict.fromkeys(phrases) if p][: get_settings().sam_load_max_concepts]
@@ -575,6 +627,40 @@ class LiveAIClient:
         present = answer.get("truck_present")
         confidence = answer.get("presence_confidence", 0.0)
         confidence = float(confidence) if isinstance(confidence, int | float) else 0.0
+        seeds: list[dict[str, Any]] = []
+        raw_seeds = answer.get("cargo_seeds")
+        if isinstance(raw_seeds, list):
+            for item in raw_seeds[:16]:
+                if not isinstance(item, dict):
+                    continue
+                concept = _clean_concept(item.get("concept"))
+                raw_values = [
+                    item.get(key) for key in ("timestamp_s", "x1", "y1", "x2", "y2", "confidence")
+                ]
+                if not concept or not all(isinstance(value, int | float) for value in raw_values):
+                    continue
+                values: list[float] = [
+                    float(value) for value in raw_values if isinstance(value, int | float)
+                ]
+                timestamp, x1, y1, x2, y2, seed_confidence = values
+                if (
+                    timestamp < 0
+                    or not 0 <= x1 < x2 <= 1000
+                    or not 0 <= y1 < y2 <= 1000
+                    or seed_confidence < 0.5
+                ):
+                    continue
+                seeds.append(
+                    {
+                        "concept": concept,
+                        "timestamp_s": float(timestamp),
+                        "x1": int(x1),
+                        "y1": int(y1),
+                        "x2": int(x2),
+                        "y2": int(y2),
+                        "confidence": float(seed_confidence),
+                    }
+                )
         return (
             phrases,
             load_concept,
@@ -583,6 +669,7 @@ class LiveAIClient:
             present if isinstance(present, bool) else None,
             max(0.0, min(1.0, confidence)),
             json.dumps(answer),
+            seeds,
         )
 
     async def track(self, clip: ClipMedia) -> TrackResult:
@@ -598,6 +685,7 @@ class LiveAIClient:
             present,
             presence_confidence,
             presence_raw,
+            cargo_seeds,
         ) = await self._name_load_concepts(media)
         if present is False and presence_confidence >= 0.8:
             return TrackResult(
@@ -615,9 +703,9 @@ class LiveAIClient:
         # Ask SAM for Muse's per-clip broad material phrase first, then its
         # specific visible items. This stays adaptable to any load and avoids
         # category-based guesses that are not visible in the clip.
-        load_concepts = list(
-            dict.fromkeys([load_concept, *named])
-        )[: max(1, s.sam_load_max_concepts)]
+        load_concepts = list(dict.fromkeys([load_concept, *named]))[
+            : max(1, s.sam_load_max_concepts)
+        ]
         # Every concept goes to SAM in one parallel round: the bed phrases (in
         # priority order), the tailgate (the rear rim that bounds the opening),
         # and the load phrases (merged, since one phrase misses some loads).
@@ -647,6 +735,96 @@ class LiveAIClient:
         )
         bed, rim = runs[bed_concept], runs[s.sam_rim_concept]
         loads = [runs[c] for c in load_concepts]
+        tracking_notes: list[str] = []
+        extra_sam_requests = 0
+        # Text matching can lock onto a distant cargo item late. Seed SAM from
+        # each real detection and let its tracker return masks in both temporal
+        # directions. Never create a shape unless SAM returns it.
+        retry_after = max(3, s.max_sampled_frames // 10)
+        if media.media_kind == "video":
+            for index, run in enumerate(loads):
+                if not run.detections:
+                    continue
+                first_load_frame = min(d.frame for d in run.detections)
+                if first_load_frame < retry_after:
+                    continue
+                seed_detections = [d for d in run.detections if d.frame == first_load_frame]
+                bed_boxes = [d for d in bed.detections if d.frame == first_load_frame]
+                if not bed_boxes:
+                    continue
+                seed_detections = [
+                    d
+                    for d in seed_detections
+                    if any(_box_overlap_share(d, b) >= 0.5 for b in bed_boxes)
+                ]
+                if not seed_detections:
+                    continue
+                try:
+                    tracked = await self._segment_from_boxes(media, seed_detections)
+                except (ModelAPIRequestError, ModelAPIResponseError, ModelAPIUnavailableError):
+                    log.warning(
+                        "sam_load_backward_tracking_failed",
+                        frame=first_load_frame,
+                        concept=load_concepts[index],
+                        exc_info=True,
+                    )
+                    continue
+                if not tracked.detections:
+                    continue
+                loads[index] = _SegmentRun(
+                    detections=tracked.detections,
+                    usage=run.usage.plus(tracked.usage),
+                    text=tracked.text,
+                    billed_units=run.billed_units + tracked.billed_units,
+                )
+                runs[load_concepts[index]] = loads[index]
+                extra_sam_requests += 1
+                tracking_notes.append(
+                    f'"{load_concepts[index]}" seeded at frame {first_load_frame}'
+                )
+        # If a dynamic text phrase found no mask, use Muse's tight, timestamped
+        # cargo boxes as SAM seeds. SAM still produces every displayed mask; the
+        # VLM only points SAM to objects that phrase matching missed.
+        known_concepts = {_clean_concept(concept): i for i, concept in enumerate(load_concepts)}
+        dimensions = next((d.media_size for d in bed.detections if d.media_size), None)
+        box_seeds: list[Detection] = []
+        if media.media_kind == "video" and media.fps and dimensions:
+            width, height = dimensions
+            max_frame = max((d.frame for d in bed.detections), default=s.max_sampled_frames - 1)
+            for seed_index, seed in enumerate(cargo_seeds):
+                concept_index = known_concepts.get(seed["concept"])
+                if concept_index is None or loads[concept_index].detections:
+                    continue
+                frame = min(max_frame, max(0, round(seed["timestamp_s"] * media.fps)))
+                x1 = round(seed["x1"] * width / 1000)
+                y1 = round(seed["y1"] * height / 1000)
+                x2 = round(seed["x2"] * width / 1000)
+                y2 = round(seed["y2"] * height / 1000)
+                if x2 <= x1 or y2 <= y1:
+                    continue
+                box_seeds.append(
+                    Detection(
+                        frame,
+                        f"cargo-seed-{seed_index}",
+                        Box(x1, y1, min(width, x2), min(height, y2)),
+                        media_size=(width, height),
+                    )
+                )
+        if box_seeds:
+            try:
+                tracked = await self._segment_from_boxes(media, box_seeds)
+            except (ModelAPIRequestError, ModelAPIResponseError, ModelAPIUnavailableError):
+                log.warning("sam_vlm_box_seed_tracking_failed", seeds=len(box_seeds), exc_info=True)
+            else:
+                if tracked.detections:
+                    box_concept = "box-seeded cargo objects"
+                    load_concepts.append(box_concept)
+                    concepts.append(box_concept)
+                    loads.append(tracked)
+                    runs[box_concept] = tracked
+                    tracking_notes.append(
+                        f"SAM tracked {len(box_seeds)} dynamic cargo box seeds both directions"
+                    )
         result = await asyncio.to_thread(
             measure,
             bed.detections,
@@ -669,19 +847,18 @@ class LiveAIClient:
             load_detections=sum(len(r.detections) for r in loads),
             load_source=result.load_source,
             frames=result.frame_count,
-            requests=len(concepts),
+            requests=len(concepts) + extra_sam_requests,
             cost_usd=usage.cost_usd,
         )
         # The overlay draws the bed and the load phrase that found the most;
         # every phrase's raw output is also kept so Re-measure can replay it.
-        best_load = max(
-            loads,
-            key=lambda r: _in_bed_pixels(r.detections, bed.detections),
-            default=None,
+        best_load_index = max(
+            range(len(loads)),
+            key=lambda i: _in_bed_pixels(loads[i].detections, bed.detections),
+            default=-1,
         )
-        best_load_overlap = (
-            _in_bed_pixels(best_load.detections, bed.detections) if best_load else 0
-        )
+        best_load = loads[best_load_index] if best_load_index >= 0 else None
+        best_load_overlap = _in_bed_pixels(best_load.detections, bed.detections) if best_load else 0
         segments = {
             BED_LABEL: bed.text,
             **({TRUCK_BODY_LABEL: runs[body_concept].text} if body_concept else {}),
@@ -700,6 +877,12 @@ class LiveAIClient:
             "Load class from Muse Spark": debris_class,
             **result.notes,
         }
+        if tracking_notes:
+            notes["Load tracking retries"] = "; ".join(tracking_notes)
+            notes["Billed"] = (
+                f"{sum(r.billed_units for r in runs.values())} frames "
+                f"({len(runs) + extra_sam_requests} requests)"
+            )
         bed_source = BED_FROM_BED
         return replace(
             result,
@@ -714,6 +897,44 @@ class LiveAIClient:
         )
 
     async def _segment(self, media: PreparedMedia, concept: str) -> _SegmentRun:
+        return await self._segment_prompt(media, concept)
+
+    async def _segment_from_boxes(
+        self, media: PreparedMedia, detections: list[Detection]
+    ) -> _SegmentRun:
+        """Use a real SAM box detection to track a late-matched object both ways."""
+        if not detections or media.media_kind != "video":
+            raise ModelAPIRequestError("Box-seeded SAM tracking requires video detections.")
+        width, height = detections[0].media_size or (0, 0)
+        if width <= 0 or height <= 0:
+            raise ModelAPIRequestError("SAM box seed is missing video dimensions.")
+        object_ids: dict[str, int] = {}
+        by_frame: dict[int, list[str]] = {}
+        object_prompts: list[str] = []
+        for detection in detections[:16]:
+            object_id = object_ids.setdefault(detection.object_id, len(object_ids) + 1)
+            box = detection.box
+            x1 = max(0, min(width - 1, box.left))
+            y1 = max(0, min(height - 1, box.top))
+            x2 = max(x1, min(width - 1, box.right - 1))
+            y2 = max(y1, min(height - 1, box.bottom - 1))
+            by_frame.setdefault(detection.frame, []).append(
+                f"{object_id}<|box;x1={x1};y1={y1};x2={x2};y2={y2};w={width};h={height}|>"
+            )
+        if not by_frame:
+            raise ModelAPIRequestError("SAM box seed has no objects on its source frame.")
+        for frame, prompts in sorted(by_frame.items()):
+            object_prompts.append(f"<{frame}f>" + ",".join(prompts))
+        prompt = "".join(object_prompts)
+        return await self._segment_prompt(media, prompt, propagation_direction="both")
+
+    async def _segment_prompt(
+        self,
+        media: PreparedMedia,
+        prompt: str,
+        *,
+        propagation_direction: str | None = None,
+    ) -> _SegmentRun:
         model = get_ai_config_store().resolve("sam_track").model
         payload = {
             "model": model,
@@ -721,10 +942,17 @@ class LiveAIClient:
                 {
                     "type": "message",
                     "role": "user",
-                    "content": [{"type": "input_text", "text": concept}, media.part],
+                    "content": [{"type": "input_text", "text": prompt}, media.part],
                 }
             ],
-            "metadata": {"mask_encoding": "one_bit"},
+            "metadata": {
+                "mask_encoding": "one_bit",
+                **(
+                    {"propagation_direction": propagation_direction}
+                    if propagation_direction
+                    else {}
+                ),
+            },
         }
         streamed = await self._http.stream_response(payload)
         detections = await asyncio.to_thread(
@@ -844,10 +1072,12 @@ class LiveAIClient:
             "additionalProperties": False,
         }
         prompt = (
-            "Listen to the attached short spoken monitor report about a truck load. Transcribe only "
+            "Listen to the attached short spoken monitor report about a truck load. "
+            "Transcribe only "
             "the speech in the attached audio, not the prior statements. "
             "then extract only a clearly stated fill percentage and explicitly reported problems. "
-            "Return no inferred facts. Report problems like dips, spills, overflow, or debris outside "
+            "Return no inferred facts. Report problems like dips, spills, overflow, "
+            "or debris outside "
             "the truck as short review flags. If a problem is mentioned without enough detail to "
             "locate or assess it, ask one concise follow-up question for the monitor. If no fill "
             "percentage is clearly stated, ask for it. Otherwise set follow_up_question to null. "

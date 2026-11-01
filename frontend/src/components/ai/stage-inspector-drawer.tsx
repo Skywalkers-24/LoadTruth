@@ -29,6 +29,14 @@ interface StageInspectorDrawerProps {
   onSelectStageIndex: (index: number) => void;
 }
 
+export function getAIModelName(model: string | null | undefined): string | null {
+  if (!model) return null;
+  const m = model.toLowerCase();
+  if (m.includes("sam-3") || m.includes("sam 3") || m === "sam_track") return "Meta SAM 3.1";
+  if (m.includes("spark") || m.includes("muse") || m.includes("ocr") || m.includes("classify")) return "Meta Muse Spark 1.3";
+  return null;
+}
+
 export function StageInspectorDrawer({
   open,
   onClose,
@@ -87,14 +95,13 @@ export function StageInspectorDrawer({
       ? `${(stage.duration_ms / 1000).toFixed(1)} s`
       : `${stage.duration_ms.toLocaleString()} ms`;
 
-  const confidenceStr =
-    stage.confidence != null ? `${Math.round(stage.confidence * 100)}%` : "Not reported";
-
-  const displayModel = stage.model === "deterministic" ? "Math formula" : stage.model;
+  const aiModel = getAIModelName(stage.model);
 
   const rawAnalysis = stage.analysis && stage.analysis.trim() ? stage.analysis : stage.summary;
   const cleanAnalysis = (rawAnalysis || "")
     .replace(/\bdeterministic\b/gi, "automated")
+    .replace(/\bgeometry\b/gi, "Spatial Fill Estimator")
+    .replace(/\bdollar_math\b/gi, "Rate Schedule Engine")
     .replace(/\bevident\b/gi, "verified")
     .replace(/\bevidence receipt\b/gi, "audit summary")
     .replace(/\bvoxel depth integration\b/gi, "depth measurement")
@@ -102,6 +109,8 @@ export function StageInspectorDrawer({
 
   const cleanSummary = (stage.summary || "")
     .replace(/\bdeterministic\b/gi, "verified")
+    .replace(/\bgeometry\b/gi, "Spatial Fill Estimator")
+    .replace(/\bdollar_math\b/gi, "Rate Schedule Engine")
     .replace(/\bevident\b/gi, "verified");
 
   const details = stage.details ?? [];
@@ -111,12 +120,17 @@ export function StageInspectorDrawer({
     .map(([key, val]) => {
       let cleanKey = key;
       let cleanVal = val;
-      if (key.toLowerCase() === "deterministic") {
-        cleanKey = "Calculation type";
-        cleanVal = "Verified standard formula";
+      if (key.toLowerCase() === "deterministic" || key.toLowerCase() === "geometry") {
+        cleanKey = "Engine";
+        cleanVal = "Spatial Fill Estimator";
+      } else if (key.toLowerCase() === "dollar_math" || key.toLowerCase() === "math") {
+        cleanKey = "Valuation Engine";
+        cleanVal = "Rate Schedule Engine";
       }
       cleanVal = cleanVal
         .replace(/\bdeterministic\b/gi, "verified formula")
+        .replace(/\bgeometry\b/gi, "Spatial Fill Estimator")
+        .replace(/\bdollar_math\b/gi, "Rate Schedule Engine")
         .replace(
           /Orthogonal perspective projection & voxel depth integration/gi,
           "Surface boundary & depth measurement",
@@ -197,15 +211,27 @@ export function StageInspectorDrawer({
               </div>
               <h2 className="text-lg font-bold tracking-tight text-foreground">{stage.label}</h2>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1 font-mono text-[11px] text-primary">
-                  <CpuIcon className="size-3.5" />
-                  {displayModel}
-                </span>
-                <span>·</span>
+                {aiModel && (
+                  <>
+                    <span className="inline-flex items-center gap-1 font-mono text-[11px] text-primary">
+                      <CpuIcon className="size-3.5" />
+                      {aiModel}
+                    </span>
+                    <span>·</span>
+                  </>
+                )}
                 <span className="inline-flex items-center gap-1">
                   <ClockIcon className="size-3" />
                   {durationStr}
                 </span>
+                {stage.confidence != null && (
+                  <>
+                    <span>·</span>
+                    <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                      {Math.round(stage.confidence * 100)}% confidence
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
@@ -277,47 +303,6 @@ export function StageInspectorDrawer({
                   <span className="font-semibold text-foreground">Summary:</span> {cleanSummary}
                 </div>
               )}
-            </div>
-
-            {/* Metrics Grid */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1 rounded-xl border border-border bg-card p-3">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Status
-                </span>
-                <span className="text-sm font-semibold capitalize text-foreground">
-                  {stage.status === "flagged"
-                    ? "Flagged for review"
-                    : isPending
-                      ? "Not run yet"
-                      : stage.status === "skipped"
-                        ? "Skipped"
-                      : "Completed successfully"}
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-1 rounded-xl border border-border bg-card p-3">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Confidence
-                </span>
-                <span className="text-sm font-semibold text-foreground">{confidenceStr}</span>
-              </div>
-
-              <div className="flex flex-col gap-1 rounded-xl border border-border bg-card p-3">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Model / Engine
-                </span>
-                <span className="truncate font-mono text-xs font-semibold text-foreground">
-                  {displayModel}
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-1 rounded-xl border border-border bg-card p-3">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Duration
-                </span>
-                <span className="text-sm font-semibold text-foreground">{durationStr}</span>
-              </div>
             </div>
 
             {/* Stage Details & Measurements */}

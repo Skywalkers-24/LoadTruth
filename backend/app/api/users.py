@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.deps import CurrentMember, require
 from app.api.repo import ActiveTenant, Repository
-from app.auth.roles import can_act_on_user, can_manage_settings, can_manage_users
+from app.auth.roles import can_act_on_user, can_manage_users
 from app.tickets.repository import DuplicateUserError, UserNotFoundError
 from app.tickets.schemas import UserIn, UserOut, UserPatch
 

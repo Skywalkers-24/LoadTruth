@@ -59,7 +59,7 @@ def _find_clip(clips_dir: Path, name: str) -> Path | None:
 
 async def _measure_one(gt: GroundTruthRow, data: bytes, filename: str) -> float:
     """Ingest one clip through the pipeline and return the measured fill %."""
-    artifact = ingest_upload(filename, data, allow_scenario_override=True)
+    artifact = ingest_upload(filename, data, allow_scenario_override=False)
     ai = get_ai_client()
     tenant_id = uuid4()
     event_id = uuid4()

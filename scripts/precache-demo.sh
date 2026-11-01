@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pre-cache the demo clips (Winner.md B8).
+# Pre-cache the demo clips.
 #
 # Ingests every clip in a demo directory once, so each clip's SAM + Spark stage
 # results and its evidence media are persisted in the durable, content-hash-keyed

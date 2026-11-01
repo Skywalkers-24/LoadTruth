@@ -20,8 +20,28 @@ export const metadata: Metadata = {
   description:
     "LoadTruth helps disaster-debris teams review truck footage, fill estimates, flagged issues, and cubic-yard tickets.",
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    icon: [
+      {
+        url: "/icons/favicon-light.svg",
+        media: "(prefers-color-scheme: light)",
+        type: "image/svg+xml",
+      },
+      {
+        url: "/icons/favicon-dark.svg",
+        media: "(prefers-color-scheme: dark)",
+        type: "image/svg+xml",
+      },
+    ],
+    shortcut: ["/icons/favicon-dark.svg"],
+    apple: [
+      {
+        url: "/icons/light/png/loadtruth-light-180.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
   },
+  manifest: "/site.webmanifest",
 };
 
 export const viewport: Viewport = {
@@ -34,6 +54,21 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
+        <link
+          rel="icon"
+          id="app-favicon-light"
+          type="image/svg+xml"
+          href="/icons/favicon-light.svg"
+          media="(prefers-color-scheme: light)"
+        />
+        <link
+          rel="icon"
+          id="app-favicon-dark"
+          type="image/svg+xml"
+          href="/icons/favicon-dark.svg"
+          media="(prefers-color-scheme: dark)"
+        />
+        <link rel="apple-touch-icon" href="/icons/light/png/loadtruth-light-180.png" />
         {/* Set the theme before paint to avoid a flash of the wrong theme. */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

@@ -43,7 +43,7 @@ def test_new_ticket_computes_estimate_only_by_default() -> None:
     # No monitor call yet → delta fields unset, status draft, not an overbill.
     assert t.monitor_call_fill_pct is None
     assert t.delta_dollar_value is None
-    assert t.status is TicketStatus.DRAFT
+    assert t.status is TicketStatus.CONFIRMED
     assert t.is_overbill is False
 
 
@@ -94,4 +94,4 @@ def test_ticket_defaults() -> None:
     )
     assert t.evidence_frames == []
     assert t.anomaly_count == 0
-    assert t.status is TicketStatus.DRAFT
+    assert t.status is TicketStatus.CONFIRMED

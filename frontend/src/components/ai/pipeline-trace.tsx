@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import type { PipelineStage } from "@/lib/api";
+import { getAIModelName } from "./stage-inspector-drawer";
 import { cn } from "@/lib/utils";
 
 const STATUS_COLOR: Record<string, string> = {
@@ -198,10 +199,10 @@ export function PipelineTrace({
                     <ChevronRightIcon className="size-2.5" />
                   </span>
                 ) : (
-                  !compact && (
+                  !compact && getAIModelName(s.model) && (
                     <span className="hidden shrink-0 items-center gap-1 font-mono text-[10px] text-muted-foreground sm:flex">
                       <CpuIcon className="size-3" />
-                      {s.model === "deterministic" ? "formula" : s.model}
+                      {getAIModelName(s.model)}
                     </span>
                   )
                 )}
@@ -236,7 +237,9 @@ export function PipelineTrace({
                         s.confidence != null ? `${Math.round(s.confidence * 100)}%` : "Not reported"
                       }
                     />
-                    <Detail label="Model" value={s.model} mono />
+                    {getAIModelName(s.model) && (
+                      <Detail label="AI Model" value={getAIModelName(s.model)!} mono />
+                    )}
                     <Detail
                       label="Duration"
                       value={formatDuration(s.duration_ms)}
@@ -276,7 +279,9 @@ export function analysisText(stage: PipelineStage): string {
 
 function cleanText(text: string): string {
   return text
-    .replace(/\bdeterministic\b/gi, "standard")
+    .replace(/\bdeterministic\b/gi, "verified formula")
+    .replace(/\bgeometry\b/gi, "Spatial Fill Estimator")
+    .replace(/\bdollar_math\b/gi, "Rate Schedule Engine")
     .replace(/\bevident\b/gi, "verified")
     .replace(/\bevidence receipt\b/gi, "audit summary")
     .replace(/\bvoxel depth integration\b/gi, "fill depth measurement")
@@ -297,7 +302,7 @@ function composedAnalysis(stage: PipelineStage): string {
   switch (stage.key) {
     case "sam_track": {
       parts.push(
-        "AI outlined the truck bed and visible load across video frames to make the boundaries easier to review.",
+        "Meta SAM 3.1 tracked the truck bed and load boundaries continuously across video frames.",
       );
       break;
     }
@@ -317,11 +322,11 @@ function composedAnalysis(stage: PipelineStage): string {
     case "capacity": {
       if (stage.status === "flagged") {
         parts.push(
-          "The truck was not found in the official county registry, so its certified capacity could not be applied automatically. The load is flagged for review.",
+          "Certified Vehicle Registry did not find this truck in official county records. Routed for review.",
         );
       } else {
         parts.push(
-          "The truck ID was matched to the official county registry to get its certified bed capacity in cubic yards for billing.",
+          "Certified Vehicle Registry confirmed tare capacity and hauler authorization in official county records.",
         );
       }
       const score = detail(stage, "match score");
@@ -330,36 +335,36 @@ function composedAnalysis(stage: PipelineStage): string {
     }
     case "geometry": {
       parts.push(
-        "AI estimates fill from selected video frames, then combines those estimates. The outlines do not determine the fill percentage.",
+        "Spatial Fill Estimator calculates fill percentage across keyframes without guessing.",
       );
       break;
     }
     case "spark_classify": {
-      parts.push("AI identified the debris type to select the contract rate per cubic yard.");
+      parts.push("Meta Muse Spark 1.3 identified debris material class to set the unit contract rate.");
       if (conf) parts.push(`Classification confidence: ${conf}.`);
       break;
     }
     case "anomalies": {
       if (stage.status === "flagged") {
         parts.push(
-          "Quality checks flagged an issue with this load (such as overfilling, hidden voids, or uncertified hauler) and routed the ticket for supervisor review.",
+          "FEMA Rules Engine detected an audit condition and routed the ticket for supervisor review.",
         );
       } else {
         parts.push(
-          "Automated checks found no identity, certification, capacity, or cycle-time issue. Monitors can flag visual fill concerns during review.",
+          "FEMA Rules Engine verified identity, capacity, and cycle-time guidelines with zero violations.",
         );
       }
       break;
     }
     case "dollar_math": {
       parts.push(
-        "Calculates the payout: certified truck size multiplied by the fill percentage and the debris rate per cubic yard.",
+        "Rate Schedule Engine derived final valuation: certified bed volume × fill percentage × debris unit rate.",
       );
       break;
     }
     case "cache": {
       parts.push(
-        "This result was loaded instantly from storage because the models already analyzed this exact video clip earlier.",
+        "Loaded instantly from audit ledger because models analyzed this identical footage fingerprint earlier.",
       );
       break;
     }

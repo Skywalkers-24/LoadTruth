@@ -66,11 +66,8 @@ def ingest_upload(
 ) -> IngestedArtifact:
     """Stage 0+1 for a direct upload: normalize + hash. Raises on empty input.
 
-    If the filename carries a `scenario__…` prefix matching a known mock fixture
-    (and ``allow_scenario_override`` is set, as it is under MOCK_AI), the content
-    hash is set to that key so the mock replays that exact scenario. The live
-    pipeline passes ``allow_scenario_override=False`` so results are always
-    keyed by the true SHA-256 of the bytes.
+    When live AI is active, callers pass allow_scenario_override=False so results
+    are always keyed by the true cryptographic SHA-256 of the bytes.
     """
     if not data:
         raise ValueError("empty upload")

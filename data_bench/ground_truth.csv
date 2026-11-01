@@ -1,5 +1,5 @@
 clip,true_fill_pct,material,angle,lighting
-# LoadTruth known-volume benchmark manifest (Winner.md B1).
+# LoadTruth known-volume benchmark manifest.
 # One row per clip with its MEASURED true fill % (scale-model rig or a load
 # bought by the cubic yard) and the capture conditions. The clip files live in
 # data_bench/clips/ (gitignored); this manifest is committed. Fill in real rows

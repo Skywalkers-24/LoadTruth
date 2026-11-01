@@ -62,7 +62,7 @@ function ConsoleView() {
   const urlTicket = searchParams.get("ticket");
 
   // Judge mode opens on the headline over-call: show every ticket, sorted by
-  // dollar delta, so the pinned result is the first row (Winner.md B7).
+  // dollar delta, so the pinned result is the first row.
   const judge = isJudgeMode();
   const [status, setStatus] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");

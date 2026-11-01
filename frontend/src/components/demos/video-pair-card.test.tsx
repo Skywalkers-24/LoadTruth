@@ -71,7 +71,7 @@ describe("single clip playback", () => {
     const first = host.querySelector("video")!;
     first.currentTime = 4;
     await act(async () => first.dispatchEvent(new Event("timeupdate")));
-    await act(async () => byText("With masks").click());
+    await act(async () => byText("With outlines").click());
     const source = host.querySelector("video")!;
     Object.defineProperty(source, "readyState", { value: 2 });
     Object.defineProperty(source, "duration", { value: 10 });

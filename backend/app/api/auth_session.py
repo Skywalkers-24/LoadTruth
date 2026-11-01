@@ -93,24 +93,28 @@ def _verify_superadmin_auth(username: str, password: str) -> bool:
     target_p_plain = settings.superadmin_password or ""
 
     u_ok = False
-    if target_u_hash and hmac.compare_digest(u_hash, target_u_hash):
-        u_ok = True
-    elif target_u_plain and hmac.compare_digest(u_input, target_u_plain):
+    if (
+        target_u_hash
+        and hmac.compare_digest(u_hash, target_u_hash)
+        or target_u_plain
+        and hmac.compare_digest(u_input, target_u_plain)
+    ):
         u_ok = True
 
     p_ok = False
-    if target_p_hash and hmac.compare_digest(p_hash, target_p_hash):
-        p_ok = True
-    elif target_p_plain and hmac.compare_digest(p_input, target_p_plain):
+    if (
+        target_p_hash
+        and hmac.compare_digest(p_hash, target_p_hash)
+        or target_p_plain
+        and hmac.compare_digest(p_input, target_p_plain)
+    ):
         p_ok = True
 
     return u_ok and p_ok
 
 
 @router.get("/directory", response_model=list[DirectoryMember])
-async def directory(
-    repo: LoginRepo, exclude_superadmin: bool = False
-) -> list[DirectoryMember]:
+async def directory(repo: LoginRepo, exclude_superadmin: bool = False) -> list[DirectoryMember]:
     """The tenant's members, offered as sign-in options on the login screen."""
     users = await repo.list_users(DEMO_TENANT_ID)
     return [
@@ -124,7 +128,8 @@ async def directory(
 async def login(repo: LoginRepo, body: LoginIn) -> LoginOut:
     """Sign in as a seeded member by email; returns a signed session token.
 
-    Dedicated Developer / SuperAdmin portal logins use /auth/superadmin/login with username and password.
+    Dedicated Developer / SuperAdmin portal logins use /auth/superadmin/login
+    with username and password.
     """
     user = await repo.get_user_by_email(DEMO_TENANT_ID, str(body.email))
     if user is None or user.status != "active":
@@ -135,7 +140,9 @@ async def login(repo: LoginRepo, body: LoginIn) -> LoginOut:
     if user.email.lower() == "developer@loadtruth.io":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Developer / SuperAdmin accounts must log in via the SuperAdmin developer portal.",
+            detail=(
+                "Developer / SuperAdmin accounts must log in via the SuperAdmin developer portal."
+            ),
         )
     session = Session(
         user_id=str(user.id),
@@ -149,7 +156,7 @@ async def login(repo: LoginRepo, body: LoginIn) -> LoginOut:
 
 @router.post("/superadmin/login", response_model=LoginOut)
 async def superadmin_login(repo: LoginRepo, body: SuperAdminLoginIn) -> LoginOut:
-    """Developer / SuperAdmin login with username and password verified against hashed credentials in .env."""
+    """Developer / SuperAdmin login with credentials verified against .env hashes."""
     if not _verify_superadmin_auth(body.username, body.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

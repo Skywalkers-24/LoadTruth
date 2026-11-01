@@ -1,6 +1,5 @@
 """Unit tests for the Enterprise Generational API Response Cache."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -8,10 +7,8 @@ import pytest
 from app.api.cache import (
     cached_api,
     clear_local_cache,
-    get_cached_json,
     get_tag_version,
     invalidate_cache_tags,
-    set_cached_json,
 )
 from app.config import get_settings
 
@@ -171,4 +168,3 @@ async def test_redis_pipeline_mock_integration(monkeypatch):
     mock_pipe.incr.assert_called_with("lt:tag:ver:event:ev-999")
     mock_pipe.expire.assert_called_with("lt:tag:ver:event:ev-999", 30 * 86400)
     mock_pipe.execute.assert_awaited_once()
-

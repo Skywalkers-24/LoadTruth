@@ -4,7 +4,7 @@
 Tiers:
 - Low (480p, CRF 26, faststart): ~300-500 KB, fast instantaneous start on mobile/2G/3G.
 - Medium (720p, CRF 24, faststart): ~1.2-1.5 MB, high-definition balanced playback for 4G.
-- High: Original master clip (or -high.mp4 alias), 1080p/720p maximum fidelity.
+- High: Original master clip, 1080p/720p maximum fidelity.
 
 Usage:
     python3 scripts/generate_video_variants.py
@@ -70,6 +70,7 @@ def main() -> None:
         if not f.endswith("-low.mp4")
         and not f.endswith("-med.mp4")
         and not f.endswith("-high.mp4")
+        and not Path(f).name.startswith("showcase-")
     ]
 
     print(f"Found {len(masters)} master videos in {VIDEO_DIR}.")
@@ -80,14 +81,6 @@ def main() -> None:
         dst_med = master.replace(".mp4", "-med.mp4")
         tasks.append((master, "-2:480", 26, dst_low))
         tasks.append((master, "-2:720", 24, dst_med))
-
-        # Also create -high.mp4 hardlink if it doesn't already exist
-        dst_high = Path(master.replace(".mp4", "-high.mp4"))
-        if not dst_high.exists():
-            try:
-                os.link(master, dst_high)
-            except OSError:
-                pass
 
     print(f"Queueing {len(tasks)} encoding tasks across parallel workers...")
     t_start = time.time()

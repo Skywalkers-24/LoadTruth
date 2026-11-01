@@ -17,7 +17,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ARG BACKEND_URL=http://backend:8000
 ENV BACKEND_URL=${BACKEND_URL}
 # NEXT_PUBLIC_* vars are inlined at build time, so judge mode is chosen when the
-# image is built (Winner.md B7). Defaults to the normal console.
+# image is built. Defaults to the normal console.
 ARG NEXT_PUBLIC_APP_MODE=default
 ENV NEXT_PUBLIC_APP_MODE=${NEXT_PUBLIC_APP_MODE}
 ARG NEXT_PUBLIC_JUDGE_TICKET_ID=

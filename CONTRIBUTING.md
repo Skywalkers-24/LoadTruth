@@ -93,8 +93,8 @@ Architecture is documented in [Readme.md](Readme.md#-architecture), with a compo
 | `frontend/src/components/` | Screen workflows and shared UI, auth, shell, AI, review, reports, billing, admin |
 | `frontend/src/lib/` | Typed API client, auth/query hooks, formatting, themes and app mode |
 | `infra/rbac/` | PostgreSQL RBAC schema and row-level security policies |
-| `scripts/` | Repeatable setup, dev, evaluation, live-check, benchmark, probe and demo-cache tasks |
-| `data_tests/`, `data_bench/` | Test/demo media references and known-volume benchmark manifest; large video clips are generally kept out of Git |
+| `scripts/` | Repeatable setup, dev, evaluation, live-check, probe and demo-cache tasks |
+| `data_bench/` | Known-volume benchmark manifest; large video clips are kept out of Git |
 | `.github/workflows/` | CI, security scan and manually dispatched deployment workflows |
 
 ## Configuration
@@ -132,7 +132,7 @@ See the complete list and comments in [.env.example](.env.example). Configuratio
 - [Deployment](docs/DEPLOYMENT.md) — deployment targets and caching strategy.
 - [Scripts reference](scripts/README.md) — script purpose and flags.
 - [Backend guide](backend/README.md), [frontend guide](frontend/README.md), and [RBAC guide](infra/rbac/README.md) — subsystem notes.
-- [Research](Research.md), [hackathon notes](Hackathon.md), and [submission notes](Winner.md) — project context and evaluation material.
+- [Research](Research.md) and [hackathon notes](Hackathon.md) — project context and evaluation material.
 
 ## Current scope notes
 

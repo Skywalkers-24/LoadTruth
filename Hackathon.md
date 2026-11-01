@@ -50,8 +50,8 @@ Up to $50,000 more goes to bonus prizes (community vote, most viral, etc.). The 
 
 ## Project themes
 
-1. **Build for Your World:** solve a problem you know firsthand in your own domain.
-2. **Push the Frontier:** software, robotics, manufacturing, energy, materials; give a machine a new capability, or understand and control a physical system. **LoadTruth fits this theme.**
+1. **Build for Your World:** solve a problem you know firsthand in your own domain. **LoadTruth fits this theme: applying Meta vision and reasoning models to disaster debris monitoring, municipal civil recovery, and FEMA public assistance audit accountability.**
+2. **Push the Frontier:** software, robotics, manufacturing, energy, materials; give a machine a new capability, or understand and control a physical system.
 
 ---
 

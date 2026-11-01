@@ -204,10 +204,10 @@ export function AppShell({
 
 function Brand({ collapsed }: { collapsed: boolean }) {
   return (
-    <Link href="/" className="flex items-center gap-2.5 rounded-md" aria-label="LoadTruth home">
-      <LogoMark size={collapsed ? 26 : 28} className="shrink-0" />
+    <Link href="/" className="flex items-center gap-3 rounded-md" aria-label="LoadTruth home">
+      <LogoMark size={collapsed ? 32 : 36} className="shrink-0" />
       {!collapsed && (
-        <span className="text-[16px] font-bold tracking-tight text-sidebar-foreground">
+        <span className="text-[17px] font-bold tracking-tight text-sidebar-foreground">
           LoadTruth
         </span>
       )}

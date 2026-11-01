@@ -27,6 +27,7 @@ ManageTrucks = Depends(require(can_manage_trucks, "You do not have permission to
 @router.get("/trucks", response_model=list[TruckOut])
 async def list_trucks(repo: Repository, tenant: ActiveTenant) -> list[TruckOut]:
     """List certified trucks in the active tenant."""
+
     async def _compute() -> list[TruckOut]:
         return [TruckOut.model_validate(t) for t in await repo.list_trucks(tenant)]
 

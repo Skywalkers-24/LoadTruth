@@ -88,11 +88,11 @@ export function AssistantChat({
           <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
             <span
               className={cn(
-                "grid place-items-center rounded-2xl bg-[var(--color-brand-soft)]",
+                "grid place-items-center rounded-2xl bg-[var(--color-brand-soft)] p-2",
                 compact ? "size-12" : full ? "size-20" : "size-16",
               )}
             >
-              <LogoMark size={compact ? 28 : full ? 44 : 36} />
+              <LogoMark size={compact ? 28 : full ? 44 : 36} variant="transparent" />
             </span>
             <div className="flex flex-col gap-1">
               <p

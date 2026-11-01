@@ -1,4 +1,4 @@
-"""Benchmark harness statistics (Winner.md B1)."""
+"""Benchmark harness statistics."""
 
 from __future__ import annotations
 

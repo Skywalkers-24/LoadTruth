@@ -316,10 +316,10 @@ def test_delete_ticket(client: TestClient) -> None:
 def test_delete_ticket_read_only_event_fails(client: TestClient) -> None:
     events = client.get("/events").json()
     ro_event = next(e for e in events if "read-only" in e["tags"])
-    ro_tickets = client.get("/tickets", params={"limit": 5, "event_id": ro_event["id"]}).json()["items"]
+    ro_tickets = client.get("/tickets", params={"limit": 5, "event_id": ro_event["id"]}).json()[
+        "items"
+    ]
     assert ro_tickets
     tid = ro_tickets[0]["id"]
     res = client.delete(f"/tickets/{tid}")
     assert res.status_code == 409
-
-

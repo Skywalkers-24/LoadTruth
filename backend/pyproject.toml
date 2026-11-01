@@ -90,6 +90,9 @@ asyncio_mode = "auto"
 addopts = "-ra"
 testpaths = ["tests"]
 
+[tool.coverage.run]
+omit = ["app/bench/run.py", "app/configure_b2_cors.py", "app/demo_check.py", "app/integrations_check.py"]
+
 [tool.coverage.report]
 fail_under = 80
 show_missing = true

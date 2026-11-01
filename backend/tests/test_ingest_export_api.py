@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from app.tickets.seed import DEMO_EVENT_ID
 
 
-def test_ingest_drafts_and_persists_ticket(client: TestClient) -> None:
+def test_ingest_persists_confirmed_ticket(client: TestClient) -> None:
     before = client.get("/tickets").json()["total"]
     resp = client.post(
         f"/events/{DEMO_EVENT_ID}/ingest",
@@ -17,7 +17,7 @@ def test_ingest_drafts_and_persists_ticket(client: TestClient) -> None:
     )
     assert resp.status_code == 201
     ticket = resp.json()
-    assert ticket["status"] == "draft"
+    assert ticket["status"] == "confirmed"
     assert ticket["valuation"]["est_dollar_value"]
     # Persisted: the ticket list grew by one.
     assert client.get("/tickets").json()["total"] == before + 1
@@ -93,11 +93,11 @@ def test_ingest_scenario_clean_positive(client: TestClient) -> None:
     assert float(ticket["valuation"]["est_dollar_value"]) > 0
 
 
-def test_ingest_unknown_upload_still_drafts(client: TestClient) -> None:
+def test_ingest_unknown_upload_still_confirms(client: TestClient) -> None:
     """An ordinary upload (no scenario prefix) always drafts a believable ticket."""
     resp = client.post(
         f"/events/{DEMO_EVENT_ID}/ingest",
         files={"file": ("random-haul.mp4", b"some-unique-bytes-xyz", "video/mp4")},
     )
     assert resp.status_code == 201
-    assert resp.json()["status"] == "draft"
+    assert resp.json()["status"] == "confirmed"

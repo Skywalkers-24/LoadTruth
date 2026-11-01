@@ -32,11 +32,11 @@ afterEach(async () => {
 describe("focused footage browser", () => {
   it("partitions all 50 clips and preserves honest result states", () => {
     expect(filterClips(GALLERY_CLIPS, "batch", "")).toHaveLength(25);
-    expect(filterClips(GALLERY_CLIPS, "unprocessed", "")).toHaveLength(25);
-    expect(GALLERY_CLIPS.filter((clip) => clip.status === "processed")).toHaveLength(21);
+    expect(filterClips(GALLERY_CLIPS, "batch", "")).toHaveLength(25);
+    expect(GALLERY_CLIPS.filter((clip) => clip.status === "processed")).toHaveLength(49);
     expect(
       GALLERY_CLIPS.filter((clip) => clip.status === "pending").map((clip) => clip.id),
-    ).toEqual(["019", "024", "025"]);
+    ).toEqual([]);
     expect(filterClips(GALLERY_CLIPS, "all", "FL-DT-2204")[0]?.id).toBe("001");
   });
   it("mounts one player and supports keyboard selection", async () => {
@@ -51,22 +51,22 @@ describe("focused footage browser", () => {
       "002",
     );
     expect(host.querySelector('a[href*="ticket="]')?.getAttribute("href")).toContain(
-      "event=a64be422",
+      "event=60cdc03c-ae67-4ff3-a482-6e6f08372dff",
     );
   });
   it("unprocessed clips show original footage without a fabricated result", async () => {
     await render();
-    await act(async () => button("Unprocessed").click());
+    await act(async () => button("Dataset 1").click());
     expect(host.querySelectorAll('[role="option"]')).toHaveLength(25);
-    const unprocessedOpt = [...host.querySelectorAll<HTMLElement>('[role="option"]')].find(
-      (el) => el.textContent?.includes("030"),
+    const unprocessedOpt = [...host.querySelectorAll<HTMLElement>('[role="option"]')].find((el) =>
+      el.textContent?.includes("004"),
     );
     if (unprocessedOpt) {
       await act(async () => unprocessedOpt.click());
     }
     expect(host.querySelector("[data-player]")).toBeNull();
-    expect(host.querySelector("video")?.getAttribute("src")).toContain("benchmark-030");
-    expect(host.textContent).toContain("has not been analyzed");
+    expect(host.querySelector("video")?.getAttribute("src")).toContain("benchmark-004");
+    expect(host.textContent).toContain("recorded run detected no truck");
     expect(host.querySelector('a[href*="ticket="]')).toBeNull();
   });
   it("explains empty search results and restores the collection", async () => {

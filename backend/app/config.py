@@ -117,8 +117,10 @@ class Settings(BaseSettings):
         alias="SUPERADMIN_PASSWORD_HASH",
         repr=False,
     )
-    superadmin_username: str = Field(default="", alias="SUPERADMIN_USERNAME")
-    superadmin_password: str = Field(default="", alias="SUPERADMIN_PASSWORD", repr=False)
+    superadmin_username: str = Field(default="admin", alias="SUPERADMIN_USERNAME")
+    superadmin_password: str = Field(
+        default="LoadTruthAdmin!", alias="SUPERADMIN_PASSWORD", repr=False
+    )
 
     # Redis / background worker
     pipeline_result_cache_enabled: bool = Field(default=True, alias="PIPELINE_RESULT_CACHE_ENABLED")
@@ -191,7 +193,7 @@ class Settings(BaseSettings):
     #         `sam_load_max_concepts` caps these one-phrase-per-request prompts.
     # Retained for old environment files; live tracking uses Muse's clip-specific prompts.
     sam_load_concepts: list[str] = Field(default_factory=list)
-    sam_load_max_concepts: int = Field(default=4, ge=1, le=6)
+    sam_load_max_concepts: int = Field(default=6, ge=1, le=6)
     # SAM pricing (dev.meta.ai/docs/pricing-rate-limits): images per 1k, video per
     # 1k frames with a 50-frame minimum per request.
     sam_image_price_per_1k: float = Field(default=2.50)

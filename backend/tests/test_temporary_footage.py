@@ -1,10 +1,12 @@
 """Temporary playback expires independently of permanently saved ticket results."""
 
 from uuid import UUID
+
 import pytest
+
 from app.api import ingest_jobs
 from app.pipeline import b2_store, evidence_store
-from app.tickets.seed import DEMO_EVENT_ID, PLAYGROUND_EVENT_ID, ADMIN_DEMO_EVENT_ID
+from app.tickets.seed import ADMIN_DEMO_EVENT_ID, DEMO_EVENT_ID, PLAYGROUND_EVENT_ID
 
 
 def fail_storage(*args, **kwargs):
@@ -81,7 +83,7 @@ def test_practice_uses_saved_results_and_source_stays_readonly(client, as_role, 
     assert response.status_code == 201, response.text
     practice = response.json()
     assert practice["id"] != original["id"]
-    assert practice["status"] == "draft"
+    assert practice["status"] == "confirmed"
     assert (
         client.patch(
             f"/tickets/{practice['id']}/monitor-call", json={"monitor_fill_pct": 40}
@@ -114,14 +116,8 @@ def test_practice_in_writable_event(client, as_role):
     res = client.post(
         f"/events/{DEMO_EVENT_ID}/practice-tickets", json={"source_ticket_id": original["id"]}
     )
-    assert res.status_code == 201, res.text
-    created = res.json()
-    assert created["event_id"] == str(DEMO_EVENT_ID)
-    assert created["truck_id"] == original["truck_id"]
-    # Can delete the created ticket
-    del_res = client.delete(f"/tickets/{created['id']}")
-    assert del_res.status_code == 204
-
+    assert res.status_code == 409
+    assert "sandbox" in res.json()["detail"].lower()
 
 
 @pytest.mark.parametrize("role", ["monitor", "auditor", "supervisor", "county_admin"])
@@ -130,8 +126,8 @@ def test_live_demo_is_visible_but_admin_only(client, as_role, role):
 
     # Obtain an existing ticket then attach it to the live event in fixture DB.
     ticket_id = client.get(f"/tickets?event_id={DEMO_EVENT_ID}").json()["items"][0]["id"]
-    from app.main import app
     from app.api.repo import get_repository
+    from app.main import app
 
     async def move():
         async for repo in app.dependency_overrides[get_repository]():

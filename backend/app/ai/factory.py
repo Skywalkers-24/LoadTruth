@@ -1,7 +1,7 @@
 """Select the AI client implementation from configuration.
 
-MOCK_AI (or no configured inference route) -> MockAIClient (fixtures, $0).
-Otherwise -> LiveAIClient (Meta SAM plus the configured chat/vision providers).
+LiveAIClient (Meta SAM 3.1 plus Muse Spark) is strictly enforced when live routes are enabled.
+Silent mock fallback is eliminated to ensure genuine model inference.
 """
 
 from __future__ import annotations
@@ -17,16 +17,27 @@ from app.config import get_settings
 
 @lru_cache
 def get_ai_client() -> AIClient:
-    """Return the process-wide AI client (mock under MOCK_AI or no key)."""
-    if get_settings().live_ai_enabled:
+    """Return the process-wide AI client.
+
+    Defaults strictly to LiveAIClient. Silent mock fallback is disabled.
+    MockAIClient is only returned if MOCK_AI=true is explicitly configured.
+    """
+    settings = get_settings()
+    if settings.mock_ai:
+        return MockAIClient()
+    if settings.live_ai_enabled:
         return LiveAIClient()
-    return MockAIClient()
+    raise RuntimeError(
+        "Live AI client is required but no live route is configured. "
+        "Set MODEL_API_KEY in .env for Meta Model API (https://api.meta.ai/v1). "
+        "Silent mock fallback is disabled."
+    )
 
 
 def clip_session(client: AIClient, content_hash: str) -> AbstractAsyncContextManager[None]:
     """Scope one pipeline run so the live client can clean up the clip's upload.
 
-    A no-op for the mock (and any client without media to release).
+    A no-op for any client without media to release.
     """
     if isinstance(client, LiveAIClient):
         return client.clip_session(content_hash)

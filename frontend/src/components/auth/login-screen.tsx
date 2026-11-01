@@ -77,12 +77,14 @@ export function LoginScreen() {
     if (!selected && members.length > 0) setSelected(members[0]!.email);
   }, [members, selected]);
 
-  async function submit() {
-    if (!selected) return;
+  async function submit(targetEmail?: string) {
+    const emailToUse = targetEmail ?? selected;
+    if (!emailToUse) return;
+    setSelected(emailToUse);
     setSubmitting(true);
     setError(null);
     try {
-      await signIn(selected);
+      await signIn(emailToUse);
       router.push("/");
     } catch (err) {
       if (isServerWakingUp(err)) {
@@ -122,9 +124,9 @@ export function LoginScreen() {
             text never fights the wireframe. A flex spacer then pushes the footer
             to the bottom. */}
         <div className="relative flex flex-col gap-6">
-          <div className="flex items-center gap-3 [text-shadow:0_1px_12px_rgba(0,0,0,0.55)]">
-            <LogoMark size={48} />
-            <span className="text-[26px] font-bold tracking-tight text-white">LoadTruth</span>
+          <div className="flex items-center gap-3.5 [text-shadow:0_1px_12px_rgba(0,0,0,0.55)]">
+            <LogoMark size={56} forceTheme="dark" />
+            <span className="text-[28px] font-bold tracking-tight text-white">LoadTruth</span>
           </div>
 
           {/* The copy sits directly on the gradient scrim with a strong
@@ -137,11 +139,10 @@ export function LoginScreen() {
             {/* Highlighted headline: brighter, heavier, with a glow so it pops
                 over the footage. */}
             <h1 className="text-[clamp(26px,2.25vw,32px)] font-extrabold leading-[1.12] tracking-tight text-white">
-              A clearer record for every <span className="text-[#7dd3fc]">debris haul.</span>
+              Precision load intelligence for <span className="text-[#7dd3fc]">disaster debris removal.</span>
             </h1>
             <p className="text-[14px] font-medium leading-relaxed text-white/90">
-              LoadTruth reviews truck footage, estimates how full the bed is, and prepares a ticket
-              for a person to check. The saved video and outlines support later review.
+              LoadTruth reviews truck footage in real time with Meta SAM 3.1 &amp; Muse Spark 1.3—estimating volumetric fill, verifying certified capacity, and generating defensible audit records for FEMA reimbursement.
             </p>
           </div>
         </div>
@@ -149,12 +150,16 @@ export function LoginScreen() {
         {/* Spacer so the footer stays pinned to the bottom. */}
         <div className="flex-1" aria-hidden />
 
-        <div className="relative flex flex-col items-start gap-2 text-[12px] font-medium text-white [text-shadow:0_1px_10px_rgba(0,0,0,0.9),0_1px_2px_rgba(0,0,0,0.9)]">
+        <div className="relative flex flex-col items-start gap-2.5 text-[12px] font-medium text-white [text-shadow:0_1px_10px_rgba(0,0,0,0.9),0_1px_2px_rgba(0,0,0,0.9)]">
           <div className="space-y-1">
             <p>AI estimates · video evidence · human review</p>
+            <p className="font-semibold text-white/95">Powered by Meta SAM 3.1 &amp; Muse Spark 1.3</p>
+            <p className="text-white/80">Live inference via Meta Model API (api.meta.ai/v1)</p>
           </div>
           <a
-            href="/showcase"
+            href="https://55b5b622-loadtruth.tiwabhay800.workers.dev/showcase"
+            target="_blank"
+            rel="noreferrer"
             className="inline-flex shrink-0 items-center gap-1 font-semibold text-white underline-offset-4 hover:underline"
           >
             Project overview
@@ -173,8 +178,8 @@ export function LoginScreen() {
         <div className="login-screen-content flex w-full max-w-5xl flex-col gap-4">
           <div className="login-screen-card mx-auto w-full max-w-md rounded-2xl border border-border bg-[var(--color-surface)]/90 p-6 shadow-xl backdrop-blur-xl sm:p-7">
             <div className="mb-6 flex items-center gap-3 lg:hidden">
-              <LogoMark size={40} />
-              <span className="text-[22px] font-bold tracking-tight">LoadTruth</span>
+              <LogoMark size={46} />
+              <span className="text-[24px] font-bold tracking-tight">LoadTruth</span>
             </div>
 
             <div className="flex items-center justify-between gap-3">
@@ -213,12 +218,25 @@ export function LoginScreen() {
                 members.map((m: DirectoryMember) => {
                   const active = selected === m.email;
                   return (
-                    <button
+                    <div
                       key={m.email}
-                      type="button"
-                      onClick={() => setSelected(m.email)}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        if (active) {
+                          void submit(m.email);
+                        } else {
+                          setSelected(m.email);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          void submit(m.email);
+                        }
+                      }}
                       className={cn(
-                        "login-screen-member-button flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
+                        "login-screen-member-button group flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all select-none",
                         active
                           ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)] ring-1 ring-[var(--color-brand)]"
                           : "border-border hover:border-[var(--color-border-strong)] hover:bg-accent",
@@ -234,10 +252,29 @@ export function LoginScreen() {
                           {ROLE_LABEL[m.role]} · {ROLE_BLURB[m.role]}
                         </span>
                       </span>
-                      {active && (
-                        <ArrowRightIcon className="size-4 shrink-0 text-[var(--color-brand)]" />
-                      )}
-                    </button>
+
+                      <button
+                        type="button"
+                        title={`Sign in as ${m.full_name ?? m.email}`}
+                        aria-label={`Sign in as ${m.full_name ?? m.email}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void submit(m.email);
+                        }}
+                        className={cn(
+                          "grid size-7 shrink-0 place-items-center rounded-lg transition-all",
+                          active
+                            ? "bg-[var(--color-brand)] text-white shadow-sm hover:opacity-90 cursor-pointer"
+                            : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-foreground cursor-pointer",
+                        )}
+                      >
+                        {submitting && active ? (
+                          <Loader2Icon className="size-4 animate-spin" />
+                        ) : (
+                          <ArrowRightIcon className="size-4" />
+                        )}
+                      </button>
+                    </div>
                   );
                 })
               )}
@@ -249,7 +286,7 @@ export function LoginScreen() {
               className="login-screen-continue mt-5 w-full"
               size="default"
               disabled={!selected || submitting}
-              onClick={submit}
+              onClick={() => void submit()}
             >
               {submitting ? <Loader2Icon className="animate-spin" /> : null}
               {submitting ? "Signing in" : "Continue"}

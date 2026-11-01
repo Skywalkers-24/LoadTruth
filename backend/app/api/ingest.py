@@ -236,8 +236,8 @@ async def ingest_clip(
         filename = file.filename or "upload.mp4"
         settings = get_settings()
         try:
-            # Scenario filenames only steer the fixture replay; live results are
-            # always keyed by the true content hash.
+            # Scenario filenames only steer fixture replay during offline testing;
+            # live runs are strictly keyed by true content hash with zero mock steering.
             artifact = ingest_upload(
                 filename, data, allow_scenario_override=not settings.live_ai_enabled
             )

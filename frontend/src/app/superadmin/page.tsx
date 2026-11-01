@@ -54,8 +54,8 @@ export default function SuperAdminPage() {
 
       {/* Brand panel */}
       <div className="relative z-10 hidden min-h-0 flex-col justify-between overflow-hidden p-8 text-sidebar-foreground lg:flex xl:p-12">
-        <div className="flex items-center gap-3">
-          <LogoMark size={36} />
+        <div className="flex items-center gap-3.5">
+          <LogoMark size={44} forceTheme="dark" />
           <div>
             <div className="text-xl font-bold tracking-tight text-white drop-shadow">LoadTruth</div>
             <div className="text-xs font-medium text-white/80">Developer & SuperAdmin Portal</div>

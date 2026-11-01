@@ -455,7 +455,7 @@ class SqlTicketRepository:
                 models.Ticket.tenant_id == tenant_id, models.Ticket.id == ticket_id
             )
         )
-        if res.rowcount == 0:
+        if getattr(res, "rowcount", None) == 0:
             raise TicketNotFoundError(str(ticket_id))
         await self._s.flush()
 

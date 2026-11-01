@@ -51,9 +51,9 @@ describe("evidence fullscreen", () => {
     document.body.append(host);
     root = createRoot(host);
     await act(async () => root!.render(<EvidenceCanvas ticket={ticket} />));
-    expect(host.querySelector('[aria-label="Mask layers"]')).not.toBeNull();
-    expect(host.textContent).toContain("SAM 3.1 segmentation");
-    const buttons = host.querySelectorAll('[aria-label="Mask layers"] button');
+    expect(host.querySelector('[aria-label="Outline layers"]')).not.toBeNull();
+    expect(host.textContent).toContain("AI outlines");
+    const buttons = host.querySelectorAll('[aria-label="Outline layers"] button');
     expect(buttons).toHaveLength(3);
     const bodyBtn = [...buttons].find((b) => b.textContent?.includes("Body"))!;
     expect(bodyBtn.getAttribute("aria-pressed")).toBe("true");

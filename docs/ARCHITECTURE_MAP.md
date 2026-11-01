@@ -23,15 +23,19 @@ loadtruth/
 | Change | Location | Notes |
 |---|---|---|
 | App config / new env var | `backend/app/config.py` + `.env.example` | pydantic-settings; validated on boot |
-| Local benchmark batches / approved promotion | `scripts/reprocess-benchmark-batch.sh`, `scripts/benchmark_batch.py`, `scripts/benchmark_db.py` | Local Postgres only for ingest; immutable run manifests, resumable checkpoints, insert-only Supabase promotion after explicit approval. Usage in `scripts/README.md`. |
+| Local benchmark batch tooling | `dump/scripts/` on the local `dump` branch | Archived from the working `main` branch; the product benchmark gallery and known-volume harness remain in the app. |
 | Logging / observability | `backend/app/log.py` | structlog JSON; add request/tenant context here |
 | New API route | `backend/app/api/<resource>.py` (router) → include in `app/main.py` | one router per resource |
 | DB model / table | `backend/app/db/models.py` (base/mixins `app/db/base.py`, portable types `app/db/types.py`) + schema SQL in `infra/rbac/20_loadtruth_schema.sql` | SQLite is the local-host default; Compose and production use Postgres; `DATABASE_URL` selects the engine |
 | DB engine / init / seed | `app/db/engine.py` (`init_db` creates tables), `app/tickets/seed.py` (demo tenant) | schema migrations and RLS SQL are in `backend/migrations/` and `infra/rbac/` |
 | Ticket storage (repo) | `backend/app/tickets/repository.py` (`SqlTicketRepository`) + provider in `backend/app/api/repo.py` | async, tenant-scoped; session-per-request. `list_tickets` = all rows (dashboard/CSV/audit-packet aggregate the whole event); `list_tickets_page` = one page + total (ticket-list UI); `dashboard`/`reports_summary` build the roll-ups |
+| B2 private evidence storage | `backend/app/pipeline/b2_store.py` + `backend/app/api/demo_videos.py` | signed direct-to-B2 browser PUT/GET URLs; zero media bytes held on application disk; pins B2 version IDs for audit integrity |
+| Durable analysis jobs & worker | `backend/app/api/ingest_jobs.py` + `backend/app/db/models.py` (`AnalysisJob`) | durable Postgres job queue, single-worker sequential analysis with startup recovery, live progress streaming |
+| Partner inference & fallback (Modal/Baseten/Fireworks) | `backend/app/ai/partner_http.py` + `backend/app/ai/providers.py` | normalized OpenAI-compatible completion routes, automatic multi-provider fallback (`SPARK_FALLBACK_PROVIDERS`), token ledger rate calculation |
+| Muse Voice Transcribe (monitor radio call) | `backend/app/ai/live.py::interpret_monitor_call_audio` + `backend/app/api/tickets.py::transcribe_monitor_call` | captures WAV audio via `input_audio`, transcribes speech, strictly parses stated `fill_pct` and spoken debris issues |
 | Pipeline stages (deterministic) | `backend/app/pipeline/` — `anomalies.py` (compliance rules), `ingest.py` (hash), `registry.py` (capacity); `geometry.py` is legacy-only | pure Python, no model calls |
 | Evidence receipt + reproduce | `backend/app/pipeline/receipt.py` (pure SHA-256 over pinned inputs) + `SqlTicketRepository.reverify_ticket` + `POST /tickets/{id}/reverify` in `api/tickets.py` | replays the median of stored Muse frame estimates (or legacy SAM geometry for historical tickets) and rebuilds the receipt offline, with no model call. FE: `components/console/reproducibility-card.tsx` |
-| Known-volume benchmark | `backend/app/bench/` — `harness.py` (pure stats + CSV load), `run.py` (pipeline runner + CLI); manifest `data_bench/ground_truth.csv`, results `data_bench/results.json`, wrapper `scripts/benchmark.sh` | the independent accuracy number (distinct from monitor agreement) |
+| Known-volume benchmark | `backend/app/bench/` — `harness.py` (pure stats + CSV load), `run.py` (pipeline runner + CLI); manifest `data_bench/ground_truth.csv`, results `data_bench/results.json` | the independent accuracy number (distinct from monitor agreement) |
 | SAM tracking + Muse fill estimate | `backend/app/ai/sam_measure.py` tracks and stores SAM evidence; `ai/live.py::classify_debris` sends sampled frames to Muse without SAM coverage context; the pipeline uses the median of Muse's per-frame visual estimates | SAM is not used to calculate or automatically flag fill. `MUSE_FILL_VERSION` invalidates cached results when the estimation flow changes |
 | Frame decoding / keyframe sampling (Stage 1) | `backend/app/pipeline/frames.py` | samples 2-4 fps via PyAV (optional `av` dep, feature-detected); image→1 frame, no decoder→degraded empty sample |
 | Whole-pipeline result cache | `backend/app/pipeline/cache.py` + `backend/app/api/ingest.py` | in-process content-hash cache; not Redis-backed today |
@@ -86,10 +90,22 @@ loadtruth/
 ## Data flow (one clip → one ticket)
 
 ```
-upload (FE) → POST /ingest (BE) → enqueue (ARQ) → pipeline stages 1-7 → tickets/anomalies rows
-         ↑ realtime queue (Supabase) ←───────────────── progress (SSE) ──────────┘
-review console (FE) reads ticket + masks → monitor confirms/overrides → export (PDF/CSV)
-analyst chat (FE) → POST /chat (BE) → Muse Spark + read-only tools over tenant data
+upload (browser) ── signed PUT ──> Backblaze B2 private bucket (pinned version)
+          │
+          ▼
+POST /events/{id}/demo-videos/{vid}/analyze (BE) ──> durable Postgres AnalysisJob
+          │
+          ▼
+worker streams B2 bytes ──> pipeline stages 1-7 (SAM 3.1 + Muse Spark + Decimal valuation)
+          │
+          ▼
+persists ticket + SHA-256 evidence receipt + stage traces ──> streams progress via SSE
+          │
+          ▼
+review console (FE) renders SVG SAM masks ──> monitor confirms/overrides/speaks call (voice)
+          │
+          ▼
+export FEMA/FROC audit packets (HTML) + county invoices + CSV ledger
 ```
 
 ## Invariants (don't break these)

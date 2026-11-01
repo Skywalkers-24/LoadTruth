@@ -162,6 +162,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     el.classList.toggle("dark", mode === "dark");
     window.localStorage.setItem(THEME_KEY, theme);
     window.localStorage.setItem(MODE_KEY, mode);
+    // Keep browser tab favicon in sync with active theme mode
+    const favDark = document.getElementById("app-favicon-dark") as HTMLLinkElement | null;
+    const favLight = document.getElementById("app-favicon-light") as HTMLLinkElement | null;
+    if (favDark && favLight) {
+      if (mode === "dark") {
+        favDark.removeAttribute("media");
+        favLight.setAttribute("media", "(max-width: 0px)");
+      } else {
+        favLight.removeAttribute("media");
+        favDark.setAttribute("media", "(max-width: 0px)");
+      }
+    }
     // Briefly ease colors so the switch cross-fades rather than cutting.
     el.setAttribute("data-theme-anim", "");
     const t = window.setTimeout(() => el.removeAttribute("data-theme-anim"), 350);
@@ -232,5 +244,11 @@ export const themeInitScript = `
   e.setAttribute('data-mode',m);
   e.style.colorScheme=m;
   if(m==='dark'){e.classList.add('dark');}
+  var dl = document.getElementById('app-favicon-dark');
+  var ll = document.getElementById('app-favicon-light');
+  if(dl && ll){
+    if(m==='dark'){ dl.removeAttribute('media'); ll.setAttribute('media','(max-width: 0px)'); }
+    else { ll.removeAttribute('media'); dl.setAttribute('media','(max-width: 0px)'); }
+  }
 }catch(e){var el=document.documentElement;el.setAttribute('data-theme','${DEFAULT_THEME}');el.setAttribute('data-mode','${DEFAULT_MODE}');el.classList.add('dark');}})();
 `;
