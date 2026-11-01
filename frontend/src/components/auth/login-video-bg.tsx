@@ -73,7 +73,7 @@ function safelyPlay(video: HTMLVideoElement | null) {
   }
 }
 
-export function LoginVideoBg() {
+export function LoginVideoBg({ hideVignette = false }: { hideVignette?: boolean } = {}) {
   const { mode } = useTheme();
   const videoMode = mode === "light" ? "light" : "dark";
 
@@ -321,15 +321,17 @@ export function LoginVideoBg() {
       </div>
 
       {/* Edge gradient vignette for copy legibility */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            videoMode === "light"
-              ? "linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 18%, transparent), transparent 30%)"
-              : "linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 20%, transparent), transparent 30%)",
-        }}
-      />
+      {!hideVignette && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              videoMode === "light"
+                ? "linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 18%, transparent), transparent 30%)"
+                : "linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 20%, transparent), transparent 30%)",
+          }}
+        />
+      )}
     </div>
   );
 }

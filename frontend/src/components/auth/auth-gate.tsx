@@ -9,8 +9,8 @@ import { LoginScreen } from "@/components/auth/login-screen";
 
 // Routes that render without a login. The public showcase is the submission's
 // front door; it reads no tenant data, so it needs no session.
-// /login and /superadmin are public so users can view the login screen or superadmin portal.
-const PUBLIC_PREFIXES = ["/showcase", "/login", "/superadmin"];
+// /login, /superadmin, and /thumbnail are public.
+const PUBLIC_PREFIXES = ["/showcase", "/login", "/superadmin", "/thumbnail", "/thumb"];
 
 function isPublicPath(pathname: string | null): boolean {
   if (!pathname) return false;

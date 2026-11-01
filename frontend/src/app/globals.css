@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:is(.dark, .dark *, [data-mode="dark"], [data-mode="dark"] *));
 
 /* LoadTruth operator-console theme.
    Two axes: a theme identity (`data-theme`) and a mode (`data-mode` + `.dark`),
@@ -827,32 +828,6 @@ body {
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-}
-
-/* Responsive typography & layout scaling for high-resolution, ultrawide, and 4K displays.
-   Standard desktop, laptop, and mobile screens (< 2000px) remain 100% untouched at 16px. */
-@media (min-width: 2200px) {
-  html {
-    font-size: 17px;
-  }
-}
-
-@media (min-width: 2560px) {
-  html {
-    font-size: 18px;
-  }
-}
-
-@media (min-width: 3200px) {
-  html {
-    font-size: 19.5px;
-  }
-}
-
-@media (min-width: 3840px) {
-  html {
-    font-size: 21px;
-  }
 }
 
 /* Subtle depth on the app canvas: two faint, slowly drifting color glows. */

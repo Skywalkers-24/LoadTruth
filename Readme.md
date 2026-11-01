@@ -1,5 +1,12 @@
 <div align="center">
 
+<a href="https://loadtruth.tiwabhay800.workers.dev/showcase">
+  <img src="./poster.png" alt="LoadTruth — Precision load intelligence for disaster debris removal" width="100%">
+</a>
+
+<br/>
+<br/>
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/brand/dark/svg/loadtruth-dark-128.svg">
   <source media="(prefers-color-scheme: light)" srcset="docs/brand/light/svg/loadtruth-light-128.svg">
