@@ -106,7 +106,7 @@ afterEach(async () => {
 describe("administrator fresh-analysis option", () => {
   it("defaults to cached analysis and submits the selected mode with the file", async () => {
     await render();
-    expect(host.textContent).toContain("may use paid AI calls");
+    expect(host.textContent).toContain("Run AI again");
     const checkbox = host.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
     expect(checkbox.checked).toBe(false);
     await act(async () => checkbox.click());
@@ -118,7 +118,7 @@ describe("administrator fresh-analysis option", () => {
       eventId: "60cdc03c-ae67-4ff3-a482-6e6f08372dff",
       file,
       bypassCache: true,
-      keepFootage: true,
+      keepFootage: false,
     });
     // Upload box is hidden once uploaded, keeping pipeline on screen
     expect(host.textContent).toContain("Footage uploaded");
@@ -128,7 +128,7 @@ describe("administrator fresh-analysis option", () => {
   it("does not offer fresh analysis to monitors", async () => {
     state.role = "monitor";
     await render();
-    expect(host.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(host.textContent).not.toContain("Run AI again");
   });
   it("provides a dropdown to select and analyze an existing processed video on the same page", async () => {
     await render();

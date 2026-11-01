@@ -81,13 +81,12 @@ describe("direct B2 upload", () => {
       "/events/event-1/demo-videos/clip-1/analyze?bypass_cache=true",
     );
   });
-  it("does not confirm or start analysis when the bucket rejects the upload", async () => {
+  it("falls back to temporary direct ingest when the bucket rejects the upload (e.g. limit hit)", async () => {
     status = 503;
     setup();
-    await expect(
-      submitIngestJob("event-1", new File(["test"], "truck.mp4", { type: "video/mp4" })),
-    ).rejects.toThrow("B2 upload failed");
-    expect(sequence).toEqual(["sign", "bucket-put"]);
+    const res = await submitIngestJob("event-1", new File(["test"], "truck.mp4", { type: "video/mp4" }));
+    expect(res).toEqual({ id: "job-1", status: "accepted" });
+    expect(sequence).toEqual(["sign", "bucket-put", "analyze"]);
   });
 });
 

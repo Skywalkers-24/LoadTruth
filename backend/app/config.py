@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     b2_region: str = Field(default="", alias="B2_REGION")
     b2_key_prefix: str = "loadtruth/evidence"
     demo_upload_max_bytes: int = 100 * 1024 * 1024
-    analysis_max_bytes: int = 20 * 1024 * 1024
+    analysis_max_bytes: int = Field(default=50 * 1024 * 1024, alias="ANALYSIS_MAX_BYTES")
     b2_signed_url_ttl_s: int = 900
 
     @property
@@ -138,7 +138,7 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     # Pipeline cost controls (see PLAN.md §5, §5a, LESSONS.md)
-    frame_sample_fps: float = Field(default=2.0, alias="FRAME_SAMPLE_FPS")
+    frame_sample_fps: float = Field(default=3.0, alias="FRAME_SAMPLE_FPS")
     spark_max_output_tokens: int = Field(default=4000)
 
     # ── Meta Model API media limits + optimization knobs ──
@@ -193,7 +193,7 @@ class Settings(BaseSettings):
     #         `sam_load_max_concepts` caps these one-phrase-per-request prompts.
     # Retained for old environment files; live tracking uses Muse's clip-specific prompts.
     sam_load_concepts: list[str] = Field(default_factory=list)
-    sam_load_max_concepts: int = Field(default=2, ge=1, le=6, alias="SAM_LOAD_MAX_CONCEPTS")
+    sam_load_max_concepts: int = Field(default=6, ge=1, le=6, alias="SAM_LOAD_MAX_CONCEPTS")
     # SAM pricing (dev.meta.ai/docs/pricing-rate-limits): images per 1k, video per
     # 1k frames with a 50-frame minimum per request.
     sam_image_price_per_1k: float = Field(default=2.50)
@@ -215,8 +215,8 @@ class Settings(BaseSettings):
     # Processed evidence media (the exact clip the models saw), by content hash.
     # Sampled mode targets this many evenly spaced frames. In native mode, every
     # source frame is kept; set max_sampled_frames=0 to leave SAM uncapped too.
-    target_sampled_frames: int = Field(default=20, alias="TARGET_SAMPLED_FRAMES")
-    max_sampled_frames: int = Field(default=20, alias="MAX_SAMPLED_FRAMES")
+    target_sampled_frames: int = Field(default=60, alias="TARGET_SAMPLED_FRAMES")
+    max_sampled_frames: int = Field(default=60, alias="MAX_SAMPLED_FRAMES")
     preserve_source_frames: bool = Field(default=False)
     # Longest edge (px) to downscale a frame to before sending to a VLM. Keeps
     # the base64 payload small and the per-call token cost down (LEARNINGS §1).

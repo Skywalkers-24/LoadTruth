@@ -60,6 +60,7 @@ export function VideoPairCard({
   const sourceRef = useRef<HTMLVideoElement>(null);
   const maskRef = useRef<HTMLVideoElement>(null);
   const timeRef = useRef(0);
+  const lastUpdateRef = useRef(0);
   const evidence = useQuery<TicketEvidence>({
     queryKey: ["benchmark-evidence", pair.id],
     queryFn: async () => {
@@ -124,7 +125,11 @@ export function VideoPairCard({
     };
     const update = () => {
       timeRef.current = lead.currentTime;
-      setTime(lead.currentTime);
+      // Throttle React state update to avoid re-render on every frame
+      if (Math.abs(lead.currentTime - lastUpdateRef.current) >= 0.25) {
+        lastUpdateRef.current = lead.currentTime;
+        setTime(lead.currentTime);
+      }
       for (const video of videos.slice(1)) {
         if (video.readyState >= 1 && Math.abs(video.currentTime - lead.currentTime) > 0.15) {
           video.currentTime = lead.currentTime;
@@ -247,7 +252,7 @@ export function VideoPairCard({
       {/* ── VIDEO STAGE: ZERO LETTERBOXING, CRISP 16:9 EDGE-TO-EDGE ── */}
       <div
         className={cn(
-          "grid bg-neutral-950 relative group cursor-pointer select-none",
+          "grid bg-neutral-950 relative group cursor-pointer select-none isolate",
           compact ? "gap-1 p-1" : "gap-1.5 p-1.5",
           view === "compare" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1",
         )}

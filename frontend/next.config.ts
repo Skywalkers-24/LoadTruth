@@ -36,6 +36,8 @@ const nextConfig: NextConfig = {
       { source: "/videos/benchmark-:slug(.*).mp4", headers: [immutable] },
       { source: "/login-:slug(.*).mp4", headers: [immutable] },
       { source: "/login-:slug(.*).jpg", headers: [immutable] },
+      { source: "/evidence/:path*.json", headers: [immutable] },
+      { source: "/videos/thumbnails/:slug*.jpg", headers: [immutable] },
     ];
   },
 };

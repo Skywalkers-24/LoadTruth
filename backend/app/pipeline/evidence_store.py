@@ -11,7 +11,11 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 
+from app.config import get_settings
 from app.pipeline import b2_store
+import structlog
+
+log = structlog.get_logger(__name__)
 
 _SAFE_KEY = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 _EXT = {
@@ -70,20 +74,17 @@ class StoredMedia:
 async def save(content_hash: str, data: bytes, *, mime: str, fps: float | None = None) -> None:
     if not data or not _SAFE_KEY.fullmatch(content_hash):
         raise ValueError("Invalid evidence content or key.")
-    if not _persistent.get():
+    if not _persistent.get() or not get_settings().b2_configured:
         remember(content_hash, data, mime, fps)
         return
-    b2_store.require_configured()
     try:
         exists = await asyncio.to_thread(b2_store.head_key, b2_store.object_key(content_hash))
-    except Exception as exc:
-        raise b2_store.StorageUnavailableError("B2 could not verify evidence storage.") from exc
-    if exists is not None:
-        return
-    try:
+        if exists is not None:
+            return
         await asyncio.to_thread(b2_store.put, content_hash, data, mime, fps)
     except Exception as exc:
-        raise b2_store.StorageUnavailableError("B2 could not save the evidence.") from exc
+        log.warning("b2_save_fallback_to_memory", error=str(exc), content_hash=content_hash)
+        remember(content_hash, data, mime, fps)
 
 
 async def load(content_hash: str, *, storage: str | None = None) -> StoredMedia | None:
@@ -91,14 +92,23 @@ async def load(content_hash: str, *, storage: str | None = None) -> StoredMedia 
         return None
     if storage == "memory" or (storage is None and not _persistent.get()):
         entry = memory_entry(content_hash)
+        if entry is not None:
+            return StoredMedia(content_hash, entry[2], entry[3], len(entry[1]))
+        if not get_settings().b2_configured:
+            return None
+    if not get_settings().b2_configured:
+        entry = memory_entry(content_hash)
         return StoredMedia(content_hash, entry[2], entry[3], len(entry[1])) if entry else None
     key = b2_store.object_key(content_hash)
     try:
         head = await asyncio.to_thread(b2_store.head_key, key)
     except Exception as exc:
-        raise b2_store.StorageUnavailableError("B2 evidence metadata is unavailable.") from exc
+        log.warning("b2_load_fallback_to_memory", error=str(exc), content_hash=content_hash)
+        entry = memory_entry(content_hash)
+        return StoredMedia(content_hash, entry[2], entry[3], len(entry[1])) if entry else None
     if head is None:
-        return None
+        entry = memory_entry(content_hash)
+        return StoredMedia(content_hash, entry[2], entry[3], len(entry[1])) if entry else None
     fps = head.get("Metadata", {}).get("fps")
     return StoredMedia(
         key,
@@ -112,10 +122,13 @@ async def load(content_hash: str, *, storage: str | None = None) -> StoredMedia 
 async def media_url(content_hash: str) -> str:
     if not _SAFE_KEY.fullmatch(content_hash):
         raise ValueError("Invalid evidence key.")
+    if not get_settings().b2_configured:
+        return f"/evidence/{content_hash}/media"
     try:
         return await asyncio.to_thread(b2_store.signed_url, b2_store.object_key(content_hash))
     except Exception as exc:
-        raise b2_store.StorageUnavailableError("B2 playback is unavailable.") from exc
+        log.warning("b2_media_url_fallback", error=str(exc), content_hash=content_hash)
+        return f"/evidence/{content_hash}/media"
 
 
 def extension(mime: str) -> str:

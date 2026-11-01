@@ -20,24 +20,27 @@ async def test_evidence_metadata_and_signed_playback_use_bucket_only(b2_objects)
 
 
 @pytest.mark.asyncio
-async def test_bucket_outage_fails_instead_of_accepting_local_evidence(
+async def test_bucket_outage_falls_back_to_memory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def unavailable(*args: object) -> None:
         raise OSError("simulated cloud outage")
 
     monkeypatch.setattr(b2_store, "put", unavailable)
-    with pytest.raises(b2_store.StorageUnavailableError):
-        await evidence_store.save("b" * 64, b"not-saved", mime="image/png")
-    assert await evidence_store.load("b" * 64) is None
+    await evidence_store.save("b" * 64, b"saved-to-memory", mime="image/png")
+    stored = await evidence_store.load("b" * 64)
+    assert stored is not None
+    assert not hasattr(stored, "path")
 
 
 @pytest.mark.asyncio
-async def test_no_credentials_cannot_fall_back_to_disk(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_no_credentials_falls_back_to_memory(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("B2_APPLICATION_KEY", "")
     get_settings.cache_clear()
-    with pytest.raises(RuntimeError):
-        await evidence_store.save("c" * 64, b"not-saved", mime="image/png")
+    await evidence_store.save("c" * 64, b"saved-to-memory", mime="image/png")
+    stored = await evidence_store.load("c" * 64)
+    assert stored is not None
+    assert not hasattr(stored, "path")
 
 
 @pytest.mark.asyncio

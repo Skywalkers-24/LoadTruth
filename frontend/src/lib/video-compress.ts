@@ -10,6 +10,7 @@
 export interface VideoLimits {
   maxDurationSeconds: number;
   maxSizeBytes: number;
+  compressThresholdBytes: number;
   targetCompressedBytes: number;
   enableCompression: boolean;
 }
@@ -20,6 +21,9 @@ export function getUploadLimits(): VideoLimits {
     : 30;
   const maxMB = process.env.NEXT_PUBLIC_MAX_UPLOAD_MB
     ? Number(process.env.NEXT_PUBLIC_MAX_UPLOAD_MB)
+    : 50;
+  const compressAboveMB = process.env.NEXT_PUBLIC_COMPRESS_ABOVE_MB
+    ? Number(process.env.NEXT_PUBLIC_COMPRESS_ABOVE_MB)
     : 10;
   const compressedMB = process.env.NEXT_PUBLIC_MAX_COMPRESSED_MB
     ? Number(process.env.NEXT_PUBLIC_MAX_COMPRESSED_MB)
@@ -29,6 +33,7 @@ export function getUploadLimits(): VideoLimits {
   return {
     maxDurationSeconds,
     maxSizeBytes: maxMB * 1024 * 1024,
+    compressThresholdBytes: compressAboveMB * 1024 * 1024,
     targetCompressedBytes: compressedMB * 1024 * 1024,
     enableCompression,
   };

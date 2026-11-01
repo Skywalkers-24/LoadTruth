@@ -102,13 +102,22 @@ async def _run(job_id: UUID) -> None:
                     handle.seek(0)
                     content_hash = video.id.hex
                 else:
-                    content_hash = await asyncio.to_thread(
-                        b2_store.download_to,
-                        video.object_key,
-                        handle,
-                        get_settings().analysis_max_bytes,
-                        video.object_version,
-                    )
+                    try:
+                        content_hash = await asyncio.to_thread(
+                            b2_store.download_to,
+                            video.object_key,
+                            handle,
+                            get_settings().analysis_max_bytes,
+                            video.object_version,
+                        )
+                    except Exception as exc:
+                        entry = evidence_store.memory_entry(video.object_key)
+                        if entry is not None:
+                            handle.write(entry[1])
+                            handle.seek(0)
+                            content_hash = video.id.hex
+                        else:
+                            raise exc
                 row.content_hash = content_hash
                 upload = UploadFile(filename=video.filename, file=handle)
                 ticket = await ingest_clip(

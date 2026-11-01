@@ -89,7 +89,7 @@ function CaptureWorkspace() {
   const canRunFresh = member?.role === "super_admin";
   const playground = Boolean(selected?.tags.includes("playground"));
   const [bypassCache, setBypassCache] = useState(false);
-  const [keepFootage, setKeepFootage] = useState(true);
+  const [keepFootage, setKeepFootage] = useState(false);
   const [selectedExisting, setSelectedExisting] = useState<string>("");
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [customResult, setCustomResult] = useState<{
@@ -107,7 +107,7 @@ function CaptureWorkspace() {
     staleTime: 60_000,
   });
   const uploadLimits = useMemo(() => getUploadLimits(), []);
-  const [autoCompress, setAutoCompress] = useState(uploadLimits.enableCompression);
+  const [autoCompress, setAutoCompress] = useState(false);
   const [compressing, setCompressing] = useState(false);
   const [compressProgress, setCompressProgress] = useState(0);
   const analysisLimit = library.data?.analysis_max_bytes ?? uploadLimits.maxSizeBytes;
@@ -190,11 +190,11 @@ function CaptureWorkspace() {
     setCustomResult(null);
 
     let fileToUpload = file;
-    // Client-side compression if enabled and video exceeds target bytes (e.g. 5MB)
+    // Client-side compression if enabled and video exceeds threshold (e.g. 10MB)
     if (
       autoCompress &&
       file.type.startsWith("video/") &&
-      file.size > uploadLimits.targetCompressedBytes
+      file.size > uploadLimits.compressThresholdBytes
     ) {
       setCompressing(true);
       setCompressProgress(0);
@@ -342,64 +342,51 @@ function CaptureWorkspace() {
             <div className="min-w-0">
               <FadeIn>
                 <Card className="h-full gap-0 p-4">
-                  {canRunFresh && (
-                    <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 p-3">
-                      <input
-                        type="checkbox"
-                        checked={bypassCache}
-                        onChange={(e) => setBypassCache(e.target.checked)}
-                        disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
-                        className="mt-1 size-4 shrink-0 accent-[var(--brand)]"
-                      />
-                      <span>
-                        <span className="block text-sm font-medium">Run AI again</span>
-                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                          Create a new result instead of reusing the saved one. This takes longer
-                          and may use paid AI calls.
-                        </span>
-                      </span>
-                    </label>
-                  )}
-                  {canRunFresh && (
-                    <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3">
+                  <div className="relative z-10 mb-4 flex flex-wrap items-center gap-6 rounded-lg border border-border bg-secondary/20 px-3.5 py-2.5 text-xs text-muted-foreground">
+                    {canRunFresh && (
+                      <label
+                        title="Create a new result instead of reusing the saved one (may use paid AI calls)"
+                        className="flex cursor-pointer select-none items-center gap-2 hover:text-foreground"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={bypassCache}
+                          onChange={(e) => setBypassCache(e.target.checked)}
+                          disabled={ingest.isPending || compressing}
+                          className="size-4 shrink-0 cursor-pointer rounded border-border accent-[var(--brand)]"
+                        />
+                        <span className="font-medium text-foreground">Run AI again</span>
+                      </label>
+                    )}
+                    <label
+                      title="Keep the uploaded video in storage for later review and playback (works with Backblaze B2 when configured, or process memory)"
+                      className="flex cursor-pointer select-none items-center gap-2 hover:text-foreground"
+                    >
                       <input
                         type="checkbox"
                         checked={keepFootage}
                         onChange={(e) => setKeepFootage(e.target.checked)}
-                        disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
-                        className="mt-1 size-4 shrink-0 accent-[var(--brand)]"
+                        disabled={ingest.isPending || compressing}
+                        className="size-4 shrink-0 cursor-pointer rounded border-border accent-[var(--brand)]"
                       />
-                      <span>
-                        <span className="block text-sm font-medium">
-                          Keep footage for later replay
-                        </span>
-                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                          The ticket and result are always saved. Turn this off if you do not need
-                          the video for later replay; temporary videos may be removed when the
-                          server restarts or runs low on storage.
-                        </span>
-                      </span>
+                      <span className="font-medium text-foreground">Keep footage for replay</span>
                     </label>
-                  )}
-                  {canRunFresh && (
-                    <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3">
+                    <label
+                      title="Automatically downscale and optimize video bitrate client-side before upload"
+                      className="flex cursor-pointer select-none items-center gap-2 hover:text-foreground"
+                    >
                       <input
                         type="checkbox"
                         checked={autoCompress}
                         onChange={(e) => setAutoCompress(e.target.checked)}
-                        disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
-                        className="mt-1 size-4 shrink-0 accent-[var(--brand)]"
+                        disabled={ingest.isPending || compressing}
+                        className="size-4 shrink-0 cursor-pointer rounded border-border accent-[var(--brand)]"
                       />
-                      <span>
-                        <span className="block text-sm font-medium">
-                          Compress video before upload (max {Math.round(uploadLimits.targetCompressedBytes / 1024 ** 2)}MB)
-                        </span>
-                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                          Automatically downscales and optimizes video bitrate client-side to keep uploads fast and light.
-                        </span>
+                      <span className="font-medium text-foreground">
+                        Compress video (&gt;{Math.round(uploadLimits.compressThresholdBytes / 1024 ** 2)}MB to {Math.round(uploadLimits.targetCompressedBytes / 1024 ** 2)}MB)
                       </span>
                     </label>
-                  )}
+                  </div>
                   <label
                     role="button"
                     aria-label="Choose truck video or image"
@@ -481,7 +468,7 @@ function CaptureWorkspace() {
                                 ? "Select an existing video below to replay saved AI analysis."
                                 : playground
                                   ? "Choose a saved video below. Uploads and new AI calls are disabled in Sandbox."
-                                  : `Max ${uploadLimits.maxDurationSeconds}s video · ${Math.round(uploadLimits.maxSizeBytes / 1024 ** 2)}MB limit (Auto-compresses to ${Math.round(uploadLimits.targetCompressedBytes / 1024 ** 2)}MB).`}
+                                  : `Max ${uploadLimits.maxDurationSeconds}s video · ${Math.round(uploadLimits.maxSizeBytes / 1024 ** 2)}MB limit (Files >${Math.round(uploadLimits.compressThresholdBytes / 1024 ** 2)}MB compress to ${Math.round(uploadLimits.targetCompressedBytes / 1024 ** 2)}MB).`}
                       </span>
                     </div>
                   </label>

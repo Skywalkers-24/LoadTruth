@@ -843,8 +843,19 @@ export async function submitIngestJob(
       body: form,
     });
   }
-  const video = await uploadDemoVideo(file, undefined, undefined, { eventId });
-  return analyzeDemoVideo(eventId, video.id, opts);
+  try {
+    const video = await uploadDemoVideo(file, undefined, undefined, { eventId });
+    return await analyzeDemoVideo(eventId, video.id, opts);
+  } catch (err) {
+    console.warn("B2 storage upload unavailable or limit hit, falling back to direct temporary ingest:", err);
+    const form = new FormData();
+    form.append("file", file);
+    const query = opts.bypassCache ? "?bypass_cache=true" : "";
+    return request<IngestJob>(`/events/${eventId}/temporary-ingest${query}`, {
+      method: "POST",
+      body: form,
+    });
+  }
 }
 
 export function getLatestIngestJob(eventId: string): Promise<IngestJob | null> {

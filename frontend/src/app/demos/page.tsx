@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -62,11 +63,23 @@ export default function DemoVideosPage() {
   const [tab, setTab] = useState<"pairs-with-mask" | "unprocessed" | "all">("pairs-with-mask");
   const [showUpload, setShowUpload] = useState(false);
   const [selectedDebris, setSelectedDebris] = useState<string>("all");
+  const [inputValue, setInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [page, setPage] = useState(0);
   const [viewStyle, setViewStyle] = useState<"grid" | "browser">("grid");
   const [gridDensity, setGridDensity] = useState<"small" | "standard">("small");
   const pageSize = gridDensity === "small" ? 9 : 6;
+
+  function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = e.target.value;
+    setInputValue(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearchQuery(val);
+      setPage(0);
+    }, 200);
+  }
 
   const debrisCounts = useMemo(() => {
     const counts: Record<string, number> = { all: BENCHMARK_PAIRS.length };
@@ -394,18 +407,15 @@ export default function DemoVideosPage() {
                   <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="text"
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setPage(0);
-                    }}
+                    value={inputValue}
+                    onChange={handleSearchChange}
                     placeholder="Search truck, debris, clip…"
                     className="h-8 w-44 sm:w-56 rounded-md border border-border bg-background pl-8 pr-3 text-xs placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-primary"
                   />
-                  {searchQuery && (
+                  {inputValue && (
                     <button
                       type="button"
-                      onClick={() => setSearchQuery("")}
+                      onClick={() => { setInputValue(""); setSearchQuery(""); setPage(0); }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
                     >
                       ×
@@ -520,7 +530,7 @@ export default function DemoVideosPage() {
                     )}
                   >
                     {paginatedPairs.map((pair) => (
-                      <VideoPairCard
+                      <LazyVideoPairCard
                         key={pair.id}
                         pair={pair}
                         initialView="compare"
@@ -655,6 +665,16 @@ export default function DemoVideosPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+function LazyVideoPairCard(props: React.ComponentProps<typeof VideoPairCard>) {
+  const ref = useRef<HTMLDivElement>(null);
+  const visible = useInView(ref, "400px");
+  return (
+    <div ref={ref} className="min-h-[300px]">
+      {visible && <VideoPairCard {...props} />}
+    </div>
   );
 }
 

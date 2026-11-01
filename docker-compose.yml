@@ -54,6 +54,11 @@ services:
       MODEL_API_LOG_PATH: /app/logs/meta_api.jsonl
       # Processed evidence clips (what the models saw), served to the Review console.
       EVIDENCE_DIR: /app/media/evidence
+      # High-fidelity frame sampling for local run (uncompromised accuracy)
+      TARGET_SAMPLED_FRAMES: "${TARGET_SAMPLED_FRAMES:-120}"
+      MAX_SAMPLED_FRAMES: "${MAX_SAMPLED_FRAMES:-120}"
+      FRAME_SAMPLE_FPS: "${FRAME_SAMPLE_FPS:-3.0}"
+      SAM_LOAD_MAX_CONCEPTS: "${SAM_LOAD_MAX_CONCEPTS:-6}"
     volumes:
       - ./logs:/app/logs
       - ./media:/app/media

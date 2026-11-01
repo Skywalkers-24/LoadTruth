@@ -8,11 +8,12 @@ you add a module or move responsibility, update the relevant row in the same cha
 
 ```
 loadtruth/
+├─ run_docker.sh         Smooth single-command local full-stack startup (Docker + Postgres + Redis)
 ├─ backend/              FastAPI, Python 3.12 — API + pipeline + worker
 ├─ frontend/             Next.js 16 App Router — operator console
 ├─ infra/                Supabase RLS policies and platform SQL
 ├─ backend/migrations/   Application schema migrations (Alembic)
-├─ scripts/              Reusable task entry points (setup/dev/test/eval/pipeline/...)
+├─ scripts/              Reusable task entry points (setup_docker/dev/test/eval/pipeline/...)
 ├─ docs/                 PROGRESS · CHANGELOG(root) · LESSONS · DEPLOYMENT · this map
 ├─ .github/workflows/    CI (ci.yml), security (codeql.yml), deploy (deploy.yml)
 └─ .kiro/steering/       Always-on agent protocol
@@ -29,15 +30,11 @@ loadtruth/
 | DB model / table | `backend/app/db/models.py` (base/mixins `app/db/base.py`, portable types `app/db/types.py`) + schema SQL in `infra/rbac/20_loadtruth_schema.sql` | SQLite is the local-host default; Compose and production use Postgres; `DATABASE_URL` selects the engine |
 | DB engine / init / seed | `app/db/engine.py` (`init_db` creates tables), `app/tickets/seed.py` (demo tenant) | schema migrations and RLS SQL are in `backend/migrations/` and `infra/rbac/` |
 | Ticket storage (repo) | `backend/app/tickets/repository.py` (`SqlTicketRepository`) + provider in `backend/app/api/repo.py` | async, tenant-scoped; session-per-request. `list_tickets` = all rows (dashboard/CSV/audit-packet aggregate the whole event); `list_tickets_page` = one page + total (ticket-list UI); `dashboard`/`reports_summary` build the roll-ups |
-| B2 private evidence storage | `backend/app/pipeline/b2_store.py` + `backend/app/api/demo_videos.py` | signed direct-to-B2 browser PUT/GET URLs; zero media bytes held on application disk; pins B2 version IDs for audit integrity |
+| Local one-command Docker runner | `run_docker.sh` (root) → `scripts/setup_docker.sh` | Validates Docker daemon, auto-generates `.env` from `.env.example`, brings up Postgres 16, Redis 7, Backend, Frontend, and verifies `/health` |
+| B2 private evidence storage & resilient fallback | `backend/app/pipeline/evidence_store.py` + `backend/app/pipeline/b2_store.py` + `backend/app/api/ingest_jobs.py` | signed direct-to-B2 browser PUT/GET URLs; pins B2 version IDs for audit integrity; seamlessly falls back to process-memory cache when B2 is unconfigured or cloud quota/rate limits are hit |
+| Client-side video ingest & compression guard | `frontend/src/lib/video-compress.ts` + `frontend/src/app/add/page.tsx` | Enforces 50MB max upload cap, duration inspection, and non-blocking in-browser canvas+MediaRecorder bitrate compression (>10MB compressed down to ~5MB) |
+| Frame decoding / keyframe sampling (Stage 1) | `backend/app/pipeline/frames.py` + `backend/app/pipeline/evidence_store.py` | PyAV sample frames offloaded via `asyncio.to_thread` with `-preset ultrafast` to eliminate event loop blocking on shared CPUs |
 | Durable analysis jobs & worker | `backend/app/api/ingest_jobs.py` + `backend/app/db/models.py` (`AnalysisJob`) | durable Postgres job queue, single-worker sequential analysis with startup recovery, live progress streaming |
-| Partner inference & fallback (Modal/Baseten/Fireworks) | `backend/app/ai/partner_http.py` + `backend/app/ai/providers.py` | normalized OpenAI-compatible completion routes, automatic multi-provider fallback (`SPARK_FALLBACK_PROVIDERS`), token ledger rate calculation |
-| Muse Voice Transcribe (monitor radio call) | `backend/app/ai/live.py::interpret_monitor_call_audio` + `backend/app/api/tickets.py::transcribe_monitor_call` | captures WAV audio via `input_audio`, transcribes speech, strictly parses stated `fill_pct` and spoken debris issues |
-| Pipeline stages (deterministic) | `backend/app/pipeline/` — `anomalies.py` (compliance rules), `ingest.py` (hash), `registry.py` (capacity); `geometry.py` is legacy-only | pure Python, no model calls |
-| Evidence receipt + reproduce | `backend/app/pipeline/receipt.py` (pure SHA-256 over pinned inputs) + `SqlTicketRepository.reverify_ticket` + `POST /tickets/{id}/reverify` in `api/tickets.py` | replays the median of stored Muse frame estimates (or legacy SAM geometry for historical tickets) and rebuilds the receipt offline, with no model call. FE: `components/console/reproducibility-card.tsx` |
-| Known-volume benchmark | `backend/app/bench/` — `harness.py` (pure stats + CSV load), `run.py` (pipeline runner + CLI); manifest `data_bench/ground_truth.csv`, results `data_bench/results.json` | the independent accuracy number (distinct from monitor agreement) |
-| SAM tracking + Muse fill estimate | `backend/app/ai/sam_measure.py` tracks and stores SAM evidence; `ai/live.py::classify_debris` sends sampled frames to Muse without SAM coverage context; the pipeline uses the median of Muse's per-frame visual estimates | SAM is not used to calculate or automatically flag fill. `MUSE_FILL_VERSION` invalidates cached results when the estimation flow changes |
-| Frame decoding / keyframe sampling (Stage 1) | `backend/app/pipeline/frames.py` | samples 2-4 fps via PyAV (optional `av` dep, feature-detected); image→1 frame, no decoder→degraded empty sample |
 | Whole-pipeline result cache | `backend/app/pipeline/cache.py` + `backend/app/api/ingest.py` | in-process content-hash cache; not Redis-backed today |
 | AI-stage cache | `backend/app/ai/cached_client.py` + `backend/app/db/models.py` | persists per-stage results in SQL so cached model work survives backend restarts |
 | Cached API responses | `backend/app/api/cache.py` | response cache used by report/billing reads; invalidated by tenant/event tags |
@@ -90,13 +87,16 @@ loadtruth/
 ## Data flow (one clip → one ticket)
 
 ```
-upload (browser) ── signed PUT ──> Backblaze B2 private bucket (pinned version)
+upload (browser) ── optional client compression (>10MB -> 5MB) ──> signed PUT / direct ingest
+          │
+          ▼
+storage resolution: Backblaze B2 (pinned version) OR In-Memory fallback (if unconfigured / limit hit)
           │
           ▼
 POST /events/{id}/demo-videos/{vid}/analyze (BE) ──> durable Postgres AnalysisJob
           │
           ▼
-worker streams B2 bytes ──> pipeline stages 1-7 (SAM 3.1 + Muse Spark + Decimal valuation)
+worker streams bytes (PyAV ultrafast + threadpool) ──> pipeline stages 1-7 (SAM 3.1 + Muse Spark + Decimal valuation)
           │
           ▼
 persists ticket + SHA-256 evidence receipt + stage traces ──> streams progress via SSE

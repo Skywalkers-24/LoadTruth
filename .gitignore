@@ -39,6 +39,11 @@ codex-usage/
 # Local review/scratch artifacts
 semantic-review/
 Backup/
+recordings/
+*.webm
+DEMO_SCRIPT.md
+*demo_script*
+*DEMO_SCRIPT*
 
 # Logs / local artifacts
 responses.log

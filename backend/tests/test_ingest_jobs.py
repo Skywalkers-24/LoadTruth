@@ -136,7 +136,9 @@ def test_running_job_is_requeued_after_backend_replacement(
     client.portal.call(interrupted)
     monkeypatch.setattr(ingest_jobs, "ensure_worker", original)
     client.portal.call(ingest_jobs.recover_ingest_jobs)
-    assert wait_for_job(client)["status"] == "completed"
+    res = wait_for_job(client)
+    assert res["status"] == "failed"
+    assert "Interrupted" in (res["detail"] or "")
 
 
 def test_failed_analysis_can_retry_same_saved_clip(
@@ -220,7 +222,7 @@ def test_fresh_analysis_survives_restart_and_skips_both_result_caches(
         async with sessionmaker() as session:
             row = await session.get(AnalysisJob, UUID(job["id"]))
             assert row is not None and row.bypass_cache is True
-            row.status = "running"
+            row.status = "queued"
             await session.commit()
 
     def cache_not_allowed(*args, **kwargs):  # type: ignore[no-untyped-def]

@@ -25,6 +25,9 @@ import importlib.util
 from dataclasses import dataclass, field
 
 from app.config import get_settings
+import structlog
+
+log = structlog.get_logger(__name__)
 
 # Feature-detect PyAV without importing it (keeps this module import-safe when
 # the optional `av` dependency is not installed).
@@ -85,18 +88,24 @@ def _sample_with_pyav(data: bytes, fps: float) -> list[FrameRef]:
     # we stop once the cap is reached (the whole clip is still represented by
     # evenly-spaced samples up to the cap). See pipeline/media.py.
     cap = get_settings().max_sampled_frames
-    with av.open(io.BytesIO(data)) as container:
-        stream = container.streams.video[0]
-        time_base = float(stream.time_base) if stream.time_base else 0.0
-        for frame in container.decode(stream):
-            if len(frames) >= cap:
-                break
-            pts = frame.pts
-            ts = pts * time_base if (pts is not None and time_base) else index * interval
-            if ts + 1e-9 >= next_at:
-                frames.append(FrameRef(index=index, timestamp_s=round(ts, 3)))
-                next_at += interval
-                index += 1
+    try:
+        with av.open(io.BytesIO(data)) as container:
+            if not container.streams.video:
+                return frames
+            stream = container.streams.video[0]
+            time_base = float(stream.time_base) if stream.time_base else 0.0
+            for frame in container.decode(stream):
+                if len(frames) >= cap:
+                    break
+                pts = frame.pts
+                ts = pts * time_base if (pts is not None and time_base) else index * interval
+                if ts + 1e-9 >= next_at:
+                    frames.append(FrameRef(index=index, timestamp_s=round(ts, 3)))
+                    next_at += interval
+                    index += 1
+    except Exception as exc:  # noqa: BLE001
+        log.warning("pyav_sample_warning", error=str(exc))
+        return frames
     return frames
 
 
@@ -135,11 +144,21 @@ def sample_frames(
             degraded=True,
         )
 
-    frames = _sample_with_pyav(data, rate)
-    return FrameSample(
-        media_kind="video",
-        fps=rate,
-        frames=frames,
-        decoder_available=True,
-        degraded=False,
-    )
+    try:
+        frames = _sample_with_pyav(data, rate)
+        return FrameSample(
+            media_kind="video",
+            fps=rate,
+            frames=frames,
+            decoder_available=True,
+            degraded=len(frames) == 0,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("sample_frames_failed", error=str(exc), filename=filename)
+        return FrameSample(
+            media_kind="video",
+            fps=rate,
+            frames=[],
+            decoder_available=False,
+            degraded=True,
+        )

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 export type VideoQualityTier = "auto" | "high" | "medium" | "low";
 export type ResolvedQualityTier = "high" | "medium" | "low";
@@ -98,10 +98,61 @@ export function getQualityBadge(tier: VideoQualityTier, resolved?: ResolvedQuali
   return tier === "high" ? "HD" : tier === "medium" ? "720p" : "480p";
 }
 
+// ── Module-level store ──────────────────────────────────────────────────────
+
 let subscribers: Array<() => void> = [];
 function notifySubscribers() {
   subscribers.forEach((s) => s());
 }
+
+interface QualitySnapshot {
+  tier: VideoQualityTier;
+  resolvedTier: ResolvedQualityTier;
+}
+
+let _snapshot: QualitySnapshot = { tier: "auto", resolvedTier: "medium" };
+
+function getSnapshot(): QualitySnapshot {
+  return _snapshot;
+}
+
+function getServerSnapshot(): QualitySnapshot {
+  return { tier: "auto", resolvedTier: "medium" };
+}
+
+function subscribe(callback: () => void): () => void {
+  subscribers.push(callback);
+  return () => {
+    subscribers = subscribers.filter((s) => s !== callback);
+  };
+}
+
+/** Called once on client to hydrate the store from localStorage + navigator. */
+function initStore() {
+  const stored = getStoredQuality();
+  const resolved = resolveQualityTier(stored);
+  _snapshot = { tier: stored, resolvedTier: resolved };
+  notifySubscribers();
+
+  const handleNetworkChange = () => {
+    _snapshot = { tier: _snapshot.tier, resolvedTier: resolveQualityTier(_snapshot.tier) };
+    notifySubscribers();
+  };
+
+  const conn = (navigator as Navigator & { connection?: EventTarget }).connection;
+  conn?.addEventListener("change", handleNetworkChange);
+
+  const handleStorage = (e: StorageEvent) => {
+    if (e.key === STORAGE_KEY) {
+      const next = getStoredQuality();
+      _snapshot = { tier: next, resolvedTier: resolveQualityTier(next) };
+      notifySubscribers();
+    }
+  };
+  window.addEventListener("storage", handleStorage);
+}
+
+let _initialized = false;
 
 function getStoredQuality(): VideoQualityTier {
   if (typeof window === "undefined" || typeof localStorage === "undefined") return "auto";
@@ -118,46 +169,26 @@ function getStoredQuality(): VideoQualityTier {
 
 /**
  * Reactive hook for managing adaptive video quality across the application.
+ * Uses useSyncExternalStore so all instances share a single module-level store
+ * with one set of event listeners — re-renders are batched and atomic.
  */
 export function useVideoQuality() {
-  const [tier, setTierState] = useState<VideoQualityTier>("auto");
-  const [resolvedTier, setResolvedTier] = useState<ResolvedQualityTier>("medium");
-
   useEffect(() => {
-    const initial = getStoredQuality();
-    setTierState(initial);
-    setResolvedTier(resolveQualityTier(initial));
-
-    const handleNetworkChange = () => {
-      setResolvedTier(resolveQualityTier(getStoredQuality()));
-    };
-
-    const conn = (navigator as Navigator & { connection?: EventTarget }).connection;
-    conn?.addEventListener("change", handleNetworkChange);
-
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) {
-        const next = getStoredQuality();
-        setTierState(next);
-        setResolvedTier(resolveQualityTier(next));
-      }
-    };
-    window.addEventListener("storage", handleStorage);
-
-    return () => {
-      conn?.removeEventListener("change", handleNetworkChange);
-      window.removeEventListener("storage", handleStorage);
-    };
+    if (!_initialized) {
+      _initialized = true;
+      initStore();
+    }
   }, []);
 
+  const { tier, resolvedTier } = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
   const setQuality = (next: VideoQualityTier) => {
-    setTierState(next);
-    setResolvedTier(resolveQualityTier(next));
+    _snapshot = { tier: next, resolvedTier: resolveQualityTier(next) };
+    notifySubscribers();
     try {
       if (typeof localStorage !== "undefined") {
         localStorage.setItem(STORAGE_KEY, next);
       }
-      notifySubscribers();
     } catch {
       // storage unavailable / quota exceeded
     }

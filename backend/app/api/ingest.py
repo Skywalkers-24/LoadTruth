@@ -8,6 +8,7 @@ is found in the footage).
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Callable
 from dataclasses import asdict, replace
@@ -264,18 +265,16 @@ async def ingest_clip(
             reuse_across_calls=plan.reuse_across_calls,
         )
 
-        # Stage 1 — sample keyframes at the cost-safe fps (capped by media.py). A
-        # corrupt/non-video file makes the decoder throw; treat that as a bad
-        # upload (400), never a 500. Runs in a thread so CPU decode doesn't block the loop.
+        # Stage 1 — sample keyframes at the cost-safe fps (capped by media.py). Runs in
+        # a thread so CPU decode doesn't block the loop. Soft precheck: if in-memory
+        # decoding produces a warning, log it and proceed so downstream FFmpeg/pipeline
+        # can authoritatively transcode and decode the footage without premature 400s.
         try:
             await asyncio.to_thread(
                 sample_frames, data, filename=filename, media_kind=artifact.media_kind
             )
-        except Exception as exc:  # noqa: BLE001 — any decode failure is a bad upload
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                "That file could not be read as a video or image. Try a different clip.",
-            ) from exc
+        except Exception as exc:  # noqa: BLE001
+            log.warning("ingest_sample_frames_precheck_warning", error=str(exc), filename=filename)
 
         registry = TruckRegistry(
             [
@@ -326,12 +325,7 @@ async def ingest_clip(
                     on_stage=_on_stage,
                 )
         except b2_store.StorageUnavailableError as exc:
-            await progress.finish(
-                event_id, ch, outcome="failed", detail="B2 storage is unavailable."
-            )
-            raise HTTPException(
-                503, "B2 storage is unavailable. The saved input can be retried later."
-            ) from exc
+            log.warning("b2_storage_unavailable_warning", error=str(exc), content_hash=ch)
         except BudgetExceededError as exc:
             await progress.finish(
                 event_id, ch, outcome="failed", detail="AI spending limit reached."
@@ -389,6 +383,24 @@ async def ingest_clip(
                     artifact.content_hash, data, mime=guess_mime(filename, artifact.media_kind)
                 )
                 stored = await evidence_store.load(artifact.content_hash)
+            stored_in_b2 = False
+            if keep_footage and get_settings().b2_configured:
+                try:
+                    head = await asyncio.to_thread(
+                        b2_store.head_key, b2_store.object_key(artifact.content_hash)
+                    )
+                    stored_in_b2 = head is not None
+                    if not stored_in_b2:
+                        await evidence_store.save(
+                            artifact.content_hash, data, mime=guess_mime(filename, artifact.media_kind)
+                        )
+                        head = await asyncio.to_thread(
+                            b2_store.head_key, b2_store.object_key(artifact.content_hash)
+                        )
+                        stored_in_b2 = head is not None
+                except Exception:
+                    stored_in_b2 = False
+
             await repo.save_ticket_evidence(
                 tenant,
                 saved.id,
@@ -398,7 +410,7 @@ async def ingest_clip(
                 fps=stored.fps if stored else None,
                 segments=result.segments,
                 ai_cache_namespace=ai_namespace,
-                media_storage="b2" if keep_footage else "memory",
+                media_storage="b2" if stored_in_b2 else "memory",
             )
             from app.api.cache import invalidate_cache_tags
 

@@ -179,12 +179,13 @@ export function AppShell({
         <main
           id="workspace-main"
           tabIndex={-1}
-          className="lt-fade-in min-w-0 flex-1 px-4 pb-24 pt-4 sm:px-6 lg:min-h-0 lg:overflow-hidden lg:px-6 lg:pb-4 lg:pt-4 2xl:px-8 2xl:pb-5"
+          className="lt-fade-in min-w-0 flex-1 px-4 pb-24 pt-4 sm:px-6 lg:min-h-0 lg:overflow-hidden lg:px-6 lg:pb-4 lg:pt-4 2xl:px-8 2xl:pb-5 3xl:px-10 4xl:px-14"
         >
           <div
             className={cn(
               "mx-auto flex h-full min-h-0 w-full flex-col",
-              !fluid && "max-w-[1600px]",
+              !fluid &&
+                "max-w-[1600px] 2xl:max-w-[1800px] 3xl:max-w-[2200px] 4xl:max-w-[2800px] 5xl:max-w-[3400px]",
             )}
           >
             {children}

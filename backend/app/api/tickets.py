@@ -279,14 +279,19 @@ async def ticket_evidence(repo: Repository, tenant: ActiveTenant, ticket_id: UUI
         else None
     )
     raw = row.segments if isinstance(row.segments, dict) else {}
+    actual_storage = (
+        "b2"
+        if stored and stored.object_key != row.content_hash
+        else row.media_storage
+    )
     return EvidenceOut(
         media_kind=row.media_kind,
         mime=stored.mime if stored else row.mime,
         fps=float(row.fps) if row.fps is not None else (stored.fps if stored else None),
         has_media=public_url is not None or stored is not None,
         media_url=public_url,
-        media_storage=row.media_storage,
-        footage_expired=(row.media_storage == "memory" and stored is None and public_url is None),
+        media_storage=actual_storage,
+        footage_expired=(actual_storage == "memory" and stored is None and public_url is None),
         segments={str(k): str(v) for k, v in raw.items()},
     )
 
@@ -301,21 +306,31 @@ async def ticket_evidence_media(
         return RedirectResponse(public_url, status_code=307)
     if row is not None and row.media_storage == "memory":
         entry = evidence_store.memory_entry(row.content_hash)
-        if entry is None:
-            raise HTTPException(410, "Footage expired — ticket details retained.")
-        return Response(entry[1], media_type=entry[2], headers={"Cache-Control": "no-store"})
+        if entry is not None:
+            return Response(entry[1], media_type=entry[2], headers={"Cache-Control": "no-store"})
     stored = (
         await evidence_store.load(row.content_hash, storage=row.media_storage)
         if row is not None
         else None
     )
     if row is None or stored is None:
+        if row is not None and row.media_storage == "memory":
+            raise HTTPException(410, "Footage expired — ticket details retained.")
         raise HTTPException(404, "no evidence media for this ticket")
-    return RedirectResponse(
-        await evidence_store.media_url(row.content_hash),
-        status_code=307,
-        headers={"Cache-Control": "no-store"},
-    )
+    try:
+        url = await evidence_store.media_url(row.content_hash)
+        if url.startswith("http://") or url.startswith("https://"):
+            return RedirectResponse(
+                url,
+                status_code=307,
+                headers={"Cache-Control": "no-store"},
+            )
+    except Exception:
+        pass
+    entry = evidence_store.memory_entry(row.content_hash)
+    if entry is not None:
+        return Response(entry[1], media_type=entry[2], headers={"Cache-Control": "no-store"})
+    raise HTTPException(410 if row.media_storage == "memory" else 404, "Footage expired — ticket details retained.")
 
 
 @router.get("/tickets/{ticket_id}/evidence/url")
@@ -328,14 +343,22 @@ async def ticket_evidence_url(
     row = await repo.get_ticket_evidence(tenant, ticket_id)
     if row is not None and (public_url := benchmark_media_url(row.content_hash, quality=quality)):
         return {"url": public_url}
-    if (
-        row is None
-        or await evidence_store.load(row.content_hash, storage=row.media_storage) is None
-    ):
+    stored = (
+        await evidence_store.load(row.content_hash, storage=row.media_storage)
+        if row is not None
+        else None
+    )
+    if row is None or stored is None:
         raise HTTPException(404, "no evidence media for this ticket")
-    if row.media_storage == "memory":
+    if row.media_storage == "memory" and stored.object_key == row.content_hash:
         return {"url": f"/tickets/{ticket_id}/evidence/media", "storage": "memory"}
-    return {"url": await evidence_store.media_url(row.content_hash)}
+    try:
+        url = await evidence_store.media_url(row.content_hash)
+        if url.startswith("http://") or url.startswith("https://"):
+            return {"url": url}
+    except Exception:
+        pass
+    return {"url": f"/tickets/{ticket_id}/evidence/media", "storage": "memory"}
 
 
 class ReverifyOut(BaseModel):

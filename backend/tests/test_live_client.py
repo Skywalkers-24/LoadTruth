@@ -386,8 +386,6 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
         "tailgate",
         "load: steel drums",
         "load: mixed construction debris",
-        "load: broken lumber",
-        "load: concrete rubble",
     }
     assert result.segments["truck bed"].startswith("<0f>0<|box;")
     from app.pipeline import evidence_store
@@ -402,9 +400,7 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     # Bed phrases, the tailgate rim, and the load phrases all go out in parallel.
     assert sorted(b["input"][0]["content"][0]["text"] for b in sam) == sorted(
         [
-            "concrete rubble",
             "truck",
-            "broken lumber",
             "truck bed",
             "steel drums",
             "mixed construction debris",
@@ -441,10 +437,10 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert "1,000 in, 200 out" in stages["spark_ocr"]["Tokens"]
     assert stages["spark_ocr"]["Cost"] == "$0.0021"
     assert stages["sam_track"]['Prompt "truck bed"'] == "1 object on 2 of 2 frames"
-    assert stages["sam_track"]["Billed"] == "350 frames (7 requests)"
+    assert stages["sam_track"]["Billed"] == "250 frames (5 requests)"
     assert stages["sam_track"]["Bed measured from"] == '"truck bed"'
     assert stages["sam_track"]["Load named by Muse Spark"] == (
-        '"steel drums", "broken lumber", "concrete rubble"'
+        '"steel drums", "broken lumber"'
     )
     assert stages["sam_track"]["Broad load concept from Muse Spark"] == (
         "mixed construction debris"
@@ -463,9 +459,9 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert analysis["dollar_math"] == "I valued the load by exact arithmetic."
 
     rows = {r.stage: r for r in await ledger.rows()}
-    # Seven SAM video requests at the 50-frame minimum ($0.07) plus the name_load
+    # Five SAM video requests at the 50-frame minimum ($0.05) plus the name_load
     # Spark call folded into this stage ($0.0021).
-    assert rows["sam_track"].cost_usd == pytest.approx(0.0721)
+    assert rows["sam_track"].cost_usd == pytest.approx(0.0521)
     # 1000 in at $1.25/1M + 200 out at $4.25/1M.
     assert rows["spark_ocr"].cost_usd == pytest.approx(0.0021)
     assert rows["spark_ocr"].tokens_in == 1000
@@ -473,7 +469,7 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     # The batched per-stage analysis is one more Spark call, billed like the rest.
     assert rows["spark_explain"].cost_usd == pytest.approx(0.0021)
     assert rows["spark_explain"].model == "muse-spark-1.3"
-    assert ledger.summarize().total_cost_usd == pytest.approx(0.0784)
+    assert ledger.summarize().total_cost_usd == pytest.approx(0.0584)
 
 
 @pytest.mark.asyncio
@@ -487,8 +483,8 @@ async def test_image_goes_inline_and_bills_per_image() -> None:
     assert part["type"] == "input_image"
     assert part["image_url"].startswith("data:image/png;base64,")
     rows = {r.stage: r for r in await ledger.rows()}
-    # 7 SAM images at $2.50 / 1k ($0.0175) plus name_load ($0.0021).
-    assert rows["sam_track"].cost_usd == pytest.approx(0.0196)
+    # 5 SAM images at $2.50 / 1k ($0.0125) plus name_load ($0.0021).
+    assert rows["sam_track"].cost_usd == pytest.approx(0.0146)
     assert result.ticket.evidence_frames == ["haul.png"]
 
 
