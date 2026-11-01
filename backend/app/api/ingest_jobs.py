@@ -180,7 +180,10 @@ async def recover_ingest_jobs() -> None:
         await session.execute(
             update(AnalysisJob)
             .where(AnalysisJob.status == "running")
-            .values(status="queued", detail="Resuming after backend restart.")
+            .values(
+                status="failed",
+                detail="Interrupted by deployment restart. Ready for fresh upload.",
+            )
         )
         await session.commit()
     ensure_worker()

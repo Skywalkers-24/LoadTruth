@@ -60,6 +60,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             await init_db()
             async with get_sessionmaker()() as session:
                 await seed_demo(session)
+        if not settings.mock_ai:
             from app.api.ingest_jobs import recover_ingest_jobs
 
             await recover_ingest_jobs()

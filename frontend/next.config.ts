@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
     // well over the default proxy timeout; allow up to 10 minutes.
     proxyTimeout: 600_000,
   },
-  // API calls proxy to the FastAPI backend, excluding the Cloudflare edge proxy for AI.
+  // API calls proxy to the FastAPI backend.
   async rewrites() {
     const backend =
       process.env.BACKEND_URL ??
@@ -21,9 +21,7 @@ const nextConfig: NextConfig = {
       (process.env.NODE_ENV === "production"
         ? "https://loadtruth-api.onrender.com"
         : "http://localhost:8000");
-    return [
-      { source: "/api/((?!ai(?:/|$)).*)", destination: `${backend}/$1` },
-    ];
+    return [{ source: "/api/:path*", destination: `${backend}/:path*` }];
   },
   // The login background clips and posters are content-stable: serve them with a
   // long immutable cache so Cloudflare's edge holds them and repeat visits skip

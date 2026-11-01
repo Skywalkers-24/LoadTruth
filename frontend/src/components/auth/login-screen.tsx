@@ -156,15 +156,13 @@ export function LoginScreen() {
             <p className="font-semibold text-white/95">Powered by Meta SAM 3.1 &amp; Muse Spark 1.3</p>
             <p className="text-white/80">Live inference via Meta Model API (api.meta.ai/v1)</p>
           </div>
-          <a
-            href="https://55b5b622-loadtruth.tiwabhay800.workers.dev/showcase"
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            href="/showcase"
             className="inline-flex shrink-0 items-center gap-1 font-semibold text-white underline-offset-4 hover:underline"
           >
             Project overview
             <ArrowRightIcon className="size-3.5" />
-          </a>
+          </Link>
         </div>
       </div>
 

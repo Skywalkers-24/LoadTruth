@@ -266,9 +266,11 @@ async def ingest_clip(
 
         # Stage 1 — sample keyframes at the cost-safe fps (capped by media.py). A
         # corrupt/non-video file makes the decoder throw; treat that as a bad
-        # upload (400), never a 500.
+        # upload (400), never a 500. Runs in a thread so CPU decode doesn't block the loop.
         try:
-            sample_frames(data, filename=filename, media_kind=artifact.media_kind)
+            await asyncio.to_thread(
+                sample_frames, data, filename=filename, media_kind=artifact.media_kind
+            )
         except Exception as exc:  # noqa: BLE001 — any decode failure is a bad upload
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,

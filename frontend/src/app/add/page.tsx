@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 
 import { BENCHMARK_PAIRS } from "@/components/demos/video-pair-card";
+import {
+  compressVideoClient,
+  getUploadLimits,
+  validateUploadFile,
+} from "@/lib/video-compress";
 
 import {
   createPracticeTicket,
@@ -101,13 +106,17 @@ function CaptureWorkspace() {
     queryFn: () => listDemoVideos(0),
     staleTime: 60_000,
   });
-  const analysisLimit = library.data?.analysis_max_bytes ?? 20 * 1024 ** 2;
+  const uploadLimits = useMemo(() => getUploadLimits(), []);
+  const [autoCompress, setAutoCompress] = useState(uploadLimits.enableCompression);
+  const [compressing, setCompressing] = useState(false);
+  const [compressProgress, setCompressProgress] = useState(0);
+  const analysisLimit = library.data?.analysis_max_bytes ?? uploadLimits.maxSizeBytes;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const rawTicket = ingest.isPending ? null : (latest.data?.ticket ?? null);
   const activeTicket = customResult?.ticket ?? rawTicket;
   const processing = latest.data?.status === "accepted" || latest.data?.status === "running";
-  const busy = ingest.isPending || processing;
+  const busy = ingest.isPending || processing || compressing;
   useEffect(() => {
     if (!ingest.isPending) return;
     const warn = (event: BeforeUnloadEvent) => {
@@ -140,7 +149,7 @@ function CaptureWorkspace() {
 
   const showcaseReadOnly = Boolean(selected?.tags.includes("read-only"));
 
-  function submit(file: File) {
+  async function submit(file: File) {
     if (!canRunFresh) {
       setError(
         "Uploading footage and running AI analysis is available in Administrator mode. Use the saved video selector to replay existing analysis.",
@@ -165,21 +174,47 @@ function CaptureWorkspace() {
       setError("This file is empty. Choose a truck video or image.");
       return;
     }
-    if (file.size > analysisLimit) {
-      setError(
-        `Analysis on this instance accepts clips up to ${Math.round(analysisLimit / 1024 ** 2)} MiB. Trim this clip, or save it in Demo Videos for later.`,
-      );
+
+    // Client-side validation: duration & size limits from environment
+    const check = await validateUploadFile(file, uploadLimits);
+    if (!check.ok) {
+      setError(check.error || "File did not pass validation.");
       return;
     }
+
     if (file.type && !file.type.startsWith("video/") && !file.type.startsWith("image/")) {
       setError("Choose a video or image file.");
       return;
     }
     setError(null);
     setCustomResult(null);
+
+    let fileToUpload = file;
+    // Client-side compression if enabled and video exceeds target bytes (e.g. 5MB)
+    if (
+      autoCompress &&
+      file.type.startsWith("video/") &&
+      file.size > uploadLimits.targetCompressedBytes
+    ) {
+      setCompressing(true);
+      setCompressProgress(0);
+      try {
+        fileToUpload = await compressVideoClient(
+          file,
+          check.metadata,
+          uploadLimits.targetCompressedBytes,
+          (pct) => setCompressProgress(pct),
+        );
+      } catch (err) {
+        console.warn("Client-side compression fallback to original:", err);
+      } finally {
+        setCompressing(false);
+      }
+    }
+
     if (latest.data?.id) setDismissedJobId(latest.data.id);
     setHasUploaded(true);
-    setUploadedFileName(file.name);
+    setUploadedFileName(fileToUpload.name);
     setShowUploadManual(false);
     const previousRun = queryClient.getQueryData<PipelineProgress | null>([
       "pipeline-progress",
@@ -187,7 +222,7 @@ function CaptureWorkspace() {
     ]);
     setIgnoredAttempt(previousRun ? pipelineAttemptKey(previousRun) : undefined);
     ingest.mutate(
-      { eventId: targetEventId, file, bypassCache: canRunFresh && bypassCache, keepFootage },
+      { eventId: targetEventId, file: fileToUpload, bypassCache: canRunFresh && bypassCache, keepFootage },
       {
         onError: (err) => setError(ingestErrorMessage(err)),
       },
@@ -196,7 +231,7 @@ function CaptureWorkspace() {
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) submit(file);
+    if (file) void submit(file);
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -346,6 +381,25 @@ function CaptureWorkspace() {
                       </span>
                     </label>
                   )}
+                  {canRunFresh && (
+                    <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3">
+                      <input
+                        type="checkbox"
+                        checked={autoCompress}
+                        onChange={(e) => setAutoCompress(e.target.checked)}
+                        disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
+                        className="mt-1 size-4 shrink-0 accent-[var(--brand)]"
+                      />
+                      <span>
+                        <span className="block text-sm font-medium">
+                          Compress video before upload (max {Math.round(uploadLimits.targetCompressedBytes / 1024 ** 2)}MB)
+                        </span>
+                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                          Automatically downscales and optimizes video bitrate client-side to keep uploads fast and light.
+                        </span>
+                      </span>
+                    </label>
+                  )}
                   <label
                     role="button"
                     aria-label="Choose truck video or image"
@@ -372,7 +426,7 @@ function CaptureWorkspace() {
                       e.preventDefault();
                       setDragging(false);
                       const file = e.dataTransfer.files?.[0];
-                      if (file) submit(file);
+                      if (file) void submit(file);
                     }}
                     className={cn(
                       "flex cursor-pointer flex-col items-center justify-center gap-3 min-h-40 flex-1 rounded-xl border border-dashed px-6 py-6 text-center transition-colors",
@@ -392,7 +446,9 @@ function CaptureWorkspace() {
                       disabled={!canRunFresh || playground || busy || latest.isLoading || !eventId}
                     />
                     <span className="grid size-14 place-items-center rounded-2xl bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
-                      {ingest.isPending ? (
+                      {compressing ? (
+                        <Loader2Icon className="size-7 animate-spin" />
+                      ) : ingest.isPending ? (
                         <Loader2Icon className="size-7 animate-spin" />
                       ) : (
                         <UploadCloudIcon className="size-7" />
@@ -400,28 +456,32 @@ function CaptureWorkspace() {
                     </span>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[15px] font-semibold">
-                        {ingest.isPending
-                          ? "Uploading clip"
-                          : processing
-                            ? latest.data?.bypass_cache
-                              ? "Fresh analysis in progress"
-                              : "Analysis in progress"
-                            : !canRunFresh
-                              ? "Upload disabled · Administrator mode required"
-                              : playground
-                                ? "Sandbox · saved video replay only"
-                                : "Drop a clip here, or click to browse"}
+                        {compressing
+                          ? `Compressing video... (${compressProgress}%)`
+                          : ingest.isPending
+                            ? "Uploading clip"
+                            : processing
+                              ? latest.data?.bypass_cache
+                                ? "Fresh analysis in progress"
+                                : "Analysis in progress"
+                              : !canRunFresh
+                                ? "Upload disabled · Administrator mode required"
+                                : playground
+                                  ? "Sandbox · saved video replay only"
+                                  : "Drop a clip here, or click to browse"}
                       </span>
                       <span className="text-[12px] text-muted-foreground">
-                        {ingest.isPending
-                          ? "Your clip is being uploaded."
-                          : processing
-                            ? "Upload complete. Analysis is still processing."
-                            : !canRunFresh
-                              ? "Select an existing video below to replay saved AI analysis."
-                              : playground
-                                ? "Choose a saved video below. Uploads and new AI calls are disabled in Sandbox."
-                                : `Choose a video or image up to ${Math.round(analysisLimit / 1024 ** 2)} MiB.`}
+                        {compressing
+                          ? "Optimizing video size in browser before upload."
+                          : ingest.isPending
+                            ? "Your clip is being uploaded."
+                            : processing
+                              ? "Upload complete. Analysis is still processing."
+                              : !canRunFresh
+                                ? "Select an existing video below to replay saved AI analysis."
+                                : playground
+                                  ? "Choose a saved video below. Uploads and new AI calls are disabled in Sandbox."
+                                  : `Max ${uploadLimits.maxDurationSeconds}s video · ${Math.round(uploadLimits.maxSizeBytes / 1024 ** 2)}MB limit (Auto-compresses to ${Math.round(uploadLimits.targetCompressedBytes / 1024 ** 2)}MB).`}
                       </span>
                     </div>
                   </label>
