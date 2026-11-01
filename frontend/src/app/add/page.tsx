@@ -594,6 +594,21 @@ function SavedFootagePicker({ onUpload }: { onUpload?: () => void }) {
     ? selected
     : events.find((event) => event.tags.includes("playground"));
 
+  // Group tickets by event for clarity across the two Meta processed events
+  const groupedTickets = useMemo(() => {
+    if (!query.data?.length) return [];
+    const eventMap = new Map<string, { eventName: string; tickets: Ticket[] }>();
+    for (const ticket of query.data) {
+      const ev = events.find((e) => e.id === ticket.event_id);
+      const name = ev ? ev.name : "Meta-Processed Recovery";
+      if (!eventMap.has(ticket.event_id)) {
+        eventMap.set(ticket.event_id, { eventName: name, tickets: [] });
+      }
+      eventMap.get(ticket.event_id)!.tickets.push(ticket);
+    }
+    return Array.from(eventMap.entries());
+  }, [query.data, events]);
+
   async function create() {
     if (!chosen || !playground || busy) return;
     setBusy(true);
@@ -617,7 +632,7 @@ function SavedFootagePicker({ onUpload }: { onUpload?: () => void }) {
             <div>
               <h1 className="text-xl font-semibold">Replay a processed video</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Watch saved footage and reuse its analysis. No new AI calls or credits.
+                Watch saved footage from the two Meta-processed recovery events. No new AI calls or credits.
               </p>
             </div>
             {onUpload ? (
@@ -640,17 +655,22 @@ function SavedFootagePicker({ onUpload }: { onUpload?: () => void }) {
             onChange={(e) => setSource(e.target.value)}
             disabled={busy || query.isLoading || !query.data?.length}
           >
-            {!query.data?.length && (
+            {!query.data?.length ? (
               <option value="">
                 {query.isLoading ? "Loading processed videos…" : "No processed videos available"}
               </option>
+            ) : (
+              groupedTickets.map(([eventId, { eventName, tickets }]) => (
+                <optgroup key={eventId} label={eventName}>
+                  {tickets.map((ticket) => (
+                    <option key={ticket.id} value={ticket.id}>
+                      {ticket.truck_id ?? "Unidentified truck"} · {debrisLabel(ticket.debris_class)} ·{" "}
+                      {percent(ticket.valuation.est_fill_pct)} fill · {ticket.id.slice(0, 8)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))
             )}
-            {query.data?.map((ticket) => (
-              <option key={ticket.id} value={ticket.id}>
-                {ticket.truck_id ?? "Unidentified truck"} · {debrisLabel(ticket.debris_class)} ·{" "}
-                {percent(ticket.valuation.est_fill_pct)} fill · {ticket.id.slice(0, 8)}
-              </option>
-            ))}
           </select>
           {query.isError && (
             <p role="alert">

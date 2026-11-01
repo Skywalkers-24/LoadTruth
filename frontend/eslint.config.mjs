@@ -6,7 +6,7 @@ import nextPlugin from "@next/eslint-plugin-next";
  * FlatCompat shim, which has a circular-structure bug under ESLint 9.
  */
 const eslintConfig = [
-  { ignores: [".next/**", ".open-next/**", "node_modules/**", "coverage/**"] },
+  { ignores: [".next/**", ".open-next/**", ".wrangler/**", "node_modules/**", "coverage/**"] },
   {
     plugins: { "@next/next": nextPlugin },
     rules: {

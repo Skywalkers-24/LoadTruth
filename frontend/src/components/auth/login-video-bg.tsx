@@ -79,22 +79,38 @@ export function LoginVideoBg() {
 
   const lowSrc = TIER_FILE.sm(videoMode);
 
-  const [targetTier, setTargetTier] = useState<Tier>("lg");
+  const [targetTier, setTargetTier] = useState<Tier>(() => pickTargetTier());
   const [isHighReady, setIsHighReady] = useState(false);
 
   const lowVideoRef = useRef<HTMLVideoElement>(null);
   const highVideoRef = useRef<HTMLVideoElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const upgradedRef = useRef(false);
+  const hasLoopedRef = useRef(false);
 
   // Evaluate target tier on mount and when connection changes
   useEffect(() => {
     setTargetTier(pickTargetTier());
     setIsHighReady(false);
+    upgradedRef.current = false;
   }, [videoMode]);
 
   const highSrc = TIER_FILE[targetTier](videoMode);
   const shouldUpgrade = targetTier !== "sm";
 
-  // Autoplay fallback listeners for initial user interaction
+  // Reset upgrade state when highSrc changes
+  useEffect(() => {
+    upgradedRef.current = false;
+    setIsHighReady(false);
+    const el = highVideoRef.current;
+    if (el) {
+      el.muted = true;
+      el.defaultMuted = true;
+      el.playsInline = true;
+    }
+  }, [highSrc]);
+
+  // Autoplay fallback listeners for initial user interaction or tab focus
   useEffect(() => {
     const handleInteraction = () => {
       if (isHighReady && highVideoRef.current && highVideoRef.current.paused) {
@@ -107,11 +123,13 @@ export function LoginVideoBg() {
     window.addEventListener("pointerdown", handleInteraction, { passive: true });
     window.addEventListener("keydown", handleInteraction, { passive: true });
     window.addEventListener("touchstart", handleInteraction, { passive: true });
+    document.addEventListener("visibilitychange", handleInteraction);
 
     return () => {
       window.removeEventListener("pointerdown", handleInteraction);
       window.removeEventListener("keydown", handleInteraction);
       window.removeEventListener("touchstart", handleInteraction);
+      document.removeEventListener("visibilitychange", handleInteraction);
     };
   }, [isHighReady]);
 
@@ -119,37 +137,93 @@ export function LoginVideoBg() {
   useEffect(() => {
     const el = lowVideoRef.current;
     if (el) {
+      el.muted = true;
+      el.defaultMuted = true;
+      el.playsInline = true;
       safelyPlay(el);
     }
   }, [lowSrc]);
 
   // Handle upgrade to high-quality video
   const onHighCanPlay = () => {
+    if (upgradedRef.current) return;
     const low = lowVideoRef.current;
     const high = highVideoRef.current;
     if (!high) return;
 
-    // Synchronize playhead with the low-quality video for a seamless transition
+    upgradedRef.current = true;
+
+    // Check if high video has buffered the low playhead before attempting seek.
+    // When range requests are unsupported (e.g. static CDN returning 200 OK),
+    // seeking into unbuffered data causes the browser to cancel playback or stall.
     if (low && Number.isFinite(low.currentTime) && low.currentTime > 0) {
       try {
-        high.currentTime = low.currentTime;
+        let isBuffered = false;
+        for (let i = 0; i < high.buffered.length; i++) {
+          if (low.currentTime >= high.buffered.start(i) && low.currentTime <= high.buffered.end(i)) {
+            isBuffered = true;
+            break;
+          }
+        }
+        if (isBuffered) {
+          high.currentTime = low.currentTime;
+        }
       } catch {
-        // Safe fallback if sync is rejected by browser
+        // Safe fallback
       }
     }
 
-    safelyPlay(high);
-    setIsHighReady(true);
+    high.muted = true;
+    high.defaultMuted = true;
+    high.playsInline = true;
 
-    // Pause low-quality video after transition finishes to save GPU/CPU cycles
-    setTimeout(() => {
-      if (lowVideoRef.current) {
-        lowVideoRef.current.pause();
-      }
-    }, 1000);
+    const playPromise = high.play();
+    if (playPromise && typeof playPromise.then === "function") {
+      playPromise
+        .then(() => {
+          setIsHighReady(true);
+          // Only pause low-quality video after transition finishes and high is definitely playing
+          setTimeout(() => {
+            if (highVideoRef.current && !highVideoRef.current.paused && lowVideoRef.current) {
+              lowVideoRef.current.pause();
+            }
+          }, 1200);
+        })
+        .catch(() => {
+          // If high playback is blocked or aborted, keep low video running seamlessly
+          upgradedRef.current = false;
+          setIsHighReady(false);
+          if (low && low.paused) {
+            safelyPlay(low);
+          }
+        });
+    } else {
+      setIsHighReady(true);
+    }
   };
 
-  // Subtle loop crossfade on active video without React state churn
+  const onHighError = () => {
+    upgradedRef.current = false;
+    setIsHighReady(false);
+    if (lowVideoRef.current && lowVideoRef.current.paused) {
+      safelyPlay(lowVideoRef.current);
+    }
+  };
+
+  const onHighWaiting = () => {
+    // If high buffers or stalls, wake up low so screen never freezes
+    if (lowVideoRef.current && lowVideoRef.current.paused) {
+      safelyPlay(lowVideoRef.current);
+    }
+  };
+
+  const handleEnded = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const v = e.currentTarget;
+    v.currentTime = 0;
+    safelyPlay(v);
+  };
+
+  // Subtle loop crossfade on wrapper container to soften seam without fighting video classes
   useEffect(() => {
     let rafId = 0;
     const FADE = 0.5;
@@ -163,15 +237,20 @@ export function LoginVideoBg() {
 
         if (t > dur - FADE) {
           // Fade out slightly at end of loop to soften cut
+          hasLoopedRef.current = true;
           opacity = Math.max(0.2, (dur - t) / FADE);
-        } else if (t < FADE && t > 0.05) {
-          // Fade back in at start of loop
+        } else if (hasLoopedRef.current && t < FADE) {
+          // Fade back in at start of loop ONLY if it just wrapped around
           opacity = Math.max(0.2, t / FADE);
+        } else {
+          if (t >= FADE) {
+            hasLoopedRef.current = false;
+          }
+          opacity = 1;
         }
 
-        // Direct DOM style mutation to avoid 60 FPS React re-renders
-        if (activeEl.style.opacity !== String(opacity)) {
-          activeEl.style.opacity = String(opacity);
+        if (contentRef.current && contentRef.current.style.opacity !== String(opacity)) {
+          contentRef.current.style.opacity = String(opacity);
         }
       }
       rafId = requestAnimationFrame(tick);
@@ -188,33 +267,12 @@ export function LoginVideoBg() {
       aria-hidden
       className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-[var(--color-bg)]"
     >
-      {/* Layer 1: Low-quality stream (loads instantly, ~400-600KB) */}
-      <video
-        key={`low-${lowSrc}`}
-        ref={lowVideoRef}
-        src={lowSrc}
-        muted
-        loop
-        autoPlay
-        playsInline
-        preload="auto"
-        disablePictureInPicture
-        tabIndex={-1}
-        className="size-full object-cover absolute inset-0"
-        style={{
-          filter:
-            videoMode === "dark"
-              ? "brightness(1.05) contrast(1.05)"
-              : "brightness(1.02) contrast(1.02)",
-        }}
-      />
-
-      {/* Layer 2: High-quality stream (preloaded in background, fades in seamlessly once ready) */}
-      {shouldUpgrade && (
+      <div ref={contentRef} className="size-full absolute inset-0">
+        {/* Layer 1: Low-quality stream (loads instantly, ~400-600KB) */}
         <video
-          key={`high-${highSrc}`}
-          ref={highVideoRef}
-          src={highSrc}
+          key={`low-${lowSrc}`}
+          ref={lowVideoRef}
+          src={lowSrc}
           muted
           loop
           autoPlay
@@ -222,11 +280,8 @@ export function LoginVideoBg() {
           preload="auto"
           disablePictureInPicture
           tabIndex={-1}
-          onCanPlay={onHighCanPlay}
-          onError={() => setIsHighReady(false)}
-          className={`size-full object-cover absolute inset-0 transition-opacity duration-1000 ${
-            isHighReady ? "opacity-100" : "opacity-0"
-          }`}
+          onEnded={handleEnded}
+          className="size-full object-cover absolute inset-0"
           style={{
             filter:
               videoMode === "dark"
@@ -234,7 +289,36 @@ export function LoginVideoBg() {
                 : "brightness(1.02) contrast(1.02)",
           }}
         />
-      )}
+
+        {/* Layer 2: High-quality stream (preloaded in background, fades in seamlessly once ready) */}
+        {shouldUpgrade && (
+          <video
+            key={`high-${highSrc}`}
+            ref={highVideoRef}
+            src={highSrc}
+            muted
+            loop
+            autoPlay
+            playsInline
+            preload="auto"
+            disablePictureInPicture
+            tabIndex={-1}
+            onCanPlay={onHighCanPlay}
+            onError={onHighError}
+            onWaiting={onHighWaiting}
+            onEnded={handleEnded}
+            className={`size-full object-cover absolute inset-0 transition-opacity duration-1000 ${
+              isHighReady ? "opacity-100" : "opacity-0"
+            }`}
+            style={{
+              filter:
+                videoMode === "dark"
+                  ? "brightness(1.05) contrast(1.05)"
+                  : "brightness(1.02) contrast(1.02)",
+            }}
+          />
+        )}
+      </div>
 
       {/* Edge gradient vignette for copy legibility */}
       <div

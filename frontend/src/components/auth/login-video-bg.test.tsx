@@ -69,4 +69,46 @@ describe("LoginVideoBg", () => {
     );
     expect(highVideo).toBeDefined();
   });
+
+  it("handles onCanPlay without crashing and attempts play on high quality video", async () => {
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(<LoginVideoBg />);
+    });
+
+    const videos = container.querySelectorAll("video");
+    const highVideo = Array.from(videos).find(
+      (v) =>
+        v.getAttribute("src")?.includes("login-dark-lg.mp4") ||
+        v.getAttribute("src")?.includes("login-dark.mp4"),
+    );
+    expect(highVideo).toBeDefined();
+
+    await act(async () => {
+      highVideo?.dispatchEvent(new Event("canplay"));
+    });
+
+    expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalled();
+  });
+
+  it("safely handles video error without stopping playback", async () => {
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(<LoginVideoBg />);
+    });
+
+    const videos = container.querySelectorAll("video");
+    const highVideo = Array.from(videos).find(
+      (v) =>
+        v.getAttribute("src")?.includes("login-dark-lg.mp4") ||
+        v.getAttribute("src")?.includes("login-dark.mp4"),
+    );
+
+    await act(async () => {
+      highVideo?.dispatchEvent(new Event("error"));
+    });
+
+    // Low video should be kept running
+    expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalled();
+  });
 });

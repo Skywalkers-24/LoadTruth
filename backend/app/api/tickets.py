@@ -754,7 +754,14 @@ async def practice_sources(repo: Repository, tenant: ActiveTenant) -> list[Ticke
     from app.db import models
 
     events = await repo.list_events(tenant)
-    ids = [e.id for e in events if "read-only" in e.tags]
+    ids = [
+        e.id
+        for e in events
+        if "meta-processed-muse" in e.tags
+        or "read-only" in e.tags
+        or "dataset-1" in e.tags
+        or "dataset-2" in e.tags
+    ]
     if not ids:
         return []
     rows = (
@@ -766,7 +773,6 @@ async def practice_sources(repo: Repository, tenant: ActiveTenant) -> list[Ticke
                     models.Ticket.tenant_id == tenant,
                     models.Ticket.event_id.in_(ids),
                     models.TicketEvidence.tenant_id == tenant,
-                    models.TicketEvidence.media_storage != "memory",
                 )
                 .order_by(models.Ticket.created_at.desc())
                 .limit(100)
@@ -815,9 +821,14 @@ async def create_practice_ticket(
     evidence = await repo.get_ticket_evidence(tenant, source.id)
     if (
         source_event is None
-        or ("read-only" not in source_event.tags and "benchmark" not in source_event.tags)
+        or (
+            "read-only" not in source_event.tags
+            and "benchmark" not in source_event.tags
+            and "meta-processed-muse" not in source_event.tags
+            and "dataset-1" not in source_event.tags
+            and "dataset-2" not in source_event.tags
+        )
         or evidence is None
-        or evidence.media_storage == "memory"
     ):
         raise HTTPException(409, "Choose a saved result from a read-only event.")
     # Keep the original estimate and capacity; calculate practice value using its

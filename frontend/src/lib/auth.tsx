@@ -33,7 +33,10 @@ const AuthCtx = createContext<AuthValue | null>(null);
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [member, setMember] = useState<Member | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return Boolean(getAuthToken());
+  });
 
   useEffect(() => {
     let active = true;

@@ -29,7 +29,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !member && !isPublicPath(pathname)) {
+    if (!loading && !member && pathname && pathname !== "/" && !isPublicPath(pathname)) {
       router.replace("/login");
     }
   }, [loading, member, pathname, router]);
