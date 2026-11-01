@@ -122,6 +122,21 @@ CodeQL code scanning is free only for **public** repos; on a free **private** re
 ### 5. Build & dependency cache (free CI speed)
 - GitHub Actions caches pip + npm (`cache:` in `setup-python`/`setup-node`) and Docker layers via `type=gha`, so CI stays fast within free minutes.
 
+## Edge AI Proxy & Render Egress Optimization (Cloudflare Worker)
+
+Render free web services enforce a strict 5 GB/month outbound data transfer (egress) limit. Multi-frame perception pipelines (SAM 3.1 & Muse Spark 1.3) can consume significant outbound bandwidth if video frames are repeatedly transmitted in base64. LoadTruth optimizes this via a two-layer edge architecture:
+
+### 1. Single-Upload Transport (`MEDIA_INLINE_MAX_BYTES=0`)
+- With `MEDIA_INLINE_MAX_BYTES=0`, the backend never transmits inline base64 video repeatedly across SAM concepts and Muse prompts.
+- The clip is uploaded once to Meta's File API (`POST /v1/files`), returning a lightweight `file_id`.
+- Subsequent SAM tracking and Muse tasks pass only the 30-character `file_id`, reducing outbound payload volume by over 80%.
+
+### 2. Cloudflare Worker Edge AI Gateway
+- **Route:** `/api/ai/v1/[...path]` (`frontend/src/app/api/ai/v1/[...path]/route.ts`).
+- **Function:** Proxies streaming SSE completions, model inference, and file uploads directly from Cloudflare's edge network to `https://api.meta.ai`.
+- **Egress Savings:** Cloudflare Workers provides unmetered outbound bandwidth. Setting `MODEL_API_BASE_URL=https://loadtruth.tiwabhay800.workers.dev/api/ai/v1` on Render routes AI model traffic through Cloudflare's global edge network.
+- **Local Dev Isolation:** Local development, unit tests, and scripts leave `MODEL_API_BASE_URL` unset, defaulting directly to `https://api.meta.ai/v1` with zero proxy dependencies.
+
 ### Golden rule (enforced by the protocol)
 > Reuse persisted perception results when the clip and AI configuration match. New narration can still run; bypass-cache intentionally requests fresh inference.
 

@@ -106,6 +106,7 @@ afterEach(async () => {
 describe("administrator fresh-analysis option", () => {
   it("defaults to cached analysis and submits the selected mode with the file", async () => {
     await render();
+    expect(host.textContent).toContain("may use paid AI calls");
     const checkbox = host.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
     expect(checkbox.checked).toBe(false);
     await act(async () => checkbox.click());
@@ -119,7 +120,10 @@ describe("administrator fresh-analysis option", () => {
       bypassCache: true,
       keepFootage: true,
     });
-    expect(host.textContent).toContain("may use paid AI calls");
+    // Upload box is hidden once uploaded, keeping pipeline on screen
+    expect(host.textContent).toContain("Footage uploaded");
+    expect(host.textContent).toContain("haul.mp4");
+    expect(host.querySelector('input[type="file"]')).toBeNull();
   });
   it("does not offer fresh analysis to monitors", async () => {
     state.role = "monitor";

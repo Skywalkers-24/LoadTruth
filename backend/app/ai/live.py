@@ -33,7 +33,7 @@ import math
 import re
 import time
 from collections.abc import AsyncIterator, Mapping
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, field, replace
 from decimal import ROUND_HALF_UP, Decimal
 from statistics import median
@@ -569,11 +569,15 @@ class LiveAIClient:
         kind = "input_image" if clip.media_kind == "image" else "input_video"
         if plan.send_method is SendMethod.UPLOAD:
             ext = "jpg" if clip.media_kind == "image" else "mp4"
+            source_url: str | None = None
+            with suppress(Exception):
+                source_url = await evidence_store.media_url(clip.content_hash)
             file_id = await self._http.upload_file(
                 prepared.data,
                 filename=f"{clip.content_hash[:16]}.{ext}",
                 mime=prepared.mime,
                 ttl_s=s.media_file_ttl_s,
+                source_url=source_url,
             )
             part = {"type": kind, "file_id": file_id}
         else:

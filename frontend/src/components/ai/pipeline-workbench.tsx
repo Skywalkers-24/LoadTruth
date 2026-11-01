@@ -5,6 +5,7 @@ import {
   ArrowUpRightIcon,
   CheckCircle2Icon,
   CircleDashedIcon,
+  Loader2Icon,
   MinusCircleIcon,
   TriangleAlertIcon,
 } from "lucide-react";
@@ -148,11 +149,14 @@ export function PipelineWorkbench({
   stages,
   summary,
   showInlineTrace = false,
+  isRunning = false,
 }: {
   stages: PipelineStage[];
   summary?: PipelineWorkbenchSummary;
   /** Keep false for clean view; only set to true if testing inline accordion. */
   showInlineTrace?: boolean;
+  /** Whether the pipeline is currently running inference */
+  isRunning?: boolean;
 }) {
   const filteredStages = stages.filter((s) => s.key !== "cache");
   const stageMap = new Map(filteredStages.map((s) => [s.key, s]));
@@ -182,16 +186,25 @@ export function PipelineWorkbench({
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Auto-focus the latest arriving/completed stage as the pipeline progresses
+  // Identify currently executing stage when running
+  const activeRunningIndex = isRunning
+    ? displayStages.findIndex((s) => s.status === "pending")
+    : -1;
+
+  // Auto-focus the latest arriving/completed stage or currently running stage as the pipeline progresses
   const latestCompletedKey = filteredStages[filteredStages.length - 1]?.key;
   useEffect(() => {
     if (latestCompletedKey) {
       const idx = displayStages.findIndex((s) => s.key === latestCompletedKey);
       if (idx >= 0) {
         setSelectedIndex(idx);
+        return;
       }
     }
-  }, [latestCompletedKey, displayStages]);
+    if (activeRunningIndex >= 0) {
+      setSelectedIndex(activeRunningIndex);
+    }
+  }, [activeRunningIndex, latestCompletedKey, displayStages]);
 
   const currentStage = displayStages[selectedIndex] ?? displayStages[0]!;
 
@@ -219,19 +232,23 @@ export function PipelineWorkbench({
       >
         {displayStages.map((s, i) => {
           const isPending = s.status === "pending";
-          const isSelected = i === selectedIndex && !isPending;
+          const isCurrentRunning = i === activeRunningIndex;
+          const isSelected = i === selectedIndex && (!isPending || isCurrentRunning);
           const duration = s.duration_ms > 0 ? ` · ${(s.duration_ms / 1000).toFixed(1)}s` : "";
           return (
             <li key={`${s.key}-${i}`} className="min-w-0">
               <button
                 type="button"
                 aria-pressed={isSelected}
-                aria-disabled={isPending}
+                aria-disabled={isPending && !isCurrentRunning}
                 onClick={() => handleStageClick(i)}
                 className={cn(
                   "group relative flex h-full w-full flex-col justify-between rounded-xl border border-border bg-secondary/30 p-3 text-left transition-all hover:border-[var(--brand)] hover:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                  isPending && "cursor-default opacity-50 grayscale",
+                  isPending && !isCurrentRunning && "cursor-default opacity-50 grayscale",
+                  isCurrentRunning &&
+                    "border-[var(--brand)] bg-[var(--brand-soft)]/60 ring-2 ring-[var(--brand)]/60 shadow-md",
                   isSelected &&
+                    !isCurrentRunning &&
                     "border-[var(--brand)] bg-[var(--brand-soft)] ring-1 ring-[var(--brand)] shadow-xs",
                 )}
               >
@@ -239,13 +256,15 @@ export function PipelineWorkbench({
                   <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     <span>Step {String(i + 1).padStart(2, "0")}</span>
                     {s.status === "flagged" ? (
-                      <TriangleAlertIcon className="size-3.5 text-[var(--color-warn)]" />
+                      <TriangleAlertIcon className="size-4.5 text-[var(--color-warn)]" />
                     ) : s.status === "skipped" ? (
-                      <MinusCircleIcon className="size-3.5 text-muted-foreground" />
+                      <MinusCircleIcon className="size-4.5 text-muted-foreground" />
+                    ) : isCurrentRunning ? (
+                      <Loader2Icon className="size-5 animate-spin text-[var(--brand)]" />
                     ) : isPending ? (
-                      <CircleDashedIcon className="size-3.5 text-muted-foreground" />
+                      <CircleDashedIcon className="size-4.5 text-muted-foreground/60" />
                     ) : (
-                      <CheckCircle2Icon className="size-3.5 text-[var(--color-ok)]" />
+                      <CheckCircle2Icon className="size-4.5 text-[var(--color-ok)]" />
                     )}
                   </div>
                   <div className="mt-2 text-[13px] font-semibold leading-snug text-foreground">
@@ -261,13 +280,27 @@ export function PipelineWorkbench({
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-2 border-t border-border pt-2 text-[11px]">
                   <span className="text-muted-foreground truncate">
-                    {isPending
-                      ? "Not run"
-                      : s.status === "flagged"
-                        ? `Flagged${duration}`
-                        : s.status === "skipped"
-                          ? `Skipped${duration}`
-                          : `Done${duration}`}
+                    {isCurrentRunning ? (
+                      <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--brand)]">
+                        <span className="relative flex size-2">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--brand)] opacity-75" />
+                          <span className="relative inline-flex size-2 rounded-full bg-[var(--brand)]" />
+                        </span>
+                        Analyzing…
+                      </span>
+                    ) : isPending ? (
+                      isRunning ? (
+                        "Queued"
+                      ) : (
+                        "Not run"
+                      )
+                    ) : s.status === "flagged" ? (
+                      `Flagged${duration}`
+                    ) : s.status === "skipped" ? (
+                      `Skipped${duration}`
+                    ) : (
+                      `Done${duration}`
+                    )}
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-foreground">
                     View details

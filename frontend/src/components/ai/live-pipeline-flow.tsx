@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { CheckIcon, LoaderIcon, TriangleAlertIcon } from "lucide-react";
+import { CheckIcon, Loader2Icon, LoaderIcon, TriangleAlertIcon } from "lucide-react";
 
 import type { PipelineProgress, PipelineStage } from "@/lib/api";
 import { usePipelineProgress } from "@/lib/hooks";
@@ -113,78 +113,111 @@ function Flow({
       aria-label="Current pipeline run"
       className="lt-fade-in rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
     >
-      <header className="mb-3 flex items-center gap-2">
-        <span
-          className={cn(
-            "grid size-6 place-items-center rounded-md",
-            failed
-              ? "bg-[var(--color-danger-soft)] text-[var(--color-destructive)]"
-              : running
-                ? "bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
-                : idle
-                  ? "bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
-                  : "bg-[var(--color-ok-soft)] text-[var(--color-ok)]",
-          )}
-        >
-          {failed ? (
-            <TriangleAlertIcon className="size-3.5" />
-          ) : running || idle ? (
-            <LoaderIcon className={cn("size-3.5", running && "animate-spin")} />
-          ) : (
-            <CheckIcon className="size-3.5" />
-          )}
-        </span>
-        <h3 role="status" className="text-[13px] font-semibold">
-          {idle
-            ? "Pipeline ready"
-            : running
-              ? "Analysing clip"
-              : run
-                ? outcomeTitle(run)
-                : "Analysis pending"}
-        </h3>
-        {cached && (
-          <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-            Cached
+      <header className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span
+            className={cn(
+              "grid place-items-center rounded-xl transition-all shadow-xs",
+              running
+                ? "size-10 bg-[var(--color-brand)] text-white ring-2 ring-[var(--color-brand)]/30"
+                : "size-8",
+              failed
+                ? "bg-[var(--color-danger-soft)] text-[var(--color-destructive)]"
+                : running
+                  ? "bg-[var(--color-brand)] text-white"
+                  : idle
+                    ? "bg-[var(--color-brand-soft)] text-[var(--color-brand)]"
+                    : "bg-[var(--color-ok-soft)] text-[var(--color-ok)]",
+            )}
+          >
+            {failed ? (
+              <TriangleAlertIcon className="size-4.5" />
+            ) : running ? (
+              <Loader2Icon className="size-5.5 animate-spin" />
+            ) : idle ? (
+              <LoaderIcon className="size-4.5" />
+            ) : (
+              <CheckIcon className="size-4.5" />
+            )}
           </span>
-        )}
-        {run?.truck_id && (
-          <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] font-medium tabular-nums text-[var(--color-muted-foreground)]">
-            {run.truck_id}
-          </span>
-        )}
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <h3 role="status" className="text-[13px] font-semibold sm:text-sm">
+                {idle
+                  ? "Pipeline ready"
+                  : running
+                    ? "Analysing clip"
+                    : run
+                      ? outcomeTitle(run)
+                      : "Analysis pending"}
+              </h3>
+              {running && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-brand-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-brand)]">
+                  <span className="relative flex size-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-brand)] opacity-75" />
+                    <span className="relative inline-flex size-1.5 rounded-full bg-[var(--color-brand)]" />
+                  </span>
+                  Live
+                </span>
+              )}
+            </div>
+            {running && (
+              <p className="text-[11px] text-muted-foreground">
+                AI outlines truck & load, reads plate, finds capacity, and estimates fill
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {cached && (
+            <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              Cached
+            </span>
+          )}
+          {run?.truck_id && (
+            <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] font-medium tabular-nums text-[var(--color-muted-foreground)]">
+              {run.truck_id}
+            </span>
+          )}
+        </div>
       </header>
 
       {detailed ? (
         <div className="mt-1">
-          <PipelineWorkbench stages={stages} showInlineTrace={process.env.NODE_ENV === "test"} />
+          <PipelineWorkbench
+            stages={stages}
+            isRunning={running}
+            showInlineTrace={process.env.NODE_ENV === "test"}
+          />
         </div>
       ) : (
         <ol className="flex gap-2 overflow-x-auto pb-3">
-          {STAGE_FLOW.map((s, i) => {
-            const stage = byKey.get(s.key);
-            // A received stage is a completed record, not an executing stage.
-            const active = false;
-            return (
-              <li key={s.key} className="flex items-center gap-1.5">
-                <StageChip
-                  label={s.label}
-                  stage={stage}
-                  active={active}
-                  pending={!stage && (running || idle)}
-                />
-                {i < STAGE_FLOW.length - 1 && (
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "h-px w-3 shrink-0",
-                      stage ? "bg-[var(--color-ok)]" : "bg-[var(--color-border)]",
-                    )}
+          {(() => {
+            const activeChipIndex = running ? STAGE_FLOW.findIndex((st) => !byKey.has(st.key)) : -1;
+            return STAGE_FLOW.map((s, i) => {
+              const stage = byKey.get(s.key);
+              const active = i === activeChipIndex;
+              return (
+                <li key={s.key} className="flex items-center gap-1.5">
+                  <StageChip
+                    label={s.label}
+                    stage={stage}
+                    active={active}
+                    pending={!stage && (running || idle)}
                   />
-                )}
-              </li>
-            );
-          })}
+                  {i < STAGE_FLOW.length - 1 && (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "h-px w-3 shrink-0",
+                        stage ? "bg-[var(--color-ok)]" : "bg-[var(--color-border)]",
+                      )}
+                    />
+                  )}
+                </li>
+              );
+            });
+          })()}
         </ol>
       )}
 
@@ -200,8 +233,8 @@ function Flow({
         run.outcome !== "created" &&
         run.outcome !== "drafted" &&
         run.outcome !== "cached" && (
-        <p className="mt-2 text-[12px] text-[var(--color-warn)]">{run.detail}</p>
-      )}
+          <p className="mt-2 text-[12px] text-[var(--color-warn)]">{run.detail}</p>
+        )}
     </section>
   );
 }
@@ -239,9 +272,9 @@ function StageChip({
   return (
     <span
       className={cn(
-        "inline-flex min-h-14 shrink-0 items-center gap-2 rounded-lg border px-4 py-3 text-xs font-medium transition-colors",
+        "inline-flex min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium transition-colors",
         active &&
-          "border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]",
+          "border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)] ring-1 ring-[var(--color-brand)]",
         done &&
           !flagged &&
           !active &&
@@ -251,13 +284,13 @@ function StageChip({
         pending && "border-dashed border-[var(--color-border)] text-[var(--color-subtle)]",
       )}
     >
-      <span className="grid size-3.5 place-items-center">
+      <span className="grid size-4 place-items-center">
         {active ? (
-          <LoaderIcon className="size-3 animate-spin" />
+          <Loader2Icon className="size-4 animate-spin text-[var(--color-brand)]" />
         ) : flagged ? (
-          <TriangleAlertIcon className="size-3" />
+          <TriangleAlertIcon className="size-4" />
         ) : done ? (
-          <CheckIcon className="size-3" />
+          <CheckIcon className="size-4" />
         ) : (
           <span className="size-1.5 rounded-full bg-current opacity-50" />
         )}

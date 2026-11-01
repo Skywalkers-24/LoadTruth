@@ -4,6 +4,7 @@ services:
   - type: web
     name: loadtruth-api
     runtime: python
+    region: oregon
     plan: free
     rootDir: backend
     buildCommand: pip install .
@@ -54,7 +55,7 @@ services:
         value: /tmp/loadtruth/meta_api.jsonl
   - type: keyvalue
     name: loadtruth-cache
-    region: frankfurt
+    region: oregon
     plan: free
     maxmemoryPolicy: allkeys-lru
     persistenceMode: off

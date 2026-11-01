@@ -322,12 +322,22 @@ class MetaHTTP:
         )
         return out
 
-    async def upload_file(self, data: bytes, *, filename: str, mime: str, ttl_s: int) -> str:
+    async def upload_file(
+        self,
+        data: bytes,
+        *,
+        filename: str,
+        mime: str,
+        ttl_s: int,
+        source_url: str | None = None,
+    ) -> str:
         """Upload bytes to the Files API and return the ``file-…`` id."""
         timer = api_log.Timer()
         meta = {"filename": filename, "mime": mime, "bytes": len(data), "ttl_s": ttl_s}
         try:
-            file_id = await self._upload_file(data, filename=filename, mime=mime, ttl_s=ttl_s)
+            file_id = await self._upload_file(
+                data, filename=filename, mime=mime, ttl_s=ttl_s, source_url=source_url
+            )
         except ModelAPIError as exc:
             await api_log.record(
                 "files.upload", status=exc.status, latency_ms=timer.ms, error=exc, extra=meta
@@ -376,14 +386,35 @@ class MetaHTTP:
 
         return await self._retrying("responses.stream", call)
 
-    async def _upload_file(self, data: bytes, *, filename: str, mime: str, ttl_s: int) -> str:
+    async def _upload_file(
+        self,
+        data: bytes,
+        *,
+        filename: str,
+        mime: str,
+        ttl_s: int,
+        source_url: str | None = None,
+    ) -> str:
         async def call(with_expiry: bool) -> str:
             form: dict[str, str] = {"purpose": "user_data"}
             if with_expiry:
                 form["expires_after[anchor]"] = "created_at"
                 form["expires_after[seconds]"] = str(ttl_s)
+
+            headers: dict[str, str] = {}
+            payload_data = data
+            if source_url and not self._base_url.startswith("https://api.meta.ai"):
+                headers["X-Media-Source-Url"] = source_url
+                headers["X-Media-Filename"] = filename
+                headers["X-Media-Mime"] = mime
+                headers["X-Media-Ttl-S"] = str(ttl_s)
+                payload_data = b""
+
             resp = await self._http().post(
-                "/files", data=form, files={"file": (filename, data, mime)}
+                "/files",
+                data=form,
+                files={"file": (filename, payload_data, mime)},
+                headers=headers,
             )
             _raise_for_status(resp)
             file_id = resp.json().get("id")

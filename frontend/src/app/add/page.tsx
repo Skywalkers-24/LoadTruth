@@ -11,6 +11,7 @@ import {
   Loader2Icon,
   SparklesIcon,
   UploadCloudIcon,
+  XIcon,
 } from "lucide-react";
 
 import { BENCHMARK_PAIRS } from "@/components/demos/video-pair-card";
@@ -118,6 +119,15 @@ function CaptureWorkspace() {
   }, [ingest.isPending]);
   const [ignoredAttempt, setIgnoredAttempt] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
+  const [dismissedJobId, setDismissedJobId] = useState<string | null>(null);
+  const [hasUploaded, setHasUploaded] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [showUploadManual, setShowUploadManual] = useState(false);
+  const hideUploadBox = (hasUploaded || busy) && !showUploadManual;
+
+  useEffect(() => {
+    setDismissedJobId(null);
+  }, [eventId]);
 
   const ticketPipeline = useQuery({
     queryKey: ["ticket-pipeline", rawTicket?.id],
@@ -167,6 +177,10 @@ function CaptureWorkspace() {
     }
     setError(null);
     setCustomResult(null);
+    if (latest.data?.id) setDismissedJobId(latest.data.id);
+    setHasUploaded(true);
+    setUploadedFileName(file.name);
+    setShowUploadManual(false);
     const previousRun = queryClient.getQueryData<PipelineProgress | null>([
       "pipeline-progress",
       targetEventId,
@@ -193,6 +207,10 @@ function CaptureWorkspace() {
 
     setLoadingExisting(true);
     setError(null);
+    if (latest.data?.id) setDismissedJobId(latest.data.id);
+    setHasUploaded(true);
+    setUploadedFileName(pair.matchFilename);
+    setShowUploadManual(false);
     try {
       if (showcaseReadOnly || !playground) {
         // Replay the saved result directly; this path never invokes inference.
@@ -244,207 +262,284 @@ function CaptureWorkspace() {
           <p className="text-[12px] text-muted-foreground">
             Upload evidence for{" "}
             <span className="font-medium text-foreground">{selected?.name ?? "this event"}</span> to
-            identify the truck, estimate fill, and create a ticket. Only flagged results need review.
+            identify the truck, estimate fill, and create a ticket. Only flagged results need
+            review.
           </p>
         </div>
 
         <div className="flex shrink-0 flex-col gap-4">
-          {/* Upload stays beside live analysis and the latest ticket summary. */}
-          <div className="min-w-0">
-            <FadeIn>
-              <Card className="h-full gap-0 p-4">
-                {canRunFresh && (
-                  <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 p-3">
-                    <input
-                      type="checkbox"
-                      checked={bypassCache}
-                      onChange={(e) => setBypassCache(e.target.checked)}
-                      disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
-                      className="mt-1 size-4 shrink-0 accent-[var(--brand)]"
-                    />
-                    <span>
-                      <span className="block text-sm font-medium">Run AI again</span>
-                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                        Create a new result instead of reusing the saved one. This takes longer and
-                        may use paid AI calls.
-                      </span>
-                    </span>
-                  </label>
-                )}
-                {canRunFresh && (
-                  <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3">
-                    <input
-                      type="checkbox"
-                      checked={keepFootage}
-                      onChange={(e) => setKeepFootage(e.target.checked)}
-                      disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
-                      className="mt-1 size-4 shrink-0 accent-[var(--brand)]"
-                    />
-                    <span>
-                      <span className="block text-sm font-medium">
-                        Keep footage for later replay
-                      </span>
-                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                        The ticket and result are always saved. Turn this off if you do not need the
-                        video for later replay; temporary videos may be removed when the server
-                        restarts or runs low on storage.
-                      </span>
-                    </span>
-                  </label>
-                )}
-                <label
-                  role="button"
-                  aria-label="Choose truck video or image"
-                  aria-disabled={!canRunFresh || playground || busy || latest.isLoading || !eventId}
-                  tabIndex={
-                    !canRunFresh || playground || busy || latest.isLoading || !eventId ? -1 : 0
-                  }
-                  onKeyDown={(e) => {
-                    if (!canRunFresh || playground) return;
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      inputRef.current?.click();
-                    }
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (!canRunFresh || playground) return;
-                    setDragging(true);
-                  }}
-                  onDragLeave={() => setDragging(false)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setDragging(false);
-                    const file = e.dataTransfer.files?.[0];
-                    if (file) submit(file);
-                  }}
-                  className={cn(
-                    "flex cursor-pointer flex-col items-center justify-center gap-3 min-h-40 flex-1 rounded-xl border border-dashed px-6 py-6 text-center transition-colors",
-                    dragging
-                      ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)]"
-                      : "border-border hover:border-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]/40",
-                    (!canRunFresh || playground || busy || latest.isLoading || !eventId) &&
-                      "pointer-events-none opacity-70",
-                  )}
-                >
-                  <input
-                    ref={inputRef}
-                    type="file"
-                    accept="video/*,image/*"
-                    onChange={onPick}
-                    className="hidden"
-                    disabled={!canRunFresh || playground || busy || latest.isLoading || !eventId}
-                  />
-                  <span className="grid size-14 place-items-center rounded-2xl bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
-                    {ingest.isPending ? (
-                      <Loader2Icon className="size-7 animate-spin" />
-                    ) : (
-                      <UploadCloudIcon className="size-7" />
-                    )}
+          {/* Once uploaded, hide the uploaded box and only keep the pipeline on the screen */}
+          {hideUploadBox ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3.5 px-4 shadow-xs">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="grid size-9 place-items-center rounded-lg bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
+                  <FilmIcon className="size-4.5" />
+                </span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Footage uploaded
                   </span>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[15px] font-semibold">
-                      {ingest.isPending
-                        ? "Uploading clip"
-                        : processing
-                          ? latest.data?.bypass_cache
-                            ? "Fresh analysis in progress"
-                            : "Analysis in progress"
-                          : !canRunFresh
-                            ? "Upload disabled · Administrator mode required"
-                            : playground
-                              ? "Sandbox · saved video replay only"
-                              : "Drop a clip here, or click to browse"}
-                    </span>
-                    <span className="text-[12px] text-muted-foreground">
-                      {ingest.isPending
-                        ? "Your clip is being uploaded."
-                        : processing
-                          ? "Upload complete. Analysis is still processing."
-                          : !canRunFresh
-                            ? "Select an existing video below to replay saved AI analysis."
-                            : playground
-                              ? "Choose a saved video below. Uploads and new AI calls are disabled in Sandbox."
-                              : `Choose a video or image up to ${Math.round(analysisLimit / 1024 ** 2)} MiB.`}
-                    </span>
-                  </div>
-                </label>
-
-                {/* ── EXISTING VIDEO SELECTOR (USE EXISTING FROM HERE) ── */}
-                <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
-                  <div className="flex flex-wrap items-center justify-between gap-1">
-                    <label
-                      htmlFor="existing-video-select"
-                      className="text-xs font-semibold text-foreground flex items-center gap-1.5"
-                    >
-                      <FilmIcon className="size-3.5 text-primary" />
-                      <span>Use existing video from library:</span>
-                    </label>
-                    <span className="text-[11px] text-muted-foreground">
-                      Pick a processed benchmark clip
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      id="existing-video-select"
-                      aria-label="Use existing video from library"
-                      value={selectedExisting}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSelectedExisting(val);
-                        if (val) void processExistingVideo(val);
-                      }}
-                      disabled={busy || latest.isLoading || loadingExisting}
-                      className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-xs text-foreground cursor-pointer focus:outline-primary"
-                    >
-                      <option value="">-- Select an existing video from here --</option>
-                      {eventPairs.map((pair) => (
-                        <option key={pair.id} value={pair.matchFilename}>
-                          P{String(pair.pairNumber).padStart(2, "0")} · {pair.truckId} ·{" "}
-                          {pair.debrisLabel} ({pair.measuredFillPct.toFixed(1)}% fill)
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={!selectedExisting || busy || latest.isLoading || loadingExisting}
-                      onClick={() => void processExistingVideo(selectedExisting)}
-                      className="h-9 shrink-0 gap-1.5 px-3 text-xs font-medium cursor-pointer"
-                    >
-                      {loadingExisting ? (
-                        <>
-                          <Loader2Icon className="size-3.5 animate-spin" />
-                          <span>Loading…</span>
-                        </>
-                      ) : (
-                        <>
-                          <SparklesIcon className="size-3.5" />
-                          <span>Replay saved video</span>
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                  <span className="truncate text-sm font-semibold text-foreground">
+                    {uploadedFileName ??
+                      customResult?.filename ??
+                      latest.data?.filename ??
+                      "Current footage"}
+                  </span>
                 </div>
-              </Card>
-            </FadeIn>
-          </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowUploadManual(true);
+                    setHasUploaded(false);
+                  }}
+                  className="gap-1.5 text-xs font-medium cursor-pointer"
+                >
+                  <UploadCloudIcon className="size-3.5" />
+                  <span>Upload different footage</span>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="min-w-0">
+              <FadeIn>
+                <Card className="h-full gap-0 p-4">
+                  {canRunFresh && (
+                    <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 p-3">
+                      <input
+                        type="checkbox"
+                        checked={bypassCache}
+                        onChange={(e) => setBypassCache(e.target.checked)}
+                        disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
+                        className="mt-1 size-4 shrink-0 accent-[var(--brand)]"
+                      />
+                      <span>
+                        <span className="block text-sm font-medium">Run AI again</span>
+                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                          Create a new result instead of reusing the saved one. This takes longer
+                          and may use paid AI calls.
+                        </span>
+                      </span>
+                    </label>
+                  )}
+                  {canRunFresh && (
+                    <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3">
+                      <input
+                        type="checkbox"
+                        checked={keepFootage}
+                        onChange={(e) => setKeepFootage(e.target.checked)}
+                        disabled={busy || latest.isLoading || showcaseReadOnly || !eventId}
+                        className="mt-1 size-4 shrink-0 accent-[var(--brand)]"
+                      />
+                      <span>
+                        <span className="block text-sm font-medium">
+                          Keep footage for later replay
+                        </span>
+                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                          The ticket and result are always saved. Turn this off if you do not need
+                          the video for later replay; temporary videos may be removed when the
+                          server restarts or runs low on storage.
+                        </span>
+                      </span>
+                    </label>
+                  )}
+                  <label
+                    role="button"
+                    aria-label="Choose truck video or image"
+                    aria-disabled={
+                      !canRunFresh || playground || busy || latest.isLoading || !eventId
+                    }
+                    tabIndex={
+                      !canRunFresh || playground || busy || latest.isLoading || !eventId ? -1 : 0
+                    }
+                    onKeyDown={(e) => {
+                      if (!canRunFresh || playground) return;
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        inputRef.current?.click();
+                      }
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (!canRunFresh || playground) return;
+                      setDragging(true);
+                    }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragging(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) submit(file);
+                    }}
+                    className={cn(
+                      "flex cursor-pointer flex-col items-center justify-center gap-3 min-h-40 flex-1 rounded-xl border border-dashed px-6 py-6 text-center transition-colors",
+                      dragging
+                        ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)]"
+                        : "border-border hover:border-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]/40",
+                      (!canRunFresh || playground || busy || latest.isLoading || !eventId) &&
+                        "pointer-events-none opacity-70",
+                    )}
+                  >
+                    <input
+                      ref={inputRef}
+                      type="file"
+                      accept="video/*,image/*"
+                      onChange={onPick}
+                      className="hidden"
+                      disabled={!canRunFresh || playground || busy || latest.isLoading || !eventId}
+                    />
+                    <span className="grid size-14 place-items-center rounded-2xl bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
+                      {ingest.isPending ? (
+                        <Loader2Icon className="size-7 animate-spin" />
+                      ) : (
+                        <UploadCloudIcon className="size-7" />
+                      )}
+                    </span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[15px] font-semibold">
+                        {ingest.isPending
+                          ? "Uploading clip"
+                          : processing
+                            ? latest.data?.bypass_cache
+                              ? "Fresh analysis in progress"
+                              : "Analysis in progress"
+                            : !canRunFresh
+                              ? "Upload disabled · Administrator mode required"
+                              : playground
+                                ? "Sandbox · saved video replay only"
+                                : "Drop a clip here, or click to browse"}
+                      </span>
+                      <span className="text-[12px] text-muted-foreground">
+                        {ingest.isPending
+                          ? "Your clip is being uploaded."
+                          : processing
+                            ? "Upload complete. Analysis is still processing."
+                            : !canRunFresh
+                              ? "Select an existing video below to replay saved AI analysis."
+                              : playground
+                                ? "Choose a saved video below. Uploads and new AI calls are disabled in Sandbox."
+                                : `Choose a video or image up to ${Math.round(analysisLimit / 1024 ** 2)} MiB.`}
+                      </span>
+                    </div>
+                  </label>
+
+                  {/* ── EXISTING VIDEO SELECTOR (USE EXISTING FROM HERE) ── */}
+                  <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-1">
+                      <label
+                        htmlFor="existing-video-select"
+                        className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+                      >
+                        <FilmIcon className="size-3.5 text-primary" />
+                        <span>Use existing video from library:</span>
+                      </label>
+                      <span className="text-[11px] text-muted-foreground">
+                        Pick a processed benchmark clip
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        id="existing-video-select"
+                        aria-label="Use existing video from library"
+                        value={selectedExisting}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSelectedExisting(val);
+                          if (val) void processExistingVideo(val);
+                        }}
+                        disabled={busy || latest.isLoading || loadingExisting}
+                        className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-xs text-foreground cursor-pointer focus:outline-primary"
+                      >
+                        <option value="">-- Select an existing video from here --</option>
+                        {eventPairs.map((pair) => (
+                          <option key={pair.id} value={pair.matchFilename}>
+                            P{String(pair.pairNumber).padStart(2, "0")} · {pair.truckId} ·{" "}
+                            {pair.debrisLabel} ({pair.measuredFillPct.toFixed(1)}% fill)
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={!selectedExisting || busy || latest.isLoading || loadingExisting}
+                        onClick={() => void processExistingVideo(selectedExisting)}
+                        className="h-9 shrink-0 gap-1.5 px-3 text-xs font-medium cursor-pointer"
+                      >
+                        {loadingExisting ? (
+                          <>
+                            <Loader2Icon className="size-3.5 animate-spin" />
+                            <span>Loading…</span>
+                          </>
+                        ) : (
+                          <>
+                            <SparklesIcon className="size-3.5" />
+                            <span>Replay saved video</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              </FadeIn>
+            </div>
+          )}
 
           <div className="flex min-w-0 flex-col gap-3">
-            {latest.data && !ingest.isPending && latest.data.status === "failed" && (
-              <Card
-                className="gap-2 border-[var(--color-destructive)]/40 bg-[var(--color-danger-soft)] p-4"
-                role="alert"
-              >
-                <p className="text-sm font-semibold text-[var(--color-destructive)]">
-                  Analysis did not complete
-                </p>
-                <p className="break-words text-xs text-muted-foreground">{latest.data.filename}</p>
-                <p className="text-sm text-[var(--color-destructive)]">
-                  {latest.data.detail ?? "Upload again to retry."}
-                </p>
-              </Card>
-            )}
+            {latest.data &&
+              !ingest.isPending &&
+              latest.data.status === "failed" &&
+              !customResult &&
+              dismissedJobId !== latest.data.id && (
+                <Card
+                  className="gap-2 border-[var(--color-destructive)]/40 bg-[var(--color-danger-soft)] p-4"
+                  role="alert"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--color-destructive)]">
+                        Analysis did not complete
+                      </p>
+                      <p className="break-words text-xs text-muted-foreground">
+                        {latest.data.filename}
+                      </p>
+                      <p className="mt-1 text-sm text-[var(--color-destructive)]">
+                        {latest.data.detail ?? "Upload again to retry."}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (latest.data?.id) setDismissedJobId(latest.data.id);
+                          setShowUploadManual(true);
+                          setHasUploaded(false);
+                        }}
+                        className="shrink-0 gap-1.5 text-xs font-medium cursor-pointer"
+                      >
+                        <UploadCloudIcon className="size-3.5" />
+                        <span>Upload another clip</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (latest.data?.id) setDismissedJobId(latest.data.id);
+                        }}
+                        className="size-8 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                        aria-label="Dismiss error banner"
+                      >
+                        <XIcon className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              )}
             {latest.isError && (
               <div role="alert" className="rounded-lg border border-border p-4 text-sm">
                 Upload status could not be loaded.{" "}
@@ -517,7 +612,7 @@ function CaptureWorkspace() {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-semibold">
-                {processing || loadingExisting
+                {processing || loadingExisting || ingest.isPending
                   ? "Live analysis workspace"
                   : activeTicket
                     ? "Latest analysis"
@@ -533,7 +628,7 @@ function CaptureWorkspace() {
             </Link>
           </div>
 
-          {processing || loadingExisting ? (
+          {processing || loadingExisting || ingest.isPending ? (
             <LivePipelineFlow
               eventId={eventId}
               active
@@ -632,7 +727,8 @@ function SavedFootagePicker({ onUpload }: { onUpload?: () => void }) {
             <div>
               <h1 className="text-xl font-semibold">Replay a processed video</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Watch saved footage from the two Meta-processed recovery events. No new AI calls or credits.
+                Watch saved footage from the two Meta-processed recovery events. No new AI calls or
+                credits.
               </p>
             </div>
             {onUpload ? (
@@ -664,8 +760,8 @@ function SavedFootagePicker({ onUpload }: { onUpload?: () => void }) {
                 <optgroup key={eventId} label={eventName}>
                   {tickets.map((ticket) => (
                     <option key={ticket.id} value={ticket.id}>
-                      {ticket.truck_id ?? "Unidentified truck"} · {debrisLabel(ticket.debris_class)} ·{" "}
-                      {percent(ticket.valuation.est_fill_pct)} fill · {ticket.id.slice(0, 8)}
+                      {ticket.truck_id ?? "Unidentified truck"} · {debrisLabel(ticket.debris_class)}{" "}
+                      · {percent(ticket.valuation.est_fill_pct)} fill · {ticket.id.slice(0, 8)}
                     </option>
                   ))}
                 </optgroup>
