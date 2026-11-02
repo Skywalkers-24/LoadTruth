@@ -1152,6 +1152,12 @@ textarea,
   margin-block: auto;
 }
 
+@media (min-width: 1024px) {
+  .login-video-login-frame {
+    transform: scale(1.15);
+  }
+}
+
 @media (max-height: 900px) {
   .login-screen-panel {
     gap: 0.75rem;

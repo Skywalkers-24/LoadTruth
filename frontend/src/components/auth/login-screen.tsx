@@ -103,7 +103,7 @@ export function LoginScreen() {
   return (
     <div className="relative grid h-dvh min-h-dvh overflow-hidden lg:grid-cols-2">
       {/* Mode-aware video background behind everything (lazy, muted, looped). */}
-      <LoginVideoBg />
+      <LoginVideoBg blendToRight />
 
       {/* Brand panel. Transparent with no panel-wide blur so the truck footage
           stays crisp; legibility comes from a soft left-edge gradient and a

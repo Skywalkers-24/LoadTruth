@@ -73,7 +73,10 @@ function safelyPlay(video: HTMLVideoElement | null) {
   }
 }
 
-export function LoginVideoBg({ hideVignette = false }: { hideVignette?: boolean } = {}) {
+export function LoginVideoBg({
+  hideVignette = false,
+  blendToRight = false,
+}: { hideVignette?: boolean; blendToRight?: boolean } = {}) {
   const { mode } = useTheme();
   const videoMode = mode === "light" ? "light" : "dark";
 
@@ -284,7 +287,9 @@ export function LoginVideoBg({ hideVignette = false }: { hideVignette?: boolean 
           disablePictureInPicture
           tabIndex={-1}
           onEnded={handleEnded}
-          className="size-full object-cover absolute inset-0"
+          className={`size-full object-cover absolute inset-0 ${
+            blendToRight && videoMode === "dark" ? "login-video-login-frame lg:object-contain" : ""
+          }`}
           style={{
             filter:
               videoMode === "dark"
@@ -311,8 +316,10 @@ export function LoginVideoBg({ hideVignette = false }: { hideVignette?: boolean 
             onWaiting={onHighWaiting}
             onEnded={handleEnded}
             className={`size-full object-cover absolute inset-0 transition-opacity duration-1000 ${
-              isHighReady ? "opacity-100" : "opacity-0"
-            }`}
+              blendToRight && videoMode === "dark"
+                ? "login-video-login-frame lg:object-contain"
+                : ""
+            } ${isHighReady ? "opacity-100" : "opacity-0"}`}
             style={{
               filter:
                 videoMode === "dark"
@@ -332,6 +339,16 @@ export function LoginVideoBg({ hideVignette = false }: { hideVignette?: boolean 
               videoMode === "light"
                 ? "linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 18%, transparent), transparent 30%)"
                 : "linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 20%, transparent), transparent 30%)",
+          }}
+        />
+      )}
+      {blendToRight && videoMode === "dark" && (
+        <div
+          aria-hidden
+          className="login-video-right-blend pointer-events-none absolute inset-0 hidden lg:block"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent 38%, color-mix(in srgb, var(--color-bg) 72%, transparent) 58%, var(--color-bg) 82%)",
           }}
         />
       )}

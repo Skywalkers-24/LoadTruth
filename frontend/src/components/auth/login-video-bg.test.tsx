@@ -31,7 +31,7 @@ describe("LoginVideoBg", () => {
   it("renders low-quality video initially without static poster image", async () => {
     const root = createRoot(container);
     await act(async () => {
-      root.render(<LoginVideoBg />);
+      root.render(<LoginVideoBg blendToRight />);
     });
 
     // Poster image should not be present
@@ -50,6 +50,10 @@ describe("LoginVideoBg", () => {
     expect(lowVideo?.getAttribute("playsinline")).toBeDefined();
     expect(lowVideo?.getAttribute("muted")).toBeDefined();
     expect(lowVideo?.getAttribute("poster")).toBeNull();
+    expect(lowVideo?.className).toContain("object-cover");
+    expect(lowVideo?.className).toContain("login-video-login-frame");
+    expect(lowVideo?.className).toContain("lg:object-contain");
+    expect(container.querySelector(".login-video-right-blend")).not.toBeNull();
   });
 
   it("targets high-quality tier for upgrade on broadband/desktop", async () => {
