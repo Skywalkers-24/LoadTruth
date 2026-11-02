@@ -8,10 +8,11 @@ does the math itself.
 
 from __future__ import annotations
 
+import re
 import wave
 from decimal import Decimal
 from io import BytesIO
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -57,6 +58,21 @@ _NO_REVIEW = "You do not have permission to review tickets."
 ManageEvents = Depends(require(can_manage_settings, _NO_EVENTS))
 ReviewTickets = Depends(require(can_review_tickets, _NO_REVIEW))
 
+_SPOKEN_PERCENTAGE = re.compile(
+    r"(?<![\d.])(\d{1,3}(?:[.,]\d+)?)\s*(?:%|percent(?:age)?\b)", re.IGNORECASE
+)
+
+
+def _spoken_percentage(transcript: str) -> float | None:
+    match = _SPOKEN_PERCENTAGE.search(transcript)
+    if not match:
+        return None
+    try:
+        percentage = float(match.group(1).replace(",", "."))
+    except ValueError:
+        return None
+    return percentage if 0 <= percentage <= 100 else None
+
 
 class MonitorCallTranscriptOut(BaseModel):
     transcript: str
@@ -64,6 +80,7 @@ class MonitorCallTranscriptOut(BaseModel):
     suggested_fill_pct: float | None = None
     issue_flags: list[str] = Field(default_factory=list)
     follow_up_question: str | None = None
+    dispute_reason: str | None = None
     saved_fill_pct: float | None = None
     updated_ticket: TicketOut | None = None
 
@@ -279,11 +296,7 @@ async def ticket_evidence(repo: Repository, tenant: ActiveTenant, ticket_id: UUI
         else None
     )
     raw = row.segments if isinstance(row.segments, dict) else {}
-    actual_storage = (
-        "b2"
-        if stored and stored.object_key != row.content_hash
-        else row.media_storage
-    )
+    actual_storage = "b2" if stored and stored.object_key != row.content_hash else row.media_storage
     return EvidenceOut(
         media_kind=row.media_kind,
         mime=stored.mime if stored else row.mime,
@@ -330,7 +343,9 @@ async def ticket_evidence_media(
     entry = evidence_store.memory_entry(row.content_hash)
     if entry is not None:
         return Response(entry[1], media_type=entry[2], headers={"Cache-Control": "no-store"})
-    raise HTTPException(410 if row.media_storage == "memory" else 404, "Footage expired — ticket details retained.")
+    raise HTTPException(
+        410 if row.media_storage == "memory" else 404, "Footage expired — ticket details retained."
+    )
 
 
 @router.get("/tickets/{ticket_id}/evidence/url")
@@ -485,6 +500,7 @@ async def transcribe_monitor_call(
     member: CurrentMember,
     audio: UploadFile = File(...),  # noqa: B008 - FastAPI request field
     context: str = Form(default=""),
+    intent: Literal["monitor_report", "dispute"] = Form(default="monitor_report"),
 ) -> MonitorCallTranscriptOut:
     """Transcribe, interpret, and apply clear inspector-call values and flags."""
     if not is_super_admin(member.role):
@@ -535,7 +551,9 @@ async def transcribe_monitor_call(
 
         ai = LiveAIClient()
         try:
-            analysis = await ai.interpret_monitor_call_audio(raw, context)
+            analysis = await ai.interpret_monitor_call_audio(
+                raw, context, dispute=intent == "dispute"
+            )
         finally:
             await ai.aclose()
     except Exception:
@@ -558,12 +576,25 @@ async def transcribe_monitor_call(
         or not 0 <= suggested <= 100
     ):
         suggested = None
+    if intent == "dispute" and suggested is None:
+        suggested = _spoken_percentage(transcript)
     flags = analysis.get("issue_flags")
     if not isinstance(flags, list):
         flags = []
     flags = [item.strip()[:160] for item in flags if isinstance(item, str) and item.strip()][:5]
     question = analysis.get("follow_up_question")
     if not isinstance(question, str) or not question.strip():
+        question = None
+    dispute_reason = analysis.get("dispute_reason")
+    if not isinstance(dispute_reason, str) or not dispute_reason.strip() or intent != "dispute":
+        dispute_reason = None
+    else:
+        dispute_reason = dispute_reason.strip()[:512]
+    if intent == "dispute" and suggested is not None and dispute_reason is None:
+        dispute_reason = transcript.strip()[:512]
+        if len(dispute_reason) < 4:
+            dispute_reason = f"Disputed fill percentage: {suggested:g}%."
+    if intent == "dispute" and suggested is not None:
         question = None
     saved_fill: float | None = None
     updated_ticket: TicketOut | None = None
@@ -611,6 +642,7 @@ async def transcribe_monitor_call(
         suggested_fill_pct=float(suggested) if suggested is not None else None,
         issue_flags=flags,
         follow_up_question=question.strip()[:300] if question else None,
+        dispute_reason=dispute_reason,
         saved_fill_pct=saved_fill,
         updated_ticket=updated_ticket,
     )

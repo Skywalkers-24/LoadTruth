@@ -847,7 +847,10 @@ export async function submitIngestJob(
     const video = await uploadDemoVideo(file, undefined, undefined, { eventId });
     return await analyzeDemoVideo(eventId, video.id, opts);
   } catch (err) {
-    console.warn("B2 storage upload unavailable or limit hit, falling back to direct temporary ingest:", err);
+    console.warn(
+      "B2 storage upload unavailable or limit hit, falling back to direct temporary ingest:",
+      err,
+    );
     const form = new FormData();
     form.append("file", file);
     const query = opts.bypassCache ? "?bypass_cache=true" : "";
@@ -984,22 +987,26 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  transcribeMonitorCall: (id: string, audio: Blob, context = "") => {
+  transcribeMonitorCall: (
+    id: string,
+    audio: Blob,
+    context = "",
+    intent: "monitor_report" | "dispute" = "monitor_report",
+  ) => {
     const form = new FormData();
     form.append("audio", audio, "monitor-call.wav");
     form.append("context", context);
+    form.append("intent", intent);
     return request<{
       transcript: string;
       audio_duration_ms: number;
       suggested_fill_pct: number | null;
       issue_flags: string[];
       follow_up_question: string | null;
+      dispute_reason: string | null;
       saved_fill_pct: number | null;
       updated_ticket: Ticket | null;
-    }>(
-      `/tickets/${id}/monitor-call/transcribe`,
-      { method: "POST", body: form },
-    );
+    }>(`/tickets/${id}/monitor-call/transcribe`, { method: "POST", body: form });
   },
   setStatus: (id: string, status: TicketStatus) =>
     request<Ticket>(`/tickets/${id}/status`, {

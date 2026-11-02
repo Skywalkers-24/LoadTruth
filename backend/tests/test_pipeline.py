@@ -215,6 +215,37 @@ async def test_pipeline_drafts_ticket_from_fixture() -> None:
 
 
 @pytest.mark.asyncio
+async def test_tracking_stage_duration_uses_full_stage_wall_clock() -> None:
+    import asyncio
+    from dataclasses import replace
+
+    from app.ai.base import CallUsage
+
+    class DelayedTracking(MockAIClient):
+        async def track(self, clip: ClipMedia) -> TrackResult:
+            await asyncio.sleep(0.05)
+            result = await super().track(clip)
+            return replace(
+                result,
+                usage=CallUsage(model="sam-3.1", latency_ms=30_000),
+            )
+
+    result = await run_pipeline(
+        artifact=_artifact("clean-full-cd"),
+        tenant_id=DEMO_TENANT_ID,
+        event_id=DEMO_EVENT_ID,
+        registry=TruckRegistry([CertifiedTruck("FL-DT-3391", Decimal(20), "tandem")]),
+        rate_table={"construction_demolition": 12.0},
+        ai=DelayedTracking(),
+    )
+
+    assert result.trace is not None
+    tracking = next(stage for stage in result.trace.stages if stage.key == "sam_track")
+    assert tracking.duration_ms >= 20
+    assert tracking.duration_ms < 30_000
+
+
+@pytest.mark.asyncio
 async def test_empty_sam_load_mask_does_not_override_muse_or_flag_fill() -> None:
     class NoLoadSAM(MockAIClient):
         async def track(self, clip: ClipMedia) -> TrackResult:

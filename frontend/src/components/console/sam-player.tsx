@@ -615,7 +615,7 @@ export function frameLayers(beds: SamTrack, loads: SamTrack, rims: SamTrack, fra
     rim = fallbackRim ?? (bed.top + (bed.bottom - bed.top) * 0.68);
   }
 
-  const filteredLoads = loadShapes.filter((s) => overlapShare(s, bed) >= 0.35 && s.top < rim);
+  const filteredLoads = loadShapes.filter((s) => overlapShare(s, bed) > 0 && s.top < rim);
   const finalLoads =
     filteredLoads.length > 0
       ? filteredLoads

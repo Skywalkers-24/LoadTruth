@@ -59,6 +59,7 @@ services:
       MAX_SAMPLED_FRAMES: "${MAX_SAMPLED_FRAMES:-120}"
       FRAME_SAMPLE_FPS: "${FRAME_SAMPLE_FPS:-3.0}"
       SAM_LOAD_MAX_CONCEPTS: "${SAM_LOAD_MAX_CONCEPTS:-6}"
+      SAM_PARSE_WORKERS: "${SAM_PARSE_WORKERS:-4}"
     volumes:
       - ./logs:/app/logs
       - ./media:/app/media

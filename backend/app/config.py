@@ -194,6 +194,7 @@ class Settings(BaseSettings):
     # Retained for old environment files; live tracking uses Muse's clip-specific prompts.
     sam_load_concepts: list[str] = Field(default_factory=list)
     sam_load_max_concepts: int = Field(default=6, ge=1, le=6, alias="SAM_LOAD_MAX_CONCEPTS")
+    sam_parse_workers: int = Field(default=1, ge=1, le=4, alias="SAM_PARSE_WORKERS")
     # SAM pricing (dev.meta.ai/docs/pricing-rate-limits): images per 1k, video per
     # 1k frames with a 50-frame minimum per request.
     sam_image_price_per_1k: float = Field(default=2.50)

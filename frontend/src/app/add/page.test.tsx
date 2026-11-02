@@ -7,6 +7,21 @@ const state = vi.hoisted(() => ({
   role: "super_admin",
   readonly: false,
   mutate: vi.fn(),
+  latestJob: null as null | {
+    id: string;
+    status: string;
+    ticket: {
+      id: string;
+      truck_id: string;
+      debris_class: string;
+      status: string;
+      valuation: {
+        certified_cubic_yards: string;
+        est_dollar_value: string;
+        est_fill_pct: string;
+      };
+    };
+  },
   push: vi.fn(),
   setSelectedId: vi.fn(),
   create: vi.fn(),
@@ -68,7 +83,7 @@ vi.mock("@/lib/event-context", () => ({
 }));
 vi.mock("@/lib/hooks", () => ({
   useSubmitIngestJob: () => ({ mutate: state.mutate, isPending: false }),
-  useLatestIngestJob: () => ({ data: null, isLoading: false }),
+  useLatestIngestJob: () => ({ data: state.latestJob, isLoading: false }),
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: ({ queryKey }: { queryKey: string[] }) => ({
@@ -105,6 +120,7 @@ afterEach(async () => {
   host?.remove();
   state.role = "super_admin";
   state.readonly = false;
+  state.latestJob = null;
   state.validateUploadFile.mockReset().mockResolvedValue({ ok: true });
   vi.clearAllMocks();
 });
@@ -169,6 +185,23 @@ describe("administrator fresh-analysis option", () => {
     expect(host.textContent).toContain("Use existing video from library");
     expect(host.textContent).not.toContain("Replay a processed video");
   });
+  it("prioritizes the video library and compacts upload in the view-only demo", async () => {
+    state.readonly = true;
+    await render();
+
+    const select = host.querySelector<HTMLSelectElement>("#existing-video-select")!;
+    const librarySection = select.parentElement?.parentElement;
+    const uploadArea = host.querySelector<HTMLElement>(
+      '[aria-label="Choose truck video or image"]',
+    );
+    const optionsRow =
+      host.querySelector<HTMLInputElement>('input[type="checkbox"]')?.parentElement?.parentElement;
+
+    expect(librarySection?.className).toContain("order-1");
+    expect(uploadArea?.className).toContain("order-2");
+    expect(uploadArea?.className).toContain("min-h-24");
+    expect(optionsRow?.className).toContain("order-3");
+  });
   it("drafts a ticket when an existing video is selected", async () => {
     state.create.mockResolvedValueOnce({
       id: "new-ticket-123",
@@ -195,5 +228,36 @@ describe("administrator fresh-analysis option", () => {
     expect(state.getTicket).toHaveBeenCalled();
     expect(state.getTicketPipeline).toHaveBeenCalled();
     expect(state.create).not.toHaveBeenCalled();
+  });
+
+  it("hides an older completed ticket and its analysis from the footage page", async () => {
+    state.latestJob = {
+      id: "older-job",
+      status: "completed",
+      ticket: {
+        id: "older-ticket",
+        truck_id: "FL-DT-8043",
+        debris_class: "white_goods",
+        status: "confirmed",
+        valuation: {
+          certified_cubic_yards: "20",
+          est_dollar_value: "120",
+          est_fill_pct: "42",
+        },
+      },
+    };
+    await render();
+
+    expect(host.textContent).toContain("Latest ticket");
+    expect(host.textContent).toContain("Open ticket");
+    const hideButton = host.querySelector<HTMLButtonElement>(
+      '[aria-label="Hide ticket from this page"]',
+    );
+    expect(hideButton).not.toBeNull();
+    await act(async () => hideButton!.click());
+
+    expect(host.textContent).not.toContain("Latest ticket");
+    expect(host.textContent).not.toContain("Open ticket");
+    expect(host.textContent).not.toContain("older-ticket");
   });
 });

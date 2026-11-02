@@ -15,11 +15,7 @@ import {
 } from "lucide-react";
 
 import { BENCHMARK_PAIRS } from "@/components/demos/video-pair-card";
-import {
-  compressVideoClient,
-  getUploadLimits,
-  validateUploadFile,
-} from "@/lib/video-compress";
+import { compressVideoClient, getUploadLimits, validateUploadFile } from "@/lib/video-compress";
 
 import {
   createPracticeTicket,
@@ -86,8 +82,7 @@ function CaptureWorkspace() {
     [eventId],
   );
   const { member } = useAuth();
-  const canRunFresh =
-    member?.role === "super_admin" || member?.role === "county_admin";
+  const canRunFresh = member?.role === "super_admin" || member?.role === "county_admin";
   const playground = Boolean(selected?.tags.includes("playground"));
   const [bypassCache, setBypassCache] = useState(false);
   const [keepFootage, setKeepFootage] = useState(false);
@@ -116,7 +111,9 @@ function CaptureWorkspace() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const rawTicket = preparingUpload || ingest.isPending ? null : (latest.data?.ticket ?? null);
-  const activeTicket = customResult?.ticket ?? rawTicket;
+  const [dismissedTicketId, setDismissedTicketId] = useState<string | null>(null);
+  const resultTicket = customResult?.ticket ?? rawTicket;
+  const activeTicket = resultTicket?.id === dismissedTicketId ? null : resultTicket;
   const processing = latest.data?.status === "accepted" || latest.data?.status === "running";
   const busy = preparingUpload || ingest.isPending || processing || compressing;
   useEffect(() => {
@@ -138,6 +135,7 @@ function CaptureWorkspace() {
 
   useEffect(() => {
     setDismissedJobId(null);
+    setDismissedTicketId(null);
   }, [eventId]);
 
   const ticketPipeline = useQuery({
@@ -183,6 +181,7 @@ function CaptureWorkspace() {
 
     setError(null);
     setCustomResult(null);
+    setDismissedTicketId(null);
     setPreparingUpload(true);
     setHasUploaded(true);
     setUploadedFileName(file.name);
@@ -242,7 +241,12 @@ function CaptureWorkspace() {
     ]);
     setIgnoredAttempt(previousRun ? pipelineAttemptKey(previousRun) : undefined);
     ingest.mutate(
-      { eventId: targetEventId, file: fileToUpload, bypassCache: canRunFresh && bypassCache, keepFootage },
+      {
+        eventId: targetEventId,
+        file: fileToUpload,
+        bypassCache: canRunFresh && bypassCache,
+        keepFootage,
+      },
       {
         onError: (err) => setError(ingestErrorMessage(err)),
       },
@@ -262,6 +266,7 @@ function CaptureWorkspace() {
 
     setLoadingExisting(true);
     setError(null);
+    setDismissedTicketId(null);
     if (latest.data?.id) setDismissedJobId(latest.data.id);
     setHasUploaded(true);
     setUploadedFileName(pair.matchFilename);
@@ -365,8 +370,13 @@ function CaptureWorkspace() {
           ) : (
             <div className="min-w-0">
               <FadeIn>
-                <Card className="h-full gap-0 p-4">
-                  <div className="relative z-10 mb-4 flex flex-wrap items-center gap-6 rounded-lg border border-border bg-secondary/20 px-3.5 py-2.5 text-xs text-muted-foreground">
+                <Card className="flex h-full flex-col gap-0 p-4">
+                  <div
+                    className={cn(
+                      "relative z-10 mb-4 flex flex-wrap items-center gap-6 rounded-lg border border-border bg-secondary/20 px-3.5 py-2.5 text-xs text-muted-foreground",
+                      showcaseReadOnly && "order-3",
+                    )}
+                  >
                     {canRunFresh && (
                       <label
                         title="Create a new result instead of reusing the saved one (may use paid AI calls)"
@@ -407,7 +417,9 @@ function CaptureWorkspace() {
                         className="size-4 shrink-0 cursor-pointer rounded border-border accent-[var(--brand)]"
                       />
                       <span className="font-medium text-foreground">
-                        Compress video (&gt;{Math.round(uploadLimits.compressThresholdBytes / 1024 ** 2)}MB to {Math.round(uploadLimits.targetCompressedBytes / 1024 ** 2)}MB)
+                        Compress video (&gt;
+                        {Math.round(uploadLimits.compressThresholdBytes / 1024 ** 2)}MB to{" "}
+                        {Math.round(uploadLimits.targetCompressedBytes / 1024 ** 2)}MB)
                       </span>
                     </label>
                   </div>
@@ -440,7 +452,8 @@ function CaptureWorkspace() {
                       if (file) void submit(file);
                     }}
                     className={cn(
-                      "flex cursor-pointer flex-col items-center justify-center gap-3 min-h-40 flex-1 rounded-xl border border-dashed px-6 py-6 text-center transition-colors",
+                      "order-2 flex cursor-pointer flex-col items-center justify-center gap-3 min-h-40 flex-1 rounded-xl border border-dashed px-6 py-6 text-center transition-colors",
+                      showcaseReadOnly && "min-h-24 flex-none gap-2 px-4 py-3",
                       dragging
                         ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)]"
                         : "border-border hover:border-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]/40",
@@ -456,17 +469,28 @@ function CaptureWorkspace() {
                       className="hidden"
                       disabled={!canRunFresh || playground || busy || latest.isLoading || !eventId}
                     />
-                    <span className="grid size-14 place-items-center rounded-2xl bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
+                    <span
+                      className={cn(
+                        "grid size-14 place-items-center rounded-2xl bg-[var(--color-brand-soft)] text-[var(--color-brand)]",
+                        showcaseReadOnly && "size-9 rounded-xl",
+                      )}
+                    >
                       {compressing ? (
-                        <Loader2Icon className="size-7 animate-spin" />
+                        <Loader2Icon
+                          className={cn("size-7 animate-spin", showcaseReadOnly && "size-5")}
+                        />
                       ) : ingest.isPending ? (
-                        <Loader2Icon className="size-7 animate-spin" />
+                        <Loader2Icon
+                          className={cn("size-7 animate-spin", showcaseReadOnly && "size-5")}
+                        />
                       ) : (
-                        <UploadCloudIcon className="size-7" />
+                        <UploadCloudIcon className={cn("size-7", showcaseReadOnly && "size-5")} />
                       )}
                     </span>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[15px] font-semibold">
+                      <span
+                        className={cn("text-[15px] font-semibold", showcaseReadOnly && "text-sm")}
+                      >
                         {compressing
                           ? `Compressing video... (${compressProgress}%)`
                           : ingest.isPending
@@ -498,7 +522,12 @@ function CaptureWorkspace() {
                   </label>
 
                   {/* ── EXISTING VIDEO SELECTOR (USE EXISTING FROM HERE) ── */}
-                  <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
+                  <div
+                    className={cn(
+                      "mt-4 flex flex-col gap-2 border-t border-border pt-4",
+                      showcaseReadOnly && "order-1 mt-0 border-t-0 pt-0",
+                    )}
+                  >
                     <div className="flex flex-wrap items-center justify-between gap-1">
                       <label
                         htmlFor="existing-video-select"
@@ -656,6 +685,17 @@ function CaptureWorkspace() {
                     >
                       Open ticket
                       <ArrowRightIcon />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDismissedTicketId(activeTicket.id)}
+                      aria-label="Hide ticket from this page"
+                      title="Hide ticket and analysis from this page"
+                      className="size-8 p-0 text-muted-foreground hover:text-foreground"
+                    >
+                      <XIcon className="size-4" />
                     </Button>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">

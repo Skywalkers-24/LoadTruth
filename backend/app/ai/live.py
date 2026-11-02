@@ -75,7 +75,7 @@ from app.ai.sam_measure import (
     Detection,
     frames_covered,
     measure,
-    parse_segmentation,
+    parse_segmentation_async,
 )
 from app.config import get_settings
 from app.log import get_logger
@@ -704,12 +704,14 @@ class LiveAIClient:
                 notes={"Truck present": "No", "SAM": "Skipped for confidently empty scene"},
             )
         bed_concepts = list(dict.fromkeys(s.sam_bed_concepts))
-        # Ask SAM for Muse's per-clip broad material phrase first, then its
-        # specific visible items. This stays adaptable to any load and avoids
-        # category-based guesses that are not visible in the clip.
+        # Ask for the whole pile as well as Muse's per-clip broad material
+        # phrase and specific visible items. Keep the configured cap for the
+        # dynamic phrases, with one additional whole-pile request.
         load_concepts = list(dict.fromkeys([load_concept, *named]))[
             : max(1, s.sam_load_max_concepts)
         ]
+        if "debris pile" not in load_concepts:
+            load_concepts.insert(0, "debris pile")
         # Every concept goes to SAM in one parallel round: the bed phrases (in
         # priority order), the tailgate (the rear rim that bounds the opening),
         # and the load phrases (merged, since one phrase misses some loads).
@@ -829,6 +831,7 @@ class LiveAIClient:
                     tracking_notes.append(
                         f"SAM tracked {len(box_seeds)} dynamic cargo box seeds both directions"
                     )
+        measure_started = time.perf_counter()
         result = await asyncio.to_thread(
             measure,
             bed.detections,
@@ -837,6 +840,7 @@ class LiveAIClient:
             max_frames=s.max_sampled_frames,
             rim_run=rim.detections,
         )
+        measure_ms = round((time.perf_counter() - measure_started) * 1000, 1)
         # The load-naming Spark call is part of this stage's cost.
         sam_usages = [runs[c].usage for c in concepts[1:]]
         if name_usage is not None:
@@ -853,9 +857,10 @@ class LiveAIClient:
             frames=result.frame_count,
             requests=len(concepts) + extra_sam_requests,
             cost_usd=usage.cost_usd,
+            measure_ms=measure_ms,
         )
-        # The overlay draws the bed and the load phrase that found the most;
-        # every phrase's raw output is also kept so Re-measure can replay it.
+        # Keep a legacy best-match key for old clients; the review overlay uses
+        # each named prompt below, and Re-measure can replay every raw response.
         best_load_index = max(
             range(len(loads)),
             key=lambda i: _in_bed_pixels(loads[i].detections, bed.detections),
@@ -959,8 +964,14 @@ class LiveAIClient:
             },
         }
         streamed = await self._http.stream_response(payload)
-        detections = await asyncio.to_thread(
-            parse_segmentation, streamed.text, media_kind=media.media_kind
+        parse_started = time.perf_counter()
+        detections = await parse_segmentation_async(streamed.text, media_kind=media.media_kind)
+        parse_ms = round((time.perf_counter() - parse_started) * 1000, 1)
+        log.info(
+            "sam_response_parsed",
+            output_chars=len(streamed.text),
+            detections=len(detections),
+            parse_ms=parse_ms,
         )
         frames = 1 if media.media_kind == "image" else frames_covered(detections)
         cost = sam_cost_usd(streamed.usage, media_kind=media.media_kind, frames_seen=frames)
@@ -1057,8 +1068,10 @@ class LiveAIClient:
         )
         return response, usage
 
-    async def interpret_monitor_call_audio(self, wav: bytes, context: str) -> dict[str, Any]:
-        """Transcribe and interpret one short monitor call in one Muse request."""
+    async def interpret_monitor_call_audio(
+        self, wav: bytes, context: str, *, dispute: bool = False
+    ) -> dict[str, Any]:
+        """Transcribe and interpret one short monitor report or dispute in one Muse request."""
         schema: dict[str, Any] = {
             "type": "object",
             "properties": {
@@ -1071,21 +1084,42 @@ class LiveAIClient:
                 },
                 "issue_flags": {"type": "array", "items": {"type": "string"}},
                 "follow_up_question": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                "dispute_reason": {"anyOf": [{"type": "string"}, {"type": "null"}]},
             },
-            "required": ["transcript", "fill_pct", "issue_flags", "follow_up_question"],
+            "required": [
+                "transcript",
+                "fill_pct",
+                "issue_flags",
+                "follow_up_question",
+                "dispute_reason",
+            ],
             "additionalProperties": False,
         }
+        if dispute:
+            instruction = (
+                "This is a spoken ticket-dispute filing. Extract fill_pct only when the speaker "
+                "clearly gives the disputed monitor fill percentage; do not use the video estimate "
+                "or infer a number. Extract dispute_reason as a concise statement of the speaker's "
+                "explicit reason for disputing the ticket, or null if none is stated. Keep "
+                "physical problems in issue_flags only when explicitly reported. If a percentage "
+                "is clearly spoken, do not ask a follow-up; use the transcript as the reason if no "
+                "separate reason was stated. Ask a concise follow-up only when no disputed "
+                "percentage is clear. This files the dispute when a percentage is available."
+            )
+        else:
+            instruction = (
+                "This is a spoken monitor report about a truck load. Extract only a clearly stated "
+                "monitor fill percentage and explicitly reported physical problems. Return no "
+                "inferred facts. Report dips, spills, overflow, or debris outside the truck as "
+                "short review flags. Put dispute_reason as null. If a problem is mentioned without "
+                "enough detail to locate or assess it, ask one concise follow-up question. If no "
+                "fill percentage is clearly stated, ask for it. Otherwise set follow_up_question "
+                "to null."
+            )
         prompt = (
-            "Listen to the attached short spoken monitor report about a truck load. "
-            "Transcribe only "
-            "the speech in the attached audio, not the prior statements. "
-            "then extract only a clearly stated fill percentage and explicitly reported problems. "
-            "Return no inferred facts. Report problems like dips, spills, overflow, "
-            "or debris outside "
-            "the truck as short review flags. If a problem is mentioned without enough detail to "
-            "locate or assess it, ask one concise follow-up question for the monitor. If no fill "
-            "percentage is clearly stated, ask for it. Otherwise set follow_up_question to null. "
-            "Prior monitor statements, if any: "
+            "Transcribe only the speech in the attached audio, not the prior statements. "
+            + instruction
+            + " Prior monitor statements, if any: "
             + json.dumps(context.strip()[-2000:], ensure_ascii=False)
             + ". Return the transcript in the language spoken."
         )

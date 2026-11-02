@@ -230,7 +230,7 @@ export function ReviewActions({
     );
   }
 
-  async function startMonitorRecording() {
+  async function startMonitorRecording(intent: "monitor_report" | "dispute" = "monitor_report") {
     setAudioError("");
     setFollowUpQuestion("");
     setVoiceOutcome(null);
@@ -260,17 +260,37 @@ export function ReviewActions({
             id: recordingTicketId.current,
             audio: wav,
             context: transcript,
+            intent,
           });
           setTranscript((previous) =>
             previous ? `${previous} ${result.transcript}` : result.transcript,
           );
           setVoiceFlags(result.issue_flags);
-          if (result.issue_flags.length > 0) {
+          if (intent === "dispute" && result.dispute_reason) {
+            setReason(result.dispute_reason);
+          } else if (result.issue_flags.length > 0) {
             setReason(result.issue_flags.join(" · "));
           }
-          setFollowUpQuestion(result.follow_up_question ?? "");
+          setFollowUpQuestion(
+            intent === "dispute" && result.saved_fill_pct !== null
+              ? ""
+              : (result.follow_up_question ?? ""),
+          );
           if (result.saved_fill_pct !== null) setCall(String(result.saved_fill_pct));
-          if (result.saved_fill_pct !== null || result.issue_flags.length > 0) {
+          if (intent === "dispute" && result.saved_fill_pct !== null) {
+            const disputeReason = result.dispute_reason?.trim() || result.transcript.trim();
+            if (await submitDispute(String(result.saved_fill_pct), disputeReason)) return;
+          }
+          const disputeDetailsReady =
+            intent === "dispute" &&
+            Boolean(result.dispute_reason || result.saved_fill_pct !== null);
+          if (disputeDetailsReady) {
+            setVoiceOutcome({
+              tone: "ok",
+              message: "Dispute details ready. Review them and raise the dispute to save.",
+            });
+            toast.push("ok", "Voice dispute details captured for review.");
+          } else if (result.saved_fill_pct !== null || result.issue_flags.length > 0) {
             const updates = [
               result.saved_fill_pct !== null ? `${result.saved_fill_pct}% fill` : null,
               result.issue_flags.length
@@ -286,6 +306,7 @@ export function ReviewActions({
           if (
             result.saved_fill_pct === null &&
             !result.issue_flags.length &&
+            !result.dispute_reason &&
             !result.follow_up_question
           ) {
             setAudioError("No clear fill call or issue. Try again or file manually.");
@@ -294,7 +315,10 @@ export function ReviewActions({
             !result.issue_flags.length &&
             result.follow_up_question
           ) {
-            setVoiceOutcome({ tone: "warn", message: "More detail needed before the report can be saved." });
+            setVoiceOutcome({
+              tone: "warn",
+              message: "More detail needed before the report can be saved.",
+            });
           }
         } catch {
           setAudioError("Transcription failed. Retry or file manually.");
@@ -335,24 +359,34 @@ export function ReviewActions({
     );
   }
 
-  async function raiseDispute() {
-    const note = reason.trim();
-    if (!callValid || note.length < 4) return;
+  async function submitDispute(fill: string, reasonText: string): Promise<boolean> {
+    const note = reasonText.trim();
+    const fillNumber = Number(fill);
+    if (!Number.isFinite(fillNumber) || fillNumber < 0 || fillNumber > 100 || note.length < 4) {
+      return false;
+    }
     try {
       // Persist the disputed percentage and explanation together so voice and
       // manual filing produce the same durable ticket record.
       await fileManualReport.mutateAsync({
         id: ticket.id,
-        monitor_fill_pct: call.trim(),
+        monitor_fill_pct: fill.trim(),
         issue_description: note,
       });
       await setStatus.mutateAsync({ id: ticket.id, status: "disputed" });
       setReason("");
       setVoiceOutcome({ tone: "ok", message: "Dispute raised and report saved." });
       toast.push("ok", ticket.status === "disputed" ? "Dispute re-raised." : "Dispute raised.");
+      return true;
     } catch {
       toast.push("danger", "Could not raise this dispute. Please try again.");
+      return false;
     }
+  }
+
+  async function raiseDispute() {
+    if (!callValid || !reasonValid) return;
+    await submitDispute(call, reason);
   }
 
   const copy = pending ? COPY[pending] : null;
@@ -475,11 +509,9 @@ export function ReviewActions({
               )
             }
             disabled={
-              recording
-                ? false
-                : !canUseMicrophone || busy || (showManualFiling && hasManualChange)
+              recording ? false : !canUseMicrophone || busy || (showManualFiling && hasManualChange)
             }
-            onClick={recording ? stopMonitorRecording : startMonitorRecording}
+            onClick={recording ? stopMonitorRecording : () => startMonitorRecording()}
             aria-label={recording ? "Stop recording" : "Talk to file a monitor report"}
           >
             {transcribing ? "Transcribing…" : recording ? "Stop recording" : "Talk"}
@@ -623,29 +655,30 @@ export function ReviewActions({
     setReason("");
   };
 
-  const dialog = pending === "overridden" || pending === "disputed" ? (
-    <DecisionDrawer
-      decision={pending}
-      ticket={ticket}
-      reason={reason}
-      reasonValid={reasonValid}
-      busy={busy}
-      onReasonChange={setReason}
-      onConfirm={confirmAction}
-      onClose={closeDecision}
-    />
-  ) : (
-    <ConfirmDialog
-      open={pending === "confirmed"}
-      title={copy?.title ?? ""}
-      description={copy?.body}
-      confirmLabel={copy?.cta}
-      confirmVariant={copy?.variant}
-      busy={busy}
-      onConfirm={confirmAction}
-      onCancel={closeDecision}
-    />
-  );
+  const dialog =
+    pending === "overridden" || pending === "disputed" ? (
+      <DecisionDrawer
+        decision={pending}
+        ticket={ticket}
+        reason={reason}
+        reasonValid={reasonValid}
+        busy={busy}
+        onReasonChange={setReason}
+        onConfirm={confirmAction}
+        onClose={closeDecision}
+      />
+    ) : (
+      <ConfirmDialog
+        open={pending === "confirmed"}
+        title={copy?.title ?? ""}
+        description={copy?.body}
+        confirmLabel={copy?.cta}
+        confirmVariant={copy?.variant}
+        busy={busy}
+        onConfirm={confirmAction}
+        onCancel={closeDecision}
+      />
+    );
 
   if (bar) {
     return (
@@ -705,7 +738,7 @@ export function ReviewActions({
                   ? false
                   : !canUseMicrophone || busy || (showManualFiling && hasManualChange)
               }
-              onClick={recording ? stopMonitorRecording : startMonitorRecording}
+              onClick={recording ? stopMonitorRecording : () => startMonitorRecording()}
               aria-label={recording ? "Stop recording" : "Talk to file a monitor report"}
             >
               {transcribing ? "Transcribing…" : recording ? "Stop" : "Talk"}
@@ -725,13 +758,21 @@ export function ReviewActions({
         </div>
 
         {recording && (
-          <div role="status" aria-live="polite" className="inline-flex items-center gap-2 text-xs font-medium text-[var(--color-danger)]">
+          <div
+            role="status"
+            aria-live="polite"
+            className="inline-flex items-center gap-2 text-xs font-medium text-[var(--color-danger)]"
+          >
             <span className="size-2 rounded-full bg-[var(--color-danger)] motion-safe:animate-pulse" />
             Listening… speak now
           </div>
         )}
         {transcribing && (
-          <div role="status" aria-live="polite" className="inline-flex items-center gap-2 text-xs font-medium text-[var(--color-accent)]">
+          <div
+            role="status"
+            aria-live="polite"
+            className="inline-flex items-center gap-2 text-xs font-medium text-[var(--color-accent)]"
+          >
             <Loader2 className="size-3.5 animate-spin" />
             Processing voice report…
           </div>
@@ -766,7 +807,11 @@ export function ReviewActions({
           </p>
         )}
         {audioError && (
-          <p role="status" aria-live="polite" className="text-[11px] leading-tight text-[var(--warn)]">
+          <p
+            role="status"
+            aria-live="polite"
+            className="text-[11px] leading-tight text-[var(--warn)]"
+          >
             {audioError}
           </p>
         )}
@@ -862,7 +907,9 @@ export function ReviewActions({
         voiceOutcome={voiceOutcome}
         onCallChange={setCall}
         onReasonChange={setReason}
-        onToggleRecording={recording ? stopMonitorRecording : startMonitorRecording}
+        onToggleRecording={
+          recording ? stopMonitorRecording : () => startMonitorRecording("dispute")
+        }
         onRaise={raiseDispute}
         onClose={() => {
           if (recording) stopMonitorRecording();
@@ -907,7 +954,12 @@ function DecisionDrawer({
   }, [busy, onClose, onConfirm, reasonValid]);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" aria-label={config.title}>
+    <div
+      className="fixed inset-0 z-50 overflow-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-label={config.title}
+    >
       <button
         type="button"
         aria-label="Close decision panel"
@@ -939,14 +991,18 @@ function DecisionDrawer({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs text-muted-foreground">Truck</p>
-                <p className="mt-0.5 font-semibold tabular-nums">{ticket.truck_id ?? "Unidentified"}</p>
+                <p className="mt-0.5 font-semibold tabular-nums">
+                  {ticket.truck_id ?? "Unidentified"}
+                </p>
               </div>
               <StatusBadge status={ticket.status} />
             </div>
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
               <div>
                 <dt className="text-xs text-muted-foreground">Measured fill</dt>
-                <dd className="mt-0.5 font-semibold tabular-nums">{ticket.valuation.est_fill_pct}%</dd>
+                <dd className="mt-0.5 font-semibold tabular-nums">
+                  {ticket.valuation.est_fill_pct}%
+                </dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">Review flags</dt>
@@ -971,8 +1027,14 @@ function DecisionDrawer({
               className="w-full resize-y rounded-lg border border-border bg-card px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
               autoFocus
             />
-            <span className={reasonValid ? "text-xs text-muted-foreground" : "text-xs text-[var(--color-warn)]"}>
-              {reasonValid ? "This reason will be saved in the audit trail." : "Enter at least 4 characters."}
+            <span
+              className={
+                reasonValid ? "text-xs text-muted-foreground" : "text-xs text-[var(--color-warn)]"
+              }
+            >
+              {reasonValid
+                ? "This reason will be saved in the audit trail."
+                : "Enter at least 4 characters."}
             </span>
           </label>
         </div>
@@ -980,12 +1042,10 @@ function DecisionDrawer({
         <footer className="flex items-center justify-between gap-3 border-t border-border bg-card/60 p-4">
           <span className="text-xs text-muted-foreground">Ctrl/⌘ + Enter to submit</span>
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-            <Button
-              variant={config.variant}
-              onClick={onConfirm}
-              disabled={busy || !reasonValid}
-            >
+            <Button variant="ghost" onClick={onClose} disabled={busy}>
+              Cancel
+            </Button>
+            <Button variant={config.variant} onClick={onConfirm} disabled={busy || !reasonValid}>
               {busy ? "Saving…" : config.cta}
             </Button>
           </div>
@@ -1058,7 +1118,12 @@ function DisputeDrawer({
   const disputeValid = callValid && reasonValid;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" aria-label="Ticket dispute">
+    <div
+      className="fixed inset-0 z-50 overflow-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Ticket dispute"
+    >
       <button
         type="button"
         aria-label="Close dispute panel"
@@ -1164,9 +1229,7 @@ function DisputeDrawer({
                   “{transcript}”
                 </p>
               )}
-              {followUpQuestion && (
-                <p className="mt-2 text-xs text-primary">{followUpQuestion}</p>
-              )}
+              {followUpQuestion && <p className="mt-2 text-xs text-primary">{followUpQuestion}</p>}
               {audioError && (
                 <p className="mt-2 text-xs text-[var(--color-danger)]">{audioError}</p>
               )}
@@ -1188,7 +1251,9 @@ function DisputeDrawer({
                       placeholder="0–100"
                       className="w-full rounded-lg border border-border bg-background px-3 py-2.5 pr-9 text-sm tabular-nums focus:border-primary focus:outline-none"
                     />
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      %
+                    </span>
                   </div>
                   {call !== "" && !callValid && (
                     <span className="text-xs text-[var(--color-danger)]">Enter 0–100.</span>
@@ -1206,7 +1271,9 @@ function DisputeDrawer({
                     className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
                   />
                   {reason !== "" && !reasonValid && (
-                    <span className="text-xs text-[var(--color-danger)]">Enter at least 4 characters.</span>
+                    <span className="text-xs text-[var(--color-danger)]">
+                      Enter at least 4 characters.
+                    </span>
                   )}
                 </label>
               </div>

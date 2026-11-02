@@ -43,12 +43,15 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         environment=settings.environment,
         model_api_configured=settings.model_api_configured,
         database=("sqlite" if settings.is_sqlite else "postgres"),
+        sam_parse_workers=settings.sam_parse_workers,
     )
     if not settings.model_api_configured:
         log.warning("model_api_key_missing", hint="set MODEL_API_KEY in .env before pipeline runs")
+    from app.ai.sam_measure import configure_parse_executor, shutdown_parse_executor
     from app.api.ingest import close_pipeline_cache, initialize_pipeline_cache
 
     try:
+        configure_parse_executor(settings.sam_parse_workers)
         if settings.redis_url != "redis://localhost:6379/0" and await initialize_pipeline_cache():
             log.info("redis_cache_ready")
         # Create tables and seed the demo tenant unless startup DB work is
@@ -69,6 +72,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         from app.api.ingest_jobs import stop_ingest_jobs
 
         await stop_ingest_jobs()
+        await shutdown_parse_executor()
         await close_pipeline_cache()
         from app.api.cache import close_redis_client
 

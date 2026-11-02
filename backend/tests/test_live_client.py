@@ -83,6 +83,7 @@ class FakeMeta:
         visual_fill: float | None = None,
         frame_fill_pcts: list[float | None] | None = None,
         named_load: list[str] | None = None,
+        monitor_call: dict[str, Any] | None = None,
     ) -> None:
         self.named_load = (
             named_load
@@ -92,6 +93,13 @@ class FakeMeta:
         self.frames = frames
         self.visual_fill = visual_fill
         self.frame_fill_pcts = frame_fill_pcts
+        self.monitor_call = monitor_call or {
+            "transcript": "The disputed fill is 31 percent because the estimate is too high.",
+            "fill_pct": 31,
+            "issue_flags": [],
+            "follow_up_question": None,
+            "dispute_reason": "The estimate is too high for the visible load.",
+        }
         self.ocr = ocr or {
             "truck_id": "fl-dt-3391",
             "readable": True,
@@ -127,6 +135,8 @@ class FakeMeta:
                 200, headers={"content-type": "text/event-stream"}, content=_sse(text, usage)
             )
         task = (body.get("text") or {}).get("format", {}).get("name")
+        if task == "monitor_call":
+            return httpx.Response(200, json=_spark(json.dumps(self.monitor_call)))
         if task == "name_load":
             answer = {
                 "concepts": self.named_load,
@@ -279,7 +289,7 @@ async def test_real_alternate_bed_prompt_only_after_primary_miss() -> None:
     assert not result.no_truck
     track = next(s for s in result.trace.stages if s.key == "sam_track")
     assert dict(track.details)["Bed measured from"] == '"dump truck bed"'
-    assert sum(b["model"].startswith("sam") for b in fake.responses) == 6
+    assert sum(b["model"].startswith("sam") for b in fake.responses) == 7
 
 
 @pytest.mark.asyncio
@@ -350,14 +360,14 @@ async def test_empty_scene_stops_before_any_sam_or_downstream_call() -> None:
 
 
 @pytest.mark.asyncio
-async def test_missing_load_masks_are_truthful_trace_details_without_anomaly() -> None:
+async def test_whole_pile_prompt_recovers_when_named_load_masks_are_missing() -> None:
     fake = RecoveryMeta(missing={"steel drums", "mixed hazardous waste"})
     result, _ = await _run(_client(fake))
     assert not result.no_truck
     assert result.anomalies == []
     stage = next(s for s in result.trace.stages if s.key == "sam_track")
-    assert "load masks were not detected" in stage.summary
-    assert dict(stage.details)["Load segmentation"] == "Unavailable"
+    assert "load masks were not detected" not in stage.summary
+    assert dict(stage.details)["Load segmentation"] == "Available"
 
 
 @pytest.mark.asyncio
@@ -385,7 +395,10 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
         "debris pile",
         "tailgate",
         "load: steel drums",
+        "load: broken lumber",
+        "load: concrete rubble",
         "load: mixed construction debris",
+        "load: debris pile",
     }
     assert result.segments["truck bed"].startswith("<0f>0<|box;")
     from app.pipeline import evidence_store
@@ -403,7 +416,10 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
             "truck",
             "truck bed",
             "steel drums",
+            "broken lumber",
+            "concrete rubble",
             "mixed construction debris",
+            "debris pile",
             "tailgate",
         ]
     )
@@ -437,10 +453,10 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert "1,000 in, 200 out" in stages["spark_ocr"]["Tokens"]
     assert stages["spark_ocr"]["Cost"] == "$0.0021"
     assert stages["sam_track"]['Prompt "truck bed"'] == "1 object on 2 of 2 frames"
-    assert stages["sam_track"]["Billed"] == "250 frames (5 requests)"
+    assert stages["sam_track"]["Billed"] == "400 frames (8 requests)"
     assert stages["sam_track"]["Bed measured from"] == '"truck bed"'
     assert stages["sam_track"]["Load named by Muse Spark"] == (
-        '"steel drums", "broken lumber"'
+        '"steel drums", "broken lumber", "concrete rubble"'
     )
     assert stages["sam_track"]["Broad load concept from Muse Spark"] == (
         "mixed construction debris"
@@ -459,9 +475,9 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     assert analysis["dollar_math"] == "I valued the load by exact arithmetic."
 
     rows = {r.stage: r for r in await ledger.rows()}
-    # Five SAM video requests at the 50-frame minimum ($0.05) plus the name_load
+    # Eight SAM video requests at the 50-frame minimum ($0.08) plus the name_load
     # Spark call folded into this stage ($0.0021).
-    assert rows["sam_track"].cost_usd == pytest.approx(0.0521)
+    assert rows["sam_track"].cost_usd == pytest.approx(0.0821)
     # 1000 in at $1.25/1M + 200 out at $4.25/1M.
     assert rows["spark_ocr"].cost_usd == pytest.approx(0.0021)
     assert rows["spark_ocr"].tokens_in == 1000
@@ -469,7 +485,7 @@ async def test_video_run_uploads_once_and_drafts_a_ticket(
     # The batched per-stage analysis is one more Spark call, billed like the rest.
     assert rows["spark_explain"].cost_usd == pytest.approx(0.0021)
     assert rows["spark_explain"].model == "muse-spark-1.3"
-    assert ledger.summarize().total_cost_usd == pytest.approx(0.0584)
+    assert ledger.summarize().total_cost_usd == pytest.approx(0.0884)
 
 
 @pytest.mark.asyncio
@@ -483,8 +499,8 @@ async def test_image_goes_inline_and_bills_per_image() -> None:
     assert part["type"] == "input_image"
     assert part["image_url"].startswith("data:image/png;base64,")
     rows = {r.stage: r for r in await ledger.rows()}
-    # 5 SAM images at $2.50 / 1k ($0.0125) plus name_load ($0.0021).
-    assert rows["sam_track"].cost_usd == pytest.approx(0.0146)
+    # 8 SAM images at $2.50 / 1k ($0.02) plus name_load ($0.0021).
+    assert rows["sam_track"].cost_usd == pytest.approx(0.0221)
     assert result.ticket.evidence_frames == ["haul.png"]
 
 
@@ -595,3 +611,33 @@ async def test_answer_question_returns_model_text_with_usage() -> None:
     assert narration.usage is not None
     assert narration.usage.cost_usd > 0
     assert narration.usage.model == "muse-spark-1.3"
+
+
+@pytest.mark.asyncio
+async def test_dispute_voice_extracts_disputed_fill_and_reason() -> None:
+    fake = FakeMeta()
+    client = _client(fake)
+    try:
+        result = await client.interpret_monitor_call_audio(
+            b"recorded audio",
+            "",
+            dispute=True,
+        )
+    finally:
+        await client.aclose()
+
+    assert result["fill_pct"] == 31
+    assert result["dispute_reason"] == "The estimate is too high for the visible load."
+    schema = fake.responses[0]["text"]["format"]["schema"]
+    assert "dispute_reason" in schema["required"]
+    prompt = fake.responses[0]["input"][0]["content"][0]["text"]
+    assert "spoken ticket-dispute filing" in prompt
+
+
+def test_spoken_percentage_fallback_parses_explicit_percent_and_rejects_out_of_range() -> None:
+    from app.api.tickets import _spoken_percentage
+
+    assert _spoken_percentage("60% increase due to middle weight") == 60
+    assert _spoken_percentage("Dispute at 62.5 percent") == 62.5
+    assert _spoken_percentage("Dispute at 150%") is None
+    assert _spoken_percentage("Increase due to weight") is None

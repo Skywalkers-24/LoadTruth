@@ -13,6 +13,7 @@ not touch the DB itself, which keeps it trivially testable.
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -169,7 +170,9 @@ async def _compute_pipeline(
     )
 
     # Stage 2 — SAM track + segment.
+    tracking_started = time.perf_counter()
     tracks = await ai.track(clip)
+    tracking_duration_ms = (time.perf_counter() - tracking_started) * 1000
     await _record(ledger, "sam_track", tracks.usage)
     bed = tracks.by_label("truck bed")
     debris = tracks.by_label("debris pile")
@@ -194,7 +197,7 @@ async def _compute_pipeline(
                 else "Truck presence could not be confirmed; no ticket was created.",
                 status="skipped" if outcome == "no_truck" else "flagged",
                 details=_notes(tracks.notes) + _usage_details(tracks.usage),
-                duration_ms=_latency(tracks.usage),
+                duration_ms=tracking_duration_ms,
             )
             trace.outcome = outcome
         return PipelineResult(
@@ -228,7 +231,7 @@ async def _compute_pipeline(
                 ["Load segmentation", "Available" if load_segmented else "Unavailable"],
             ]
             + _usage_details(tracks.usage),
-            duration_ms=_latency(tracks.usage),
+            duration_ms=tracking_duration_ms,
         )
 
     # Stage 3 (Spark OCR) and Stage 5 (Spark classification and visual fill)

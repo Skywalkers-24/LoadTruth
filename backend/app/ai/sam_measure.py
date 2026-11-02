@@ -16,10 +16,10 @@ concepts carry the measurement:
   cargo region; its mask marks visible metal surfaces, which cargo may occlude.
 * **tailgate** — SAM's tailgate mask. Its top edge is the rear rim of the bed.
   Everything of the bed above that line is the bed **opening**.
-* **load** — specific material names returned for the event's debris class.
-  Several phrases run in parallel because one phrase can miss part of a mixed
-  load; detections are bounded by the bed box and tailgate, not clipped to the
-  visible metal mask.
+* **load** — a whole-pile prompt plus specific material names returned for the
+  event's debris class. Several phrases run in parallel because one phrase can
+  miss part of a mixed load; detections are bounded by the bed box and
+  tailgate, not clipped to the visible metal mask.
 
 Per frame: the **opening** is every row from the top of the bed to the tailgate
 rim, counted wall to wall (bed OR load), so shadows stay in the denominator.
@@ -41,9 +41,13 @@ auditable. Mask decoding is CPU work; callers run :func:`measure` in a thread.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
+from functools import partial
+from multiprocessing import get_context
 
 from meta_sam_parser import (
     CompletedOutcome,
@@ -59,6 +63,8 @@ from app.ai.base import TrackedObject, TrackResult
 from app.log import get_logger
 
 log = get_logger("ai.sam_measure")
+
+_parse_executor: ProcessPoolExecutor | None = None
 
 # Keys of the stored SAM output (TrackResult.segments). The overlay draws the
 # bed and load keys; every load phrase is also kept under LOAD_PREFIX + phrase.
@@ -86,7 +92,8 @@ MEASURE_VERSION = 5
 # v6 adds a dynamic broad per-clip material concept from Muse alongside item prompts.
 # v7 removes the fixed class-to-object vocabulary; SAM gets only clip-derived load prompts.
 # v8 tightens material naming and retries late text matches with a box-seeded bidirectional track.
-SAM_PROMPT_VERSION = 8
+# v9 adds a whole-pile prompt to improve complete load outlines.
+SAM_PROMPT_VERSION = 9
 
 # How the load was measured on the selected frames.
 LOAD_SEGMENTED = "segmented"  # a SAM load phrase matched inside the bed
@@ -179,6 +186,37 @@ def parse_segmentation(text: str, *, media_kind: str) -> list[Detection]:
         origin = (int(m.bounds.left), int(m.bounds.top)) if m is not None else (box.left, box.top)
         out.append(Detection(frame, oid, box, m.mask if m is not None else None, origin, size))
     return out
+
+
+def configure_parse_executor(workers: int) -> None:
+    """Use separate processes for CPU-bound SAM parsing when configured."""
+    global _parse_executor
+    if workers > 1 and _parse_executor is None:
+        _parse_executor = ProcessPoolExecutor(
+            max_workers=workers,
+            mp_context=get_context("spawn"),
+        )
+
+
+async def parse_segmentation_async(text: str, *, media_kind: str) -> list[Detection]:
+    """Parse SAM output without blocking the event loop or contending on the GIL."""
+    executor = _parse_executor
+    if executor is None:
+        return await asyncio.to_thread(parse_segmentation, text, media_kind=media_kind)
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        executor,
+        partial(parse_segmentation, text, media_kind=media_kind),
+    )
+
+
+async def shutdown_parse_executor() -> None:
+    """Wait for parser work to finish and release the shared process pool."""
+    global _parse_executor
+    executor = _parse_executor
+    _parse_executor = None
+    if executor is not None:
+        await asyncio.to_thread(executor.shutdown, wait=True, cancel_futures=True)
 
 
 def frames_covered(*runs: list[Detection]) -> int:

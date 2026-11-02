@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from app.ai import sam_measure
@@ -20,6 +22,7 @@ from app.ai.sam_measure import (
     measure,
     measure_frame,
     parse_segmentation,
+    parse_segmentation_async,
     remeasure,
 )
 
@@ -62,6 +65,16 @@ def test_parse_documented_video_frame() -> None:
 def test_parse_empty_output_is_no_detections() -> None:
     assert parse_segmentation("", media_kind="video") == []
     assert parse_segmentation("  \n", media_kind="image") == []
+
+
+def test_process_parser_returns_same_detections() -> None:
+    expected = parse_segmentation(DOC_FRAME, media_kind="video")
+    sam_measure.configure_parse_executor(2)
+    try:
+        actual = asyncio.run(parse_segmentation_async(DOC_FRAME, media_kind="video"))
+    finally:
+        asyncio.run(sam_measure.shutdown_parse_executor())
+    assert actual == expected
 
 
 def test_opening_stops_at_the_tailgate_rim() -> None:

@@ -158,8 +158,17 @@ export function useFileManualMonitorReport() {
 export function useTranscribeMonitorCall() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, audio, context }: { id: string; audio: Blob; context: string }) =>
-      api.transcribeMonitorCall(id, audio, context),
+    mutationFn: ({
+      id,
+      audio,
+      context,
+      intent,
+    }: {
+      id: string;
+      audio: Blob;
+      context: string;
+      intent?: "monitor_report" | "dispute";
+    }) => api.transcribeMonitorCall(id, audio, context, intent),
     onSuccess: invalidateAll(qc),
   });
 }
@@ -197,7 +206,8 @@ export function useSubmitIngestJob() {
       bypassCache?: boolean;
       keepFootage?: boolean;
     }) => submitIngestJob(eventId, file, { bypassCache, keepFootage }),
-    onSuccess: (job, { eventId }) => {
+    onSuccess: async (job, { eventId }) => {
+      await qc.cancelQueries({ queryKey: ["ingest-job", eventId] });
       qc.setQueryData(["ingest-job", eventId], job);
       void qc.invalidateQueries({ queryKey: ["pipeline-progress", eventId] });
     },

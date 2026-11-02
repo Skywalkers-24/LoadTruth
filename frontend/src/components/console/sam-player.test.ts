@@ -65,6 +65,10 @@ describe("evidence overlay regions", () => {
     const cargo = shape("cargo", 150, 120, 250, 200);
     expect(frameLayers(track([bed]), track([cargo]), track([rim]), 0).loads).toEqual([cargo]);
   });
+  it("keeps cargo with partial bed overlap so the opening clip can show its in-bed portion", () => {
+    const cargo = shape("partial cargo", 280, 150, 400, 220);
+    expect(frameLayers(track([bed]), track([cargo]), track([rim]), 0).loads).toEqual([cargo]);
+  });
   it("uses all named material prompts instead of only the best legacy phrase", () => {
     expect(
       loadTexts({ "debris pile": "best", "load: washers": "washers", "load: heaters": "heaters" }),
