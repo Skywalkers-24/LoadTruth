@@ -18,6 +18,7 @@ const state = vi.hoisted(() => ({
     valuation: { certified_cubic_yards: "20", est_dollar_value: "120", est_fill_pct: "42" },
   })),
   getTicketPipeline: vi.fn(async () => []),
+  validateUploadFile: vi.fn(async () => ({ ok: true })),
 }));
 const saved = [
   {
@@ -40,6 +41,10 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   createPracticeTicket: (...args: unknown[]) => state.create(...args),
   getTicket: () => state.getTicket(),
   getTicketPipeline: () => state.getTicketPipeline(),
+}));
+vi.mock("@/lib/video-compress", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/video-compress")>()),
+  validateUploadFile: state.validateUploadFile,
 }));
 vi.mock("@/components/console/evidence-canvas", () => ({
   EvidenceCanvas: ({ ticket }: { ticket: { id: string } }) => (
@@ -100,10 +105,36 @@ afterEach(async () => {
   host?.remove();
   state.role = "super_admin";
   state.readonly = false;
+  state.validateUploadFile.mockReset().mockResolvedValue({ ok: true });
   vi.clearAllMocks();
 });
 
 describe("administrator fresh-analysis option", () => {
+  it("shows upload feedback immediately while video metadata is being checked", async () => {
+    let finishValidation!: (result: { ok: boolean }) => void;
+    state.validateUploadFile.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishValidation = resolve;
+        }),
+    );
+    await render();
+    const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const file = new File(["clip"], "haul.mp4", { type: "video/mp4" });
+    Object.defineProperty(input, "files", { value: [file] });
+    await act(async () => input.dispatchEvent(new Event("change", { bubbles: true })));
+
+    expect(host.textContent).toContain("Preparing footage");
+    expect(host.textContent).toContain("haul.mp4");
+    expect(state.mutate).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finishValidation({ ok: true });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(state.mutate).toHaveBeenCalled();
+  });
+
   it("defaults to cached analysis and submits the selected mode with the file", async () => {
     await render();
     expect(host.textContent).toContain("Run AI again");

@@ -97,6 +97,7 @@ function CaptureWorkspace() {
     stages: PipelineStage[];
     filename?: string;
   } | null>(null);
+  const [preparingUpload, setPreparingUpload] = useState(false);
   const router = useRouter();
   const ingest = useSubmitIngestJob();
   const latest = useLatestIngestJob(eventId);
@@ -113,10 +114,10 @@ function CaptureWorkspace() {
   const analysisLimit = library.data?.analysis_max_bytes ?? uploadLimits.maxSizeBytes;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const rawTicket = ingest.isPending ? null : (latest.data?.ticket ?? null);
+  const rawTicket = preparingUpload || ingest.isPending ? null : (latest.data?.ticket ?? null);
   const activeTicket = customResult?.ticket ?? rawTicket;
   const processing = latest.data?.status === "accepted" || latest.data?.status === "running";
-  const busy = ingest.isPending || processing || compressing;
+  const busy = preparingUpload || ingest.isPending || processing || compressing;
   useEffect(() => {
     if (!ingest.isPending) return;
     const warn = (event: BeforeUnloadEvent) => {
@@ -168,26 +169,44 @@ function CaptureWorkspace() {
       );
       return;
     }
-    let targetEventId = eventId;
+    const targetEventId = eventId;
     if (!targetEventId || busy || latest.isLoading) return;
     if (file.size === 0) {
       setError("This file is empty. Choose a truck video or image.");
       return;
     }
-
-    // Client-side validation: duration & size limits from environment
-    const check = await validateUploadFile(file, uploadLimits);
-    if (!check.ok) {
-      setError(check.error || "File did not pass validation.");
-      return;
-    }
-
     if (file.type && !file.type.startsWith("video/") && !file.type.startsWith("image/")) {
       setError("Choose a video or image file.");
       return;
     }
+
     setError(null);
     setCustomResult(null);
+    setPreparingUpload(true);
+    setHasUploaded(true);
+    setUploadedFileName(file.name);
+
+    let check: Awaited<ReturnType<typeof validateUploadFile>>;
+    try {
+      check = await validateUploadFile(file, uploadLimits);
+    } catch (err) {
+      setPreparingUpload(false);
+      setHasUploaded(false);
+      setUploadedFileName(null);
+      setError(
+        err instanceof Error
+          ? `Could not inspect this file: ${err.message}`
+          : "Could not inspect this file. Choose another clip and try again.",
+      );
+      return;
+    }
+    if (!check.ok) {
+      setPreparingUpload(false);
+      setHasUploaded(false);
+      setUploadedFileName(null);
+      setError(check.error || "File did not pass validation.");
+      return;
+    }
 
     let fileToUpload = file;
     // Client-side compression if enabled and video exceeds threshold (e.g. 10MB)
@@ -213,7 +232,7 @@ function CaptureWorkspace() {
     }
 
     if (latest.data?.id) setDismissedJobId(latest.data.id);
-    setHasUploaded(true);
+    setPreparingUpload(false);
     setUploadedFileName(fileToUpload.name);
     setShowUploadManual(false);
     const previousRun = queryClient.getQueryData<PipelineProgress | null>([
@@ -312,7 +331,11 @@ function CaptureWorkspace() {
                 </span>
                 <div className="flex flex-col min-w-0">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Footage uploaded
+                    {preparingUpload
+                      ? "Preparing footage"
+                      : ingest.isPending
+                        ? "Uploading footage"
+                        : "Footage uploaded"}
                   </span>
                   <span className="truncate text-sm font-semibold text-foreground">
                     {uploadedFileName ??
@@ -659,7 +682,7 @@ function CaptureWorkspace() {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-semibold">
-                {processing || loadingExisting || ingest.isPending
+                {preparingUpload || processing || loadingExisting || ingest.isPending
                   ? "Live analysis workspace"
                   : activeTicket
                     ? "Latest analysis"
@@ -675,10 +698,11 @@ function CaptureWorkspace() {
             </Link>
           </div>
 
-          {processing || loadingExisting || ingest.isPending ? (
+          {preparingUpload || processing || loadingExisting || ingest.isPending ? (
             <LivePipelineFlow
               eventId={eventId}
-              active
+              active={preparingUpload || processing || ingest.isPending}
+              preparing={preparingUpload}
               showIdle
               ignoredAttempt={ignoredAttempt}
               detailed

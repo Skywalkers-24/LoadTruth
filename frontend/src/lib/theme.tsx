@@ -77,6 +77,22 @@ function isMode(v: unknown): v is ThemeMode {
   return v === "dark" || v === "light";
 }
 
+function readStoredValue(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function storeValue(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Theme selection still works when browser storage is disabled.
+  }
+}
+
 interface ThemeContextValue {
   theme: Theme;
   mode: ThemeMode;
@@ -92,7 +108,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 const THEME_KEY = "loadtruth-theme";
 const MODE_KEY = "loadtruth-mode";
 const DEFAULT_THEME: Theme = "enterprise";
-const DEFAULT_MODE: ThemeMode = "dark";
+const DEFAULT_MODE: ThemeMode = "light";
 
 /**
  * Map legacy and disabled theme ids onto the active identities.
@@ -131,12 +147,12 @@ function migrateTheme(stored: string | null): Theme | null {
 
 function initialTheme(): Theme {
   if (typeof window === "undefined") return DEFAULT_THEME;
-  return migrateTheme(window.localStorage.getItem(THEME_KEY)) ?? DEFAULT_THEME;
+  return migrateTheme(readStoredValue(THEME_KEY)) ?? DEFAULT_THEME;
 }
 
 function initialMode(): ThemeMode {
   if (typeof window === "undefined") return DEFAULT_MODE;
-  const stored = window.localStorage.getItem(MODE_KEY);
+  const stored = readStoredValue(MODE_KEY);
   return isMode(stored) ? stored : DEFAULT_MODE;
 }
 
@@ -160,8 +176,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     el.style.colorScheme = mode;
     // shadcn components key dark mode off a `.dark` class; mirror it.
     el.classList.toggle("dark", mode === "dark");
-    window.localStorage.setItem(THEME_KEY, theme);
-    window.localStorage.setItem(MODE_KEY, mode);
+    storeValue(THEME_KEY, theme);
+    storeValue(MODE_KEY, mode);
     // Keep browser tab favicon in sync with active theme mode
     const favDark = document.getElementById("app-favicon-dark") as HTMLLinkElement | null;
     const favLight = document.getElementById("app-favicon-light") as HTMLLinkElement | null;
@@ -214,7 +230,8 @@ export function useTheme(): ThemeContextValue {
 export const themeInitScript = `
 (function(){try{
   var tk='${THEME_KEY}',mk='${MODE_KEY}';
-  var s=localStorage.getItem(tk);
+  var s=null,m=null;
+  try{s=localStorage.getItem(tk);m=localStorage.getItem(mk);}catch(_){}
   var map={
     enterprise:'enterprise',
     'command-blue':'enterprise',
@@ -238,17 +255,17 @@ export const themeInitScript = `
   };
   var ids=${JSON.stringify(THEME_IDS)};
   var t=(ids.indexOf(s)>=0?s:map[s])||'${DEFAULT_THEME}';
-  var m=localStorage.getItem(mk); if(m!=='dark'&&m!=='light'){m='${DEFAULT_MODE}';}
+  if(m!=='dark'&&m!=='light'){m='${DEFAULT_MODE}';}
   var e=document.documentElement;
   e.setAttribute('data-theme',t);
   e.setAttribute('data-mode',m);
   e.style.colorScheme=m;
-  if(m==='dark'){e.classList.add('dark');}
+  e.classList.toggle('dark',m==='dark');
   var dl = document.getElementById('app-favicon-dark');
   var ll = document.getElementById('app-favicon-light');
   if(dl && ll){
     if(m==='dark'){ dl.removeAttribute('media'); ll.setAttribute('media','(max-width: 0px)'); }
     else { ll.removeAttribute('media'); dl.setAttribute('media','(max-width: 0px)'); }
   }
-}catch(e){var el=document.documentElement;el.setAttribute('data-theme','${DEFAULT_THEME}');el.setAttribute('data-mode','${DEFAULT_MODE}');el.classList.add('dark');}})();
+}catch(e){var el=document.documentElement;el.setAttribute('data-theme','${DEFAULT_THEME}');el.setAttribute('data-mode','${DEFAULT_MODE}');el.style.colorScheme='${DEFAULT_MODE}';el.classList.remove('dark');}})();
 `;

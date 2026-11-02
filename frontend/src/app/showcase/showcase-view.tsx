@@ -26,7 +26,7 @@ import { LogoLockup } from "@/components/ui/logo";
 
 export function ShowcaseView() {
   return (
-    <main className="min-h-dvh bg-slate-50 dark:bg-[#080c14] text-slate-900 dark:text-slate-100 selection:bg-blue-600 selection:text-white antialiased relative overflow-hidden transition-colors duration-200">
+    <main className="min-h-dvh bg-slate-50 dark:bg-[#080c14] text-slate-900 dark:text-slate-100 selection:bg-blue-600 selection:text-white antialiased relative overflow-x-clip transition-colors duration-200">
       {/* Ambient Glow for Dark Mode Demo Video */}
       <div className="hidden dark:block absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[350px] bg-gradient-to-b from-blue-600/15 via-indigo-600/5 to-transparent blur-[120px] pointer-events-none rounded-full" />
       
@@ -49,13 +49,13 @@ export function ShowcaseView() {
 function Nav() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 dark:border-slate-800/80 bg-white/95 dark:bg-[#080c14]/90 backdrop-blur-md">
-      <div className="mx-auto flex h-12 w-full max-w-[1400px] items-center justify-between gap-4 px-6 sm:px-10 lg:px-14">
+      <div className="mx-auto flex h-12 w-full max-w-[1400px] items-center justify-between gap-2 px-6 sm:gap-4 sm:px-10 lg:px-14">
         <Link href="/" className="transition hover:opacity-90">
           <LogoLockup />
         </Link>
 
         {/* Center Nav for Judges */}
-        <nav className="hidden md:flex items-center gap-7 text-[13px] font-medium text-slate-600 dark:text-slate-400">
+        <nav className="hidden lg:flex items-center gap-7 text-[13px] font-medium text-slate-600 dark:text-slate-400">
           <a href="#live-monitor" className="hover:text-slate-900 dark:hover:text-white transition">Live Evidence</a>
           <a href="#the-problem" className="hover:text-slate-900 dark:hover:text-white transition">The Problem</a>
           <a href="#case-studies" className="hover:text-slate-900 dark:hover:text-white transition">Federal Cases</a>
@@ -67,13 +67,24 @@ function Nav() {
           <ThemeToggle />
           <Link
             href="/console"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition active:scale-95"
+            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 active:scale-95 dark:bg-blue-600 dark:hover:bg-blue-500 sm:px-3.5"
           >
-            <span>Open Console</span>
+            <span className="sm:hidden">Console</span>
+            <span className="hidden sm:inline">Open Console</span>
             <ArrowRightIcon size={13} />
           </Link>
         </div>
       </div>
+      <nav
+        aria-label="Showcase sections"
+        className="mx-auto flex w-full max-w-[1400px] gap-5 overflow-x-auto border-t border-slate-200 px-6 py-2 text-[11px] font-medium text-slate-600 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden dark:border-slate-800/80 dark:text-slate-400 sm:px-10 lg:hidden"
+      >
+        <a href="#live-monitor" className="shrink-0 hover:text-slate-900 dark:hover:text-white">Live Evidence</a>
+        <a href="#the-problem" className="shrink-0 hover:text-slate-900 dark:hover:text-white">The Problem</a>
+        <a href="#case-studies" className="shrink-0 hover:text-slate-900 dark:hover:text-white">Federal Cases</a>
+        <a href="#pipeline" className="shrink-0 hover:text-slate-900 dark:hover:text-white">Meta AI Pipeline</a>
+        <a href="#benchmarks" className="shrink-0 hover:text-slate-900 dark:hover:text-white">Field Benchmarks</a>
+      </nav>
     </header>
   );
 }
@@ -100,7 +111,8 @@ function Hero() {
 
       {/* Simple Subtitle */}
       <p className="mx-auto mt-1 max-w-xl text-balance text-xs sm:text-[13.5px] text-slate-600 dark:text-slate-300 leading-snug">
-        Autonomous volumetric estimation, placard OCR, and certified tare matching powered by Meta SAM and Muse.
+        Meta SAM and Muse power volumetric estimation, placard OCR, and certified tare matching,
+        complemented by voice-assisted monitor reporting.
       </p>
 
       {/* Quick CTAs */}
@@ -196,7 +208,7 @@ function LiveAuditMonitor() {
   };
 
   return (
-    <section id="live-monitor" className="mx-auto w-full max-w-[1400px] px-6 pt-1 pb-4 sm:px-10 lg:px-14">
+    <section id="live-monitor" className="mx-auto w-full max-w-[1400px] scroll-mt-24 px-6 pt-1 pb-4 sm:px-10 lg:scroll-mt-14 lg:px-14">
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 p-3.5 sm:p-4 shadow-sm backdrop-blur-xl">
         {/* Top Header Bar */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5">
@@ -224,7 +236,8 @@ function LiveAuditMonitor() {
                   : "text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
-              Meta SAM Mask Overlay
+              <span className="hidden min-[440px]:inline">Meta SAM Mask Overlay</span>
+              <span className="min-[440px]:hidden">Mask Overlay</span>
             </button>
             <button
               onClick={() => handleTabChange("source")}
@@ -234,17 +247,18 @@ function LiveAuditMonitor() {
                   : "text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
-              Raw Gate Video
+              <span className="hidden min-[440px]:inline">Raw Gate Video</span>
+              <span className="min-[440px]:hidden">Raw Video</span>
             </button>
           </div>
         </div>
 
         {/* 65/35 Split: 8 Cols Video (Enlarged) | 4 Cols Ticket */}
-        <div className="mt-3 grid gap-4 lg:grid-cols-12 items-stretch">
+        <div className="mt-3 grid items-stretch gap-4 xl:grid-cols-12">
           
           {/* COLUMN 1: Enlarged Video Feed (8 cols, 65% width) */}
-          <div className="lg:col-span-8 flex flex-col justify-between gap-1.5">
-            <div className="relative aspect-video max-h-[340px] w-full overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-black shadow-inner group">
+          <div className="flex flex-col justify-between gap-1.5 xl:col-span-8">
+            <div className="group relative aspect-video w-full overflow-hidden rounded-xl border border-slate-200 bg-black shadow-inner dark:border-slate-800">
               <video
                 ref={videoRef}
                 src={videoSrc}
@@ -269,9 +283,9 @@ function LiveAuditMonitor() {
               />
 
               {/* HUD Badge */}
-              <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 rounded-md bg-zinc-900/85 px-2.5 py-1 text-[11px] font-mono text-zinc-100 backdrop-blur-md pointer-events-none border border-white/15">
+              <div className="pointer-events-none absolute left-2.5 top-2.5 flex max-w-[calc(100%-1.25rem)] min-w-0 items-center gap-1.5 rounded-md border border-white/15 bg-zinc-900/85 px-2.5 py-1 font-mono text-[10px] text-zinc-100 backdrop-blur-md sm:text-[11px]">
                 <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>CAM-01 • 3.0 FPS • Meta SAM Tracking</span>
+                <span className="truncate">CAM-01 • 3.0 FPS • Meta SAM Tracking</span>
               </div>
 
               {/* Scrubber Controls */}
@@ -314,8 +328,8 @@ function LiveAuditMonitor() {
             </div>
 
             {/* Mask Indicators */}
-            <div className="flex items-center justify-between px-1 text-xs">
-              <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300 font-medium">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-[11px] sm:text-xs">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-medium text-slate-700 dark:text-slate-300">
                 <span className="inline-flex items-center gap-1.5">
                   <span className="size-2 rounded-full bg-amber-500" />
                   <span>Bed Tare Rim</span>
@@ -329,15 +343,15 @@ function LiveAuditMonitor() {
                   <span>Debris Load (51.6%)</span>
                 </span>
               </div>
-              <span className="font-mono text-slate-500 dark:text-slate-400 text-xs">3-Keyframe Median</span>
+              <span className="font-mono text-slate-500 dark:text-slate-400 sm:ml-auto">3-Keyframe Median</span>
             </div>
           </div>
 
           {/* COLUMN 2: Unified Verified Ticket (4 cols, 35% width) */}
-          <div className="lg:col-span-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/80 p-4 flex flex-col justify-between shadow-2xs">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-950/80 xl:col-span-4 xl:flex xl:flex-col xl:justify-between">
             <div>
               {/* Card Title & Verified Pill */}
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2.5 dark:border-slate-800">
                 <div>
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
                     Verified Load Ticket
@@ -353,7 +367,7 @@ function LiveAuditMonitor() {
               </div>
 
               {/* 2 Primary Key Results */}
-              <div className="mt-3 grid grid-cols-2 gap-2.5">
+              <div className="mt-3 grid grid-cols-1 gap-2.5 min-[480px]:grid-cols-2">
                 <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-2xs">
                   <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">Verified Net Volume</span>
                   <p className="text-2xl font-black text-slate-900 dark:text-white font-mono mt-0.5 tracking-tight">15.48 CY</p>
@@ -369,26 +383,26 @@ function LiveAuditMonitor() {
               {/* Key Verification Data List (With Amber OCR Stencil Connection) */}
               <div className="mt-3 space-y-2 border-t border-slate-200 dark:border-slate-800/80 pt-2.5 text-xs">
                 {/* Amber OCR connection to match bounding box on truck stencil */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
                   <span className="text-slate-600 dark:text-slate-400 font-medium">Placard Stencil OCR:</span>
                   <span className="inline-flex items-center gap-1 rounded border border-amber-400/50 dark:border-amber-400/40 bg-amber-50 dark:bg-amber-400/10 px-2 py-0.5 font-mono font-bold text-amber-800 dark:text-amber-300">
                     <span>FL-DT-1182</span>
                     <span className="text-[10px] opacity-80">(99.1%)</span>
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
                   <span className="text-slate-600 dark:text-slate-400 font-medium">Debris Category:</span>
                   <span className="font-semibold text-slate-900 dark:text-slate-200">Vegetative (Branches)</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
                   <span className="text-slate-600 dark:text-slate-400 font-medium">Certified Tare Bed:</span>
                   <span className="font-mono font-semibold text-slate-900 dark:text-slate-200">30.0 CY (FL DOT #3182)</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
                   <span className="text-slate-600 dark:text-slate-400 font-medium">AI Pipeline Stack:</span>
                   <span className="font-medium text-blue-700 dark:text-blue-300">Meta SAM + Muse Spark</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
                   <span className="text-slate-600 dark:text-slate-400 font-medium">Audit Proof:</span>
                   <span className="font-mono text-emerald-700 dark:text-emerald-400 font-semibold">SHA-256 Signed Video</span>
                 </div>
@@ -449,7 +463,7 @@ function ProblemHook() {
   ];
 
   return (
-    <section id="the-problem" className="mx-auto w-full max-w-[1400px] px-6 py-5 sm:px-10 lg:px-14 border-t border-slate-200 dark:border-slate-800/80">
+    <section id="the-problem" className="mx-auto w-full max-w-[1400px] scroll-mt-24 border-t border-slate-200 px-6 py-5 dark:border-slate-800/80 sm:px-10 lg:scroll-mt-14 lg:px-14">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
           <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
@@ -465,7 +479,7 @@ function ProblemHook() {
       </div>
 
       {/* 3 High-Impact Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3">
         {problems.map((p) => (
           <div
             key={p.title}
@@ -532,7 +546,7 @@ function FederalCaseStudies() {
   ];
 
   return (
-    <section id="case-studies" className="mx-auto w-full max-w-[1400px] px-6 py-5 sm:px-10 lg:px-14 border-t border-slate-200 dark:border-slate-800/80">
+    <section id="case-studies" className="mx-auto w-full max-w-[1400px] scroll-mt-24 border-t border-slate-200 px-6 py-5 dark:border-slate-800/80 sm:px-10 lg:scroll-mt-14 lg:px-14">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
           <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
@@ -553,7 +567,7 @@ function FederalCaseStudies() {
         </a>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3">
         {threeCases.map((c) => (
           <a
             key={c.num}
@@ -661,7 +675,7 @@ function PipelineWorkflow() {
   const current = (PIPELINE_STEPS[activeStage] ?? PIPELINE_STEPS[0])!;
 
   return (
-    <section id="pipeline" className="mx-auto w-full max-w-[1400px] px-6 py-5 sm:px-10 lg:px-14 border-t border-slate-200 dark:border-slate-800/80">
+    <section id="pipeline" className="mx-auto w-full max-w-[1400px] scroll-mt-24 border-t border-slate-200 px-6 py-5 dark:border-slate-800/80 sm:px-10 lg:scroll-mt-14 lg:px-14">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
           <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
@@ -744,7 +758,7 @@ function PipelineWorkflow() {
    ========================================================================= */
 function SystemBenchmarks() {
   return (
-    <section id="benchmarks" className="mx-auto w-full max-w-[1400px] px-6 py-5 sm:px-10 lg:px-14 border-t border-slate-200 dark:border-slate-800/80">
+    <section id="benchmarks" className="mx-auto w-full max-w-[1400px] scroll-mt-24 border-t border-slate-200 px-6 py-5 dark:border-slate-800/80 sm:px-10 lg:scroll-mt-14 lg:px-14">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
           <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
@@ -760,7 +774,7 @@ function SystemBenchmarks() {
       </div>
 
       {/* 4 Technical Benchmark Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-3.5">
+      <div className="mb-3.5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3 text-center shadow-2xs">
           <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase">Volume Precision</span>
           <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-0.5 font-mono">±1.8%</p>
@@ -784,7 +798,7 @@ function SystemBenchmarks() {
       </div>
 
       {/* 3 Systems Engineering Highlights */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+      <div className="grid grid-cols-1 gap-3 text-xs md:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3.5 shadow-2xs">
           <span className="font-bold text-slate-900 dark:text-white block">Offline Resilience (PyTorch Edge)</span>
           <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">Local SQLite and edge buffer queue gate video captures during hurricane cell tower outages, automatically syncing once connectivity restores.</p>

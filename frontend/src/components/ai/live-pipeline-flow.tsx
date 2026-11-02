@@ -33,6 +33,7 @@ const STAGE_FLOW: { key: string; label: string }[] = [
 export function LivePipelineFlow({
   eventId,
   active = false,
+  preparing = false,
   showIdle = false,
   onComplete,
   detailed = false,
@@ -42,6 +43,8 @@ export function LivePipelineFlow({
   eventId: string | null | undefined;
   /** Expand actual stage output as it arrives. */
   detailed?: boolean;
+  /** Show immediate feedback while client-side upload checks are running. */
+  preparing?: boolean;
   /** Hide previous event results while a new upload begins. */
   ignoredAttempt?: string;
   /** History pages already show completed runs in their inspector. */
@@ -86,17 +89,27 @@ export function LivePipelineFlow({
     );
   if (onlyActive && (!run || (run.status === "done" && run.outcome !== "failed"))) return null;
   if (!run && !active && !showIdle) return null;
-  return <Flow run={run} active={active} idle={!run && !active} detailed={detailed} />;
+  return (
+    <Flow
+      run={run}
+      active={active}
+      preparing={preparing}
+      idle={!run && !active}
+      detailed={detailed}
+    />
+  );
 }
 
 function Flow({
   run,
   active,
+  preparing,
   idle,
   detailed,
 }: {
   run: PipelineProgress | null;
   active: boolean;
+  preparing: boolean;
   idle: boolean;
   detailed: boolean;
 }) {
@@ -145,11 +158,13 @@ function Flow({
               <h3 role="status" className="text-[13px] font-semibold sm:text-sm">
                 {idle
                   ? "Pipeline ready"
-                  : running
-                    ? "Analysing clip"
-                    : run
-                      ? outcomeTitle(run)
-                      : "Analysis pending"}
+                  : preparing
+                    ? "Preparing clip"
+                    : running
+                      ? "Analysing clip"
+                      : run
+                        ? outcomeTitle(run)
+                        : "Analysis pending"}
               </h3>
               {running && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-brand-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-brand)]">
@@ -163,7 +178,9 @@ function Flow({
             </div>
             {running && (
               <p className="text-[11px] text-muted-foreground">
-                AI outlines truck & load, reads plate, finds capacity, and estimates fill
+                {preparing
+                  ? "Checking video details before starting analysis"
+                  : "AI outlines truck & load, reads plate, finds capacity, and estimates fill"}
               </p>
             )}
           </div>

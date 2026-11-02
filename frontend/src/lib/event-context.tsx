@@ -54,7 +54,8 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
           : null;
       if (requested && events.some((e) => e.id === requested)) return requested;
       if (stored && events.some((e) => e.id === stored)) return stored;
-      return events[0]?.id;
+      const adminEvent = events.find((e) => e.tags?.includes("admin-only") || e.name.toLowerCase().includes("loadtruth demo"));
+      return adminEvent?.id ?? events[0]?.id;
     });
   }, [events]);
 

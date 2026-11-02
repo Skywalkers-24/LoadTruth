@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   CheckCircle2Icon,
   ChevronLeftIcon,
@@ -156,7 +157,7 @@ export function StageInspectorDrawer({
     setTimeout(() => setCopied(false), 2000);
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true">
       {/* Backdrop */}
       <div
@@ -371,7 +372,8 @@ export function StageInspectorDrawer({
           </div>
         </aside>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
