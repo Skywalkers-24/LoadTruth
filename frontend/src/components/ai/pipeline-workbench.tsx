@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowUpRightIcon,
   CheckCircle2Icon,
@@ -185,15 +185,17 @@ export function PipelineWorkbench({
 
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const userSelectedStage = useRef(false);
 
   // Identify currently executing stage when running
   const activeRunningIndex = isRunning
     ? displayStages.findIndex((s) => s.status === "pending")
     : -1;
 
-  // Auto-focus the latest arriving/completed stage or currently running stage as the pipeline progresses
+  // Follow the newest stage until the user chooses a stage to inspect.
   const latestCompletedKey = filteredStages[filteredStages.length - 1]?.key;
   useEffect(() => {
+    if (userSelectedStage.current) return;
     if (latestCompletedKey) {
       const idx = displayStages.findIndex((s) => s.key === latestCompletedKey);
       if (idx >= 0) {
@@ -209,8 +211,14 @@ export function PipelineWorkbench({
   const currentStage = displayStages[selectedIndex] ?? displayStages[0]!;
 
   function handleStageClick(index: number) {
+    userSelectedStage.current = true;
     setSelectedIndex(index);
     setDrawerOpen(true);
+  }
+
+  function handleStageSelect(index: number) {
+    userSelectedStage.current = true;
+    setSelectedIndex(index);
   }
 
   return (
@@ -326,7 +334,7 @@ export function PipelineWorkbench({
         onClose={() => setDrawerOpen(false)}
         stages={displayStages}
         currentStageIndex={selectedIndex}
-        onSelectStageIndex={setSelectedIndex}
+        onSelectStageIndex={handleStageSelect}
       />
     </div>
   );

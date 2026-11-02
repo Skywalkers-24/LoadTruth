@@ -168,13 +168,13 @@ export function LoginScreen() {
 
       {/* Sign-in panel. The left edge fades in from the video; the card stays
           legible on the themed background and scrolls on short viewports. */}
-      <div className="login-screen-panel relative z-10 flex min-h-0 flex-col items-center justify-start gap-5 overflow-y-auto bg-gradient-to-r from-transparent via-background/80 to-background px-6 pb-6 pt-16 backdrop-blur-md lg:pt-16 xl:pt-20">
+      <div className="login-screen-panel relative z-10 flex min-h-0 flex-col items-center justify-start gap-4 overflow-y-auto bg-gradient-to-r from-transparent via-background/80 to-background px-6 pb-6 pt-6 backdrop-blur-md lg:pt-8 xl:pt-10">
         {/* Theme picker — reachable before sign-in so users land in their preferred look. */}
         <div className="absolute right-5 top-5 z-10">
           <ThemeToggle />
         </div>
-        <div className="login-screen-content flex w-full max-w-5xl flex-col gap-4">
-          <div className="login-screen-card mx-auto w-full max-w-md rounded-2xl border border-border bg-[var(--color-surface)]/90 p-6 shadow-xl backdrop-blur-xl sm:p-7">
+        <div className="login-screen-content flex w-full max-w-5xl flex-col gap-3">
+          <div className="login-screen-card mx-auto w-full max-w-md rounded-2xl border border-border bg-[var(--color-surface)]/90 p-5 shadow-xl backdrop-blur-xl sm:p-6">
             <div className="mb-6 flex items-center gap-3 lg:hidden">
               <LogoMark size={46} />
               <span className="text-[24px] font-bold tracking-tight">LoadTruth</span>
@@ -234,7 +234,7 @@ export function LoginScreen() {
                         }
                       }}
                       className={cn(
-                        "login-screen-member-button group flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all select-none",
+                        "login-screen-member-button group flex cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-all select-none",
                         active
                           ? "border-[var(--color-brand)] bg-[var(--color-brand-soft)] ring-1 ring-[var(--color-brand)]"
                           : "border-border hover:border-[var(--color-border-strong)] hover:bg-accent",
@@ -278,10 +278,10 @@ export function LoginScreen() {
               )}
             </div>
 
-            {error && <p className="mt-3 text-[13px] text-[var(--color-danger)]">{error}</p>}
+            {error && <p className="mt-2 text-[13px] text-[var(--color-danger)]">{error}</p>}
 
             <Button
-              className="login-screen-continue mt-5 w-full"
+              className="login-screen-continue mt-3.5 w-full"
               size="default"
               disabled={!selected || submitting}
               onClick={() => void submit()}
@@ -290,7 +290,7 @@ export function LoginScreen() {
               {submitting ? "Signing in" : "Continue"}
             </Button>
 
-            <div className="mt-5 flex items-center gap-3">
+            <div className="mt-3.5 flex items-center gap-3">
               <span className="h-px flex-1 bg-[var(--color-border)]" aria-hidden />
               <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
                 New here?
@@ -299,16 +299,16 @@ export function LoginScreen() {
             </div>
             <a
               href="/showcase"
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--color-brand)]/40 bg-[var(--color-brand-soft)] px-4 py-2.5 text-[14px] font-semibold text-[var(--color-brand)] transition-colors hover:bg-[var(--color-brand)]/15"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--color-brand)]/40 bg-[var(--color-brand-soft)] px-4 py-2 text-[13.5px] font-semibold text-[var(--color-brand)] transition-colors hover:bg-[var(--color-brand)]/15"
             >
               See the public showcase
               <ArrowRightIcon className="size-4" />
             </a>
 
-            <div className="mt-4">
+            <div className="mt-2.5">
               <Link
                 href="/superadmin"
-                className="flex w-full items-center justify-between rounded-lg border border-border px-4 py-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:border-[var(--color-border-strong)] hover:bg-accent hover:text-foreground"
+                className="flex w-full items-center justify-between rounded-lg border border-border px-4 py-2 text-[12.5px] font-medium text-muted-foreground transition-colors hover:border-[var(--color-border-strong)] hover:bg-accent hover:text-foreground"
               >
                 Administrator
                 <ArrowRightIcon className="size-4" />

@@ -5,6 +5,7 @@ import { ArrowUpIcon, DatabaseIcon, Loader2Icon, SparklesIcon, WrenchIcon } from
 
 import { LogoMark } from "@/components/ui/logo";
 import { type ChatMessage, TOOL_LABEL } from "@/lib/use-assistant-chat";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 type Density = "comfortable" | "compact" | "full";
@@ -16,6 +17,7 @@ interface AssistantChatProps {
   canChat: boolean;
   onAsk: (q: string) => void;
   eventName?: string;
+  isAdministrator?: boolean;
   /**
    * Layout mode:
    * - `compact`: the floating widget (tight spacing, small empty state)
@@ -38,8 +40,13 @@ export function AssistantChat({
   canChat,
   onAsk,
   eventName,
+  isAdministrator,
   density = "comfortable",
 }: AssistantChatProps) {
+  const { member } = useAuth();
+  const effectiveAdmin =
+    isAdministrator ??
+    (member?.role === "super_admin" || member?.role === "county_admin");
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -279,8 +286,15 @@ export function AssistantChat({
             </button>
           </div>
           <p className={cn("mt-2 text-center text-[11px] text-muted-foreground", col)}>
-            Read-only. The analyst answers from your real event data. Enter to send, Shift+Enter for
-            a new line.
+            {effectiveAdmin ? (
+              <>
+                <span className="font-medium text-[var(--color-brand)]">AI-powered</span> · The analyst answers from your real event data. Enter to send, Shift+Enter for a new line.
+              </>
+            ) : (
+              <>
+                The analyst answers from your real event data. Enter to send, Shift+Enter for a new line.
+              </>
+            )}
           </p>
         </form>
       ) : (

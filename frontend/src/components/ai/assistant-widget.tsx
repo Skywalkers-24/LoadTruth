@@ -21,7 +21,7 @@ export function AssistantWidget({ page }: { page?: string }) {
   const { selected, selectedId: eventId } = useEventContext();
   const chat = useAssistantChat(eventId, selected?.name);
   const [open, setOpen] = useState(false);
-  const isAdministrator = member?.role === "super_admin";
+  const isAdministrator = chat.isAdministrator;
 
   // Close on Escape for keyboard users.
   useEffect(() => {
@@ -55,7 +55,9 @@ export function AssistantWidget({ page }: { page?: string }) {
                     ? isAdministrator
                       ? `AI-assisted · ${selected.name}`
                       : `Saved data only · ${selected.name}`
-                    : "Read-only",
+                    : isAdministrator
+                      ? "AI-powered"
+                      : "Saved data only",
                 ]
                   .filter(Boolean)
                   .join(" · ")}
@@ -89,6 +91,7 @@ export function AssistantWidget({ page }: { page?: string }) {
             canChat={chat.canChat}
             onAsk={chat.ask}
             eventName={selected?.name}
+            isAdministrator={isAdministrator}
             density="compact"
           />
         </div>

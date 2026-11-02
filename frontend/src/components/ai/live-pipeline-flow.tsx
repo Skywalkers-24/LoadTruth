@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckIcon, Loader2Icon, LoaderIcon, TriangleAlertIcon } from "lucide-react";
 
 import type { PipelineProgress, PipelineStage } from "@/lib/api";
 import { usePipelineProgress } from "@/lib/hooks";
 import { PipelineWorkbench } from "@/components/ai/pipeline-workbench";
-import { currentPipelineRun } from "@/lib/pipeline-progress";
+import { currentPipelineRun, pipelineAttemptKey } from "@/lib/pipeline-progress";
 import { cn } from "@/lib/utils";
 
 // The pipeline's stages in order, so the flow shows every step left to right
@@ -58,11 +58,23 @@ export function LivePipelineFlow({
 }) {
   const progress = usePipelineProgress(eventId ?? undefined, active);
   const run = currentPipelineRun(progress.data, ignoredAttempt);
+  const [completedRun, setCompletedRun] = useState<PipelineProgress | null>(null);
 
   // Fire onComplete once per finished attempt, including repeated clips.
   const completedRef = useRef<string | null>(null);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+  useEffect(() => {
+    if (run?.status === "done") {
+      setCompletedRun(run);
+    } else if (
+      run &&
+      completedRun &&
+      pipelineAttemptKey(run) !== pipelineAttemptKey(completedRun)
+    ) {
+      setCompletedRun(null);
+    }
+  }, [run, completedRun]);
   useEffect(() => {
     if (
       run &&
@@ -73,6 +85,12 @@ export function LivePipelineFlow({
       onCompleteRef.current?.();
     }
   }, [run]);
+  const visibleRun =
+    run?.status === "running" &&
+    completedRun &&
+    pipelineAttemptKey(run) === pipelineAttemptKey(completedRun)
+      ? completedRun
+      : run;
 
   if (progress.isError)
     return (
@@ -87,11 +105,15 @@ export function LivePipelineFlow({
         </button>
       </div>
     );
-  if (onlyActive && (!run || (run.status === "done" && run.outcome !== "failed"))) return null;
-  if (!run && !active && !showIdle) return null;
+  if (
+    onlyActive &&
+    (!visibleRun || (visibleRun.status === "done" && visibleRun.outcome !== "failed"))
+  )
+    return null;
+  if (!visibleRun && !active && !showIdle) return null;
   return (
     <Flow
-      run={run}
+      run={visibleRun}
       active={active}
       preparing={preparing}
       idle={!run && !active}

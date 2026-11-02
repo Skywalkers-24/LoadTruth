@@ -120,6 +120,16 @@ describe("live pipeline", () => {
     expect(host.textContent).not.toContain("Served from");
     expect(host.textContent).not.toContain("no model call");
   });
+  it("does not regress a completed run to analyzing on a stale progress poll", async () => {
+    state.data = run({ status: "done", outcome: "drafted", ticket_id: "ticket-1" });
+    await render({ active: true });
+    expect(host.textContent).toContain("Ticket created");
+
+    state.data = run({ status: "running", outcome: null, ticket_id: null });
+    await render({ active: true });
+    expect(host.textContent).toContain("Ticket created");
+    expect(host.textContent).not.toContain("Analysing clip");
+  });
   it("shows failed processing and offers reconnection for telemetry errors", async () => {
     state.data = run({ status: "done", outcome: "failed", detail: "AI service error" });
     await render();

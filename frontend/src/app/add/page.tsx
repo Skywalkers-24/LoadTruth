@@ -86,7 +86,8 @@ function CaptureWorkspace() {
     [eventId],
   );
   const { member } = useAuth();
-  const canRunFresh = member?.role === "super_admin";
+  const canRunFresh =
+    member?.role === "super_admin" || member?.role === "county_admin";
   const playground = Boolean(selected?.tags.includes("playground"));
   const [bypassCache, setBypassCache] = useState(false);
   const [keepFootage, setKeepFootage] = useState(false);
@@ -163,7 +164,7 @@ function CaptureWorkspace() {
       );
       return;
     }
-    if (showcaseReadOnly) {
+    if (showcaseReadOnly && !canRunFresh) {
       setError(
         "This event is read-only. Choose an existing video from the library dropdown below to preview its analysis and ticket.",
       );
@@ -639,7 +640,7 @@ function CaptureWorkspace() {
                           <h2 className="text-[15px] font-semibold">Latest ticket</h2>
                           {showcaseReadOnly && (
                             <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                              Read-only reference
+                              {canRunFresh ? "AI-verified" : "Read-only reference"}
                             </span>
                           )}
                         </div>

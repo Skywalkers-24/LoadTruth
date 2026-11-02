@@ -29,7 +29,7 @@ export default function AssistantPage() {
             <h1 className="lt-page-title">AI assistant</h1>
             <p className="truncate text-[12px] text-muted-foreground">
               {chat.isAdministrator
-                ? `AI-assisted answers about ${selected?.name ?? "this event"}, grounded in saved records.`
+                ? `AI-powered answers about ${selected?.name ?? "this event"}, grounded in saved records.`
                 : `Answers use saved records from ${selected?.name ?? "this event"}. No AI provider is called.`}
             </p>
           </div>
@@ -44,6 +44,7 @@ export default function AssistantPage() {
             canChat={chat.canChat}
             onAsk={chat.ask}
             eventName={selected?.name}
+            isAdministrator={chat.isAdministrator}
           />
         </div>
       </div>
