@@ -31,10 +31,12 @@
 .kiro/
 codex-usage/
 
-# Large demo video exports; login and demo showcase clips are deployed with the frontend.
+# Large video exports (except curated demo directory and frontend showcase clips)
 *.mp4
 !frontend/public/login-*.mp4
 !frontend/public/videos/*.mp4
+!demo/
+!demo/**
 
 # Local review/scratch artifacts
 semantic-review/

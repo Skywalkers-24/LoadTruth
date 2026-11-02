@@ -3,6 +3,17 @@
 All notable changes to LoadTruth are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Add an entry in the same change that makes the modification.
 
+## [1.0.0] - 2026-11-02
+
+### Added
+- **Curated Demonstration Video Package (`demo/`):** Moved system demonstration walkthrough into `demo/LoadTruth_Demo.mp4` with companion field monitor audio track (`demo/LoadTruth_audio.m4a`) and comprehensive operational chapter guide (`demo/README.md`). Optimized video container to high-efficiency H.264/AAC (~27 MB) preserving full 2768×1512 60fps Retina resolution while adhering strictly to Git push thresholds (<100 MB).
+- **High-Resolution Architectural Poster (`Poster.jpg`):** Integrated 4096×2237 master system poster (~1.9 MB) into repository root and synced with `docs/Poster.jpg` and `frontend/public/Poster.jpg`. Updated `Readme.md` hero image reference.
+- **Automated Docker Validation & Deployment (`scripts/setup_docker.sh` & `run_docker.sh`):** Validated full-stack local deployment containerization across FastAPI backend, Next.js 16 frontend, PostgreSQL 16, and Redis 7 with automated daemon detection, pre-flight port availability verification, dynamic event provisioning, and readiness probes.
+
+### Changed
+- **Repository Hygiene & Git Configuration (`.gitignore`):** Whitelisted and version-controlled curated `demo/` assets while suppressing transient scratch caches, `.DS_Store` files, and raw multi-gigabyte screen recording files.
+- **Documentation & README Polish:** Enhanced `Readme.md` with direct links to the 2-minute system demo, detailed video timestamp breakdown, updated architectural maps in `docs/ARCHITECTURE_MAP.md`, and verified local development quickstart instructions.
+
 ## [Unreleased]
 
 ### Added

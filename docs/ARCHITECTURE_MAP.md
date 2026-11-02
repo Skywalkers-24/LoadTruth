@@ -9,6 +9,8 @@ you add a module or move responsibility, update the relevant row in the same cha
 ```
 loadtruth/
 ├─ run_docker.sh         Smooth single-command local full-stack startup (Docker + Postgres + Redis)
+├─ Poster.jpg            High-resolution 2MB system poster and architectural showcase
+├─ demo/                 Video demonstration walkthrough (LoadTruth_Demo.mp4, audio, chapter guide)
 ├─ backend/              FastAPI, Python 3.12 — API + pipeline + worker
 ├─ frontend/             Next.js 16 App Router — operator console
 ├─ infra/                Supabase RLS policies and platform SQL
@@ -23,6 +25,8 @@ loadtruth/
 
 | Change | Location | Notes |
 |---|---|---|
+| System demonstration & video assets | `demo/LoadTruth_Demo.mp4` + `demo/README.md` | Full 2:26 HD video walkthrough with chapter breakdown and monitor audio track |
+| System poster & visual assets | `Poster.jpg` (root) + `docs/Poster.jpg` | 4096x2237 high-res architectural infographic referenced in Readme.md |
 | App config / new env var | `backend/app/config.py` + `.env.example` | pydantic-settings; validated on boot |
 | Local benchmark batch tooling | `dump/scripts/` on the local `dump` branch | Archived from the working `main` branch; the product benchmark gallery and known-volume harness remain in the app. |
 | Logging / observability | `backend/app/log.py` | structlog JSON; add request/tenant context here |

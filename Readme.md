@@ -1,7 +1,7 @@
 <div align="center">
 
 <a href="https://loadtruth.tiwabhay800.workers.dev/showcase">
-  <img src="./poster.png" alt="LoadTruth — Precision load intelligence for disaster debris removal" width="100%">
+  <img src="./Poster.jpg" alt="LoadTruth — Precision load intelligence for disaster debris removal" width="100%">
 </a>
 
 <br/>
@@ -18,7 +18,7 @@
 ### Precision load intelligence for disaster debris removal.
 
 **Vision Measurement · Voice Transcription · Multi-Provider Inference · Cryptographic Receipts**  
-[Explore Public Showcase →](https://loadtruth.tiwabhay800.workers.dev/showcase) · [View Architecture Map →](./docs/ARCHITECTURE_MAP.md) · [Deep Research & Case Studies →](./Research.md)
+[Explore Public Showcase →](https://loadtruth.tiwabhay800.workers.dev/showcase) · [🎬 Watch 2-Min Demo Video →](./demo/LoadTruth_Demo.mp4) · [View Architecture Map →](./docs/ARCHITECTURE_MAP.md) · [Deep Research & Case Studies →](./Research.md)
 
 **Built with Meta SAM 3.1 & Muse Multimodal Models**  
 *Production partner inference support via Baseten, Modal, and Fireworks AI*
@@ -42,6 +42,22 @@ After a major hurricane or disaster, millions of tons of debris are hauled away 
 3. **Muse Voice Transcribe** captures the monitor's live radio call, strictly extracting stated fill percentages and spoken field warnings.
 4. **Deterministic Code Decides**: Median frame aggregation, certified registry matching, compliance anomaly rules, and exact Python `Decimal` money math ensure models never hallucinate dollars or volumes.
 5. **Cryptographic Evidence Receipt**: Generates a tamper-proof SHA-256 fingerprint over all raw inputs, allowing any county auditor, state FEMA inspector, or contractor to re-verify the exact measurement in sub-second time without an external AI call.
+
+---
+
+## 🎬 2-Minute System Demonstration
+
+Watch the complete live walkthrough of LoadTruth in action ([`demo/LoadTruth_Demo.mp4`](./demo/LoadTruth_Demo.mp4)):
+
+> **Video Highlights (Duration: 02:26 | 2768×1512 Retina 60fps):**
+> - **`00:00 - 00:28`** · **The Debris Billing Crisis**: Manual tower monitor fatigue, arbitrary 10% upward rounding, and FEMA overbilling.
+> - **`00:29 - 00:54`** · **Edge Ingest & Client Guard**: Resilient camera/microphone ingest, PyAV keyframe extraction, and client-side compression.
+> - **`00:55 - 01:25`** · **SAM 3.1 & Muse Spark Vision**: Real-time segmentation of bed rim, tailgate reference plane, and load volume with vectorized SVG masks.
+> - **`01:26 - 01:50`** · **Muse Voice Transcribe**: Instant 16-bit PCM monitor audio transcription and spoken anomaly detection.
+> - **`01:51 - 02:10`** · **Deterministic Decimal Settlement**: Exact Python `Decimal` volume and rate math, certified registry matching, and SHA-256 tamper-proof receipt generation.
+> - **`02:11 - 02:26`** · **Operations Console & FEMA Audit Replay**: Instant multi-tenant review, AI analyst chat, and sub-second federal audit defense.
+>
+> *Detailed walkthrough chapters and audio track are documented in [`demo/README.md`](./demo/README.md).*
 
 ---
 
