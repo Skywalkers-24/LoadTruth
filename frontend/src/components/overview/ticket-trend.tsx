@@ -40,10 +40,20 @@ export function ticketTrend(tickets: Ticket[]): MultiTrendPoint[] {
 
 export function TicketTrendLegend() {
   return (
-    <ul className="flex flex-wrap gap-x-4 gap-y-1 px-4 pb-3" aria-label="Ticket activity chart legend">
+    <ul
+      className="flex flex-wrap gap-x-4 gap-y-1 px-4 pb-3"
+      aria-label="Ticket activity chart legend"
+    >
       {Object.entries(TICKET_TREND_CONFIG).map(([key, item]) => (
-        <li key={key} className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <span className="size-2 rounded-full" style={{ backgroundColor: item.color }} aria-hidden="true" />
+        <li
+          key={key}
+          className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground"
+        >
+          <span
+            className="size-2 rounded-full"
+            style={{ backgroundColor: item.color }}
+            aria-hidden="true"
+          />
           {item.label}
         </li>
       ))}

@@ -45,8 +45,7 @@ export function AssistantChat({
 }: AssistantChatProps) {
   const { member } = useAuth();
   const effectiveAdmin =
-    isAdministrator ??
-    (member?.role === "super_admin" || member?.role === "county_admin");
+    isAdministrator ?? (member?.role === "super_admin" || member?.role === "county_admin");
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -288,11 +287,14 @@ export function AssistantChat({
           <p className={cn("mt-2 text-center text-[11px] text-muted-foreground", col)}>
             {effectiveAdmin ? (
               <>
-                <span className="font-medium text-[var(--color-brand)]">AI-powered</span> · The analyst answers from your real event data. Enter to send, Shift+Enter for a new line.
+                <span className="font-medium text-[var(--color-brand)]">AI-powered</span> · The
+                analyst answers from your real event data. Enter to send, Shift+Enter for a new
+                line.
               </>
             ) : (
               <>
-                The analyst answers from your real event data. Enter to send, Shift+Enter for a new line.
+                The analyst answers from your real event data. Enter to send, Shift+Enter for a new
+                line.
               </>
             )}
           </p>

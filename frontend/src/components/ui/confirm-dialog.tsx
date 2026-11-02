@@ -95,7 +95,9 @@ export function ConfirmDialog({
         <div className="h-1 w-full" style={{ backgroundColor: accent }} aria-hidden />
         <div className="p-5">
           <h2 className="text-[16px] font-semibold text-[var(--color-text)]">{title}</h2>
-          {description && <p className="mt-1.5 text-[13px] text-[var(--color-muted-foreground)]">{description}</p>}
+          {description && (
+            <p className="mt-1.5 text-[13px] text-[var(--color-muted-foreground)]">{description}</p>
+          )}
           {children && <div className="mt-4">{children}</div>}
         </div>
         <div className="flex items-center justify-between gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface-2)] px-5 py-3">
@@ -106,7 +108,12 @@ export function ConfirmDialog({
             <Button variant="ghost" onClick={onCancel} disabled={busy}>
               Cancel
             </Button>
-            <Button ref={confirmRef} variant={confirmVariant} onClick={onConfirm} disabled={confirmDisabled}>
+            <Button
+              ref={confirmRef}
+              variant={confirmVariant}
+              onClick={onConfirm}
+              disabled={confirmDisabled}
+            >
               {busy ? "Working…" : confirmLabel}
             </Button>
           </div>

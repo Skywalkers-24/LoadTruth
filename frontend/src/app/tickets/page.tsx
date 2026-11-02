@@ -142,7 +142,10 @@ function TicketList({ eventId }: { eventId: string | undefined }) {
           ) : (
             <ul className="divide-y divide-border">
               {rows.map((t) => (
-                <li key={t.id} className="group relative flex items-stretch transition-colors hover:bg-accent/40">
+                <li
+                  key={t.id}
+                  className="group relative flex items-stretch transition-colors hover:bg-accent/40"
+                >
                   <Link
                     href={`/console?ticket=${t.id}`}
                     className="grid flex-1 min-w-0 gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto]"

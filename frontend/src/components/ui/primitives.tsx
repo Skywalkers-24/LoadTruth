@@ -140,9 +140,7 @@ export function ErrorState({
 
 /** Loading skeleton block. */
 export function Skeleton({ className }: { className?: string }) {
-  return (
-    <div className={`lt-shimmer rounded-md ${className ?? ""}`} aria-hidden />
-  );
+  return <div className={`lt-shimmer rounded-md ${className ?? ""}`} aria-hidden />;
 }
 
 /** A labelled, data-unavailable placeholder — honest about missing backend data. */

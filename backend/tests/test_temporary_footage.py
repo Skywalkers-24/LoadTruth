@@ -1,19 +1,26 @@
 """Temporary playback expires independently of permanently saved ticket results."""
 
+from collections.abc import Callable
 from uuid import UUID
 
 import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api import ingest_jobs
 from app.pipeline import b2_store, evidence_store
 from app.tickets.seed import ADMIN_DEMO_EVENT_ID, DEMO_EVENT_ID, PLAYGROUND_EVENT_ID
 
 
-def fail_storage(*args, **kwargs):
+def fail_storage(*args: object, **kwargs: object) -> None:
     raise AssertionError("Temporary upload must not touch Backblaze")
 
 
-def test_temporary_upload_keeps_ticket_after_footage_expires(client, sessionmaker, monkeypatch):
+def test_temporary_upload_keeps_ticket_after_footage_expires(
+    client: TestClient,
+    sessionmaker: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(ingest_jobs, "get_sessionmaker", lambda: sessionmaker)
     monkeypatch.setattr(ingest_jobs, "_worker", None)
     monkeypatch.setattr(b2_store, "put", fail_storage)
@@ -29,11 +36,13 @@ def test_temporary_upload_keeps_ticket_after_footage_expires(client, sessionmake
     )
     assert response.status_code == 202, response.text
 
-    async def wait():
+    async def wait() -> None:
         import asyncio
 
-        await asyncio.wait_for(ingest_jobs._worker, 3)
+        if ingest_jobs._worker is not None:
+            await asyncio.wait_for(ingest_jobs._worker, 3)
 
+    assert client.portal is not None
     client.portal.call(wait)
     job = client.get(f"/events/{DEMO_EVENT_ID}/ingest-jobs").json()
     assert job["status"] == "completed", job
@@ -51,11 +60,11 @@ def test_temporary_upload_keeps_ticket_after_footage_expires(client, sessionmake
     assert client.get(f"/tickets/{ticket_id}/pipeline").json()
 
 
-def test_memory_store_expiry_and_budget(monkeypatch):
+def test_memory_store_expiry_and_budget(monkeypatch: pytest.MonkeyPatch) -> None:
     evidence_store._memory.clear()
     monkeypatch.setattr(evidence_store, "MEMORY_MAX_BYTES", 8)
     clock = [1.0]
-    monkeypatch.setattr(evidence_store.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr("time.monotonic", lambda: clock[0])
     evidence_store.remember("a", b"12345", "video/mp4")
     evidence_store.remember("b", b"67890", "video/mp4")
     assert evidence_store.memory_entry("a") is None
@@ -69,7 +78,12 @@ def test_memory_store_expiry_and_budget(monkeypatch):
 @pytest.mark.parametrize(
     "role", ["monitor", "auditor", "supervisor", "county_admin", "super_admin"]
 )
-def test_practice_uses_saved_results_and_source_stays_readonly(client, as_role, role, monkeypatch):
+def test_practice_uses_saved_results_and_source_stays_readonly(
+    client: TestClient,
+    as_role: Callable[[str], None],
+    role: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from app.api import ingest
 
     monkeypatch.setattr(ingest, "get_ai_client", fail_storage)
@@ -106,7 +120,7 @@ def test_practice_uses_saved_results_and_source_stays_readonly(client, as_role, 
     assert client.get(f"/tickets/{original['id']}").json()["valuation"] == original["valuation"]
 
 
-def test_practice_in_writable_event(client, as_role):
+def test_practice_in_writable_event(client: TestClient, as_role: Callable[[str], None]) -> None:
     from app.tickets.seed import DEMO_EVENT_ID
 
     as_role("supervisor")
@@ -121,7 +135,9 @@ def test_practice_in_writable_event(client, as_role):
 
 
 @pytest.mark.parametrize("role", ["monitor", "auditor", "supervisor", "county_admin"])
-def test_live_demo_is_visible_but_admin_only(client, as_role, role):
+def test_live_demo_is_visible_but_admin_only(
+    client: TestClient, as_role: Callable[[str], None], role: str
+) -> None:
     from app.db.models import Ticket
 
     # Obtain an existing ticket then attach it to the live event in fixture DB.
@@ -129,11 +145,13 @@ def test_live_demo_is_visible_but_admin_only(client, as_role, role):
     from app.api.repo import get_repository
     from app.main import app
 
-    async def move():
+    async def move() -> None:
         async for repo in app.dependency_overrides[get_repository]():
             row = await repo.session.get(Ticket, UUID(ticket_id))
-            row.event_id = ADMIN_DEMO_EVENT_ID
+            if row is not None:
+                row.event_id = ADMIN_DEMO_EVENT_ID
 
+    assert client.portal is not None
     client.portal.call(move)
     as_role(role)
     assert any(e["id"] == str(ADMIN_DEMO_EVENT_ID) for e in client.get("/events").json())
@@ -154,8 +172,10 @@ def test_live_demo_is_visible_but_admin_only(client, as_role, role):
 
 
 def test_lost_temporary_upload_fails_clearly_without_creating_a_ticket(
-    client, sessionmaker, monkeypatch
-):
+    client: TestClient,
+    sessionmaker: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(ingest_jobs, "get_sessionmaker", lambda: sessionmaker)
     monkeypatch.setattr(ingest_jobs, "_worker", None)
     start = ingest_jobs.ensure_worker
@@ -167,20 +187,23 @@ def test_lost_temporary_upload_fails_clearly_without_creating_a_ticket(
     assert response.status_code == 202
     evidence_store._memory.clear()
     monkeypatch.setattr(ingest_jobs, "ensure_worker", start)
+    assert client.portal is not None
     client.portal.call(ingest_jobs.recover_ingest_jobs)
 
-    async def wait():
+    async def wait() -> None:
         import asyncio
 
-        await asyncio.wait_for(ingest_jobs._worker, 3)
+        if ingest_jobs._worker is not None:
+            await asyncio.wait_for(ingest_jobs._worker, 3)
 
+    assert client.portal is not None
     client.portal.call(wait)
     job = client.get(f"/events/{DEMO_EVENT_ID}/ingest-jobs").json()
     assert job["status"] == "failed" and job["ticket"] is None
     assert "Temporary upload expired" in job["detail"]
 
 
-def test_readonly_source_crud_is_blocked_even_for_administrator(client):
+def test_readonly_source_crud_is_blocked_even_for_administrator(client: TestClient) -> None:
     source = client.get(f"/events/{DEMO_EVENT_ID}/sources").json()[0]
     assert client.patch(f"/events/{DEMO_EVENT_ID}", json={"tags": ["read-only"]}).status_code == 200
     assert client.patch(f"/sources/{source['id']}", json={"name": "changed"}).status_code == 409

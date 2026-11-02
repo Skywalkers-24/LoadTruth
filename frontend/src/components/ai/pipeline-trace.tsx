@@ -199,7 +199,8 @@ export function PipelineTrace({
                     <ChevronRightIcon className="size-2.5" />
                   </span>
                 ) : (
-                  !compact && getAIModelName(s.model) && (
+                  !compact &&
+                  getAIModelName(s.model) && (
                     <span className="hidden shrink-0 items-center gap-1 font-mono text-[10px] text-muted-foreground sm:flex">
                       <CpuIcon className="size-3" />
                       {getAIModelName(s.model)}
@@ -340,7 +341,9 @@ function composedAnalysis(stage: PipelineStage): string {
       break;
     }
     case "spark_classify": {
-      parts.push("Meta Muse Spark 1.3 identified debris material class to set the unit contract rate.");
+      parts.push(
+        "Meta Muse Spark 1.3 identified debris material class to set the unit contract rate.",
+      );
       if (conf) parts.push(`Classification confidence: ${conf}.`);
       break;
     }

@@ -13,10 +13,7 @@ const META_API_ORIGIN = "https://api.meta.ai";
  * directly from Backblaze B2 (Bandwidth Alliance = 0 egress cost) and streams it
  * to Meta's File API, keeping Render's outbound egress at 0 MB.
  */
-async function handleProxy(
-  req: NextRequest,
-  context: { params: Promise<{ path?: string[] }> }
-) {
+async function handleProxy(req: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
   const { path = [] } = await context.params;
   const pathStr = path.join("/");
   const targetUrl = new URL(`/v1/${pathStr}`, META_API_ORIGIN);
@@ -30,7 +27,11 @@ async function handleProxy(
   const outgoingHeaders = new Headers();
   req.headers.forEach((val, key) => {
     const lowerKey = key.toLowerCase();
-    if (!["host", "connection", "keep-alive", "transfer-encoding", "content-length"].includes(lowerKey)) {
+    if (
+      !["host", "connection", "keep-alive", "transfer-encoding", "content-length"].includes(
+        lowerKey,
+      )
+    ) {
       outgoingHeaders.set(key, val);
     }
   });
@@ -49,7 +50,7 @@ async function handleProxy(
               detail: `Failed to fetch media from B2: ${mediaRes.statusText}`,
             },
           }),
-          { status: 502, headers: { "Content-Type": "application/json" } }
+          { status: 502, headers: { "Content-Type": "application/json" } },
         );
       }
 
@@ -93,7 +94,7 @@ async function handleProxy(
       const msg = err instanceof Error ? err.message : "Error ingesting from B2 to Meta";
       return new Response(
         JSON.stringify({ error: { code: "edge_b2_ingest_error", detail: msg } }),
-        { status: 502, headers: { "Content-Type": "application/json" } }
+        { status: 502, headers: { "Content-Type": "application/json" } },
       );
     }
   }
@@ -126,13 +127,10 @@ async function handleProxy(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Proxy error";
-    return new Response(
-      JSON.stringify({ error: { code: "edge_proxy_error", detail: message } }),
-      {
-        status: 502,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ error: { code: "edge_proxy_error", detail: message } }), {
+      status: 502,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }
 

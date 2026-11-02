@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  getUploadLimits,
-  validateUploadFile,
-  compressVideoClient,
-} from "./video-compress";
+import { getUploadLimits, validateUploadFile, compressVideoClient } from "./video-compress";
 
 describe("video-compress limits and validation", () => {
   it("returns default upload limits when env is not set", () => {

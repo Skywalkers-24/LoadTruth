@@ -53,12 +53,10 @@ async def test_seed_migrates_legacy_demo_tenant(
             )
             == 0
         )
-        assert (
-            await session.scalar(
-                select(func.count()).select_from(Event).where(Event.tenant_id == DEMO_TENANT_ID)
-            )
-            >= 4
+        event_count = await session.scalar(
+            select(func.count()).select_from(Event).where(Event.tenant_id == DEMO_TENANT_ID)
         )
+        assert (event_count or 0) >= 4
         assert await session.scalar(select(func.count()).select_from(Ticket)) == ticket_count
         assert (
             await session.scalar(

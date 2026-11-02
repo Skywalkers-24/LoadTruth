@@ -98,7 +98,13 @@ export function LogoLockup({
 }) {
   return (
     <span className={cn("inline-flex items-center gap-3", className)}>
-      <LogoMark size={size} badge={badge} variant={variant} forceTheme={forceTheme} className="shrink-0" />
+      <LogoMark
+        size={size}
+        badge={badge}
+        variant={variant}
+        forceTheme={forceTheme}
+        className="shrink-0"
+      />
       <span className="text-[17px] font-bold tracking-tight text-[var(--color-text)]">
         LoadTruth
       </span>

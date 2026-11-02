@@ -1,5 +1,6 @@
 """Unit tests for the Enterprise Generational API Response Cache."""
 
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -14,7 +15,7 @@ from app.config import get_settings
 
 
 @pytest.fixture(autouse=True)
-def reset_cache_state(monkeypatch):
+def reset_cache_state(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(get_settings(), "api_cache_enabled", True)
     clear_local_cache()
     yield
@@ -22,7 +23,7 @@ def reset_cache_state(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_tag_version_increments_on_invalidation():
+async def test_tag_version_increments_on_invalidation() -> None:
     v1 = await get_tag_version("event:test-event-1")
     assert v1 == 1
 
@@ -38,10 +39,10 @@ async def test_tag_version_increments_on_invalidation():
 
 
 @pytest.mark.asyncio
-async def test_get_or_compute_caches_and_invalidates():
+async def test_get_or_compute_caches_and_invalidates() -> None:
     call_count = 0
 
-    async def compute_dashboard():
+    async def compute_dashboard() -> dict[str, object]:
         nonlocal call_count
         call_count += 1
         return {"ticket_count": 42, "status": "reviewed"}
@@ -83,10 +84,10 @@ async def test_get_or_compute_caches_and_invalidates():
 
 
 @pytest.mark.asyncio
-async def test_multi_tag_invalidation():
+async def test_multi_tag_invalidation() -> None:
     call_count = 0
 
-    async def compute_billing():
+    async def compute_billing() -> dict[str, int]:
         nonlocal call_count
         call_count += 1
         return {"amount": 1000}
@@ -116,12 +117,12 @@ async def test_multi_tag_invalidation():
 
 
 @pytest.mark.asyncio
-async def test_cache_disabled_bypasses_cache(monkeypatch):
+async def test_cache_disabled_bypasses_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(get_settings(), "api_cache_enabled", False)
 
     call_count = 0
 
-    async def compute():
+    async def compute() -> dict[str, int]:
         nonlocal call_count
         call_count += 1
         return {"x": 1}
@@ -146,7 +147,7 @@ async def test_cache_disabled_bypasses_cache(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_redis_pipeline_mock_integration(monkeypatch):
+async def test_redis_pipeline_mock_integration(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_redis = MagicMock()
     mock_pipe = MagicMock()
     mock_pipe.execute = AsyncMock(return_value=[1, True])

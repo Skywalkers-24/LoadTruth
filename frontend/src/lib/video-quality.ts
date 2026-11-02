@@ -57,7 +57,10 @@ export function resolveQualityTier(tier: VideoQualityTier): ResolvedQualityTier 
  *   - "medium" -> -med.mp4
  *   - "low"    -> -low.mp4
  */
-export function getVideoVariantUrl(url: string | null | undefined, quality: ResolvedQualityTier): string | null {
+export function getVideoVariantUrl(
+  url: string | null | undefined,
+  quality: ResolvedQualityTier,
+): string | null {
   if (!url) return null;
   // If not an mp4 (e.g. image, blob: or data: url), return as-is
   if (!url.toLowerCase().includes(".mp4")) return url;

@@ -200,7 +200,12 @@ export function AiModelsPanel() {
         >
           {dirtyCount > 1 ? `Save all (${dirtyCount})` : "Save all"}
         </Button>
-        <Button variant="ghost" size="sm" disabled={!canEdit || dirtyCount === 0 || busy} onClick={discard}>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={!canEdit || dirtyCount === 0 || busy}
+          onClick={discard}
+        >
           Discard changes
         </Button>
         <Button variant="ghost" size="sm" disabled={!canEdit || busy} onClick={resetAllToDefault}>

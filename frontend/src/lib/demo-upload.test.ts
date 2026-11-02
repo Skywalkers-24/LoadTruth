@@ -84,7 +84,10 @@ describe("direct B2 upload", () => {
   it("falls back to temporary direct ingest when the bucket rejects the upload (e.g. limit hit)", async () => {
     status = 503;
     setup();
-    const res = await submitIngestJob("event-1", new File(["test"], "truck.mp4", { type: "video/mp4" }));
+    const res = await submitIngestJob(
+      "event-1",
+      new File(["test"], "truck.mp4", { type: "video/mp4" }),
+    );
     expect(res).toEqual({ id: "job-1", status: "accepted" });
     expect(sequence).toEqual(["sign", "bucket-put", "analyze"]);
   });

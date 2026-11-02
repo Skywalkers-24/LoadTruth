@@ -121,10 +121,7 @@ export function DonutChart({
                 <Cell key={d.label} fill={d.color ?? c["--accent"]} />
               ))}
             </Pie>
-            <Tooltip
-              {...tip}
-              formatter={(v, n) => [String(v), String(n)] as [string, string]}
-            />
+            <Tooltip {...tip} formatter={(v, n) => [String(v), String(n)] as [string, string]} />
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
@@ -147,9 +144,7 @@ export function DonutChart({
               {d.label}
             </span>
             <span className="flex items-center gap-2 tabular-nums">
-              <span className="font-semibold text-[var(--color-text)]">
-                {d.display ?? d.value}
-              </span>
+              <span className="font-semibold text-[var(--color-text)]">{d.display ?? d.value}</span>
               <span className="text-[var(--color-subtle)]">
                 {total > 0 ? `${Math.round((d.value / total) * 100)}%` : "0%"}
               </span>
@@ -184,7 +179,11 @@ export function VBarChart({
   return (
     <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }} barCategoryGap="28%">
+        <BarChart
+          data={data}
+          margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
+          barCategoryGap="28%"
+        >
           <XAxis
             dataKey="label"
             stroke={c["--subtle"]}
@@ -236,12 +235,17 @@ export function RankedBars({ data }: { data: ChartDatum[] }) {
         <li key={d.label} className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between gap-2 text-[13px]">
             <span className="text-[var(--color-muted-foreground)]">{d.label}</span>
-            <span className="font-semibold tabular-nums text-[var(--color-text)]">{d.display ?? d.value}</span>
+            <span className="font-semibold tabular-nums text-[var(--color-text)]">
+              {d.display ?? d.value}
+            </span>
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-surface-3)]">
             <div
               className="h-full rounded-full transition-[width] duration-700"
-              style={{ width: `${(d.value / max) * 100}%`, backgroundColor: d.color ?? "var(--color-accent)" }}
+              style={{
+                width: `${(d.value / max) * 100}%`,
+                backgroundColor: d.color ?? "var(--color-accent)",
+              }}
             />
           </div>
         </li>
@@ -274,8 +278,7 @@ export function AreaTrend({
 }) {
   const c = useChartColors();
   const tip = useTooltipStyle();
-  const stroke =
-    tone === "money" ? c["--money"] : tone === "info" ? c["--info"] : c["--accent"];
+  const stroke = tone === "money" ? c["--money"] : tone === "info" ? c["--info"] : c["--accent"];
   const gradId = `lt-area-${tone}`;
 
   return (

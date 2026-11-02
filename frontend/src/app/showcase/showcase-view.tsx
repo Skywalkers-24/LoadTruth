@@ -29,7 +29,7 @@ export function ShowcaseView() {
     <main className="min-h-dvh bg-slate-50 dark:bg-[#080c14] text-slate-900 dark:text-slate-100 selection:bg-blue-600 selection:text-white antialiased relative overflow-x-clip transition-colors duration-200">
       {/* Ambient Glow for Dark Mode Demo Video */}
       <div className="hidden dark:block absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[350px] bg-gradient-to-b from-blue-600/15 via-indigo-600/5 to-transparent blur-[120px] pointer-events-none rounded-full" />
-      
+
       <Nav />
       <Hero />
       <LiveAuditMonitor />
@@ -56,11 +56,21 @@ function Nav() {
 
         {/* Center Nav for Judges */}
         <nav className="hidden lg:flex items-center gap-7 text-[13px] font-medium text-slate-600 dark:text-slate-400">
-          <a href="#live-monitor" className="hover:text-slate-900 dark:hover:text-white transition">Live Evidence</a>
-          <a href="#the-problem" className="hover:text-slate-900 dark:hover:text-white transition">The Problem</a>
-          <a href="#case-studies" className="hover:text-slate-900 dark:hover:text-white transition">Federal Cases</a>
-          <a href="#pipeline" className="hover:text-slate-900 dark:hover:text-white transition">Meta AI Pipeline</a>
-          <a href="#benchmarks" className="hover:text-slate-900 dark:hover:text-white transition">Field Benchmarks</a>
+          <a href="#live-monitor" className="hover:text-slate-900 dark:hover:text-white transition">
+            Live Evidence
+          </a>
+          <a href="#the-problem" className="hover:text-slate-900 dark:hover:text-white transition">
+            The Problem
+          </a>
+          <a href="#case-studies" className="hover:text-slate-900 dark:hover:text-white transition">
+            Federal Cases
+          </a>
+          <a href="#pipeline" className="hover:text-slate-900 dark:hover:text-white transition">
+            Meta AI Pipeline
+          </a>
+          <a href="#benchmarks" className="hover:text-slate-900 dark:hover:text-white transition">
+            Field Benchmarks
+          </a>
         </nav>
 
         <div className="flex items-center gap-3">
@@ -79,11 +89,21 @@ function Nav() {
         aria-label="Showcase sections"
         className="mx-auto flex w-full max-w-[1400px] gap-5 overflow-x-auto border-t border-slate-200 px-6 py-2 text-[11px] font-medium text-slate-600 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden dark:border-slate-800/80 dark:text-slate-400 sm:px-10 lg:hidden"
       >
-        <a href="#live-monitor" className="shrink-0 hover:text-slate-900 dark:hover:text-white">Live Evidence</a>
-        <a href="#the-problem" className="shrink-0 hover:text-slate-900 dark:hover:text-white">The Problem</a>
-        <a href="#case-studies" className="shrink-0 hover:text-slate-900 dark:hover:text-white">Federal Cases</a>
-        <a href="#pipeline" className="shrink-0 hover:text-slate-900 dark:hover:text-white">Meta AI Pipeline</a>
-        <a href="#benchmarks" className="shrink-0 hover:text-slate-900 dark:hover:text-white">Field Benchmarks</a>
+        <a href="#live-monitor" className="shrink-0 hover:text-slate-900 dark:hover:text-white">
+          Live Evidence
+        </a>
+        <a href="#the-problem" className="shrink-0 hover:text-slate-900 dark:hover:text-white">
+          The Problem
+        </a>
+        <a href="#case-studies" className="shrink-0 hover:text-slate-900 dark:hover:text-white">
+          Federal Cases
+        </a>
+        <a href="#pipeline" className="shrink-0 hover:text-slate-900 dark:hover:text-white">
+          Meta AI Pipeline
+        </a>
+        <a href="#benchmarks" className="shrink-0 hover:text-slate-900 dark:hover:text-white">
+          Field Benchmarks
+        </a>
       </nav>
     </header>
   );
@@ -208,7 +228,10 @@ function LiveAuditMonitor() {
   };
 
   return (
-    <section id="live-monitor" className="mx-auto w-full max-w-[1400px] scroll-mt-24 px-6 pt-1 pb-4 sm:px-10 lg:scroll-mt-14 lg:px-14">
+    <section
+      id="live-monitor"
+      className="mx-auto w-full max-w-[1400px] scroll-mt-24 px-6 pt-1 pb-4 sm:px-10 lg:scroll-mt-14 lg:px-14"
+    >
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 p-3.5 sm:p-4 shadow-sm backdrop-blur-xl">
         {/* Top Header Bar */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5">
@@ -255,7 +278,6 @@ function LiveAuditMonitor() {
 
         {/* 65/35 Split: 8 Cols Video (Enlarged) | 4 Cols Ticket */}
         <div className="mt-3 grid items-stretch gap-4 xl:grid-cols-12">
-          
           {/* COLUMN 1: Enlarged Video Feed (8 cols, 65% width) */}
           <div className="flex flex-col justify-between gap-1.5 xl:col-span-8">
             <div className="group relative aspect-video w-full overflow-hidden rounded-xl border border-slate-200 bg-black shadow-inner dark:border-slate-800">
@@ -273,7 +295,10 @@ function LiveAuditMonitor() {
                 onLoadedMetadata={() => {
                   if (videoRef.current) {
                     setDuration(videoRef.current.duration || 10);
-                    videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+                    videoRef.current
+                      .play()
+                      .then(() => setIsPlaying(true))
+                      .catch(() => {});
                   }
                 }}
                 onPlay={() => setIsPlaying(true)}
@@ -313,9 +338,7 @@ function LiveAuditMonitor() {
                     className="w-full accent-blue-500 h-1 cursor-pointer"
                   />
                 </div>
-                <span className="font-mono text-xs text-zinc-300">
-                  {formatTime(currentTime)}
-                </span>
+                <span className="font-mono text-xs text-zinc-300">{formatTime(currentTime)}</span>
                 <button
                   type="button"
                   aria-label={isMuted ? "Unmute" : "Mute"}
@@ -343,7 +366,9 @@ function LiveAuditMonitor() {
                   <span>Debris Load (51.6%)</span>
                 </span>
               </div>
-              <span className="font-mono text-slate-500 dark:text-slate-400 sm:ml-auto">3-Keyframe Median</span>
+              <span className="font-mono text-slate-500 dark:text-slate-400 sm:ml-auto">
+                3-Keyframe Median
+              </span>
             </div>
           </div>
 
@@ -369,14 +394,26 @@ function LiveAuditMonitor() {
               {/* 2 Primary Key Results */}
               <div className="mt-3 grid grid-cols-1 gap-2.5 min-[480px]:grid-cols-2">
                 <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-2xs">
-                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">Verified Net Volume</span>
-                  <p className="text-2xl font-black text-slate-900 dark:text-white font-mono mt-0.5 tracking-tight">15.48 CY</p>
-                  <span className="text-[10.5px] text-slate-500 dark:text-slate-400 block mt-0.5">30.0 CY × 51.6%</span>
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
+                    Verified Net Volume
+                  </span>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white font-mono mt-0.5 tracking-tight">
+                    15.48 CY
+                  </p>
+                  <span className="text-[10.5px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                    30.0 CY × 51.6%
+                  </span>
                 </div>
                 <div className="rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/80 dark:bg-emerald-950/20 p-3 shadow-2xs">
-                  <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300 block">Calculated Payout</span>
-                  <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 tracking-tight">$123.82</p>
-                  <span className="text-[10.5px] text-emerald-600/80 dark:text-emerald-300/80 block mt-0.5">Rate: $8.00 / CY</span>
+                  <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300 block">
+                    Calculated Payout
+                  </span>
+                  <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 tracking-tight">
+                    $123.82
+                  </p>
+                  <span className="text-[10.5px] text-emerald-600/80 dark:text-emerald-300/80 block mt-0.5">
+                    Rate: $8.00 / CY
+                  </span>
                 </div>
               </div>
 
@@ -384,27 +421,45 @@ function LiveAuditMonitor() {
               <div className="mt-3 space-y-2 border-t border-slate-200 dark:border-slate-800/80 pt-2.5 text-xs">
                 {/* Amber OCR connection to match bounding box on truck stencil */}
                 <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
-                  <span className="text-slate-600 dark:text-slate-400 font-medium">Placard Stencil OCR:</span>
+                  <span className="text-slate-600 dark:text-slate-400 font-medium">
+                    Placard Stencil OCR:
+                  </span>
                   <span className="inline-flex items-center gap-1 rounded border border-amber-400/50 dark:border-amber-400/40 bg-amber-50 dark:bg-amber-400/10 px-2 py-0.5 font-mono font-bold text-amber-800 dark:text-amber-300">
                     <span>FL-DT-1182</span>
                     <span className="text-[10px] opacity-80">(99.1%)</span>
                   </span>
                 </div>
                 <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
-                  <span className="text-slate-600 dark:text-slate-400 font-medium">Debris Category:</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-200">Vegetative (Branches)</span>
+                  <span className="text-slate-600 dark:text-slate-400 font-medium">
+                    Debris Category:
+                  </span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-200">
+                    Vegetative (Branches)
+                  </span>
                 </div>
                 <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
-                  <span className="text-slate-600 dark:text-slate-400 font-medium">Certified Tare Bed:</span>
-                  <span className="font-mono font-semibold text-slate-900 dark:text-slate-200">30.0 CY (FL DOT #3182)</span>
+                  <span className="text-slate-600 dark:text-slate-400 font-medium">
+                    Certified Tare Bed:
+                  </span>
+                  <span className="font-mono font-semibold text-slate-900 dark:text-slate-200">
+                    30.0 CY (FL DOT #3182)
+                  </span>
                 </div>
                 <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
-                  <span className="text-slate-600 dark:text-slate-400 font-medium">AI Pipeline Stack:</span>
-                  <span className="font-medium text-blue-700 dark:text-blue-300">Meta SAM + Muse Spark</span>
+                  <span className="text-slate-600 dark:text-slate-400 font-medium">
+                    AI Pipeline Stack:
+                  </span>
+                  <span className="font-medium text-blue-700 dark:text-blue-300">
+                    Meta SAM + Muse Spark
+                  </span>
                 </div>
                 <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
-                  <span className="text-slate-600 dark:text-slate-400 font-medium">Audit Proof:</span>
-                  <span className="font-mono text-emerald-700 dark:text-emerald-400 font-semibold">SHA-256 Signed Video</span>
+                  <span className="text-slate-600 dark:text-slate-400 font-medium">
+                    Audit Proof:
+                  </span>
+                  <span className="font-mono text-emerald-700 dark:text-emerald-400 font-semibold">
+                    SHA-256 Signed Video
+                  </span>
                 </div>
               </div>
             </div>
@@ -421,7 +476,6 @@ function LiveAuditMonitor() {
               </Link>
             </div>
           </div>
-
         </div>
       </div>
     </section>
@@ -463,7 +517,10 @@ function ProblemHook() {
   ];
 
   return (
-    <section id="the-problem" className="mx-auto w-full max-w-[1400px] scroll-mt-24 border-t border-slate-200 px-6 py-5 dark:border-slate-800/80 sm:px-10 lg:scroll-mt-14 lg:px-14">
+    <section
+      id="the-problem"
+      className="mx-auto w-full max-w-[1400px] scroll-mt-24 border-t border-slate-200 px-6 py-5 dark:border-slate-800/80 sm:px-10 lg:scroll-mt-14 lg:px-14"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
           <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
@@ -474,7 +531,8 @@ function ProblemHook() {
           </h2>
         </div>
         <p className="text-xs text-slate-600 dark:text-slate-400 sm:max-w-md sm:text-right font-medium">
-          Billions in FEMA disaster reimbursement hinge on proving load volume years after the debris is gone.
+          Billions in FEMA disaster reimbursement hinge on proving load volume years after the
+          debris is gone.
         </p>
       </div>
 
@@ -521,7 +579,8 @@ function FederalCaseStudies() {
       title: "Hurricane Katrina: Over-Capacity Billing",
       stat: "$5.5M",
       statLabel: "Questioned by Federal Auditors",
-      takeaway: "Auditors questioned $5.5M after dump trucks logged loads exceeding 500% of certified bed capacity without photographic proof.",
+      takeaway:
+        "Auditors questioned $5.5M after dump trucks logged loads exceeding 500% of certified bed capacity without photographic proof.",
       source: "DHS OIG Report DD-09-04",
       href: "https://www.oig.dhs.gov/sites/default/files/assets/GrantReports/OIG_DD-09-04_Jan09.pdf",
     },
@@ -530,7 +589,8 @@ function FederalCaseStudies() {
       title: "Miami-Dade: Scaffold Monitoring Bill",
       stat: "$190M",
       statLabel: "5-Year Monitoring Allocation",
-      takeaway: "Miami-Dade County allocated $190 million across five years purely for contracted personnel to manually eyeball trucks from scaffold towers.",
+      takeaway:
+        "Miami-Dade County allocated $190 million across five years purely for contracted personnel to manually eyeball trucks from scaffold towers.",
       source: "Board Docket 261096",
       href: "https://www.miamidade.gov/govaction/legistarfiles/Matters/Y2026/261096.pdf",
     },
@@ -539,14 +599,18 @@ function FederalCaseStudies() {
       title: "DOJ Prosecution: Forged Load Slips & Bribery",
       stat: "$716K",
       statLabel: "Criminal Scheme Prosecuted",
-      takeaway: "DOJ convicted contractors and monitors for bribing tower officials and producing fake paper load tickets for debris never dumped.",
+      takeaway:
+        "DOJ convicted contractors and monitors for bribing tower officials and producing fake paper load tickets for debris never dumped.",
       source: "US Department of Justice",
       href: "https://www.justice.gov/criminal/disasters/pr/2007/may/05-18-07akitto-sent.pdf",
     },
   ];
 
   return (
-    <section id="case-studies" className="mx-auto w-full max-w-[1400px] scroll-mt-24 border-t border-slate-200 px-6 py-5 dark:border-slate-800/80 sm:px-10 lg:scroll-mt-14 lg:px-14">
+    <section
+      id="case-studies"
+      className="mx-auto w-full max-w-[1400px] scroll-mt-24 border-t border-slate-200 px-6 py-5 dark:border-slate-800/80 sm:px-10 lg:scroll-mt-14 lg:px-14"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
           <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
@@ -596,7 +660,9 @@ function FederalCaseStudies() {
               <h3 className="mt-2.5 text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-300 transition">
                 {c.title}
               </h3>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{c.takeaway}</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                {c.takeaway}
+              </p>
             </div>
 
             <div className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
@@ -620,7 +686,8 @@ const PIPELINE_STEPS = [
     short: "Video Ingest",
     modelBadge: "PyTorch Edge / OpenCV",
     icon: <CameraIcon size={15} />,
-    description: "Ingests tower camera footage as trucks enter the debris lane. Samples 60 keyframes at 3.0 FPS, stamping monotonic timestamps and computing a SHA-256 fingerprint for tamper-proof defense.",
+    description:
+      "Ingests tower camera footage as trucks enter the debris lane. Samples 60 keyframes at 3.0 FPS, stamping monotonic timestamps and computing a SHA-256 fingerprint for tamper-proof defense.",
     codeOutput: `{ "status": "INGESTED", "frames": 60, "fps": 3.0, "sha256": "ced45539ee71...d701" }`,
   },
   {
@@ -629,7 +696,8 @@ const PIPELINE_STEPS = [
     short: "SAM Geometry",
     modelBadge: "Meta SAM",
     icon: <ScanEyeIcon size={15} />,
-    description: "Meta SAM zero-shot segmentation isolates the rigid tailgate rim, side rails, and visible debris surface contour, automatically correcting for camera tilt, perspective, and vehicle pitch.",
+    description:
+      "Meta SAM zero-shot segmentation isolates the rigid tailgate rim, side rails, and visible debris surface contour, automatically correcting for camera tilt, perspective, and vehicle pitch.",
     codeOutput: `{ "model": "meta-sam", "tailgate_polygon": [315, 211, 402, 363], "mask_coverage": 0.516 }`,
   },
   {
@@ -638,7 +706,8 @@ const PIPELINE_STEPS = [
     short: "Muse OCR & Class",
     modelBadge: "Meta Muse",
     icon: <SparklesIcon size={15} />,
-    description: "Meta Muse runs multi-frame multimodal OCR to read mud-caked, weathered truck stencils and simultaneously classifies debris into FEMA categories (Vegetative, C&D, White Goods).",
+    description:
+      "Meta Muse runs multi-frame multimodal OCR to read mud-caked, weathered truck stencils and simultaneously classifies debris into FEMA categories (Vegetative, C&D, White Goods).",
     codeOutput: `{ "stencil_ocr": "FL-DT-1182", "ocr_confidence": 0.991, "debris_class": "Vegetative" }`,
   },
   {
@@ -647,7 +716,8 @@ const PIPELINE_STEPS = [
     short: "Tare Registry",
     modelBadge: "Deterministic Rule Engine",
     icon: <TruckIcon size={15} />,
-    description: "Cross-references the detected placard against the pre-certified county truck tare database. Unregistered vehicles, altered sideboards, or capacity mismatches trigger immediate supervisor flags.",
+    description:
+      "Cross-references the detected placard against the pre-certified county truck tare database. Unregistered vehicles, altered sideboards, or capacity mismatches trigger immediate supervisor flags.",
     codeOutput: `{ "registry_match": true, "certified_tare_cy": 30.0, "state_tag": "FL-3182" }`,
   },
   {
@@ -656,7 +726,8 @@ const PIPELINE_STEPS = [
     short: "Fill Median",
     modelBadge: "Meta Muse + Median Filter",
     icon: <GaugeIcon size={15} />,
-    description: "Meta Muse estimates fill percentage across multiple keyframes (50.8%, 52.4%, 51.6%). A statistical 3-point median filter eliminates camera glare and single-frame occlusion spikes.",
+    description:
+      "Meta Muse estimates fill percentage across multiple keyframes (50.8%, 52.4%, 51.6%). A statistical 3-point median filter eliminates camera glare and single-frame occlusion spikes.",
     codeOutput: `{ "sample_frames": [0.508, 0.524, 0.516], "statistical_median": 0.516 }`,
   },
   {
@@ -665,7 +736,8 @@ const PIPELINE_STEPS = [
     short: "Audited Ticket",
     modelBadge: "Deterministic Math Engine",
     icon: <FileCheck2Icon size={15} />,
-    description: "Calculates net volume (30.0 CY × 51.6% = 15.48 CY) and contractor reimbursement ($123.82) using exact Python Decimal arithmetic. Assembles the signed ticket into the FEMA audit binder.",
+    description:
+      "Calculates net volume (30.0 CY × 51.6% = 15.48 CY) and contractor reimbursement ($123.82) using exact Python Decimal arithmetic. Assembles the signed ticket into the FEMA audit binder.",
     codeOutput: `{ "net_volume_cy": 15.48, "rate_per_cy": 8.00, "total_payout_usd": 123.82, "signed": true }`,
   },
 ];
@@ -675,7 +747,10 @@ function PipelineWorkflow() {
   const current = (PIPELINE_STEPS[activeStage] ?? PIPELINE_STEPS[0])!;
 
   return (
-    <section id="pipeline" className="mx-auto w-full max-w-[1400px] scroll-mt-24 border-t border-slate-200 px-6 py-5 dark:border-slate-800/80 sm:px-10 lg:scroll-mt-14 lg:px-14">
+    <section
+      id="pipeline"
+      className="mx-auto w-full max-w-[1400px] scroll-mt-24 border-t border-slate-200 px-6 py-5 dark:border-slate-800/80 sm:px-10 lg:scroll-mt-14 lg:px-14"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
           <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
@@ -707,12 +782,18 @@ function PipelineWorkflow() {
               >
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <span className={`text-[11px] font-mono font-bold ${isActive ? "text-blue-700 dark:text-blue-400" : "text-slate-500"}`}>
+                    <span
+                      className={`text-[11px] font-mono font-bold ${isActive ? "text-blue-700 dark:text-blue-400" : "text-slate-500"}`}
+                    >
                       STAGE {s.step}
                     </span>
                   </div>
-                  <span className="text-xs font-bold text-slate-900 dark:text-white truncate block">{s.short}</span>
-                  <span className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate block mt-0.5">{s.modelBadge.split(" ")[0]}</span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-white truncate block">
+                    {s.short}
+                  </span>
+                  <span className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate block mt-0.5">
+                    {s.modelBadge.split(" ")[0]}
+                  </span>
                 </div>
               </button>
 
@@ -731,7 +812,9 @@ function PipelineWorkflow() {
       <div className="mt-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 p-4 shadow-2xs backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-bold text-blue-700 dark:text-blue-400">STAGE {current.step}</span>
+            <span className="font-mono text-xs font-bold text-blue-700 dark:text-blue-400">
+              STAGE {current.step}
+            </span>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">{current.title}</h3>
             <span className="rounded border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10.5px] font-mono font-bold text-slate-700 dark:text-slate-300">
               {current.modelBadge}
@@ -744,7 +827,9 @@ function PipelineWorkflow() {
             {current.description}
           </p>
           <div className="lg:col-span-5 rounded-lg border border-slate-800 bg-slate-950 p-2.5 font-mono text-[11px] text-emerald-400 overflow-x-auto shadow-inner">
-            <span className="text-[10px] text-slate-500 block mb-0.5 font-sans uppercase font-bold tracking-wider">Generated Output:</span>
+            <span className="text-[10px] text-slate-500 block mb-0.5 font-sans uppercase font-bold tracking-wider">
+              Generated Output:
+            </span>
             <code>{current.codeOutput}</code>
           </div>
         </div>
@@ -758,7 +843,10 @@ function PipelineWorkflow() {
    ========================================================================= */
 function SystemBenchmarks() {
   return (
-    <section id="benchmarks" className="mx-auto w-full max-w-[1400px] scroll-mt-24 border-t border-slate-200 px-6 py-5 dark:border-slate-800/80 sm:px-10 lg:scroll-mt-14 lg:px-14">
+    <section
+      id="benchmarks"
+      className="mx-auto w-full max-w-[1400px] scroll-mt-24 border-t border-slate-200 px-6 py-5 dark:border-slate-800/80 sm:px-10 lg:scroll-mt-14 lg:px-14"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
           <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
@@ -776,40 +864,79 @@ function SystemBenchmarks() {
       {/* 4 Technical Benchmark Cards */}
       <div className="mb-3.5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3 text-center shadow-2xs">
-          <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase">Volume Precision</span>
-          <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-0.5 font-mono">±1.8%</p>
-          <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">Meta SAM ground-truth median</span>
+          <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase">
+            Volume Precision
+          </span>
+          <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-0.5 font-mono">
+            ±1.8%
+          </p>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">
+            Meta SAM ground-truth median
+          </span>
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3 text-center shadow-2xs">
-          <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase">Dirty Placard OCR</span>
-          <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 font-mono">96.4%</p>
-          <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">Meta Muse uncurated match</span>
+          <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase">
+            Dirty Placard OCR
+          </span>
+          <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 font-mono">
+            96.4%
+          </p>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">
+            Meta Muse uncurated match
+          </span>
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3 text-center shadow-2xs">
-          <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase">Pipeline Latency</span>
-          <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 font-mono">4.2s</p>
-          <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">End-to-end video verification</span>
+          <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase">
+            Pipeline Latency
+          </span>
+          <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 font-mono">
+            4.2s
+          </p>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">
+            End-to-end video verification
+          </span>
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3 text-center shadow-2xs">
-          <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase">Inference Cost</span>
-          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono">$0.038</p>
-          <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">Total Meta model cost / load</span>
+          <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase">
+            Inference Cost
+          </span>
+          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono">
+            $0.038
+          </p>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">
+            Total Meta model cost / load
+          </span>
         </div>
       </div>
 
       {/* 3 Systems Engineering Highlights */}
       <div className="grid grid-cols-1 gap-3 text-xs md:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3.5 shadow-2xs">
-          <span className="font-bold text-slate-900 dark:text-white block">Offline Resilience (PyTorch Edge)</span>
-          <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">Local SQLite and edge buffer queue gate video captures during hurricane cell tower outages, automatically syncing once connectivity restores.</p>
+          <span className="font-bold text-slate-900 dark:text-white block">
+            Offline Resilience (PyTorch Edge)
+          </span>
+          <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+            Local SQLite and edge buffer queue gate video captures during hurricane cell tower
+            outages, automatically syncing once connectivity restores.
+          </p>
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3.5 shadow-2xs">
-          <span className="font-bold text-slate-900 dark:text-white block">1-Click FEMA Audit Packets</span>
-          <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">Exports complete documentation binders formatted to FEMA PA SOP 3-01 standards with cryptographic SHA-256 video hashes and digitally signed receipts.</p>
+          <span className="font-bold text-slate-900 dark:text-white block">
+            1-Click FEMA Audit Packets
+          </span>
+          <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+            Exports complete documentation binders formatted to FEMA PA SOP 3-01 standards with
+            cryptographic SHA-256 video hashes and digitally signed receipts.
+          </p>
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3.5 shadow-2xs">
-          <span className="font-bold text-slate-900 dark:text-white block">Natural Language Audit Search</span>
-          <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">Integrated AI analyst powered by Muse translates natural language auditor inquiries into read-only SQL queries over the disaster ledger.</p>
+          <span className="font-bold text-slate-900 dark:text-white block">
+            Natural Language Audit Search
+          </span>
+          <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+            Integrated AI analyst powered by Muse translates natural language auditor inquiries into
+            read-only SQL queries over the disaster ledger.
+          </p>
         </div>
       </div>
     </section>
@@ -827,7 +954,8 @@ function FinalCta() {
           Ready to test the live computer vision pipeline?
         </h2>
         <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 max-w-lg mx-auto">
-          Launch the Review Console to inspect video clips, test placard OCR, and sign real disaster load tickets.
+          Launch the Review Console to inspect video clips, test placard OCR, and sign real disaster
+          load tickets.
         </p>
         <div className="mt-3 flex justify-center gap-3">
           <Link

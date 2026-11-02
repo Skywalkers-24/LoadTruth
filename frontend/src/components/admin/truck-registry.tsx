@@ -137,8 +137,8 @@ export function TruckRegistry() {
             Certified fleet
           </span>
           <span className="text-[12px] text-[var(--color-muted-foreground)]">
-            Registered truck IDs and certified bed capacities used for new load calculations.
-            Demo specification sources are shown on each entry.
+            Registered truck IDs and certified bed capacities used for new load calculations. Demo
+            specification sources are shown on each entry.
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -155,7 +155,8 @@ export function TruckRegistry() {
 
       {isReadOnly && (
         <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3.5 py-2.5 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Read-only event:</span> Certified truck registry is locked and cannot be modified in benchmark or archive mode.
+          <span className="font-medium text-foreground">Read-only event:</span> Certified truck
+          registry is locked and cannot be modified in benchmark or archive mode.
         </div>
       )}
 

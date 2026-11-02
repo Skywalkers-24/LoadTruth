@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
+from typing import Any
 from urllib.parse import unquote, urlsplit
 from uuid import UUID, uuid4
 
@@ -25,7 +27,12 @@ def worker_db(
     monkeypatch.setattr(ingest_jobs, "_worker", None)
 
 
-def upload(client: TestClient, objects, *, complete: bool = True) -> dict:  # type: ignore[no-untyped-def,type-arg]
+def upload(
+    client: TestClient,
+    objects: dict[str, tuple[bytes, dict[str, Any]]],
+    *,
+    complete: bool = True,
+) -> dict[str, Any]:
     response = client.post(
         "/demo-videos/uploads",
         json={
@@ -51,7 +58,7 @@ def upload(client: TestClient, objects, *, complete: bool = True) -> dict:  # ty
     return body["video"]  # type: ignore[no-any-return]
 
 
-def wait_for_job(client: TestClient) -> dict:  # type: ignore[type-arg]
+def wait_for_job(client: TestClient) -> dict[str, Any]:
     async def wait() -> None:
         task = ingest_jobs._worker
         if task is not None:
@@ -64,7 +71,9 @@ def wait_for_job(client: TestClient) -> dict:  # type: ignore[type-arg]
     return response.json()  # type: ignore[no-any-return]
 
 
-def test_library_upload_verify_list_and_private_playback(client: TestClient, b2_objects) -> None:  # type: ignore[no-untyped-def]
+def test_library_upload_verify_list_and_private_playback(
+    client: TestClient, b2_objects: dict[str, tuple[bytes, dict[str, Any]]]
+) -> None:
     video = upload(client, b2_objects, complete=False)
     pending = client.get("/demo-videos").json()
     assert any(
@@ -83,7 +92,9 @@ def test_library_upload_verify_list_and_private_playback(client: TestClient, b2_
     )
 
 
-def test_unverified_or_wrong_size_upload_cannot_be_analyzed(client: TestClient, b2_objects) -> None:  # type: ignore[no-untyped-def]
+def test_unverified_or_wrong_size_upload_cannot_be_analyzed(
+    client: TestClient, b2_objects: dict[str, tuple[bytes, dict[str, Any]]]
+) -> None:
     video = upload(client, b2_objects, complete=False)
     url = f"/events/{DEMO_EVENT_ID}/demo-videos/{video['id']}/analyze"
     assert client.post(url).status_code == 409
@@ -93,8 +104,10 @@ def test_unverified_or_wrong_size_upload_cannot_be_analyzed(client: TestClient, 
 
 
 def test_queued_job_is_recovered_after_reload_and_finishes_without_reupload(
-    client: TestClient, b2_objects, monkeypatch: pytest.MonkeyPatch
-) -> None:  # type: ignore[no-untyped-def]
+    client: TestClient,
+    b2_objects: dict[str, tuple[bytes, dict[str, Any]]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     video = upload(client, b2_objects)
     start_worker = ingest_jobs.ensure_worker
     monkeypatch.setattr(ingest_jobs, "ensure_worker", lambda: None)
@@ -116,10 +129,10 @@ def test_queued_job_is_recovered_after_reload_and_finishes_without_reupload(
 
 def test_running_job_is_requeued_after_backend_replacement(
     client: TestClient,
-    b2_objects,
+    b2_objects: dict[str, tuple[bytes, dict[str, Any]]],
     monkeypatch: pytest.MonkeyPatch,
     sessionmaker: async_sessionmaker[AsyncSession],
-) -> None:  # type: ignore[no-untyped-def]
+) -> None:
     video = upload(client, b2_objects)
     original = ingest_jobs.ensure_worker
     monkeypatch.setattr(ingest_jobs, "ensure_worker", lambda: None)
@@ -142,12 +155,14 @@ def test_running_job_is_requeued_after_backend_replacement(
 
 
 def test_failed_analysis_can_retry_same_saved_clip(
-    client: TestClient, b2_objects, monkeypatch: pytest.MonkeyPatch
-) -> None:  # type: ignore[no-untyped-def]
+    client: TestClient,
+    b2_objects: dict[str, tuple[bytes, dict[str, Any]]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     video = upload(client, b2_objects)
     original = ingest_jobs.ingest_clip
 
-    async def failed(*args, **kwargs):  # type: ignore[no-untyped-def]
+    async def failed(*args: object, **kwargs: object) -> Any:
         raise HTTPException(422, "No truck detected")
 
     monkeypatch.setattr(ingest_jobs, "ingest_clip", failed)
@@ -160,8 +175,11 @@ def test_failed_analysis_can_retry_same_saved_clip(
 
 
 def test_library_mutations_require_role_and_other_tenants_cannot_read(
-    client: TestClient, b2_objects, as_role, monkeypatch: pytest.MonkeyPatch
-) -> None:  # type: ignore[no-untyped-def]
+    client: TestClient,
+    b2_objects: dict[str, tuple[bytes, dict[str, Any]]],
+    as_role: Callable[[str], None],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from app.api.deps import current_member
     from app.auth.session import Session
     from app.main import app
@@ -199,12 +217,12 @@ def test_bucket_unavailable_does_not_create_a_library_upload(
 @pytest.mark.parametrize("role", ["super_admin"])
 def test_fresh_analysis_survives_restart_and_skips_both_result_caches(
     client: TestClient,
-    b2_objects,
-    as_role,
+    b2_objects: dict[str, tuple[bytes, dict[str, Any]]],
+    as_role: Callable[[str], None],
     monkeypatch: pytest.MonkeyPatch,
     sessionmaker: async_sessionmaker[AsyncSession],
     role: str,
-) -> None:  # type: ignore[no-untyped-def]
+) -> None:
     from app.api import ingest as ingest_api
 
     video = upload(client, b2_objects)
@@ -225,7 +243,7 @@ def test_fresh_analysis_survives_restart_and_skips_both_result_caches(
             row.status = "queued"
             await session.commit()
 
-    def cache_not_allowed(*args, **kwargs):  # type: ignore[no-untyped-def]
+    def cache_not_allowed(*args: object, **kwargs: object) -> Any:
         raise AssertionError("Fresh analysis must not read either result cache")
 
     monkeypatch.setattr(ingest_api, "CachingAIClient", cache_not_allowed)
@@ -242,11 +260,11 @@ def test_fresh_analysis_survives_restart_and_skips_both_result_caches(
 @pytest.mark.parametrize("role", ["monitor", "supervisor", "auditor", "county_admin"])
 def test_non_admin_cannot_force_fresh_analysis(
     client: TestClient,
-    b2_objects,
-    as_role,
+    b2_objects: dict[str, tuple[bytes, dict[str, Any]]],
+    as_role: Callable[[str], None],
     monkeypatch: pytest.MonkeyPatch,
     role: str,
-) -> None:  # type: ignore[no-untyped-def]
+) -> None:
     video = upload(client, b2_objects)
     as_role(role)
     monkeypatch.setattr(ingest_jobs, "ensure_worker", lambda: None)
@@ -270,10 +288,10 @@ def test_non_admin_cannot_force_fresh_analysis(
 @pytest.mark.parametrize("role", ["county_admin", "monitor"])
 def test_ticket_upload_requires_administrator_login(
     client: TestClient,
-    b2_objects,
-    as_role,
+    b2_objects: dict[str, tuple[bytes, dict[str, Any]]],
+    as_role: Callable[[str], None],
     role: str,
-) -> None:  # type: ignore[no-untyped-def]
+) -> None:
     as_role(role)
     body = {
         "title": "Ticket evidence",
@@ -288,8 +306,8 @@ def test_ticket_upload_requires_administrator_login(
 
 def test_ticket_upload_respects_read_only_events_and_auditor_access(
     client: TestClient,
-    as_role,
-) -> None:  # type: ignore[no-untyped-def]
+    as_role: Callable[[str], None],
+) -> None:
     body = {
         "title": "Ticket evidence",
         "filename": "haul.mp4",

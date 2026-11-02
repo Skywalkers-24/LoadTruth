@@ -36,8 +36,7 @@ const TYPE_CHARS_PER_TICK = 3;
  */
 export function useAssistantChat(eventId: string | undefined, eventName?: string) {
   const { member } = useAuth();
-  const isAdministrator =
-    member?.role === "super_admin" || member?.role === "county_admin";
+  const isAdministrator = member?.role === "super_admin" || member?.role === "county_admin";
   const starters = useQuery({
     queryKey: ["chat-starters"],
     queryFn: getChatStarters,

@@ -16,6 +16,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Add an entry i
 
 ## [Unreleased]
 
+### Changed
+- **Code Quality Refactoring & Strict Quality Hardening (Backend & Frontend):**
+  - **Backend Type Safety (`mypy --strict`):** Achieved 100% clean strict static typing across all 133 backend source and test files. Added runtime type narrowing (`isinstance(container, av.container.InputContainer)`) in `frames.py` for PyAV streams; cast SQLAlchemy model declarative `__table__` references in migrations (`0004_demo_videos_jobs.py`); explicit PEP 484 re-export of `ingest_clip as ingest_clip` in `ingest_jobs.py`; typed all test fixtures, mocks, and helpers across `tests/conftest.py` and 10 test modules.
+  - **Security & Error Handling Hardening:** Replaced bare `try-except-pass` blocks in `tickets.py` with structured logger warnings (`log.warning`), resolving Ruff `S110` and Bandit `B110` (CWE-703).
+  - **Formatting & Style Conformance:** Resolved line length (`E501`) and isort import block sorting (`I001`) across `ingest.py`, `tickets.py`, `evidence_store.py`, and `frames.py`.
+  - **Frontend Code Formatting:** Formatted all TypeScript/React components and pages with Prettier (`npm run format`); added `frontend/.prettierignore` to exclude `.wrangler`, `.open-next`, `.next`, `coverage`, and public video/icon assets from formatting passes, reducing check times from over 20 seconds to 1 second.
+  - **Automation & Quality Gates (`scripts/eval.sh`):** Hardened the quality evaluation script to avoid subshell variable masking and ensure backend virtualenv tool resolution.
+
 ### Added
 - **Official LoadTruth brand identity across the entire web application and documentation.** Integrated vector SVGs and PNG icon sets from `LoadTruth_Brand_Icons_Dark_Light_SVG_PNG.zip`:
   - **Browser tab & PWA:** Dual-theme vector SVG favicons (`/icons/favicon-light.svg` with `(prefers-color-scheme: light)` and `/icons/favicon-dark.svg` with `(prefers-color-scheme: dark)`), Apple touch icons (`/icons/light/png/loadtruth-light-180.png`), `favicon.ico`, and a web app manifest (`site.webmanifest`) referencing high-res 192px and 512px assets. Dynamically synchronizes browser tab favicon with in-app theme changes.

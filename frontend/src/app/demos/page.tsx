@@ -415,7 +415,11 @@ export default function DemoVideosPage() {
                   {inputValue && (
                     <button
                       type="button"
-                      onClick={() => { setInputValue(""); setSearchQuery(""); setPage(0); }}
+                      onClick={() => {
+                        setInputValue("");
+                        setSearchQuery("");
+                        setPage(0);
+                      }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
                     >
                       ×

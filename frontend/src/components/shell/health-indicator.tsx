@@ -14,13 +14,7 @@ export function HealthIndicator() {
   const wakingUp = isError && isServerWakingUp(error);
 
   const state: "loading" | "waking" | "down" | "up" =
-    isLoading && !data
-      ? "loading"
-      : wakingUp
-        ? "waking"
-        : isError || data == null
-          ? "down"
-          : "up";
+    isLoading && !data ? "loading" : wakingUp ? "waking" : isError || data == null ? "down" : "up";
 
   const color =
     state === "up"

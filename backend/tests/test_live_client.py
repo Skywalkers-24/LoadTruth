@@ -16,6 +16,7 @@ from typing import Any
 
 import httpx
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.ai import live as live_module
 from app.ai.base import ClipMedia
@@ -293,7 +294,9 @@ async def test_real_alternate_bed_prompt_only_after_primary_miss() -> None:
 
 
 @pytest.mark.asyncio
-async def test_confirmed_truck_continues_without_bed_masks_and_reverifies(sessionmaker) -> None:
+async def test_confirmed_truck_continues_without_bed_masks_and_reverifies(
+    sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
     fake = RecoveryMeta(missing={"truck bed", "dump truck bed"})
     result, _ = await _run(_client(fake))
     assert not result.no_truck

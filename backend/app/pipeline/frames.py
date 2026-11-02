@@ -24,8 +24,9 @@ from __future__ import annotations
 import importlib.util
 from dataclasses import dataclass, field
 
-from app.config import get_settings
 import structlog
+
+from app.config import get_settings
 
 log = structlog.get_logger(__name__)
 
@@ -90,6 +91,8 @@ def _sample_with_pyav(data: bytes, fps: float) -> list[FrameRef]:
     cap = get_settings().max_sampled_frames
     try:
         with av.open(io.BytesIO(data)) as container:
+            if not isinstance(container, av.container.InputContainer):
+                return frames
             if not container.streams.video:
                 return frames
             stream = container.streams.video[0]

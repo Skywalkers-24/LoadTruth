@@ -27,7 +27,7 @@ const TIER_FILE = {
   sm: (mode: string) => `/login-${mode}-sm.mp4`, // ~430-630KB, instant start
   md: (mode: string) => `/login-${mode}-md.mp4`, // ~1.1-1.5MB, 720p
   lg: (mode: string) => `/login-${mode}-lg.mp4`, // ~2.9-4.1MB, 1080p
-  xl: (mode: string) => `/login-${mode}.mp4`,    // ~5.1-6.7MB, master source
+  xl: (mode: string) => `/login-${mode}.mp4`, // ~5.1-6.7MB, master source
 } as const;
 
 type NetworkInfo = {
@@ -160,7 +160,10 @@ export function LoginVideoBg({ hideVignette = false }: { hideVignette?: boolean 
       try {
         let isBuffered = false;
         for (let i = 0; i < high.buffered.length; i++) {
-          if (low.currentTime >= high.buffered.start(i) && low.currentTime <= high.buffered.end(i)) {
+          if (
+            low.currentTime >= high.buffered.start(i) &&
+            low.currentTime <= high.buffered.end(i)
+          ) {
             isBuffered = true;
             break;
           }

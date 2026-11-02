@@ -51,8 +51,10 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
   filtered.sort((a, b) => {
     const aOrder = WORKSPACE_ORDER.indexOf(a.id);
     const bOrder = WORKSPACE_ORDER.indexOf(b.id);
-    return (aOrder < 0 ? WORKSPACE_ORDER.length : aOrder) -
-      (bOrder < 0 ? WORKSPACE_ORDER.length : bOrder) || a.name.localeCompare(b.name);
+    return (
+      (aOrder < 0 ? WORKSPACE_ORDER.length : aOrder) -
+        (bOrder < 0 ? WORKSPACE_ORDER.length : bOrder) || a.name.localeCompare(b.name)
+    );
   });
 
   if (isLoading)
@@ -223,7 +225,8 @@ export function EventSwitcher({ compact = false }: { compact?: boolean }) {
                         )}
                         {e.tags?.includes("synthetic-demo") && (
                           <span className="mt-1 text-[10px] text-[var(--color-muted-foreground)]">
-                            Historical demo dataset · synthetic records, not official government data
+                            Historical demo dataset · synthetic records, not official government
+                            data
                           </span>
                         )}
                       </span>

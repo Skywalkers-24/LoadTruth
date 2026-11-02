@@ -22,7 +22,7 @@ from app.api.demo_videos import (
     owned_video,
 )
 from app.api.deps import CurrentMember, authorize_fresh_analysis, require
-from app.api.ingest import ingest_clip
+from app.api.ingest import ingest_clip as ingest_clip
 from app.api.repo import ActiveTenant, Repository
 from app.auth.roles import can_ingest
 from app.config import get_settings

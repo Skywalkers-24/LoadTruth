@@ -34,7 +34,8 @@ export function getAIModelName(model: string | null | undefined): string | null 
   if (!model) return null;
   const m = model.toLowerCase();
   if (m.includes("sam-3") || m.includes("sam 3") || m === "sam_track") return "Meta SAM 3.1";
-  if (m.includes("spark") || m.includes("muse") || m.includes("ocr") || m.includes("classify")) return "Meta Muse Spark 1.3";
+  if (m.includes("spark") || m.includes("muse") || m.includes("ocr") || m.includes("classify"))
+    return "Meta Muse Spark 1.3";
   return null;
 }
 
@@ -92,9 +93,9 @@ export function StageInspectorDrawer({
     ? "Not run"
     : stage.duration_ms == null || stage.duration_ms === 0
       ? "Instant (< 1 ms)"
-    : stage.duration_ms >= 1000
-      ? `${(stage.duration_ms / 1000).toFixed(1)} s`
-      : `${stage.duration_ms.toLocaleString()} ms`;
+      : stage.duration_ms >= 1000
+        ? `${(stage.duration_ms / 1000).toFixed(1)} s`
+        : `${stage.duration_ms.toLocaleString()} ms`;
 
   const aiModel = getAIModelName(stage.model);
 

@@ -7,6 +7,8 @@ guard, and the reset-to-default action.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from fastapi.testclient import TestClient
 
 from app.ai.config_store import get_ai_config_store
@@ -74,7 +76,7 @@ def test_patch_rejects_unsupported_effort(client: TestClient) -> None:
     assert "effort" in resp.json()["detail"]
 
 
-def test_patch_requires_admin_role(client: TestClient, as_role) -> None:
+def test_patch_requires_admin_role(client: TestClient, as_role: Callable[[str], None]) -> None:
     _reset_store()
     as_role("monitor")
     resp = client.patch("/system/ai-config/spark_ocr", json={"effort": "minimal"})

@@ -10,20 +10,13 @@ import {
 describe("video quality url variant resolution", () => {
   it("resolves relative benchmark urls to variants", () => {
     const url = "/videos/benchmark-001-ced45539ee71.mp4";
-    expect(getVideoVariantUrl(url, "low")).toBe(
-      "/videos/benchmark-001-ced45539ee71-low.mp4",
-    );
-    expect(getVideoVariantUrl(url, "medium")).toBe(
-      "/videos/benchmark-001-ced45539ee71-med.mp4",
-    );
-    expect(getVideoVariantUrl(url, "high")).toBe(
-      "/videos/benchmark-001-ced45539ee71.mp4",
-    );
+    expect(getVideoVariantUrl(url, "low")).toBe("/videos/benchmark-001-ced45539ee71-low.mp4");
+    expect(getVideoVariantUrl(url, "medium")).toBe("/videos/benchmark-001-ced45539ee71-med.mp4");
+    expect(getVideoVariantUrl(url, "high")).toBe("/videos/benchmark-001-ced45539ee71.mp4");
   });
 
   it("resolves cloudflare worker urls to variants", () => {
-    const cf =
-      "https://loadtruth.tiwabhay800.workers.dev/videos/benchmark-025-65b8152a3771.mp4";
+    const cf = "https://loadtruth.tiwabhay800.workers.dev/videos/benchmark-025-65b8152a3771.mp4";
     expect(getVideoVariantUrl(cf, "low")).toBe(
       "https://loadtruth.tiwabhay800.workers.dev/videos/benchmark-025-65b8152a3771-low.mp4",
     );
@@ -35,20 +28,14 @@ describe("video quality url variant resolution", () => {
 
   it("handles urls that already contain a variant suffix cleanly", () => {
     const low = "/videos/benchmark-002-85db2e8f1e08-low.mp4";
-    expect(getVideoVariantUrl(low, "medium")).toBe(
-      "/videos/benchmark-002-85db2e8f1e08-med.mp4",
-    );
-    expect(getVideoVariantUrl(low, "high")).toBe(
-      "/videos/benchmark-002-85db2e8f1e08.mp4",
-    );
+    expect(getVideoVariantUrl(low, "medium")).toBe("/videos/benchmark-002-85db2e8f1e08-med.mp4");
+    expect(getVideoVariantUrl(low, "high")).toBe("/videos/benchmark-002-85db2e8f1e08.mp4");
   });
 
   it("passes non-mp4 and empty urls through unchanged", () => {
     expect(getVideoVariantUrl(null, "low")).toBeNull();
     expect(getVideoVariantUrl(undefined, "high")).toBeNull();
-    expect(getVideoVariantUrl("/evidence/photo.jpg", "low")).toBe(
-      "/evidence/photo.jpg",
-    );
+    expect(getVideoVariantUrl("/evidence/photo.jpg", "low")).toBe("/evidence/photo.jpg");
   });
 });
 
@@ -73,4 +60,3 @@ describe("quality badges and labels", () => {
     expect(resolveQualityTier("high")).toBe("high");
   });
 });
-

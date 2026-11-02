@@ -1,31 +1,36 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
+import pytest
+
 from app.ai import agent
-from app.ai.analyst import ToolResult
+from app.ai.analyst import AnalystTools, ToolResult
+from app.ai.base import AIClient
 
 
 class FakeTools:
-    def __init__(self, evidence=None):
-        self.evidence = evidence or {}
+    def __init__(self, evidence: dict[str, Any] | None = None) -> None:
+        self.evidence: dict[str, Any] = evidence or {}
 
-    async def disputes(self):
+    async def disputes(self) -> ToolResult:
         return ToolResult("disputes", {}, self.evidence)
 
-    async def accuracy_stats(self):
+    async def accuracy_stats(self) -> ToolResult:
         return ToolResult("accuracy_stats", {}, self.evidence)
 
-    async def query_tickets(self, **kwargs):
+    async def query_tickets(self, **kwargs: Any) -> ToolResult:
         return ToolResult("query_tickets", kwargs, self.evidence)
 
-    async def query_anomalies(self):
+    async def query_anomalies(self) -> ToolResult:
         return ToolResult("query_anomalies", {}, self.evidence)
 
-    async def event_summary(self):
+    async def event_summary(self) -> ToolResult:
         return ToolResult("event_summary", {}, self.evidence)
 
 
-async def test_routes_grounded_answers_and_streams():
-    cases = [
+async def test_routes_grounded_answers_and_streams() -> None:
+    cases: list[tuple[str, dict[str, Any], str]] = [
         ("open disputes", {"count": 0}, "no open disputes"),
         ("accuracy", {"accuracy_within_10pct": None}, "No monitor calls"),
         ("top trucks", {"tickets": []}, "No tickets"),
@@ -56,14 +61,14 @@ async def test_routes_grounded_answers_and_streams():
         ),
     ]
     for question, evidence, expected in cases:
-        reply = await agent._compose(question, FakeTools(evidence), "Storm")
+        reply = await agent._compose(question, cast(AnalystTools, FakeTools(evidence)), "Storm")
         assert expected in reply.text
         assert reply.tools
         assert reply.suggestions
         assert "".join([part async for part in agent.stream_answer(reply)]) == reply.text
 
 
-def test_intents_followups_and_prompt_are_bounded():
+def test_intents_followups_and_prompt_are_bounded() -> None:
     assert agent._intent("dispute this") == "disputes"
     assert agent._intent("are we accurate") == "agreement"
     assert agent._intent("highest truck") == "overcalls"
@@ -78,9 +83,9 @@ def test_intents_followups_and_prompt_are_bounded():
     assert "older" in prompt and '"ok": true' in prompt
 
 
-async def test_answer_falls_back_when_model_fails(monkeypatch):
+async def test_answer_falls_back_when_model_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     class BrokenAI:
-        async def answer_question(self, prompt):
+        async def answer_question(self, prompt: str) -> str:
             raise RuntimeError("model unavailable")
 
     monkeypatch.setattr(
@@ -95,6 +100,8 @@ async def test_answer_falls_back_when_model_fails(monkeypatch):
             "pending_count": 0,
         }
     )
-    reply = await agent.answer("exposure", tools, "Storm", BrokenAI())
+    reply = await agent.answer(
+        "exposure", cast(AnalystTools, tools), "Storm", cast(AIClient, BrokenAI())
+    )
     assert "flagged" in reply.text
     assert reply.analysis_mode == "grounded"

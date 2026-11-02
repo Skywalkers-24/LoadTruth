@@ -392,7 +392,9 @@ async def ingest_clip(
                     stored_in_b2 = head is not None
                     if not stored_in_b2:
                         await evidence_store.save(
-                            artifact.content_hash, data, mime=guess_mime(filename, artifact.media_kind)
+                            artifact.content_hash,
+                            data,
+                            mime=guess_mime(filename, artifact.media_kind),
                         )
                         head = await asyncio.to_thread(
                             b2_store.head_key, b2_store.object_key(artifact.content_hash)

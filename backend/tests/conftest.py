@@ -9,7 +9,8 @@ tests track what runs in the demo build and will track Postgres later.
 from __future__ import annotations
 
 import os
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
+from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -38,14 +39,16 @@ def _no_meta_api_log(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
-def b2_objects(monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+def b2_objects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[dict[str, tuple[bytes, dict[str, Any]]]]:
     """A private in-memory S3 test double, never a production local fallback."""
     import hashlib
     import io
 
     from app.pipeline import b2_store
 
-    objects: dict[str, tuple[bytes, dict[str, object]]] = {}
+    objects: dict[str, tuple[bytes, dict[str, Any]]] = {}
     for key, value in {
         "B2_KEY_ID": "test",
         "B2_APPLICATION_KEY": "test",
@@ -145,7 +148,7 @@ def client(sessionmaker: async_sessionmaker[AsyncSession]) -> Iterator[TestClien
 
 
 @pytest.fixture
-def as_role(client: TestClient):
+def as_role(client: TestClient) -> Callable[[str], None]:
     """Return a callable that re-binds the signed-in role for RBAC tests."""
 
     def _set(role: str) -> None:

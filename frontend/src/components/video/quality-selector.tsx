@@ -101,7 +101,13 @@ export function QualitySelector({
                       {label}
                       {id === "auto" && (
                         <span className="ml-1.5 text-[10px] text-muted-foreground font-normal">
-                          ({resolvedTier === "high" ? "HD" : resolvedTier === "medium" ? "720p" : "480p"})
+                          (
+                          {resolvedTier === "high"
+                            ? "HD"
+                            : resolvedTier === "medium"
+                              ? "720p"
+                              : "480p"}
+                          )
                         </span>
                       )}
                     </span>
@@ -118,4 +124,3 @@ export function QualitySelector({
     </div>
   );
 }
-

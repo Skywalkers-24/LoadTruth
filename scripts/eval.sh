@@ -25,26 +25,29 @@ echo "========================="
 
 # --- Python backend ---
 if [ -d backend ]; then
-  ( cd backend
-    run "ruff lint"        ruff check .
-    run "ruff format"      ruff format --check .
-    run "mypy (strict)"    mypy --strict .
-    run "bandit (security)" bandit -q -r . -x tests
-    run "pip-audit (deps)" pip-audit
-    run "pytest + coverage" pytest --cov --cov-report=term-missing
-  ) || fail=1
+  pushd backend >/dev/null
+  if [ -d .venv/bin ]; then
+    export PATH="$PWD/.venv/bin:$PATH"
+  fi
+  run "ruff lint"         ruff check .
+  run "ruff format"       ruff format --check .
+  run "mypy (strict)"     mypy --strict .
+  run "bandit (security)" bandit -q -r app
+  run "pip-audit (deps)"  pip-audit
+  run "pytest"            pytest -q
+  popd >/dev/null
 else
   echo "==> backend/ (skipped: not scaffolded yet)"
 fi
 
 # --- TypeScript / Next.js frontend ---
 if [ -d frontend ]; then
-  ( cd frontend
-    run "eslint"           npx --no-install eslint .
-    run "tsc (noEmit)"     npx --no-install tsc --noEmit
-    run "prettier"         npx --no-install prettier --check .
-    run "vitest"           npx --no-install vitest run --coverage
-  ) || fail=1
+  pushd frontend >/dev/null
+  run "eslint"           npx --no-install eslint .
+  run "tsc (noEmit)"     npx --no-install tsc --noEmit
+  run "prettier"         npx --no-install prettier --check .
+  run "vitest"           npx --no-install vitest run
+  popd >/dev/null
 else
   echo "==> frontend/ (skipped: not scaffolded yet)"
 fi

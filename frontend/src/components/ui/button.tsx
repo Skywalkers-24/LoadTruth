@@ -16,7 +16,8 @@ const VARIANT: Record<Variant, string> = {
     "bg-[var(--color-accent-fill)] text-[var(--color-on-accent)] hover:bg-[var(--color-accent)]",
   secondary:
     "border border-[var(--color-border-strong)] bg-[var(--color-surface-2)] text-[var(--color-text)] hover:border-[var(--color-accent)]",
-  ghost: "text-[var(--color-muted-foreground)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]",
+  ghost:
+    "text-[var(--color-muted-foreground)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]",
   ok: "border border-[var(--color-ok)] text-[var(--color-ok)] hover:bg-[var(--color-ok-soft)]",
   warn: "border border-[var(--color-warn)] text-[var(--color-warn)] hover:bg-[var(--color-warn-soft)]",
   danger:

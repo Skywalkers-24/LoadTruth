@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -98,7 +99,10 @@ async def test_benchmark_playback_skips_b2_metadata(monkeypatch: pytest.MonkeyPa
         media_storage="b2",
         segments={"truck bed": "saved masks"},
     )
-    repo = SimpleNamespace(get_ticket_evidence=AsyncMock(return_value=row))
+    repo = cast(
+        SqlTicketRepository,
+        SimpleNamespace(get_ticket_evidence=AsyncMock(return_value=row)),
+    )
     load = AsyncMock(side_effect=AssertionError("Benchmark playback must not wait for B2"))
     monkeypatch.setattr(evidence_store, "load", load)
     ticket_id = UUID("44444444-4444-4444-4444-444444444444")

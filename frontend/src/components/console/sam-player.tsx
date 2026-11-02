@@ -2,7 +2,14 @@
 
 import { decodeMaskToSVGPath, formats } from "@meta-sam/parser";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { PlayIcon, PauseIcon, RotateCcwIcon, Volume2Icon, VolumeXIcon, Loader2Icon } from "lucide-react";
+import {
+  PlayIcon,
+  PauseIcon,
+  RotateCcwIcon,
+  Volume2Icon,
+  VolumeXIcon,
+  Loader2Icon,
+} from "lucide-react";
 
 import { fetchEvidenceMediaUrl, type TicketEvidence } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -382,7 +389,10 @@ export function SamPlayer({
               }}
               onLoadedMetadata={(e) => {
                 setDuration(e.currentTarget.duration);
-                if (timeRef.current > 0 && Math.abs(e.currentTarget.currentTime - timeRef.current) > 0.1) {
+                if (
+                  timeRef.current > 0 &&
+                  Math.abs(e.currentTarget.currentTime - timeRef.current) > 0.1
+                ) {
                   e.currentTarget.currentTime = timeRef.current;
                 }
               }}
@@ -612,7 +622,7 @@ export function frameLayers(beds: SamTrack, loads: SamTrack, rims: SamTrack, fra
       }
       if (fallbackRim !== null) break;
     }
-    rim = fallbackRim ?? (bed.top + (bed.bottom - bed.top) * 0.68);
+    rim = fallbackRim ?? bed.top + (bed.bottom - bed.top) * 0.68;
   }
 
   const filteredLoads = loadShapes.filter((s) => overlapShare(s, bed) > 0 && s.top < rim);

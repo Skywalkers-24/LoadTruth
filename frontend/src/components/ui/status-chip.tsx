@@ -5,11 +5,31 @@ import { cn } from "@/lib/utils";
 type Tone = "ok" | "warn" | "danger" | "info" | "neutral" | "brand";
 
 const TONE: Record<Tone, { dot: string; text: string; bg: string }> = {
-  ok: { dot: "bg-[var(--color-ok)]", text: "text-[var(--color-ok)]", bg: "bg-[var(--color-ok-soft)]" },
-  warn: { dot: "bg-[var(--color-warn)]", text: "text-[var(--color-warn)]", bg: "bg-[var(--color-warn-soft)]" },
-  danger: { dot: "bg-[var(--color-destructive)]", text: "text-[var(--color-destructive)]", bg: "bg-[var(--color-danger-soft)]" },
-  info: { dot: "bg-[var(--color-info)]", text: "text-[var(--color-info)]", bg: "bg-[var(--color-brand-soft)]" },
-  brand: { dot: "bg-[var(--color-brand)]", text: "text-[var(--color-brand)]", bg: "bg-[var(--color-brand-soft)]" },
+  ok: {
+    dot: "bg-[var(--color-ok)]",
+    text: "text-[var(--color-ok)]",
+    bg: "bg-[var(--color-ok-soft)]",
+  },
+  warn: {
+    dot: "bg-[var(--color-warn)]",
+    text: "text-[var(--color-warn)]",
+    bg: "bg-[var(--color-warn-soft)]",
+  },
+  danger: {
+    dot: "bg-[var(--color-destructive)]",
+    text: "text-[var(--color-destructive)]",
+    bg: "bg-[var(--color-danger-soft)]",
+  },
+  info: {
+    dot: "bg-[var(--color-info)]",
+    text: "text-[var(--color-info)]",
+    bg: "bg-[var(--color-brand-soft)]",
+  },
+  brand: {
+    dot: "bg-[var(--color-brand)]",
+    text: "text-[var(--color-brand)]",
+    bg: "bg-[var(--color-brand-soft)]",
+  },
   neutral: { dot: "bg-[var(--color-subtle)]", text: "text-muted-foreground", bg: "bg-secondary" },
 };
 

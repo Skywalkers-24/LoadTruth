@@ -7,7 +7,11 @@ import { AlertTriangleIcon, CircleDollarSignIcon, GaugeIcon, LayersIcon } from "
 import type { ReportsSummary, Ticket, TicketSort } from "@/lib/api";
 import { useTickets } from "@/lib/hooks";
 import { DonutChart, MultiLineTrend, RankedBars, type Datum } from "@/components/ui/charts-v2";
-import { TICKET_TREND_CONFIG, TicketTrendLegend, ticketTrend } from "@/components/overview/ticket-trend";
+import {
+  TICKET_TREND_CONFIG,
+  TicketTrendLegend,
+  ticketTrend,
+} from "@/components/overview/ticket-trend";
 import type { ChartConfig } from "@/components/ui/shadcn/chart";
 import { Card } from "@/components/ui/shadcn/card";
 import { StatusBadge } from "@/components/ui/badge";

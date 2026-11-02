@@ -89,7 +89,11 @@ export function EvidenceCanvas({ ticket }: { ticket: Ticket }) {
           </div>
           {evidence?.has_media && (
             <div className="lt-evidence-actions flex flex-wrap items-center gap-2">
-              <div className="lt-evidence-layers flex items-center gap-1.5" role="group" aria-label="Outline layers">
+              <div
+                className="lt-evidence-layers flex items-center gap-1.5"
+                role="group"
+                aria-label="Outline layers"
+              >
                 <button
                   type="button"
                   aria-pressed={layers.body}

@@ -18,8 +18,18 @@ All SVGs have a common `viewBox="0 0 1024 1024"`, so they scale cleanly to **any
 ## Website usage
 
 ```html
-<link rel="icon" type="image/svg+xml" href="/icons/favicon-light.svg" media="(prefers-color-scheme: light)" />
-<link rel="icon" type="image/svg+xml" href="/icons/favicon-dark.svg" media="(prefers-color-scheme: dark)" />
+<link
+  rel="icon"
+  type="image/svg+xml"
+  href="/icons/favicon-light.svg"
+  media="(prefers-color-scheme: light)"
+/>
+<link
+  rel="icon"
+  type="image/svg+xml"
+  href="/icons/favicon-dark.svg"
+  media="(prefers-color-scheme: dark)"
+/>
 <link rel="apple-touch-icon" href="/icons/light/png/loadtruth-light-180.png" />
 ```
 

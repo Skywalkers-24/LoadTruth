@@ -16,7 +16,7 @@ from app.tickets.seed import DEMO_EVENT_ID
 
 def _a_draft_id(client: TestClient) -> str:
     body = client.get("/tickets", params={"limit": 100, "event_id": str(DEMO_EVENT_ID)}).json()
-    return next(t["id"] for t in body["items"] if t["status"] == "draft")
+    return str(next(t["id"] for t in body["items"] if t["status"] == "draft"))
 
 
 def test_requires_authentication() -> None:

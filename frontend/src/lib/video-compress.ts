@@ -300,10 +300,13 @@ export async function compressVideoClient(
     };
 
     // Safety timeout: 2x duration + 3s
-    setTimeout(() => {
-      if (recorder.state === "recording") {
-        recorder.stop();
-      }
-    }, Math.max(10_000, duration * 1000 + 3000));
+    setTimeout(
+      () => {
+        if (recorder.state === "recording") {
+          recorder.stop();
+        }
+      },
+      Math.max(10_000, duration * 1000 + 3000),
+    );
   });
 }

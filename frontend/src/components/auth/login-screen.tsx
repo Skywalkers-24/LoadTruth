@@ -139,10 +139,13 @@ export function LoginScreen() {
             {/* Highlighted headline: brighter, heavier, with a glow so it pops
                 over the footage. */}
             <h1 className="text-[clamp(26px,2.25vw,32px)] font-extrabold leading-[1.12] tracking-tight text-white">
-              Precision load intelligence for <span className="text-[#7dd3fc]">disaster debris removal.</span>
+              Precision load intelligence for{" "}
+              <span className="text-[#7dd3fc]">disaster debris removal.</span>
             </h1>
             <p className="text-[14px] font-medium leading-relaxed text-white/90">
-              LoadTruth reviews truck footage in real time with Meta SAM 3.1 &amp; Muse Spark 1.3—estimating volumetric fill, verifying certified capacity, and generating defensible audit records for FEMA reimbursement.
+              LoadTruth reviews truck footage in real time with Meta SAM 3.1 &amp; Muse Spark
+              1.3—estimating volumetric fill, verifying certified capacity, and generating
+              defensible audit records for FEMA reimbursement.
             </p>
           </div>
         </div>
@@ -153,7 +156,9 @@ export function LoginScreen() {
         <div className="relative flex flex-col items-start gap-2.5 text-[12px] font-medium text-white [text-shadow:0_1px_10px_rgba(0,0,0,0.9),0_1px_2px_rgba(0,0,0,0.9)]">
           <div className="space-y-1">
             <p>AI estimates · video evidence · human review</p>
-            <p className="font-semibold text-white/95">Powered by Meta SAM 3.1 &amp; Muse Spark 1.3</p>
+            <p className="font-semibold text-white/95">
+              Powered by Meta SAM 3.1 &amp; Muse Spark 1.3
+            </p>
             <p className="text-white/80">Live inference via Meta Model API (api.meta.ai/v1)</p>
           </div>
           <Link

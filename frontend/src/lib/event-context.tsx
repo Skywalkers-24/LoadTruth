@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { isServerWakingUp, type EventSummary } from "@/lib/api";
+import { defaultEventId } from "@/lib/event-presentation";
 import { useEvents } from "@/lib/hooks";
 
 /**
@@ -41,7 +42,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     return undefined;
   });
 
-  // Resolve the selected event once events load: persisted choice, else first.
+  // Resolve the selected event once events load: explicit choice, else benchmark.
   useEffect(() => {
     if (events.length === 0) return;
     setSelectedIdState((current) => {
@@ -54,8 +55,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
           : null;
       if (requested && events.some((e) => e.id === requested)) return requested;
       if (stored && events.some((e) => e.id === stored)) return stored;
-      const adminEvent = events.find((e) => e.tags?.includes("admin-only") || e.name.toLowerCase().includes("loadtruth demo"));
-      return adminEvent?.id ?? events[0]?.id;
+      return defaultEventId(events);
     });
   }, [events]);
 

@@ -19,7 +19,10 @@ export function ThumbnailView() {
   const [showThemeToggle, setShowThemeToggle] = useState(true);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("poster")) {
+    if (
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("poster")
+    ) {
       setShowThemeToggle(false);
     }
   }, []);

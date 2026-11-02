@@ -11,7 +11,11 @@ import {
 
 import type { Dashboard, ReportsSummary, Ticket } from "@/lib/api";
 import { MultiLineTrend } from "@/components/ui/charts-v2";
-import { TICKET_TREND_CONFIG, TicketTrendLegend, ticketTrend } from "@/components/overview/ticket-trend";
+import {
+  TICKET_TREND_CONFIG,
+  TicketTrendLegend,
+  ticketTrend,
+} from "@/components/overview/ticket-trend";
 import { Card } from "@/components/ui/shadcn/card";
 import { Button } from "@/components/ui/shadcn/button";
 import { Progress } from "@/components/ui/shadcn/progress";
@@ -222,11 +226,7 @@ export function OverviewDashboard({
               </span>
             </div>
             <div className="min-h-0 flex-1 px-2 pb-3">
-              <MultiLineTrend
-                data={trend}
-                config={TICKET_TREND_CONFIG}
-                height="100%"
-              />
+              <MultiLineTrend data={trend} config={TICKET_TREND_CONFIG} height="100%" />
             </div>
             <TicketTrendLegend />
           </Card>

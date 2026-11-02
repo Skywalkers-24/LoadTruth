@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import shutil
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -66,12 +67,12 @@ async def test_video_transcode_success_without_host_ffmpeg(monkeypatch: pytest.M
     """Exercise the success path with a mocked executable, independent of host tools."""
     from app.pipeline import transcode
 
-    monkeypatch.setattr(transcode.shutil, "which", lambda name: "/mock/ffmpeg")
+    monkeypatch.setattr("shutil.which", lambda name: "/mock/ffmpeg")
 
-    async def probe(_hint, _src):
+    async def probe(_hint: object, _src: object) -> float:
         return 10.0
 
-    async def run(_ffmpeg, args, *, timeout_s):
+    async def run(_ffmpeg: object, args: list[str], *, timeout_s: float) -> bool:
         await asyncio.to_thread(Path(args[-1]).write_bytes, b"x" * 3000)
         return True
 
@@ -90,9 +91,9 @@ async def test_image_transcode_keeps_original_when_output_is_larger(
 ) -> None:
     from app.pipeline import transcode
 
-    monkeypatch.setattr(transcode.shutil, "which", lambda name: "/mock/ffmpeg")
+    monkeypatch.setattr("shutil.which", lambda name: "/mock/ffmpeg")
 
-    async def run(_ffmpeg, args, *, timeout_s):
+    async def run(_ffmpeg: object, args: list[str], *, timeout_s: float) -> bool:
         await asyncio.to_thread(Path(args[-1]).write_bytes, b"x" * 3000)
         return True
 
@@ -126,14 +127,14 @@ async def test_preserve_source_frames_falls_back_if_frame_rate_unavailable(
 
     from app.pipeline import transcode
 
-    monkeypatch.setattr(transcode.shutil, "which", lambda name: "/mock/ffmpeg")
+    monkeypatch.setattr("shutil.which", lambda name: "/mock/ffmpeg")
     monkeypatch.setattr(
         transcode,
         "get_settings",
         lambda: SimpleNamespace(preserve_source_frames=True, frame_sample_fps=6.0),
     )
 
-    async def probe(_src):
+    async def probe(_src: object) -> float | None:
         return None
 
     monkeypatch.setattr(transcode, "_probe_fps", probe)
@@ -147,7 +148,7 @@ async def test_partner_video_media_requires_ffmpeg(monkeypatch: pytest.MonkeyPat
     from app.ai import partner_media
     from app.ai.meta_http import ModelAPIRequestError
 
-    monkeypatch.setattr(partner_media.shutil, "which", lambda _name: None)
+    monkeypatch.setattr("shutil.which", lambda _name: None)
     with pytest.raises(ModelAPIRequestError, match="ffmpeg is required"):
         await partner_media.media_parts(b"video", "video/mp4", "video")
 
@@ -156,7 +157,7 @@ async def test_partner_video_media_requires_ffmpeg(monkeypatch: pytest.MonkeyPat
 async def test_probe_helpers_return_none_without_ffprobe(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.pipeline import transcode
 
-    monkeypatch.setattr(transcode.shutil, "which", lambda _name: None)
+    monkeypatch.setattr("shutil.which", lambda _name: None)
     assert await transcode._probe_duration_s("", Path("missing.mp4")) is None
     assert await transcode._probe_fps(Path("missing.mp4")) is None
 
@@ -165,9 +166,7 @@ async def test_probe_helpers_return_none_without_ffprobe(monkeypatch: pytest.Mon
 async def test_empty_media_returns_original_without_transcode(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from app.pipeline import transcode
-
-    monkeypatch.setattr(transcode.shutil, "which", lambda _name: "/mock/ffmpeg")
+    monkeypatch.setattr("shutil.which", lambda _name: "/mock/ffmpeg")
     result = await prepare_media(b"", media_kind="video", filename="clip.mp4")
     assert result.data == b""
     assert result.transcoded is False
@@ -177,8 +176,8 @@ async def test_empty_media_returns_original_without_transcode(
 async def test_ffmpeg_start_error_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.pipeline import transcode
 
-    async def fail(*_args, **_kwargs):
+    async def fail(*_args: object, **_kwargs: object) -> Any:
         raise OSError("not installed")
 
-    monkeypatch.setattr(transcode.asyncio, "create_subprocess_exec", fail)
+    monkeypatch.setattr("asyncio.create_subprocess_exec", fail)
     assert await transcode._run("/mock/ffmpeg", [], timeout_s=1) is False

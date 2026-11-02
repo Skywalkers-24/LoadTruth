@@ -65,11 +65,24 @@ export function MultiLineTrend({
     <ChartContainer config={config} className="h-full w-full" style={{ height }}>
       <LineChart data={data} margin={{ left: 4, right: 12, top: 8, bottom: 0 }}>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} fontSize={11} />
+        <XAxis
+          dataKey="label"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={24}
+          fontSize={11}
+        />
         <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={36} fontSize={11} />
         <ChartTooltip
           cursor={{ strokeDasharray: "4 4" }}
-          content={<ChartTooltipContent formatter={(value) => <span className="font-mono font-medium tabular-nums">{value}</span>} />}
+          content={
+            <ChartTooltipContent
+              formatter={(value) => (
+                <span className="font-mono font-medium tabular-nums">{value}</span>
+              )}
+            />
+          }
         />
         {keys.map((key) => (
           <Line
@@ -113,7 +126,14 @@ export function AreaTrend({
           </linearGradient>
         </defs>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} fontSize={11} />
+        <XAxis
+          dataKey="label"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={24}
+          fontSize={11}
+        />
         <YAxis
           tickLine={false}
           axisLine={false}
@@ -192,7 +212,11 @@ export function DonutChart({
           animationDuration={800}
         >
           {data.map((d, i) => (
-            <Cell key={i} fill={d.color ?? `var(--chart-${(i % 5) + 1})`} stroke="var(--color-card)" />
+            <Cell
+              key={i}
+              fill={d.color ?? `var(--chart-${(i % 5) + 1})`}
+              stroke="var(--color-card)"
+            />
           ))}
           <Label
             content={({ viewBox }) => {
@@ -244,13 +268,15 @@ export function RankedBars({
           tick={{ fill: "var(--color-foreground)" }}
         />
         <XAxis type="number" hide />
-        <Bar dataKey="value" radius={[4, 4, 4, 4]} fill={valueColor} isAnimationActive animationDuration={700} barSize={16}>
-          <LabelList
-            dataKey="display"
-            position="right"
-            className="fill-foreground"
-            fontSize={12}
-          />
+        <Bar
+          dataKey="value"
+          radius={[4, 4, 4, 4]}
+          fill={valueColor}
+          isAnimationActive
+          animationDuration={700}
+          barSize={16}
+        >
+          <LabelList dataKey="display" position="right" className="fill-foreground" fontSize={12} />
         </Bar>
       </BarChart>
     </ChartContainer>

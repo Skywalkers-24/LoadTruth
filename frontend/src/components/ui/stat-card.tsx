@@ -96,7 +96,10 @@ export function StatCard({
         {icon && (
           <span
             className={cn(
-              cn("grid shrink-0 place-items-center rounded-lg transition-transform duration-200 group-hover:scale-105", compact ? "size-7" : "size-8"),
+              cn(
+                "grid shrink-0 place-items-center rounded-lg transition-transform duration-200 group-hover:scale-105",
+                compact ? "size-7" : "size-8",
+              ),
               TONE_ICON_BG[tone],
             )}
           >
@@ -129,7 +132,16 @@ export function StatCard({
 
       {/* Pin the sub line to the bottom so every card in a row aligns, whether
           or not it has a progress bar above it. */}
-      {sub && <p className={cn("mt-auto text-muted-foreground", compact ? "pt-1.5 text-[11px] leading-snug" : "pt-2 text-[12px]")}>{sub}</p>}
+      {sub && (
+        <p
+          className={cn(
+            "mt-auto text-muted-foreground",
+            compact ? "pt-1.5 text-[11px] leading-snug" : "pt-2 text-[12px]",
+          )}
+        >
+          {sub}
+        </p>
+      )}
     </Card>
   );
 }

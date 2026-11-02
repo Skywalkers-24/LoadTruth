@@ -155,15 +155,21 @@ export function TicketMetadata({ ticket }: { ticket: Ticket }) {
 
       {showCalibration && (
         <div className="mt-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-[12px] leading-relaxed">
-          <p className="font-semibold text-foreground">Rigid Tailgate Reference Plane Calibration</p>
+          <p className="font-semibold text-foreground">
+            Rigid Tailgate Reference Plane Calibration
+          </p>
           <p className="mt-1 text-muted-foreground">
-            Volume is strictly derived from pre-certified bed dimensions, never hallucinated by an AI model:
+            Volume is strictly derived from pre-certified bed dimensions, never hallucinated by an
+            AI model:
           </p>
           <div className="mt-2 rounded bg-[var(--color-bg)] p-2 font-mono text-[11px] text-[var(--color-brand)]">
-            Volume (CY) = {v.certified_cubic_yards || "0"} CY (Certified Bed) &times; {v.est_fill_pct || "0"}% (SAM 3.1 Tailgate Fill Ratio) = {v.est_cubic_yards || "0"} Net CY
+            Volume (CY) = {v.certified_cubic_yards || "0"} CY (Certified Bed) &times;{" "}
+            {v.est_fill_pct || "0"}% (SAM 3.1 Tailgate Fill Ratio) = {v.est_cubic_yards || "0"} Net
+            CY
           </div>
           <p className="mt-1.5 text-[11px] text-muted-foreground">
-            Valuation: {v.est_cubic_yards || "0"} CY &times; ${v.rate_per_cy || "0"}/CY = ${v.est_dollar_value || "0.00"} calculated via Rate Schedule Engine.
+            Valuation: {v.est_cubic_yards || "0"} CY &times; ${v.rate_per_cy || "0"}/CY = $
+            {v.est_dollar_value || "0.00"} calculated via Rate Schedule Engine.
           </p>
         </div>
       )}
@@ -172,13 +178,27 @@ export function TicketMetadata({ ticket }: { ticket: Ticket }) {
         <div className="mt-2.5 rounded-lg border border-emerald-500/30 bg-[var(--color-surface)] p-3 text-[12px] leading-relaxed">
           <div className="flex items-center justify-between">
             <span className="font-semibold text-foreground">Live Inference Inspection</span>
-            <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400">api.meta.ai/v1/responses</span>
+            <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400">
+              api.meta.ai/v1/responses
+            </span>
           </div>
           <ul className="mt-2 space-y-1 text-[11px] text-muted-foreground">
-            <li><strong className="text-foreground">SAM 3.1:</strong> Streamed segmentation tokens tracking rigid tailgate rim, bed walls, and debris polygon.</li>
-            <li><strong className="text-foreground">Muse Spark 1.3:</strong> Structured OCR on truck placard and visual material classification ({debrisLabel(ticket.debris_class)}).</li>
-            <li><strong className="text-foreground">Cryptographic Receipt:</strong> SHA-256 fingerprint verified for ticket #{shortId(ticket.id)}.</li>
-            <li><strong className="text-foreground">Inference Economics:</strong> ~$0.038 USD billed per full analysis pass.</li>
+            <li>
+              <strong className="text-foreground">SAM 3.1:</strong> Streamed segmentation tokens
+              tracking rigid tailgate rim, bed walls, and debris polygon.
+            </li>
+            <li>
+              <strong className="text-foreground">Muse Spark 1.3:</strong> Structured OCR on truck
+              placard and visual material classification ({debrisLabel(ticket.debris_class)}).
+            </li>
+            <li>
+              <strong className="text-foreground">Cryptographic Receipt:</strong> SHA-256
+              fingerprint verified for ticket #{shortId(ticket.id)}.
+            </li>
+            <li>
+              <strong className="text-foreground">Inference Economics:</strong> ~$0.038 USD billed
+              per full analysis pass.
+            </li>
           </ul>
         </div>
       )}

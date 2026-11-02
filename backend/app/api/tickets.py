@@ -15,6 +15,7 @@ from io import BytesIO
 from typing import Annotated, Literal
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field, field_validator
@@ -48,6 +49,9 @@ from app.tickets.schemas import (
     event_to_out,
     ticket_to_out,
 )
+
+log = structlog.get_logger(__name__)
+
 
 router = APIRouter(tags=["tickets"])
 
@@ -338,8 +342,8 @@ async def ticket_evidence_media(
                 status_code=307,
                 headers={"Cache-Control": "no-store"},
             )
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning("ticket_evidence_media_url_failed", error=str(exc), ticket_id=str(ticket_id))
     entry = evidence_store.memory_entry(row.content_hash)
     if entry is not None:
         return Response(entry[1], media_type=entry[2], headers={"Cache-Control": "no-store"})
@@ -371,8 +375,8 @@ async def ticket_evidence_url(
         url = await evidence_store.media_url(row.content_hash)
         if url.startswith("http://") or url.startswith("https://"):
             return {"url": url}
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning("ticket_evidence_media_url_failed", error=str(exc), ticket_id=str(ticket_id))
     return {"url": f"/tickets/{ticket_id}/evidence/media", "storage": "memory"}
 
 

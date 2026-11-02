@@ -11,9 +11,10 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 
+import structlog
+
 from app.config import get_settings
 from app.pipeline import b2_store
-import structlog
 
 log = structlog.get_logger(__name__)
 

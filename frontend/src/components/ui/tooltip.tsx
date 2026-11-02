@@ -59,10 +59,10 @@ export function Tooltip({
     // Prefer the requested side; flip if there isn't room.
     let placement = side;
     if (side === "top" && t.top - b.height - gap < margin) placement = "bottom";
-    if (side === "bottom" && t.bottom + b.height + gap > window.innerHeight - margin) placement = "top";
+    if (side === "bottom" && t.bottom + b.height + gap > window.innerHeight - margin)
+      placement = "top";
 
-    const top =
-      placement === "top" ? t.top - b.height - gap : t.bottom + gap;
+    const top = placement === "top" ? t.top - b.height - gap : t.bottom + gap;
 
     // Center horizontally over the trigger, clamped to the viewport.
     let left = t.left + t.width / 2 - b.width / 2;

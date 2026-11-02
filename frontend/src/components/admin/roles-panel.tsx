@@ -108,7 +108,13 @@ export function RolesPanel() {
             <span className="text-[12px] font-semibold text-[var(--color-text)]">Add a user</span>
           </div>
           <div className="grid gap-3 sm:grid-cols-[1fr_1fr_180px_auto] sm:items-end">
-            <Field label="Email" value={email} onChange={setEmail} placeholder="name@county.gov" type="email" />
+            <Field
+              label="Email"
+              value={email}
+              onChange={setEmail}
+              placeholder="name@county.gov"
+              type="email"
+            />
             <Field label="Full name" value={name} onChange={setName} placeholder="Jane Doe" />
             <label className="flex flex-col gap-1 text-[12px] text-[var(--color-muted-foreground)]">
               Role
@@ -146,9 +152,16 @@ export function RolesPanel() {
           ))}
         </div>
       ) : users.isError ? (
-        <EmptyState title="Users unavailable" description="The backend didn’t return the member list." />
+        <EmptyState
+          title="Users unavailable"
+          description="The backend didn’t return the member list."
+        />
       ) : (users.data?.length ?? 0) === 0 ? (
-        <EmptyState icon={<UsersIcon size={20} />} title="No users yet" description="Add the first member above." />
+        <EmptyState
+          icon={<UsersIcon size={20} />}
+          title="No users yet"
+          description="Add the first member above."
+        />
       ) : (
         <ul className="lt-scroll max-h-[420px] divide-y divide-[var(--color-border)] overflow-y-auto rounded-lg border border-[var(--color-border)]">
           {users.data?.map((u) => (
@@ -159,7 +172,10 @@ export function RolesPanel() {
               <span className="flex min-w-0 items-center gap-2.5">
                 <span
                   className="grid size-8 shrink-0 place-items-center rounded-full text-[11px] font-bold"
-                  style={{ backgroundColor: "var(--color-accent-fill)", color: "var(--color-on-accent)" }}
+                  style={{
+                    backgroundColor: "var(--color-accent-fill)",
+                    color: "var(--color-on-accent)",
+                  }}
                   aria-hidden
                 >
                   {initials(u.full_name ?? u.email)}
@@ -190,7 +206,12 @@ export function RolesPanel() {
                         </option>
                       ))}
                     </select>
-                    <Button variant="danger" size="sm" onClick={() => setRemoving(u)} disabled={remove.isPending}>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => setRemoving(u)}
+                      disabled={remove.isPending}
+                    >
                       Remove
                     </Button>
                   </>
