@@ -839,7 +839,7 @@ function PipelineWorkflow() {
 }
 
 /* =========================================================================
-   7. FIELD BENCHMARKS & SYSTEMS ARCHITECTURE (Clean Light/Dark Contrast)
+   7. BENCHMARK STATUS & SYSTEMS ARCHITECTURE (Clean Light/Dark Contrast)
    ========================================================================= */
 function SystemBenchmarks() {
   return (
@@ -850,64 +850,64 @@ function SystemBenchmarks() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
           <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
-            Technical Field Benchmarks
+            Meta Model Evaluation
           </span>
           <h2 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Proven precision and edge reliability under disaster conditions
+            50 disaster-haul videos through the full pipeline
           </h2>
         </div>
         <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-          Tested on 50 uncurated disaster debris video runs
+          SAM 3.1 + Muse Spark · 2 disaster scenarios
         </span>
       </div>
 
-      {/* 4 Technical Benchmark Cards */}
       <div className="mb-3.5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3 text-center shadow-2xs">
           <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase">
-            Volume Precision
+            Videos Evaluated
           </span>
           <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-0.5 font-mono">
-            ±1.8%
+            50
           </p>
           <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">
-            Meta SAM ground-truth median
+            Meta SAM + Muse
           </span>
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3 text-center shadow-2xs">
           <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase">
-            Dirty Placard OCR
+            Project Scenarios
           </span>
-          <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 font-mono">
-            96.4%
-          </p>
+          <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 font-mono">2</p>
           <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">
-            Meta Muse uncurated match
+            Hurricane + Lahaina
           </span>
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3 text-center shadow-2xs">
           <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase">
-            Pipeline Latency
+            Pipeline Stages
           </span>
-          <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 font-mono">
-            4.2s
-          </p>
+          <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 font-mono">7</p>
           <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">
-            End-to-end video verification
+            Per-ticket trace persisted
           </span>
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3 text-center shadow-2xs">
           <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase">
-            Inference Cost
+            Saved Results
           </span>
           <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono">
-            $0.038
+            49
           </p>
           <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">
-            Total Meta model cost / load
+            Inspectable ticket traces
           </span>
         </div>
       </div>
+      <p className="mb-4 text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
+        Explore both evaluated projects in the demo. Six tickets also include monitor-call
+        comparisons within 10 percentage points; these are operational comparisons, not a substitute
+        for independently measured fill ground truth.
+      </p>
 
       {/* 3 Systems Engineering Highlights */}
       <div className="grid grid-cols-1 gap-3 text-xs md:grid-cols-2 lg:grid-cols-3">

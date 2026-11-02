@@ -195,10 +195,6 @@ export function TicketMetadata({ ticket }: { ticket: Ticket }) {
               <strong className="text-foreground">Cryptographic Receipt:</strong> SHA-256
               fingerprint verified for ticket #{shortId(ticket.id)}.
             </li>
-            <li>
-              <strong className="text-foreground">Inference Economics:</strong> ~$0.038 USD billed
-              per full analysis pass.
-            </li>
           </ul>
         </div>
       )}

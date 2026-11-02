@@ -15,7 +15,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-DEMO_CLIPS="${DEMO_CLIPS:-data_bench/clips}"
+DEMO_CLIPS="${DEMO_CLIPS:-scratch/demo-clips}"
 BASE="${BASE:-http://localhost:8000}"
 EVENT_ID="${EVENT_ID:-}"
 TOKEN="${TOKEN:-}"

@@ -1,8 +1,14 @@
 <div align="center">
 
-<a href="https://loadtruth.tiwabhay800.workers.dev/showcase">
-  <img src="./Poster.jpg" alt="LoadTruth — Precision load intelligence for disaster debris removal" width="100%">
+<a href="https://youtu.be/ilH6tjTAGKs">
+  <img src="https://img.youtube.com/vi/ilH6tjTAGKs/maxresdefault.jpg" alt="Play the LoadTruth demo on YouTube" width="100%">
 </a>
+
+<p>
+  <a href="https://youtu.be/ilH6tjTAGKs">YouTube Demo</a> ·
+  <a href="https://loadtruth.tiwabhay800.workers.dev/">Live Site</a> ·
+  <a href="https://x.com/TAbhay_/status/2117253574615060641">X Post</a>
+</p>
 
 <br/>
 <br/>
@@ -18,7 +24,6 @@
 ### Precision load intelligence for disaster debris removal.
 
 **Vision Measurement · Voice Transcription · Multi-Provider Inference · Cryptographic Receipts**  
-[Explore Public Showcase →](https://loadtruth.tiwabhay800.workers.dev/showcase) · [🎬 Watch 2-Min Demo Video →](./demo/LoadTruth_Demo.mp4) · [View Architecture Map →](./docs/ARCHITECTURE_MAP.md) · [Deep Research & Case Studies →](./Research.md)
 
 **Built with Meta SAM 3.1 & Muse Multimodal Models**  
 *Production partner inference support via Baseten, Modal, and Fireworks AI*
@@ -42,22 +47,6 @@ After a major hurricane or disaster, millions of tons of debris are hauled away 
 3. **Muse Voice Transcribe** captures the monitor's live radio call, strictly extracting stated fill percentages and spoken field warnings.
 4. **Deterministic Code Decides**: Median frame aggregation, certified registry matching, compliance anomaly rules, and exact Python `Decimal` money math ensure models never hallucinate dollars or volumes.
 5. **Cryptographic Evidence Receipt**: Generates a tamper-proof SHA-256 fingerprint over all raw inputs, allowing any county auditor, state FEMA inspector, or contractor to re-verify the exact measurement in sub-second time without an external AI call.
-
----
-
-## 🎬 2-Minute System Demonstration
-
-Watch the complete live walkthrough of LoadTruth in action ([`demo/LoadTruth_Demo.mp4`](./demo/LoadTruth_Demo.mp4)):
-
-> **Video Highlights (Duration: 02:26 | 2768×1512 Retina 60fps):**
-> - **`00:00 - 00:28`** · **The Debris Billing Crisis**: Manual tower monitor fatigue, arbitrary 10% upward rounding, and FEMA overbilling.
-> - **`00:29 - 00:54`** · **Edge Ingest & Client Guard**: Resilient camera/microphone ingest, PyAV keyframe extraction, and client-side compression.
-> - **`00:55 - 01:25`** · **SAM 3.1 & Muse Spark Vision**: Real-time segmentation of bed rim, tailgate reference plane, and load volume with vectorized SVG masks.
-> - **`01:26 - 01:50`** · **Muse Voice Transcribe**: Instant 16-bit PCM monitor audio transcription and spoken anomaly detection.
-> - **`01:51 - 02:10`** · **Deterministic Decimal Settlement**: Exact Python `Decimal` volume and rate math, certified registry matching, and SHA-256 tamper-proof receipt generation.
-> - **`02:11 - 02:26`** · **Operations Console & FEMA Audit Replay**: Instant multi-tenant review, AI analyst chat, and sub-second federal audit defense.
->
-> *Detailed walkthrough chapters and audio track are documented in [`demo/README.md`](./demo/README.md).*
 
 ---
 
@@ -99,18 +88,27 @@ No generative model ever invents volume or dollar amounts. Models provide pure s
 
 ---
 
-## 📊 Ground-Truth Benchmark: Human Monitor vs. LoadTruth
+## 📊 50-Video Meta Model Evaluation
 
-Across our 50-video benchmark suite comprising real gate footage and calibrated known-volume loads:
+We ran LoadTruth's video-to-ticket pipeline on a 50-video disaster-haul
+evaluation set using **Meta SAM 3.1** and **Muse Spark 1.3**. The clips cover two
+curated project scenarios: Hurricane Debris Recovery and Lahaina Wildfire
+Recovery. The evaluation exercises the actual product workflow—not just an
+isolated model call—including truck/load perception, placard and debris
+analysis, deterministic ticket calculation, anomaly checks, and reviewable
+evidence.
 
-| Benchmark Dimension | Traditional Tower Monitors | LoadTruth (SAM 3.1 + Muse Spark) | Operational & Audit Impact |
-|---|---|---|---|
-| **Measurement Resolution** | Coarse 10% steps (50%, 60%, 70%) | **Continuous (±1.8% pixel resolution)** | Eliminates systemic upward rounding |
-| **Placard Read Accuracy** | 82% (operator fatigue, bad weather) | **96.4% (Multi-frame OCR fusion)** | Blocks uncertified phantom trucks |
-| **Cycle-Time Compliance** | Manual retrospective log audit | **Automated geo-temporal rule engine** | Flags impossible runs (<20 min) live |
-| **Cost per Inspection** | **$5.00 – $12.00 / truck** | **$0.038 / truck** | **>99% cost reduction for taxpayers** |
-| **FEMA Audit Defense** | Paper slips with zero visual record | **Cryptographic SHA-256 evidence receipt** | Instant sub-second replay for federal auditors |
-| **Model API Status** | N/A | **Live Meta Model API (`api.meta.ai/v1`)** | Zero silent mock fallback |
+The two projects are available in the live demo. Supabase currently retains **49
+model-backed ticket results**, each with its ordered seven-stage pipeline trace.
+That gives judges a concrete way to inspect what the models produced, how the
+system turned it into a ticket, and where deterministic checks take over.
+
+For quantitative fill-accuracy claims, LoadTruth also includes a reproducible
+known-volume benchmark harness. It reports mean absolute error (MAE), root mean
+squared error (RMSE), the share of estimates within 10 percentage points, and
+error slices by material, camera angle, and lighting. Accuracy against physical
+ground truth requires independently measured labels; monitor-call comparisons
+are useful operational references.
 
 ---
 
@@ -272,7 +270,7 @@ LoadTruth provides an interactive, auditable operations suite spanning 12 produc
 
 LoadTruth does not measure accuracy against circular human monitor calls. Instead, it tests against a physically measured dataset:
 
-- **Independent Benchmark Suite (`backend/app/bench/`)**: Evaluates clips against ground-truth volumes recorded in `data_bench/ground_truth.csv`.
+- **Independent Benchmark Suite (`backend/app/bench/`)**: Evaluates clips against independently measured ground-truth volumes supplied in a local CSV manifest.
 - **Metrics Evaluated**:
   - **Mean Absolute Error (MAE)**: Average error in percentage points.
   - **Root Mean Squared Error (RMSE)**: Penalizing large variance.

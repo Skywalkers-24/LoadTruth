@@ -2,13 +2,13 @@
 
 Usage (from the backend dir, with the venv active):
 
-    python -m app.bench.run --clips ../data_bench/clips \\
-        --truth ../data_bench/ground_truth.csv --out ../data_bench/results.json
+    python -m app.bench.run --clips ../scratch/benchmark/clips \\
+        --truth ../scratch/benchmark/ground_truth.csv \\
+        --out ../scratch/benchmark/results.json
 
 For each row in the manifest it ingests the matching clip file through the real
 pipeline (SAM + Spark, or fixtures under MOCK_AI), reads the measured fill %, and
-compares it to the known true value. The output JSON is what the showcase
-benchmark card and the README table read from.
+compares it to the known true value, then writes a report to the requested path.
 
 The pipeline is the same code the API runs, so the benchmark measures the real
 estimator, not a reimplementation.

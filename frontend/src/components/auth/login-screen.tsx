@@ -7,13 +7,17 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRightIcon,
   BuildingIcon,
+  Code2Icon,
   DollarSignIcon,
   FileCheck2Icon,
+  Globe2Icon,
   Loader2Icon,
   MicIcon,
+  PlayIcon,
   ScanEyeIcon,
   ShieldAlertIcon,
   SparklesIcon,
+  XIcon,
 } from "lucide-react";
 
 import { getDirectory, isServerWakingUp, type DirectoryMember, type Role } from "@/lib/api";
@@ -309,6 +313,55 @@ export function LoginScreen() {
               See the public showcase
               <ArrowRightIcon className="size-4" />
             </a>
+            <nav aria-label="Project links" className="mt-2 grid grid-cols-4 gap-1.5">
+              <a
+                href="https://youtu.be/ilH6tjTAGKs"
+                target="_blank"
+                rel="noreferrer"
+                className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-background/60 px-1 py-1.5 transition-colors hover:border-[var(--color-brand)]/40 hover:bg-accent"
+                aria-label="Demo video on YouTube"
+              >
+                <span className="grid size-5 shrink-0 place-items-center rounded-md bg-red-600 text-white">
+                  <PlayIcon className="size-3 fill-current" />
+                </span>
+                <span className="truncate text-[10px] font-semibold leading-3 text-foreground">
+                  Demo
+                </span>
+              </a>
+              <a
+                href="https://loadtruth.tiwabhay800.workers.dev/"
+                target="_blank"
+                rel="noreferrer"
+                className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-background/60 px-1 py-1.5 transition-colors hover:border-[var(--color-brand)]/40 hover:bg-accent"
+              >
+                <Globe2Icon className="size-4.5 shrink-0 text-[var(--color-brand)]" />
+                <span className="truncate text-[10px] font-semibold leading-3 text-foreground">
+                  Try it
+                </span>
+              </a>
+              <a
+                href="https://github.com/Skywalkers-24/LoadTruth"
+                target="_blank"
+                rel="noreferrer"
+                className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-background/60 px-1 py-1.5 transition-colors hover:border-[var(--color-brand)]/40 hover:bg-accent"
+              >
+                <Code2Icon className="size-4.5 shrink-0 text-foreground" />
+                <span className="truncate text-[10px] font-semibold leading-3 text-foreground">
+                  GitHub
+                </span>
+              </a>
+              <a
+                href="https://x.com/TAbhay_/status/2117253574615060641"
+                target="_blank"
+                rel="noreferrer"
+                className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-background/60 px-1 py-1.5 transition-colors hover:border-[var(--color-brand)]/40 hover:bg-accent"
+              >
+                <XIcon className="size-4.5 shrink-0 text-foreground" />
+                <span className="truncate text-[10px] font-semibold leading-3 text-foreground">
+                  X post
+                </span>
+              </a>
+            </nav>
 
             <div className="mt-2.5">
               <Link

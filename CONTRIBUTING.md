@@ -94,7 +94,6 @@ Architecture is documented in [Readme.md](Readme.md#-architecture), with a compo
 | `frontend/src/lib/` | Typed API client, auth/query hooks, formatting, themes and app mode |
 | `infra/rbac/` | PostgreSQL RBAC schema and row-level security policies |
 | `scripts/` | Repeatable setup, dev, evaluation, live-check, probe and demo-cache tasks |
-| `data_bench/` | Known-volume benchmark manifest; large video clips are kept out of Git |
 | `.github/workflows/` | CI, security scan and manually dispatched deployment workflows |
 
 ## Configuration
