@@ -12,3 +12,4 @@ def test_eval_harness_execution() -> None:
     assert metrics.mean_absolute_error_pct < 5.0
     assert metrics.receipt_reproducibility_pct == 100.0
     assert metrics.latency_p50_ms < 1000.0
+

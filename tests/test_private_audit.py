@@ -12,3 +12,4 @@ def test_private_audit_runs_deterministically() -> None:
     assert res["model"] == "meta-models/muse-spark-open-1026"
     assert res["overbill_dollar_delta"] > 0
     assert len(str(res["receipt_hash"])) == 64
+

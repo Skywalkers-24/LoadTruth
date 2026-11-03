@@ -129,3 +129,4 @@ class EvaluationHarness:
             latency_p95_ms=round(p95, 1),
             receipt_reproducibility_pct=round(receipt_matches / total * 100, 1),
         )
+
