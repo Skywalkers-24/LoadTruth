@@ -25,8 +25,27 @@
 
 **Vision Measurement · Voice Transcription · Multi-Provider Inference · Cryptographic Receipts**  
 
-**Built with Meta SAM 3.1 & Muse Multimodal Models**  
-*Production partner inference support via Baseten, Modal, and Fireworks AI*
+[![CI](https://github.com/Skywalkers-24/LoadTruth/actions/workflows/ci.yml/badge.svg)](https://github.com/Skywalkers-24/LoadTruth/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-470%20passed-2ea44f?style=flat-square)](tests/)
+[![Eval Benchmark](https://img.shields.io/badge/eval%20benchmark-1.02%25%20MAE-blue?style=flat-square)](eval/RESULTS.md)
+[![Inference Partner](https://img.shields.io/badge/inference%20partner-Baseten-orange?style=flat-square)](https://baseten.co)
+[![Meta Models](https://img.shields.io/badge/Meta%20AI-SAM%203.1%20%7C%20Muse%20Spark%20%7C%20Voice-blueviolet?style=flat-square)](https://dev.meta.ai)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
+
+---
+
+## 🏛️ Meta Global AI Developer Hackathon 2026: Submission Overview
+
+| Pillar / Criterion | Details |
+|---|---|
+| **Track & Category** | **Track 1: Build for Your World** · Civic Tech, Infrastructure & Sustainability |
+| **Hackathon Provenance** | Built 100% from scratch during the hackathon window (October 26 – November 4, 2026). First commit: Oct 26. |
+| **Working Live App** | [https://loadtruth.tiwabhay800.workers.dev/](https://loadtruth.tiwabhay800.workers.dev/) *(Live production deployment with pre-seeded demo tickets & zero OAuth barriers)* |
+| **3-Minute Demo Video** | [https://youtu.be/ilH6tjTAGKs](https://youtu.be/ilH6tjTAGKs) *(3:00 stopwatch compliant with live UI footage, telemetry, and narration)* |
+| **Meta AI Models Used** | • `SAM 3.1` (`api.meta.ai`): truck bed, load boundary & tailgate reference plane vector segmentation<br>• `Muse Spark 1.3` (`api.meta.ai`): multi-frame volumetric reasoning, placard OCR & debris material classification<br>• `Muse Voice Transcribe` (`api.meta.ai`): tower monitor radio transmission speech-to-text extraction<br>• `Muse Spark Open` (`meta-models/muse-spark-open-1026` via Baseten): private/offline audit inference partner route |
+| **Bonus Prizes in Scope** | • **Best Build on Meta Open Weight Models ($10,000)** (`meta-models/muse-spark-open-1026` via Baseten)<br>• **Best Agentic Use-Case** (autonomous multi-stage inspection, OCR matching & cryptographic audit reconciliation) |
+| **Quantitative Benchmarks** | [eval/RESULTS.md](eval/RESULTS.md): **1.02% volumetric MAE** vs 13.20% human monitor error; **445 ms p95 latency**; 100% SHA-256 evidence determinism |
+| **Quickstart & Test Suite** | `make test` (375 backend + 95 frontend + root tests), `make eval` (quantitative benchmarks), `make eval-private` (open-weights run) |
 
 ---
 
