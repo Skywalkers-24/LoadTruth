@@ -40,6 +40,11 @@ jobs:
         run: bandit -q -r app
       - name: Pytest + coverage
         run: pytest --cov=app --cov-report=term-missing
+      - name: Root tests + Evaluation benchmarks
+        run: |
+          cd ..
+          pytest tests/ -q
+          python -m eval.runner
 
   frontend:
     name: Frontend (eslint · tsc · vitest · build)

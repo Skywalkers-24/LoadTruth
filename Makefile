@@ -23,7 +23,7 @@ FRONTEND := frontend
 PY := $(BACKEND)/.venv/bin
 
 .DEFAULT_GOAL := check
-.PHONY: check fmt test ci check-be check-fe test-be test-fe up down logs live-check meta-log db-migrate
+.PHONY: check fmt test ci check-be check-fe test-be test-fe test-root test-all eval bench eval-private up down logs live-check meta-log db-migrate
 
 # ── Run the app (always Docker, standard ports) ─────────────────────────────
 up:
@@ -63,7 +63,13 @@ fmt:
 	@cd $(FRONTEND) && npm run format
 
 # ── Quick tests (no coverage, fast) ──────────────────────────────────────────
-test: test-be test-fe
+test: test-be test-fe test-root
+
+test-root:
+	@echo "==> pytest (root tests)"
+	@$(PY)/pytest tests/ -q
+
+test-all: test-be test-fe test-root
 
 test-be:
 	@echo "==> pytest (backend, no coverage)"
@@ -72,6 +78,17 @@ test-be:
 test-fe:
 	@echo "==> vitest (frontend, no coverage)"
 	@cd $(FRONTEND) && npx --no-install vitest run
+
+# ── Quantitative Evaluation & Benchmarking ──────────────────────────────────
+eval:
+	@echo "==> running evaluation benchmark suite"
+	@$(PY)/python3 -m eval.runner
+
+bench: eval
+
+eval-private:
+	@echo "==> running private/offline audit benchmark (Muse Spark Open)"
+	@$(PY)/python3 eval/run_private_audit.py
 
 # ── Full gate (what CI runs) — slow, use before pushing ──────────────────────
 ci:
