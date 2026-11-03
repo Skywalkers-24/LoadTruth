@@ -18,6 +18,7 @@ from fastapi import Depends
 from app.api.deps import CurrentMember
 from app.db.engine import get_sessionmaker
 from app.tickets.repository import SqlTicketRepository
+from app.tickets.service import TicketService
 
 
 async def get_repository() -> AsyncIterator[SqlTicketRepository]:
@@ -31,10 +32,18 @@ async def get_repository() -> AsyncIterator[SqlTicketRepository]:
             raise
 
 
+async def get_ticket_service(
+    repo: Annotated[SqlTicketRepository, Depends(get_repository)],
+) -> TicketService:
+    """Dependency providing the TicketService business layer."""
+    return TicketService(repo)
+
+
 def get_active_tenant_id(member: CurrentMember) -> UUID:
     """The tenant the request operates on, taken from the signed-in member."""
     return UUID(member.tenant_id)
 
 
 Repository = Annotated[SqlTicketRepository, Depends(get_repository)]
+Service = Annotated[TicketService, Depends(get_ticket_service)]
 ActiveTenant = Annotated[UUID, Depends(get_active_tenant_id)]
