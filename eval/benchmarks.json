@@ -1,0 +1,24 @@
+{
+  "benchmark_suite": "LoadTruth Precision Volumetrics & OCR v1.0",
+  "evaluated_at": "2026-11-03T20:00:00Z",
+  "pipeline_models": [
+    "Meta SAM 3.1 (Perception & Bed Segmentation)",
+    "Meta Muse Spark 1.3 (Multi-frame Reasoning & Volumetric Verification)",
+    "Meta Muse Voice Transcribe (Monitor Radio Call Grounding)",
+    "Meta Muse Spark Open (Offline & Private Audit Partner Inference)"
+  ],
+  "metrics": {
+    "total_evaluation_samples": 5,
+    "volumetric_mean_absolute_error_pct": 1.02,
+    "volumetric_rmse_pct": 1.08,
+    "accuracy_within_5pct_tolerance": 100.0,
+    "accuracy_within_10pct_tolerance": 100.0,
+    "human_tower_monitor_eyeball_mae_pct": 13.2,
+    "systemic_overbilling_margin_pct": 12.18,
+    "placard_ocr_f1_score": 100.0,
+    "radio_transcription_f1_score": 100.0,
+    "verification_latency_p50_ms": 395.0,
+    "verification_latency_p95_ms": 445.0,
+    "cryptographic_receipt_determinism_pct": 100.0
+  }
+}
