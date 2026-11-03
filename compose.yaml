@@ -1,0 +1,91 @@
+# Local full-stack dev. Not the production deploy (that's free-tier managed
+# services — see docs/DEPLOYMENT.md). Brings up backend, frontend, Redis, and a
+# local Postgres so you can run end-to-end without external accounts.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: loadtruth
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    # The host advertises its available CPU count, but one Uvicorn process
+    # cannot use multiple cores for CPU-bound response parsing. Override with
+    # BACKEND_WORKERS for local batch runs; keep the normal dev default at 1.
+    command:
+      - sh
+      - -c
+      - >-
+        alembic upgrade head &&
+        export LOADTRUTH_SKIP_STARTUP_DB=1 &&
+        exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+        --workers ${BACKEND_WORKERS:-1}
+    env_file: ${ENV_FILE:-.env}
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/loadtruth
+      REDIS_URL: redis://redis:6379/0
+      # Live Meta calls turn on when .env holds a real MODEL_API_KEY. Without a
+      # key the pipeline replays recorded fixtures at zero cost. Set MOCK_AI=1
+      # in .env to force fixtures even with a key.
+      MOCK_AI: "${MOCK_AI:-0}"
+      # Every Meta API exchange is appended here (redacted); ./logs on the host.
+      MODEL_API_LOG_PATH: /app/logs/meta_api.jsonl
+      # Processed evidence clips (what the models saw), served to the Review console.
+      EVIDENCE_DIR: /app/media/evidence
+      # High-fidelity frame sampling for local run (uncompromised accuracy)
+      TARGET_SAMPLED_FRAMES: "${TARGET_SAMPLED_FRAMES:-120}"
+      MAX_SAMPLED_FRAMES: "${MAX_SAMPLED_FRAMES:-120}"
+      FRAME_SAMPLE_FPS: "${FRAME_SAMPLE_FPS:-3.0}"
+      SAM_LOAD_MAX_CONCEPTS: "${SAM_LOAD_MAX_CONCEPTS:-6}"
+      SAM_PARSE_WORKERS: "${SAM_PARSE_WORKERS:-4}"
+    volumes:
+      - ./logs:/app/logs
+      - ./media:/app/media
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        BACKEND_URL: http://backend:8000
+        # Set NEXT_PUBLIC_APP_MODE=judge in your shell/.env before building the
+        # frontend to get the judge-demo build (pinned ticket + Run live).
+        NEXT_PUBLIC_APP_MODE: "${NEXT_PUBLIC_APP_MODE:-default}"
+        NEXT_PUBLIC_JUDGE_TICKET_ID: "${NEXT_PUBLIC_JUDGE_TICKET_ID:-}"
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
