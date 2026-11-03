@@ -1,22 +1,29 @@
 # LoadTruth backend — FastAPI on Python 3.12.
-# Multi-stage: build deps in a builder, copy a slim runtime image.
+# Multi-stage container build: base -> builder -> tester -> runtime
 # syntax=docker/dockerfile:1
 
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim AS base
 WORKDIR /app
-ENV PIP_NO_CACHE_DIR=1 PYTHONDONTWRITEBYTECODE=1
-# ffmpeg is needed at runtime for frame sampling; build tools for asyncpg wheels.
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+
+FROM base AS builder
+ENV PIP_NO_CACHE_DIR=1
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 COPY pyproject.toml ./
-# Install only runtime deps into a venv we can copy forward.
+# Install production runtime dependencies into isolated venv
 RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install --upgrade pip \
     && /opt/venv/bin/pip install .
 
-FROM python:3.12-slim AS runtime
-WORKDIR /app
-ENV PATH="/opt/venv/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+FROM builder AS tester
+# Test stage to verify backend builds and tests cleanly inside container
+COPY . .
+RUN /opt/venv/bin/pip install ".[dev]" \
+    && LOADTRUTH_SKIP_STARTUP_DB=1 MOCK_AI=1 /opt/venv/bin/pytest tests/test_auth.py -q
+
+FROM base AS runtime
+ENV PATH="/opt/venv/bin:$PATH"
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg curl \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 appuser

@@ -1,10 +1,16 @@
 # LoadTruth frontend — Next.js 16 standalone output.
+# Multi-stage container build: deps -> tester -> builder -> runtime
 # syntax=docker/dockerfile:1
 
 FROM node:22-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
+
+FROM deps AS tester
+COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run typecheck
 
 FROM node:22-slim AS builder
 WORKDIR /app

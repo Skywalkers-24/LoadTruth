@@ -23,7 +23,23 @@ FRONTEND := frontend
 PY := $(BACKEND)/.venv/bin
 
 .DEFAULT_GOAL := check
-.PHONY: check fmt test ci check-be check-fe test-be test-fe test-root test-all eval bench eval-private up down logs live-check meta-log db-migrate
+.PHONY: check fmt test ci check-be check-fe test-be test-fe test-root test-all eval bench eval-private up down logs live-check meta-log db-migrate docker-build docker-test docker-up docker-down
+
+# ── Multi-Stage Container Lifecycle ─────────────────────────────────────────
+docker-build: ## Build multi-stage Docker images for backend and frontend
+	@echo "==> building multi-stage backend container"
+	docker build -t loadtruth-backend:latest ./backend
+	@echo "==> building multi-stage frontend container"
+	docker build -t loadtruth-frontend:latest ./frontend
+
+docker-test: ## Run tests inside containerized multi-stage tester targets
+	@echo "==> testing backend in multi-stage container"
+	docker build --target tester ./backend
+	@echo "==> testing frontend in multi-stage container"
+	docker build --target tester ./frontend
+
+docker-up: up
+docker-down: down
 
 # ── Run the app (always Docker, standard ports) ─────────────────────────────
 up:

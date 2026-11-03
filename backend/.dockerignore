@@ -9,7 +9,6 @@ htmlcov/
 dist/
 build/
 *.egg-info/
-tests/
 .git/
 # Local SQLite data: the container uses Postgres (docker-compose.yml).
 *.db
