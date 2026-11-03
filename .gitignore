@@ -29,6 +29,10 @@
 .DS_Store
 **/.DS_Store
 .kiro/
+.kiro/**
+steering/
+**/steering/
+**/steering/**
 codex-usage/
 
 # Large video exports (except curated demo directory and frontend showcase clips)

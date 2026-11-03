@@ -6,8 +6,8 @@
 # all services (Next.js Frontend, FastAPI Backend, PostgreSQL 16, Redis 7).
 #
 # Usage:
-#   ./run_docker.sh
-#   ./run_docker.sh --help
+#   ./quickstart.sh
+#   ./quickstart.sh --help
 # ==============================================================================
 
 set -euo pipefail

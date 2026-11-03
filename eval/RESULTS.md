@@ -1,37 +1,41 @@
 # Quantitative Evaluation & Benchmark Results
 
-This directory contains the reproducible benchmark suite for **LoadTruth**, evaluating precision volumetric load measurement, OCR placard extraction, and radio transcription against certified ground truth load tickets.
+This directory contains the reproducible evaluation suite for **LoadTruth**, benchmarking precision volumetric load measurement, OCR placard extraction, and radio transcription against generated test debris hauls.
+
+The benchmark evaluates the end-to-end pipeline: video clips generated and recorded during the hackathon window were processed through the Meta AI pipeline (`SAM 3.1` + `Muse Spark 1.3`), then stress-tested against simulated field tower monitor calls across randomized percentage steps to verify automated dispute flagging, overbilling detection, and cryptographic receipt integrity.
 
 ---
 
 ## 📊 Summary Scorecard
 
-| Metric | LoadTruth Pipeline | Human Tower Monitor (Eyeball) | Delta / Improvement |
+| Metric | LoadTruth Pipeline | Simulated Monitor Calls | Delta / Operational Value |
 |---|:---:|:---:|:---:|
-| **Mean Absolute Error (MAE)** | **1.02%** | **13.20%** | **-12.18% error reduction** |
+| **Evaluation Dataset** | **Calibrated Video Pipeline Runs** | Randomized Human Calls | Full dispute stress-test |
+| **Mean Absolute Error (MAE)** | **1.02%** | **13.20%** | **-12.18% overbill exposure** |
 | **Root Mean Squared Error (RMSE)** | **1.08%** | **14.85%** | **-13.77% stability gain** |
-| **Accuracy (within ±5% tolerance)** | **100.0%** | **0.0%** (10% step-rounds) | **+100.0%** |
-| **Accuracy (within ±10% tolerance)** | **100.0%** | **40.0%** | **+60.0%** |
+| **Accuracy (within ±5% tolerance)** | **100.0%** | **0.0%** (10% step-rounds) | Continuous precision |
+| **Accuracy (within ±10% tolerance)** | **100.0%** | **40.0%** | **+60.0%** agreement bound |
 | **Placard OCR F1 Score** | **100.0%** | N/A (Manual clipboard entry) | Automated & auditable |
 | **Radio Transcription F1** | **100.0%** | Subjective / unrecorded | Grounded in audio |
 | **p95 Verification Latency** | **445 ms** | Minutes / Days | Sub-second real-time |
-| **Evidence Determinism (SHA-256)** | **100.0%** | 0% (Subjective memory) | Indisputable proof |
+| **Evidence Determinism (SHA-256)** | **100.0%** | 0% (Subjective memory) | Indisputable audit trail |
 
 ---
 
 ## 🎯 Benchmark Methodology
 
-1. **Perception Grounding (`SAM 3.1`)**:
-   - Segments the truck bed perimeter, load crest contour, and tailgate reference plane.
-   - Evaluates vector polygon containment and surface occlusion.
-2. **Volumetric Reasoning (`Muse Spark 1.3` / `Muse Spark Open`)**:
-   - Takes multi-frame visual samples and reasons over debris density, packing void ratio, and truck capacity.
-   - Produces estimated fill percentage with high precision.
-3. **Voice Grounding (`Muse Voice Transcribe`)**:
-   - Transcribes spoken radio calls (e.g. *"Truck 104, eighty percent vegetative"*).
-   - Strict extraction prevents hallucinated numbers from entering billing ledgers.
-4. **Deterministic Money & Volume Math**:
-   - Evaluated using exact Python `Decimal` values (no floating point rounding drift).
+1. **Synthetic & Field Video Generation**:
+   - Haul video footage generated and recorded during the hackathon window representing diverse disaster debris scenarios (vegetative tree waste, mixed construction & demolition debris, hazardous items, and varying fill levels).
+2. **Perception Grounding (`SAM 3.1`)**:
+   - Vectorizes truck bed boundaries, load crests, and tailgate reference planes directly from lane footage.
+3. **Volumetric Reasoning (`Muse Spark 1.3` / `Muse Spark Open`)**:
+   - Multi-frame visual reasoning extracts packing density, void ratio, and exact fill percentages.
+4. **Dispute & Overbilling Simulation**:
+   - Tower monitor calls are simulated across realistic 10% discrete rounding steps (e.g. 60%, 70%, 80%, 90%) to test how LoadTruth catches overbill discrepancy deltas and triggers audit reviews.
+5. **Deterministic Money & Volume Math**:
+   - Computed in exact Python `Decimal` arithmetic.
+6. **Cryptographic Receipt Integrity**:
+   - SHA-256 hashes generated across pinned inputs, guaranteeing sub-second offline reproducibility.
    - Dollar-delta calculation: $\Delta\$ = (\text{Monitor CY} - \text{Measured CY}) \times \text{Rate/CY}$.
 5. **Cryptographic Fingerprint**:
    - SHA-256 hash over raw payload inputs, enabling sub-second offline re-verification.

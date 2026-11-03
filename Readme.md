@@ -28,9 +28,11 @@
 [![CI](https://github.com/Skywalkers-24/LoadTruth/actions/workflows/ci.yml/badge.svg)](https://github.com/Skywalkers-24/LoadTruth/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-470%20passed-2ea44f?style=flat-square)](tests/)
 [![Eval Benchmark](https://img.shields.io/badge/eval%20benchmark-1.02%25%20MAE-blue?style=flat-square)](eval/RESULTS.md)
-[![Inference Partner](https://img.shields.io/badge/inference%20partner-Baseten-orange?style=flat-square)](https://baseten.co)
+[![Baseten](https://img.shields.io/badge/partner-Baseten-orange?style=flat-square)](https://baseten.co)
+[![Modal](https://img.shields.io/badge/partner-Modal-3b82f6?style=flat-square)](https://modal.com)
+[![Fireworks AI](https://img.shields.io/badge/partner-Fireworks%20AI-e11d48?style=flat-square)](https://fireworks.ai)
 [![Meta Models](https://img.shields.io/badge/Meta%20AI-SAM%203.1%20%7C%20Muse%20Spark%20%7C%20Voice-blueviolet?style=flat-square)](https://dev.meta.ai)
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
 ---
 
@@ -42,10 +44,7 @@
 | **Hackathon Provenance** | Built 100% from scratch during the hackathon window (October 26 – November 4, 2026). First commit: Oct 26. |
 | **Working Live App** | [https://loadtruth.tiwabhay800.workers.dev/](https://loadtruth.tiwabhay800.workers.dev/) *(Live production deployment with pre-seeded demo tickets & zero OAuth barriers)* |
 | **3-Minute Demo Video** | [https://youtu.be/ilH6tjTAGKs](https://youtu.be/ilH6tjTAGKs) *(3:00 stopwatch compliant with live UI footage, telemetry, and narration)* |
-| **Meta AI Models Used** | • `SAM 3.1` (`api.meta.ai`): truck bed, load boundary & tailgate reference plane vector segmentation<br>• `Muse Spark 1.3` (`api.meta.ai`): multi-frame volumetric reasoning, placard OCR & debris material classification<br>• `Muse Voice Transcribe` (`api.meta.ai`): tower monitor radio transmission speech-to-text extraction<br>• `Muse Spark Open` (`meta-models/muse-spark-open-1026` via Baseten): private/offline audit inference partner route |
-| **Bonus Prizes in Scope** | • **Best Build on Meta Open Weight Models ($10,000)** (`meta-models/muse-spark-open-1026` via Baseten)<br>• **Best Agentic Use-Case** (autonomous multi-stage inspection, OCR matching & cryptographic audit reconciliation) |
-| **Quantitative Benchmarks** | [eval/RESULTS.md](eval/RESULTS.md): **1.02% volumetric MAE** vs 13.20% human monitor error; **445 ms p95 latency**; 100% SHA-256 evidence determinism |
-| **Quickstart & Test Suite** | `make test` (375 backend + 95 frontend + root tests), `make eval` (quantitative benchmarks), `make eval-private` (open-weights run) |
+| **Meta AI Models & Partners** | • `SAM 3.1` (`api.meta.ai`): truck bed, load boundary & tailgate reference plane vector segmentation<br>• `Muse Spark 1.3` (`api.meta.ai`): multi-frame volumetric reasoning, placard OCR & debris material classification<br>• `Muse Voice Transcribe` (`api.meta.ai`): tower monitor radio transmission speech-to-text extraction<br>• `Muse Spark Open` / `Muse Glimmer` (`meta-models/muse-spark-open-1026`): load-bearing private/offline inference via **Baseten**, **Modal**, and **Fireworks AI** |
 
 ---
 
@@ -433,3 +432,10 @@ LoadTruth was engineered from the ground up for zero-trust disaster debris accou
 1. **Never guess**: When an identity placard cannot be read or a truck is missing from the registry, flag it for human review.
 2. **Never hallucinate dollars**: All volumes, rates, and values are computed in exact Python `Decimal` arithmetic.
 3. **Reproducibility above all**: A measurement that cannot be independently reproduced is not evidence. LoadTruth makes every ticket provable.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
