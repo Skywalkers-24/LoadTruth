@@ -185,17 +185,20 @@ def ensure_worker() -> None:
 
 async def recover_ingest_jobs() -> None:
     # Single-process Render deployment: a previous running job was interrupted.
-    async with get_sessionmaker()() as session:
-        await session.execute(
-            update(AnalysisJob)
-            .where(AnalysisJob.status == "running")
-            .values(
-                status="failed",
-                detail="Interrupted by deployment restart. Ready for fresh upload.",
+    try:
+        async with get_sessionmaker()() as session:
+            await session.execute(
+                update(AnalysisJob)
+                .where(AnalysisJob.status == "running")
+                .values(
+                    status="failed",
+                    detail="Interrupted by deployment restart. Ready for fresh upload.",
+                )
             )
-        )
-        await session.commit()
-    ensure_worker()
+            await session.commit()
+        ensure_worker()
+    except Exception as exc:
+        log.warning("recover_ingest_jobs_skipped", error=str(exc))
 
 
 async def _working_event(repo: SqlTicketRepository, tenant: UUID, event_id: UUID) -> None:

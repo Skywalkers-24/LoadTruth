@@ -56,6 +56,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             log.info("redis_cache_ready")
         # Create tables and seed the demo tenant unless startup DB work is
         # explicitly disabled (as it is in isolated tests).
+        current_settings = get_settings()
         if os.environ.get("LOADTRUTH_SKIP_STARTUP_DB") != "1":
             from app.db.engine import get_sessionmaker, init_db
             from app.tickets.seed import seed_demo
@@ -63,10 +64,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             await init_db()
             async with get_sessionmaker()() as session:
                 await seed_demo(session)
-        if not settings.mock_ai:
-            from app.api.ingest_jobs import recover_ingest_jobs
+            if not current_settings.mock_ai:
+                from app.api.ingest_jobs import recover_ingest_jobs
 
-            await recover_ingest_jobs()
+                await recover_ingest_jobs()
         yield
     finally:
         from app.api.ingest_jobs import stop_ingest_jobs
