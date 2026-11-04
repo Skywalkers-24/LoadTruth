@@ -39,6 +39,7 @@ services:
       - -c
       - >-
         alembic upgrade head &&
+        python -c "import asyncio; from app.db.engine import get_sessionmaker; from app.tickets.seed import seed_demo; asyncio.run(seed_demo(get_sessionmaker()()))" &&
         export LOADTRUTH_SKIP_STARTUP_DB=1 &&
         exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
         --workers ${BACKEND_WORKERS:-1}

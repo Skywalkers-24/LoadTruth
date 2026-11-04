@@ -297,37 +297,76 @@ LoadTruth does not measure accuracy against circular human monitor calls. Instea
 
 ---
 
-## ⚡ Quick Start & Verification
+## ⚡ Quick Start
 
-### 🚀 One-Command Local Docker Full-Stack Run
-Run the entire platform (Next.js Frontend, FastAPI Backend, PostgreSQL 16, and Redis 7) locally with automated pre-flight checks, health verification, and instant URL reporting:
+### 🚀 1. One-Command Local Docker Run (Recommended)
+Boot the entire platform—Next.js Frontend, FastAPI Backend, PostgreSQL 16, and Redis 7—with automated environment checks, health probes, and live URL routing:
 
 ```bash
-# Validate environment, build images, boot containers, and display live URLs
-./run_docker.sh
+git clone https://github.com/Skywalkers-24/LoadTruth.git && cd LoadTruth
+./quickstart.sh
 ```
-*(Or use `./scripts/setup_docker.sh` directly with options such as `--backend-port`, `--frontend-port`, or `-p <project-name>`)*
-> See [**`SETUP.md`**](SETUP.md) for full container topology, troubleshooting, and configuration options.
 
-### 💻 Native Local Development (Without Docker)
+<div align="center">
+  <img src="docs/setup_run_sample.png" alt="LoadTruth Automated Quickstart Terminal Output" width="100%">
+</div>
 
-#### 1. Setup Backend with uv
+#### ⚡ Automated Pre-Flight Workflow
+The [`quickstart.sh`](quickstart.sh) entrypoint (calling [`scripts/setup_docker.sh`](scripts/setup_docker.sh)) executes end-to-end verification before launch:
+1. **Docker Engine & Compose**: Verifies Docker daemon status and selects the active Compose v2 specification.
+2. **Configuration & Safeguard**: Checks for `.env` (auto-creates from `.env.example` if missing). If `MODEL_API_KEY` is not provided, it automatically defaults to `MOCK_AI=1` running pre-recorded disaster debris fixtures at $0 cost with zero external cloud dependencies.
+3. **Port Availability Verification**: Checks ports **3000** (Frontend), **8000** (Backend), **5432** (PostgreSQL), and **6379** (Redis) to avoid host conflicts.
+4. **Build & Parallel Startup**: Builds Next.js standalone and FastAPI images using multi-stage Docker cache.
+5. **Healthcheck Polling**: Waits for PostgreSQL (`pg_isready`), Redis (`ping`), and API health endpoints (`200 OK`) before marking services ready.
+6. **Workspace Role Seeding**: Idempotently seeds the dummy disaster event, 5 workspace user roles, and truck fleet records.
+
+#### 🌿 Clean Operational Slate (Default)
+When containers boot up on a fresh database, LoadTruth initializes with a clean operational slate:
+* **Single Dummy Event**: Pre-provisions **"Disaster Recovery Operation 2026"** (ID: `22222222-2222-2222-2222-222222222222`) configured with standard FEMA contract rates ($8/CY vegetative, $12/CY C&D, $15/CY white goods, $25/CY hazardous).
+* **0 Pre-Seeded Tickets**: The event starts completely empty so you can upload footage, run real-time AI inference, record voice calls, and generate audit tickets from scratch.
+* **Pre-Certified Truck Fleet**: Vehicles like `FL-DT-3391` remain in the registry so truck placard OCR matches physical dimensions immediately.
+* *(To load the full 34-ticket benchmark evaluation suite instead, set `LOADTRUTH_FRESH_START=0` in `.env`).*
+
+#### 🔑 Active Web Endpoints & Credentials
+Once started, the following interfaces are live:
+
+| Portal | URL | Credentials / Access |
+|---|---|---|
+| **Operator Console & Review** | [http://localhost:3000](http://localhost:3000) | Instant 1-click role selection (Field Monitor, Operator, County Admin, Auditor) |
+| **System Owner & Model Routing** | [http://localhost:3000/superadmin](http://localhost:3000/superadmin) | **Username:** `admin` · **Password:** `LoadTruthAdmin!` |
+| **Interactive Ticket Review** | [http://localhost:3000/console](http://localhost:3000/console) | Tri-pane SAM player, SVG masks, and keyboard review |
+| **Deep AI Pipeline Telemetry** | [http://localhost:3000/pipeline](http://localhost:3000/pipeline) | Real-time stage traces, tokens, latency, and raw outputs |
+| **Public Showcase** | [http://localhost:3000/showcase](http://localhost:3000/showcase) | Disaster case studies and verified benchmark statistics |
+| **Interactive OpenAPI Docs** | [http://localhost:8000/docs](http://localhost:8000/docs) | Swagger UI for all backend endpoints |
+| **API Health Probe** | [http://localhost:8000/health](http://localhost:8000/health) | System health & Meta API key configuration status |
+
+#### 🔄 Running an Isolated New Instance or Fresh Rebuild
+If you already have a container running or want to start a brand new isolated stack on alternate ports:
+
 ```bash
-# Clone and enter repo
-git clone https://github.com/Skywalkers-24/loadtruth.git && cd loadtruth
+# Run a fresh isolated stack with custom project name and ports
+./quickstart.sh -p loadtruth-fresh --frontend-port 3002 --backend-port 8002 --db-port 5434 --redis-port 6381
 
-# Setup backend with uv
+# Or reset existing database volumes and restart with a clean slate:
+docker compose down -v && ./quickstart.sh
+```
+
+---
+
+### 💻 2. Native Development (Without Docker)
+
+If you prefer running services directly on your host machine:
+
+#### Step A: Start the Backend (FastAPI + Python 3.12)
+```bash
 cd backend
-uv sync
 cp ../.env.example ../.env
-# Configure your MODEL_API_KEY in .env
-
-# Start FastAPI (seeds demo tenant in SQLite or PostgreSQL)
-uv run uvicorn app.main:app --reload
+uv sync
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
-In a second terminal, launch the frontend:
-
+#### Step B: Start the Frontend (Next.js 16)
+In a separate terminal:
 ```bash
 cd frontend
 npm install
@@ -335,24 +374,35 @@ npm run dev
 # Open http://localhost:3000 in your browser
 ```
 
-### 2. Live Meta Model API & Multi-Provider Run
-Set your API keys in `.env`:
+---
+
+### 🌐 3. Multi-Cloud Partner Inference Configuration
+To route inference through Meta's direct API or partner gateways (Baseten, Modal, Fireworks), configure your keys in `.env`:
 
 ```dotenv
-MODEL_API_KEY=your_meta_api_key
+# Primary Meta Model Gateway
+MODEL_API_KEY=YOUR_META_API_KEY
 SPARK_PROVIDER=meta
 SPARK_FALLBACK_PROVIDERS=modal,baseten
 
-BASETEN_API_KEY=your_baseten_key
-MODAL_PROXY_TOKEN_ID=your_modal_token_id
-MODAL_PROXY_TOKEN_SECRET=your_modal_token_secret
-FIREWORKS_API_KEY=your_fireworks_key
+# Multi-Cloud Partner Fallbacks (Optional)
+BASETEN_API_KEY=YOUR_BASETEN_KEY
+MODAL_PROXY_TOKEN_ID=YOUR_MODAL_TOKEN_ID
+MODAL_PROXY_TOKEN_SECRET=YOUR_MODAL_TOKEN_SECRET
+FIREWORKS_API_KEY=YOUR_FIREWORKS_KEY
 ```
 
-### 3. Run Backend Verification Suite
+---
+
+### 🧪 4. Running Verification Test Suites
+Both backend and frontend test suites run with 100% pass rates:
+
 ```bash
-cd backend
-uv run pytest tests/test_bench.py tests/test_receipt.py tests/test_partner_providers.py -q
+# Run backend test suite (376 tests)
+cd backend && uv run pytest -q
+
+# Run frontend test suite (94 tests)
+cd frontend && npm test -- --run
 ```
 
 ---
@@ -360,68 +410,99 @@ uv run pytest tests/test_bench.py tests/test_receipt.py tests/test_partner_provi
 ## 🗺️ Repository Map
 
 ```
-backend/app/
-├── ai/
-│   ├── base.py              # Protocol definitions for multimodal clients (AIClient, ClipMedia)
-│   ├── catalog.py           # Typed model catalog, task types, pricing tables
-│   ├── live.py              # Real Meta Model API (SAM 3.1, Muse Spark, Voice audio)
-│   ├── meta_http.py         # HTTP transport for Meta Model endpoints
-│   ├── partner_http.py      # OpenAI-compatible engine for Baseten, Modal, Fireworks
-│   ├── providers.py         # Provider endpoint configuration and fallback routing
-│   ├── sam_measure.py       # SAM mask parsing, bed/tailgate geometry, depth mismatch
-│   ├── analyst.py           # Grounded SQL query tools for the AI analyst
-│   ├── agent.py             # Grounded analyst chat agent and SSE stream composer
-│   └── config_store.py      # Runtime model task configuration and overrides
-├── pipeline/
-│   ├── orchestrator.py      # Stages 0–6 runner with injected cache & cost ledger
-│   ├── ingest.py            # Clip normalization, SHA-256 content addressing
-│   ├── frames.py            # PyAV keyframe extraction and downscaling
-│   ├── registry.py          # Fuzzy matching against certified truck registry
-│   ├── anomalies.py         # Deterministic compliance rules (Capacity, Cycle, ID)
-│   ├── receipt.py           # SHA-256 cryptographic evidence fingerprint
-│   ├── ledger.py            # Real-time token usage, spend tracking & budget caps
-│   └── b2_store.py          # Backblaze B2 S3 storage client for evidence clips
-├── tickets/
-│   ├── money.py             # Deterministic Python Decimal CY and dollar math
-│   ├── billing.py           # County-to-contractor invoice roll-up engine
-│   ├── export.py            # Standalone printable FEMA audit packet & invoice HTML
-│   └── schemas.py           # Pydantic schemas (DebrisClass, TicketStatus, Role)
-├── db/
-│   ├── models.py            # Multi-tenant SQLAlchemy models (Ticket, Truck, Event, Anomaly)
-│   ├── tenant.py            # Supabase JWT verification & Postgres RLS binder
-│   └── engine.py            # Async engine and SQLite/PostgreSQL sessionmaker
-├── auth/
-│   └── roles.py             # 5-tier RBAC permission predicates (Monitor, Auditor, Supervisor, Admin)
-└── api/
-    ├── tickets.py           # Review workflow, monitor voice transcribe, reverify
-    ├── trucks.py            # Pre-certified truck fleet registry CRUD
-    ├── users.py             # Tenant user management and role assignment
-    ├── demo_videos.py       # Direct Backblaze B2 signed upload handshake
-    ├── ingest_jobs.py       # Durable background video analysis worker
-    ├── chat.py              # SSE stream for grounded analyst chat
-    ├── reports.py           # FEMA audit packages and CSV ledger exports
-    ├── billing.py           # Contractor billing rollups and invoice statements
-    ├── system.py            # Model catalog, spend ledger, and cache hit metrics
-    └── auth_session.py      # Role-switching, session cookies, and login/logout
-
-frontend/src/
-├── app/
-│   ├── console/             # Tri-pane review console (SAM player, SVG masks, shortcuts)
-│   ├── pipeline/            # Deep AI pipeline stage trace & model telemetry
-│   ├── assistant/           # Grounded AI operations analyst chat
-│   ├── trucks/              # Certified truck fleet registry management
-│   ├── demos/               # B2 video benchmark library & job queues
-│   ├── billing/             # Contractor settlement & invoice rollups
-│   ├── reports/             # FEMA/FROC audit packets & CSV exports
-│   ├── admin/               # County disaster events, rate tables & user RBAC
-│   ├── superadmin/          # System owner model provider toggles & spend limits
-│   ├── guide/               # Field monitor handbook & debris classification manual
-│   ├── showcase/            # Public showcase with sourced case studies & benchmarks
-│   └── login/               # Tenant authentication & role selector
-└── components/
-    ├── console/             # SamPlayer, TicketQueue, ReproducibilityCard
-    ├── shell/               # Navbar, RoleSwitcher, EventSwitcher
-    └── ui/                  # Accessible Tailwind design system components
+LoadTruth/
+├── quickstart.sh            # One-command automated local deployment entrypoint
+├── compose.yaml             # Docker Compose multi-service composition (Compose v2)
+├── docker-compose.yml       # Docker Compose compatibility manifest
+├── .env.example             # Clean two-part environment configuration template
+├── Makefile                 # Common developer and container lifecycle targets
+├── SETUP.md                 # Container topology, port assignments, and configuration guide
+├── CHANGELOG.md             # Monorepo architecture decisions and milestone log
+│
+├── scripts/                 # Deployment, evaluation, and diagnostic utilities
+│   ├── setup_docker.sh      # Automated Docker pre-flight validator, builder, and health probe
+│   ├── eval.sh              # 50-video benchmark evaluation runner
+│   ├── live-check.sh        # Live Meta Model API health & connectivity probe
+│   ├── sam-probe.sh         # Standalone SAM 3.1 segmenter probe
+│   ├── generate_masked_video.py # SVG/SAM segmentation mask video visualizer
+│   └── generate_video_variants.py # Multi-resolution evidence clip transcode generator
+│
+├── eval/                    # Ground-truth benchmark suite
+│   ├── run_eval.py          # Benchmark runner computing MAE, RMSE, and error bands
+│   ├── ground_truth.csv     # Certified physical volumes & environmental metadata
+│   └── RESULTS.md           # Model accuracy benchmarks across lighting & angles
+│
+├── backend/                 # FastAPI 0.115+ asynchronous Python backend
+│   ├── app/
+│   │   ├── ai/              # Multimodal AI perception & model providers
+│   │   │   ├── base.py              # Protocols for multimodal clients (AIClient, ClipMedia)
+│   │   │   ├── live.py              # Official Meta Model API (SAM 3.1, Muse Spark, Voice audio)
+│   │   │   ├── meta_http.py         # HTTP transport for Meta Model endpoints
+│   │   │   ├── partner_http.py      # OpenAI-compatible engine for Baseten, Modal, Fireworks
+│   │   │   ├── providers.py         # Provider endpoint configuration and fallback routing
+│   │   │   ├── sam_measure.py       # SAM mask parsing, bed/tailgate geometry, depth mismatch
+│   │   │   ├── analyst.py           # Grounded SQL query tools for the AI analyst
+│   │   │   ├── agent.py             # Grounded analyst chat agent and SSE stream composer
+│   │   │   └── config_store.py      # Runtime model task configuration and overrides
+│   │   ├── pipeline/        # 7-stage deterministic measurement pipeline
+│   │   │   ├── orchestrator.py      # Stages 0–6 runner with injected cache & cost ledger
+│   │   │   ├── ingest.py            # Clip normalization, SHA-256 content addressing
+│   │   │   ├── frames.py            # PyAV keyframe extraction and downscaling
+│   │   │   ├── registry.py          # Fuzzy matching against certified truck registry
+│   │   │   ├── anomalies.py         # Deterministic compliance rules (Capacity, Cycle, ID)
+│   │   │   ├── receipt.py           # SHA-256 cryptographic evidence fingerprint
+│   │   │   ├── ledger.py            # Real-time token usage, spend tracking & budget caps
+│   │   │   └── b2_store.py          # Backblaze B2 S3 storage client for evidence clips
+│   │   ├── tickets/         # Financial logic & compliance artifacts
+│   │   │   ├── money.py             # Deterministic Python Decimal CY and dollar math
+│   │   │   ├── billing.py           # County-to-contractor invoice roll-up engine
+│   │   │   ├── export.py            # Standalone printable FEMA audit packet & invoice HTML
+│   │   │   ├── seed.py              # Idempotent tenant, user, and clean-slate seeding
+│   │   │   └── schemas.py           # Pydantic schemas (DebrisClass, TicketStatus, Role)
+│   │   ├── db/              # Persistence layer
+│   │   │   ├── models.py            # Multi-tenant SQLAlchemy models (Ticket, Truck, Event, Anomaly)
+│   │   │   ├── tenant.py            # Supabase JWT verification & Postgres RLS binder
+│   │   │   └── engine.py            # Async engine and SQLite/PostgreSQL sessionmaker
+│   │   ├── auth/            # Security & RBAC
+│   │   │   └── roles.py             # 5-tier RBAC permission predicates (Monitor, Auditor, Supervisor, Admin)
+│   │   └── api/             # FastAPI REST & SSE routes
+│   │       ├── tickets.py           # Review workflow, monitor voice transcribe, reverify
+│   │       ├── trucks.py            # Pre-certified truck fleet registry CRUD
+│   │       ├── users.py             # Tenant user management and role assignment
+│   │       ├── demo_videos.py       # Direct Backblaze B2 signed upload handshake
+│   │       ├── ingest_jobs.py       # Durable background video analysis worker
+│   │       ├── chat.py              # SSE stream for grounded analyst chat
+│   │       ├── reports.py           # FEMA audit packages and CSV ledger exports
+│   │       ├── billing.py           # Contractor billing rollups and invoice statements
+│   │       ├── system.py            # Model catalog, spend ledger, and cache hit metrics
+│   │       └── auth_session.py      # Role-switching, session cookies, and login/logout
+│   ├── migrations/          # Alembic database migrations
+│   ├── tests/               # 376 pytest test suites (100% passing)
+│   └── seed.json            # Single declarative tenant seed definition
+│
+└── frontend/                # Next.js 16 (React 19, Tailwind CSS, TypeScript)
+    └── src/
+        ├── app/             # App Router interfaces
+        │   ├── console/             # Tri-pane review console (SAM player, SVG masks, shortcuts)
+        │   ├── pipeline/            # Deep AI pipeline stage trace & model telemetry
+        │   ├── assistant/           # Grounded AI operations analyst chat
+        │   ├── trucks/              # Certified truck fleet registry management
+        │   ├── demos/               # B2 video benchmark library & job queues
+        │   ├── billing/             # Contractor settlement & invoice rollups
+        │   ├── reports/             # FEMA/FROC audit packets & CSV exports
+        │   ├── admin/               # County disaster events, rate tables & user RBAC
+        │   ├── superadmin/          # System owner model provider toggles & spend limits
+        │   ├── guide/               # Field monitor handbook & debris classification manual
+        │   ├── showcase/            # Public showcase with sourced case studies & benchmarks
+        │   └── login/               # Tenant authentication & 1-click role directory
+        ├── components/      # UI components & design system
+        │   ├── console/             # SamPlayer, TicketQueue, ReproducibilityCard
+        │   ├── shell/               # Navbar, RoleSwitcher, EventSwitcher, ThemeToggle
+        │   └── ui/                  # Accessible Tailwind & shadcn UI primitives
+        └── lib/             # Typed API clients & browser utilities
+            ├── api.ts               # Typed client for the FastAPI backend
+            ├── audio.ts             # Microphone audio capture & 16-bit PCM WAV encoding
+            └── format.ts            # Cubic yard, currency, and date formatters
 ```
 
 ---

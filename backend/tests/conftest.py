@@ -35,6 +35,7 @@ def _no_meta_api_log(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setenv("SPARK_PROVIDER", "meta")
     monkeypatch.setenv("SPARK_FALLBACK_PROVIDERS", "")
     monkeypatch.setenv("LOADTRUTH_SKIP_STARTUP_DB", "1")
+    monkeypatch.setenv("LOADTRUTH_SEED_FULL", "1")
     monkeypatch.setenv("MOCK_AI", "1")
     yield
     get_settings.cache_clear()

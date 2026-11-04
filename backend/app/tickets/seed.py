@@ -14,6 +14,7 @@ separate read-only showcase bundle restores its preprocessed videos/results.
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
 from decimal import Decimal
 from functools import lru_cache
@@ -488,16 +489,79 @@ async def _seed_workspaces(session: AsyncSession, tenant_id: UUID) -> None:
     await session.flush()
 
 
+def is_fresh_start() -> bool:
+    if os.environ.get("LOADTRUTH_SEED_FULL") == "1":
+        return False
+    return os.environ.get("LOADTRUTH_FRESH_START", "1") == "1"
+
+
 async def seed_demo(session: AsyncSession) -> None:
     """Idempotently seed the demo tenant from `seed.json`. Safe on every startup.
 
-    Seeds the tenant-level truck registry and members once, then every event
-    (with its own rate table, sources, and tickets). Existing installations
-    still receive the separately packaged showcase event and media.
+    In fresh-start mode (default for local Docker runs), creates only 1 dummy event,
+    the workspace user roles, and trucks, leaving tickets empty for the user to create.
     """
     data = _seed_data()
     tenant_id = DEMO_TENANT_ID
     events = _events()
+
+    existing = (
+        await session.execute(select(models.Event).where(models.Event.id == DEMO_EVENT_ID))
+    ).scalar_one_or_none()
+
+    if is_fresh_start():
+        if existing is not None:
+            await session.commit()
+            return
+
+        for t in data.get("trucks", []):
+            session.add(
+                models.Truck(
+                    tenant_id=tenant_id,
+                    truck_number=t["truck_number"],
+                    body_type=t.get("body_type"),
+                    certified_cubic_yards=t["certified_cubic_yards"],
+                    registry_source="seed",
+                )
+            )
+        for u in data.get("users", []):
+            session.add(
+                models.User(
+                    tenant_id=tenant_id,
+                    email=u["email"],
+                    full_name=u.get("full_name"),
+                    role=u.get("role", "monitor"),
+                    status=u.get("status", "active"),
+                )
+            )
+
+        ev = events[0]
+        event_id = UUID(str(ev["id"]))
+        session.add(
+            models.Event(
+                id=event_id,
+                tenant_id=tenant_id,
+                name="Disaster Recovery Operation 2026",
+                location="Sector 7 - Pinellas Recovery Zone",
+                status="active",
+                rate_table=dict(ev.get("rate_table", {})),
+                tags=["active", "primary"],
+            )
+        )
+        for s in ev.get("sources", []):
+            session.add(
+                models.Source(
+                    tenant_id=tenant_id,
+                    event_id=event_id,
+                    kind=s["kind"],
+                    name=s["name"],
+                    config=dict(s.get("config", {})),
+                    status=s.get("status", "active"),
+                )
+            )
+        await session.commit()
+        return
+
     await _seed_workspaces(session, tenant_id)
 
     # Accuracy is now computed from real monitor calls vs. machine estimates

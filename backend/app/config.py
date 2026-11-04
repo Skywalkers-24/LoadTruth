@@ -230,7 +230,10 @@ class Settings(BaseSettings):
 
     @property
     def model_api_configured(self) -> bool:
-        return bool(self.model_api_key) and self.model_api_key != "TO_BE_UPDATED_LATER"
+        return bool(self.model_api_key) and self.model_api_key not in (
+            "TO_BE_UPDATED_LATER",
+            "YOUR_META_API_KEY",
+        )
 
     @property
     def live_ai_enabled(self) -> bool:

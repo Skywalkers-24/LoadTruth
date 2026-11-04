@@ -6,10 +6,10 @@ This guide walks through running the entire **LoadTruth** full-stack platform lo
 
 ## ⚡ Quick Start (One Command)
 
-To run the complete automated pre-flight validation, build all images, start containers, and display live URLs, run:
+To validate the environment, build all images, start containers, and display live URLs:
 
 ```bash
-./scripts/setup_docker.sh
+./quickstart.sh
 ```
 
 ---
@@ -23,7 +23,8 @@ The setup script [`scripts/setup_docker.sh`](./scripts/setup_docker.sh) handles 
    - Detects whether to use `docker compose` (v2 plugin) or standalone `docker-compose`.
 2. **Environment File Initialization & Validation**:
    - Checks for `.env`. If absent, automatically copies `.env.example` to `.env`.
-   - **Zero-Credit Safeguard**: If `MODEL_API_KEY` is empty or set to placeholder, the script automatically sets `MOCK_AI=1` in `.env`. This ensures the stack boots **100% offline with zero external API calls at $0 cost**.
+   - **Missing Variables Validation**: Checks that required core variables (`DATABASE_URL`, `SUPERADMIN_USERNAME`, `SUPERADMIN_PASSWORD`) are present and alerts the user to update them if missing.
+   - **Zero-Credit Safeguard**: If `MODEL_API_KEY` is not provided, the script automatically defaults to `MOCK_AI=1` running pre-recorded disaster debris fixtures at $0 cost with zero external cloud dependencies.
    - Ensures local volume directories (`logs/`, `media/evidence/`) exist on the host.
 3. **Port Availability Verification**:
    - Probes host ports **3000** (Frontend), **8000** (Backend API), **5432** (PostgreSQL), and **6379** (Redis).
@@ -73,14 +74,14 @@ For operational field roles:
 
 ---
 
-## ⚡ Disaster Events: Seeded & Dynamic Provisioning
+## ⚡ Disaster Events & Clean Operational Slate
 
 Disaster events scope all rate tables, truck registries, and tickets:
 
-1. **Automatic Default Seed:**  
-   On startup, the database automatically seeds **"Hurricane Season 2026"** (Pinellas County, FL) with 15 certified trucks, sample tickets across all anomaly categories, and pre-computed reproducibility receipts.
-2. **Automated Dynamic Provisioning:**  
-   Every time [`./scripts/setup_docker.sh`](./scripts/setup_docker.sh) executes, it authenticates as SuperAdmin and dynamically calls `POST /events` on the backend, generating a fresh, timestamped disaster event (e.g., *"Emergency Debris Operation 2026-11-01"*) with configured debris rates ($8/CY vegetative, $12/CY C&D, $15/CY white goods, $25/CY hazardous).
+1. **Clean Operational Slate (Default):**  
+   On startup, the database automatically seeds **"Disaster Recovery Operation 2026"** (Pinellas County, FL) with all 5 workspace member roles, pre-certified fleet trucks, and **0 pre-seeded tickets** so you have a completely clean slate to ingest video footage, create load tickets, and test real-time adjudication from scratch.
+2. **Full Benchmark Mode (`LOADTRUTH_FRESH_START=0`):**  
+   To load the full 34-ticket historical benchmark dataset with pre-calculated overbills and audit ledgers, set `LOADTRUTH_FRESH_START=0` in `.env`.
 
 ---
 

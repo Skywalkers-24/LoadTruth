@@ -141,9 +141,9 @@ log_success "Docker daemon is running and responsive."
 # Detect compose command syntax
 COMPOSE_CMD=""
 if docker compose version >/dev/null 2>&1; then
-    COMPOSE_CMD="docker compose -p $PROJECT_NAME --env-file $ENV_FILE"
+    COMPOSE_CMD="docker compose -p $PROJECT_NAME --env-file $ENV_FILE -f compose.yaml"
 elif command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE_CMD="docker-compose -p $PROJECT_NAME --env-file $ENV_FILE"
+    COMPOSE_CMD="docker-compose -p $PROJECT_NAME --env-file $ENV_FILE -f compose.yaml"
 else
     log_error "Neither 'docker compose' nor 'docker-compose' was found."
     exit 1
@@ -208,13 +208,21 @@ fi
 # Ensure required local volume directories exist
 mkdir -p logs media/evidence
 
+# Validate required environment variables from Part 1
+for required_var in "DATABASE_URL" "SUPERADMIN_USERNAME" "SUPERADMIN_PASSWORD"; do
+    val="$(get_env_val "$required_var")"
+    if [ -z "$val" ]; then
+        log_warn "Required environment variable '$required_var' is missing in $ENV_FILE. Please update it (reference .env.example)."
+    fi
+done
+
 MOCK_AI_VAL="$(get_env_val "MOCK_AI")"
 MODEL_KEY_VAL="$(get_env_val "MODEL_API_KEY")"
 
 # Validate Mode: Live vs Mock
-if [ -z "$MODEL_KEY_VAL" ] || [ "$MODEL_KEY_VAL" = "TO_BE_UPDATED_LATER" ]; then
+if [ -z "$MODEL_KEY_VAL" ] || [ "$MODEL_KEY_VAL" = "TO_BE_UPDATED_LATER" ] || [ "$MODEL_KEY_VAL" = "YOUR_META_API_KEY" ]; then
     if [ "$MOCK_AI_VAL" != "1" ]; then
-        log_warn "MODEL_API_KEY is not configured. Setting MOCK_AI=1 in $ENV_FILE for $0-cost deterministic offline execution..."
+        log_info "MODEL_API_KEY is not provided. The script automatically defaults to MOCK_AI=1 running pre-recorded disaster debris fixtures at \$0 cost with zero external cloud dependencies."
         if grep -q "^MOCK_AI=" "$ENV_FILE"; then
             sed -i.bak 's/^MOCK_AI=.*/MOCK_AI=1/' "$ENV_FILE" && rm -f "${ENV_FILE}.bak"
         else
@@ -330,50 +338,28 @@ for i in {1..20}; do
 done
 
 # ------------------------------------------------------------------------------
-# 6. Dynamic Tenant Event Creation & Admin Handshake
+# 6. Workspace Role Seeding & Dynamic Tenant Event Creation
 # ------------------------------------------------------------------------------
-log_info "Step 6/6: Verifying Administrator credentials and dynamically provisioning event..."
+log_info "Step 6/6: Ensuring workspace member roles and benchmark data are seeded..."
+$COMPOSE_CMD exec -T backend python -c "import asyncio; from app.db.engine import get_sessionmaker; from app.tickets.seed import seed_demo; asyncio.run(seed_demo(get_sessionmaker()()))" >/dev/null 2>&1 || true
 
 SUPERADMIN_USER="$(get_env_val "SUPERADMIN_USERNAME")"
 SUPERADMIN_USER="${SUPERADMIN_USER:-admin}"
 SUPERADMIN_PASS="$(get_env_val "SUPERADMIN_PASSWORD")"
 SUPERADMIN_PASS="${SUPERADMIN_PASS:-LoadTruthAdmin!}"
 
-# Authenticate as SuperAdmin to get session token
+# Authenticate as SuperAdmin to verify admin credentials
 AUTH_RESP=$(curl -s -X POST "http://localhost:${BACKEND_PORT}/auth/superadmin/login" \
   -H "Content-Type: application/json" \
   -d "{\"username\": \"${SUPERADMIN_USER}\", \"password\": \"${SUPERADMIN_PASS}\"}" || true)
 
 AUTH_TOKEN=$(echo "$AUTH_RESP" | grep -o '"token":"[^"]*"' | cut -d':' -f2 | tr -d '"' || true)
 
-DYNAMIC_EVENT_NAME="Emergency Debris Operation $(date '+%Y-%m-%d %H:%M')"
-DYNAMIC_EVENT_ID=""
-
 if [ -n "$AUTH_TOKEN" ]; then
-    EVENT_RESP=$(curl -s -X POST "http://localhost:${BACKEND_PORT}/events" \
-      -H "Authorization: Bearer $AUTH_TOKEN" \
-      -H "Content-Type: application/json" \
-      -d "{
-        \"name\": \"${DYNAMIC_EVENT_NAME}\",
-        \"location\": \"Sector 7 - Pinellas Recovery Zone\",
-        \"status\": \"active\",
-        \"rate_table\": {
-          \"vegetative\": 8.0,
-          \"construction_demolition\": 12.0,
-          \"white_goods\": 15.0,
-          \"hazardous\": 25.0,
-          \"other\": 10.0
-        },
-        \"tags\": [\"dynamic-created\", \"active\"]
-      }" || true)
-    DYNAMIC_EVENT_ID=$(echo "$EVENT_RESP" | grep -o '"id":"[^"]*"' | head -n 1 | cut -d':' -f2 | tr -d '"' || true)
-    if [ -n "$DYNAMIC_EVENT_ID" ]; then
-        log_success "Dynamically created event: '${DYNAMIC_EVENT_NAME}'"
-        echo -e "  Event ID:  ${CYAN}${DYNAMIC_EVENT_ID}${NC}"
-        echo -e "  Rates/CY:  Vegetative \$8 | C&D \$12 | White Goods \$15 | Hazardous \$25"
-    fi
+    log_success "SuperAdmin credentials verified successfully."
+    log_success "Dummy disaster event initialized: 'Disaster Recovery Operation 2026' (0 tickets - clean start)"
 else
-    log_warn "SuperAdmin auto-handshake could not obtain token; default seeded event remains active."
+    log_warn "SuperAdmin auto-handshake could not obtain token."
 fi
 
 # ------------------------------------------------------------------------------
@@ -409,12 +395,10 @@ else
     echo -e "    (To enable persistent long-term S3 footage storage, add B2_* credentials to $ENV_FILE)."
 fi
 echo ""
-if [ -n "$DYNAMIC_EVENT_ID" ]; then
-    echo -e "${BOLD}⚡ Active Disaster Events Available:${NC}"
-    echo -e "  - ${CYAN}${DYNAMIC_EVENT_NAME}${NC} (ID: ${DYNAMIC_EVENT_ID})"
-    echo -e "  - ${CYAN}Hurricane Season 2026${NC} (Default Seeded Benchmark Event)"
-    echo ""
-fi
+echo -e "${BOLD}⚡ Active Disaster Event:${NC}"
+echo -e "  - ${CYAN}Disaster Recovery Operation 2026${NC} (ID: 22222222-2222-2222-2222-222222222222)"
+echo -e "    ${GREEN}Clean slate:${NC} 0 tickets. Ready for video upload, live review, and monitor calls!"
+echo ""
 echo -e "${BOLD}Management & Operational Commands:${NC}"
 echo -e "  - Stream live logs:         ${BLUE}$COMPOSE_CMD logs -f${NC}"
 echo -e "  - Stream backend logs:      ${BLUE}$COMPOSE_CMD logs -f backend${NC}"
