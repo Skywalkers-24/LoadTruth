@@ -6,6 +6,7 @@
 
 <p>
   <a href="https://youtu.be/ilH6tjTAGKs">YouTube Demo</a> ·
+  <a href="https://github.com/Skywalkers-24/LoadTruth/releases/download/v1.0.0/LoadTruth_Demo.mp4">Backup Demo Video (MP4)</a> ·
   <a href="https://loadtruth.tiwabhay800.workers.dev/">Live Site</a> ·
   <a href="https://x.com/TAbhay_/status/2117253574615060641">X Post</a>
 </p>
@@ -43,7 +44,7 @@
 | **Track & Category** | **Track 1: Build for Your World** · Civic Tech, Infrastructure & Sustainability |
 | **Hackathon Provenance** | Built 100% from scratch during the hackathon window (October 26 – November 4, 2026). First commit: Oct 26. |
 | **Working Live App** | [https://loadtruth.tiwabhay800.workers.dev/](https://loadtruth.tiwabhay800.workers.dev/) *(Live production deployment with pre-seeded demo tickets & zero OAuth barriers)* |
-| **3-Minute Demo Video** | [https://youtu.be/ilH6tjTAGKs](https://youtu.be/ilH6tjTAGKs) *(3:00 stopwatch compliant with live UI footage, telemetry, and narration)* |
+| **3-Minute Demo Video** | [https://youtu.be/ilH6tjTAGKs](https://youtu.be/ilH6tjTAGKs) *(3:00 stopwatch compliant with live UI footage, telemetry, and narration)*<br>• **Permanent Backup (Release Asset):** [LoadTruth_Demo.mp4](https://github.com/Skywalkers-24/LoadTruth/releases/download/v1.0.0/LoadTruth_Demo.mp4)<br>• **In-Repo Mirror:** [`demo/LoadTruth_Demo.mp4`](demo/LoadTruth_Demo.mp4) |
 | **Meta AI Models & Partners** | • `SAM 3.1` (`api.meta.ai`): truck bed, load boundary & tailgate reference plane vector segmentation<br>• `Muse Spark 1.3` (`api.meta.ai`): multi-frame volumetric reasoning, placard OCR & debris material classification<br>• `Muse Voice Transcribe` (`api.meta.ai`): tower monitor radio transmission speech-to-text extraction<br>• `Muse Spark Open` / `Muse Glimmer` (`meta-models/muse-spark-open-1026`): load-bearing private/offline inference via **Baseten**, **Modal**, and **Fireworks AI** |
 
 ---
