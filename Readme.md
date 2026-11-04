@@ -5,10 +5,10 @@
 </a>
 
 <p>
-  <a href="https://youtu.be/ilH6tjTAGKs">YouTube Demo</a> ·
-  <a href="https://github.com/Skywalkers-24/LoadTruth/releases/download/v1.0.0/LoadTruth_Demo.mp4">Backup Demo Video (MP4)</a> ·
-  <a href="https://loadtruth.tiwabhay800.workers.dev/">Live Site</a> ·
-  <a href="https://x.com/TAbhay_/status/2117253574615060641">X Post</a>
+  <a href="https://loadtruth.tiwabhay800.workers.dev/">🌐 <b>Live Production App</b></a> ·
+  <a href="https://youtu.be/ilH6tjTAGKs">🎬 <b>3-Min Demo Video</b></a> ·
+  <a href="https://x.com/TAbhay_/status/2117253574615060641">𝕏 <b>Launch Announcement</b></a> ·
+  <a href="https://github.com/Skywalkers-24/LoadTruth/releases/download/v1.0.0/LoadTruth_Demo.mp4">📦 <b>Backup Video (MP4)</b></a>
 </p>
 
 <br/>
